@@ -35,7 +35,7 @@
 ### 3.1 DB 접속 정보 파일 생성
 src/main/resources/application-local.yml 파일을 직접 만들어야 합니다.
 
-yaml
+```yaml
 # src/main/resources/application-local.yml
 spring:
   datasource:
@@ -43,13 +43,15 @@ spring:
     username: DB계정
     password: DB비밀번호
 실제 값 예시 (application-local.yml.example 파일 참고):
+```
 
-yaml
+```yaml
 spring:
   datasource:
     url: jdbc:oracle:thin:@210.109.111.140:1309/orcl
     username: DACOS309
     password: 비밀번호
+```
     
 ### 3.3 Maven 프로젝트 인식 & 업데이트
 1. 프로젝트 우클릭 -> `Configure` -> `Convert to Maven Project` (이미 되어있다면 생략)
