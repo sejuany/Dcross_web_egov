@@ -32,14 +32,33 @@
 
 ## 3. 프로젝트 초기 설정
 
-### 3.1 Maven 프로젝트 인식 & 업데이트
+### 3.1 DB 접속 정보 파일 생성
+src/main/resources/application-local.yml 파일을 직접 만들어야 합니다.
+
+yaml
+# src/main/resources/application-local.yml
+spring:
+  datasource:
+    url: jdbc:oracle:thin:@{서버IP}:{포트}/{서비스명}
+    username: DB계정
+    password: DB비밀번호
+실제 값 예시 (application-local.yml.example 파일 참고):
+
+yaml
+spring:
+  datasource:
+    url: jdbc:oracle:thin:@210.109.111.140:1309/orcl
+    username: DACOS309
+    password: 비밀번호
+    
+### 3.3 Maven 프로젝트 인식 & 업데이트
 1. 프로젝트 우클릭 -> `Configure` -> `Convert to Maven Project` (이미 되어있다면 생략)
 2. 프로젝트 우클릭 -> `Maven` -> `Update Project...` -> `Force Update of Snapshots/Releases` 체크 후 OK
 3. (중요) 이클립스에서 프로젝트 선택 후 **F5 (Refresh)** 실행
 
 ### 3.2 리액트 의존성 설치 (최초 1회)
 - Maven 빌드 시 자동으로 수행되지만, 수동으로 하려면:
-  - `src/main/frontend` 폴더에서 터미널 열기
+  - `src/main/frontend` 폴더에서 터미널 열기 (cd C:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend)
   - `npm install` 실행
 
 ---
@@ -61,7 +80,7 @@
 
 ## 5. 참고 사항
 
-- **로그 확인**: 톰캣/이클립스 Console 창에서 확인 가능 (SLF4J/Logback 적용됨)
+- **로그 확인**: 톰캣/이클립스 Console 창에서 확인 가능 (logger.info , logger.error, logger.debug 등 사용가능)
 - **자동 재시작**: `spring-boot-devtools`가 포함되어 있어 자바 파일 수정 시 서버가 자동 재시작됩니다. (Eclipse의 `Project -> Build Automatically` 필수)
 - **정적 리소스**: 리액트 빌드 결과물은 자동으로 `src/main/resources/static`으로 배포됩니다.
 
