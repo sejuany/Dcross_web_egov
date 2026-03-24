@@ -34,7 +34,6 @@
 
 ### 3.1 DB 접속 정보 파일 생성
 src/main/resources/application-local.yml 파일을 직접 만들어야 합니다.
-
 ```yaml
 # src/main/resources/application-local.yml
 spring:
@@ -42,9 +41,9 @@ spring:
     url: jdbc:oracle:thin:@{서버IP}:{포트}/{서비스명}
     username: DB계정
     password: DB비밀번호
-실제 값 예시 (application-local.yml.example 파일 참고):
 ```
 
+실제 값 예시 (application-local.yml.example 파일 참고):
 ```yaml
 spring:
   datasource:
