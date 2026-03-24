@@ -1,10 +1,77 @@
 # Dcross_web_egov
+
+# Dcross 프로젝트 환경 설정 및 실행 매뉴얼
+
+본 프로젝트는 **전자정부 표준프레임워크(eGovFrame) 5.0**과 **React**가 통합된 환경입니다. 팀원들은 아래 절차에 따라 개발 환경을 구성해 주시기 바랍니다.
+
+## 1. 필수 소프트웨어 설치
+
+### 1.1 전자정부 표준프레임워크 개발환경 (IDE)
+- **버전**: v5.0.0 (Windows 64bit)
+- **다운로드**: [egovframe.go.kr](https://www.egovframe.go.kr/home/sub.do?menuNo=94) -> 개발환경 5.0 다운로드
+- **설치**: 압축 해제 후 `eclipse/eclipse.exe` 실행
+
+### 1.2 Node.js 설치
+- **버전**: v22.15.0 이상 (LTS 버전 추천)
+- **다운로드**: [nodejs.org](https://nodejs.org/)
+- **확인**: 터미널(CMD)에서 `node -v`, `npm -v` 명령어로 설치 확인
+
+### 1.3 SVN 플러그인 (Eclipse)
+- Eclipse 내 `Help` -> `Eclipse Marketplace` -> **Subversive** 또는 **Subclipse** 검색 후 설치
+
+---
+
+## 2. 프로젝트 다운로드 (SVN Checkout)
+
+1. Eclipse의 `SVN Repositories` 뷰에서 새 리포지토리 추가
+2. **URL**: https://desktop-nptddem/svn/Dcross_web_egov
+3. **리포지토리 명**: `Dcross_web_egov`
+4. 프로젝트 선택 후 `Check out` 실행
+
+---
+
+## 3. 프로젝트 초기 설정
+
+### 3.1 Maven 프로젝트 인식 & 업데이트
+1. 프로젝트 우클릭 -> `Configure` -> `Convert to Maven Project` (이미 되어있다면 생략)
+2. 프로젝트 우클릭 -> `Maven` -> `Update Project...` -> `Force Update of Snapshots/Releases` 체크 후 OK
+3. (중요) 이클립스에서 프로젝트 선택 후 **F5 (Refresh)** 실행
+
+### 3.2 리액트 의존성 설치 (최초 1회)
+- Maven 빌드 시 자동으로 수행되지만, 수동으로 하려면:
+  - `src/main/frontend` 폴더에서 터미널 열기
+  - `npm install` 실행
+
+---
+
+## 4. 실행 방법
+
+### 4.1 전체 통합 실행 (백엔드 + 프런트엔드)
+본 프로젝트는 자바 서버에서 리액트를 함께 서비스하도록 설정되어 있습니다.
+1. `Dcross_web_backend` 프로젝트 우클릭 -> **Run As -> Spring Boot App** (또는 Server 실행)
+2. **접속 주소**: `http://localhost:8081` (또는 지정된 포트)
+
+### 4.2 리액트 개발 모드 (Hot-Reload 필요 시)
+리액트 코드를 수정하면서 바로 확인하고 싶을 때 사용합니다.
+1. `src/main/frontend` 폴더에서 터미널 열기
+2. `npm start` 실행
+3. **접속 주소**: `http://localhost:3000` (백엔드로 자동 프록시 연결됨)
+
+---
+
+## 5. 참고 사항
+
+- **로그 확인**: 톰캣/이클립스 Console 창에서 확인 가능 (SLF4J/Logback 적용됨)
+- **자동 재시작**: `spring-boot-devtools`가 포함되어 있어 자바 파일 수정 시 서버가 자동 재시작됩니다. (Eclipse의 `Project -> Build Automatically` 필수)
+- **정적 리소스**: 리액트 빌드 결과물은 자동으로 `src/main/resources/static`으로 배포됩니다.
+
+
 # Dcross 프로젝트 개발 가이드
 
-## 1. 왜 이 기술 스택인가?
+## 1. 전자정부프레임워크 v5.0으로 바꾼 이유?
 
 ### 전자정부프레임워크(eGovFrame) + Spring Boot
-기존 프로젝트가 전자정부프레임워크 기반이었습니다. 전자정부프레임워크는 Spring MVC 위에서 동작하는데, 여기에 **Spring Boot를 함께 사용**한 이유는 다음과 같습니다:
+기존 프로젝트가 전자정부프레임워크3.6.xx 기반이었습니다. 전자정부프레임워크는 Spring MVC 위에서 동작하는데, 여기에 **Spring Boot를 함께 사용**한 이유는 다음과 같습니다:
 
 | 항목 | 기존 eGovFrame 단독 | eGovFrame + Spring Boot |
 |------|--------------------|-----------------------|
