@@ -77,14 +77,64 @@ spring:
 2. `npm start` 실행
 3. **접속 주소**: `http://localhost:3000` (백엔드로 자동 프록시 연결됨)
 
+
 ---
 
 ## 5. 참고 사항
 
 - **로그 확인**: 톰캣/이클립스 Console 창에서 확인 가능 (logger.info , logger.error, logger.debug 등 사용가능)
-- **자동 재시작**: `spring-boot-devtools`가 포함되어 있어 자바 파일 수정 시 서버가 자동 재시작됩니다. (Eclipse의 `Project -> Build Automatically` 필수)
+- **자동 재시작**: `spring-boot-devtools`가 포함되어 있어 자바 파일 수정 시 서버가 자동 재시작됩니다. (Eclipse의 상단 메뉴 `Project -> Build Automatically` 필수)
 - **정적 리소스**: 리액트 빌드 결과물은 자동으로 `src/main/resources/static`으로 배포됩니다.
 
+### 5.1 이클립스 /src/main 에서 svn에 싱크하지 않을 폴더 추가
+1. Project 우클릭 -> Properties -> Resouce -> Resource Filters
+2. Add filter -> Exclude all 클릭 -> Folders -> Filter Details 에 build 입력 후 OK 클릭
+3. Add filter -> Exclude all 클릭 -> Folders -> Filter Details 에 node_modules 입력 후 OK 클릭
+
+### 5-2 ** build 폴더에서 static 폴더로 이동 없이 저장 했을 때 로컬에 화면단 자동 반영 하는 법
+
+1. frontend/package.json 파일의 "scripts" 부분 아래처럼 변경 
+  ```
+"scripts": {
+    "start": "react-scripts start",
+    "build": "react-scripts build",
+    "test": "react-scripts test",
+    "eject": "react-scripts eject",
+    "build:watch": "chokidar \"src/**/*\" -c \"npm run build\"",
+    "sync": "xcopy /E /Y build\\* ..\\resources\\static\\",
+    "sync:watch": "chokidar \"build/**/*\" -c \"npm run sync\"",
+    "dev": "concurrently \"npm:build:watch\" \"npm:sync:watch\""
+  },
+```
+2. 프론트 라이브러리 파일 최초 1회 설치 
+```
+npm install
+npm install chokidar-cli concurrently --save-dev
+```
+
+2. 프론트 경로에서 자동 반영 모드 실행 ( 자동 빌드, 자동 반영 ) 
+```
+# D:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend
+또는
+# C:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend
+npm run dev
+```
+3. 프론트 개발 서버 실행 
+```
+# D:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend
+또는
+# C:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend
+npm start
+```
+
+4. 백엔드 실행 
+```
+이클립스에서 스프링부트 서버 켜놓은 상태로 경로 아래
+# D:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend
+또는
+# C:\eGovFrameDev-5.0.0-Windows-64bit\workspace-egov\Dcross_web_backend\src\main\frontend
+mvn spring-boot:run
+```
 
 # Dcross 프로젝트 개발 가이드
 
