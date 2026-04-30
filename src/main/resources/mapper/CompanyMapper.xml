@@ -1,0 +1,81 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.company.mapper.CompanyMapper">
+
+    <!-- 기업 목록 조회 -->
+    <select id="getCompanyList" parameterType="com.dacos.company.dto.CompanySearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TC.COMPANY_ID,
+            TC.COMPANY_NM,
+            TC.COMPANY_TYPE,
+            TC.CEO_NM,
+            TC.USE_YN,
+            TO_CHAR(TC.REG_DT, 'YYYYMMDD') AS REG_DT,
+            TC.BRANCH_ID
+        FROM TM_COMPANY TC
+        WHERE 1=1
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TC.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="COMPANY_NM != null and COMPANY_NM != ''">
+            AND TC.COMPANY_NM LIKE '%' || #{COMPANY_NM} || '%'
+        </if>
+        <if test="COMPANY_TYPE != null and COMPANY_TYPE != ''">
+            AND TC.COMPANY_TYPE = #{COMPANY_TYPE}
+        </if>
+        <if test="USE_YN != null and USE_YN != ''">
+            AND TC.USE_YN = #{USE_YN}
+        </if>
+        ORDER BY TC.COMPANY_ID
+    </select>
+
+    <!-- 기업 상세 조회 -->
+    <select id="getCompanyDetail" parameterType="string" resultType="java.util.Map">
+        SELECT * FROM TM_COMPANY WHERE COMPANY_ID = #{companyId}
+    </select>
+
+    <!-- 사용자 목록 조회 -->
+    <select id="getCompanyUserList" parameterType="com.dacos.company.dto.CompanySearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TM.MEMBER_ID,
+            TM.COMPANY_ID,
+            TC.COMPANY_NM,
+            TMD.MEMBER_NM,
+            TM.USE_YN,
+            TM.AUTH_CD,
+            TO_CHAR(TM.REG_DT, 'YYYYMMDD') AS REG_DT
+        FROM TM_MEMBER TM, TM_MEMBER_DT TMD, TM_COMPANY TC
+        WHERE TM.MEMBER_ID = TMD.MEMBER_ID
+          AND TM.COMPANY_ID = TC.COMPANY_ID
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TM.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="MEMBER_ID != null and MEMBER_ID != ''">
+            AND TM.MEMBER_ID LIKE '%' || #{MEMBER_ID} || '%'
+        </if>
+        ORDER BY TM.COMPANY_ID, TM.MEMBER_ID
+    </select>
+
+    <!-- 탈부착업체 목록 조회 -->
+    <select id="getNumplateDeliveryList" parameterType="com.dacos.company.dto.CompanySearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            ND.DELIVERY_ID,
+            ND.DELIVERY_NM,
+            ND.COMPANY_ID,
+            TC.COMPANY_NM,
+            ND.TEL_NO,
+            ND.USE_YN
+        FROM TM_NUMPLATE_DELIVERY ND, TM_COMPANY TC
+        WHERE ND.COMPANY_ID = TC.COMPANY_ID(+)
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND ND.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY ND.DELIVERY_ID
+    </select>
+
+</mapper>

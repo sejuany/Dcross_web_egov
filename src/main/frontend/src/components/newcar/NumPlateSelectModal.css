@@ -1,0 +1,127 @@
+.modal-overlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0,0,0,0.2);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-container.NumPlateSelect {
+    width: 400px;
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 6px 20px rgba(0,0,0,0.15);
+    overflow: hidden;
+}
+
+.modal-container.NumPlateSelect * {
+    font-size: 14px;
+}
+
+.NumPlateSelect .modal-header span {
+    font-size: 16px;
+}
+
+.NumPlateSelect .btn {
+	padding: 8px 12px;
+	font-size: 14px;
+}
+
+.NumPlateSelect .modal-header {
+    background: #102C57;
+    color: #fff;
+    padding: 10px 12px 10px 16px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: 500;
+}
+
+.close-btn {
+    background: none;
+    border: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+}
+
+.modal-body {
+    padding: 12px;
+}
+
+.search-row {
+    display: flex;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.NumPlateSelect .search-row select, .NumPlateSelect .search-row input {
+	height: 32px
+}
+
+.search-row label {
+    width: 50px;
+    font-size: 13px;
+    color: #383434;
+    padding-left: 8px;
+    font-weight: 600;
+    font-size: 15px;
+}
+
+.search-row select,
+.search-row input {
+    flex: 1;
+    height: 28px;
+    border: 1px solid #ced4da;
+    padding: 0 6px;
+    border-radius: 4px;
+}
+
+.grid-box {
+    margin-top: 10px;
+    border: 1px solid #ced4da;
+    border-radius: 4px;
+    overflow: hidden;
+}
+
+.grid-header {
+    background: #f1f3f5;
+    padding: 6px;
+    text-align: center;
+    font-weight: 500;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.grid-body {
+    height: 140px;
+    background: #fff;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px;
+    border-top: 1px solid #eee;
+}
+
+.btn {
+    padding: 5px 10px;
+    border-radius: 4px;
+    border: none;
+    cursor: pointer;
+}
+
+.btn.light {
+    background: #e9ecef;
+}
+
+.btn.primary {
+    background: #102C57;
+    color: #fff;
+}

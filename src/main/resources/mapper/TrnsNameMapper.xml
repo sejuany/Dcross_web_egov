@@ -1,0 +1,119 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.trnsname.mapper.TrnsNameMapper">
+
+    <!-- 이전등록 목록 조회 -->
+    <select id="getTrnsNameList" parameterType="com.dacos.trnsname.dto.TrnsNameSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TS.MEMBER_ID,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TO_CHAR(TS.PROC_DT, 'YYYYMMDD')         AS PROC_DT,
+            TS.PROC_ST,
+            TS.GOVT_ID,
+            TMD.MEMBER_NM
+        FROM
+            TR_SERVICE     TS,
+            TM_COMPANY     TC,
+            TM_MEMBER_DT   TMD
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.MEMBER_ID = TMD.MEMBER_ID
+            AND TS.WORK_CD LIKE 'TRNS%'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="PROC_ST != null and PROC_ST != ''">
+            AND TS.PROC_ST = #{PROC_ST}
+        </if>
+        <if test="CAR_NO != null and CAR_NO != ''">
+            AND TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+        </if>
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 이전등록 상세 조회 -->
+    <select id="getTrnsNameDetail" parameterType="string" resultType="java.util.Map">
+        SELECT *
+        FROM TR_SERVICE
+        WHERE SERVICE_ID = #{serviceId}
+    </select>
+
+    <!-- 등록증발송현황 목록 조회 -->
+    <select id="getCarpRequestList" parameterType="com.dacos.trnsname.dto.TrnsNameSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 탈부착요청현황 목록 조회 -->
+    <select id="getTrnsNumChangeList" parameterType="com.dacos.trnsname.dto.TrnsNameSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD = 'NUMCHG'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 오프라인 목록 조회 -->
+    <select id="getOfflineList" parameterType="com.dacos.trnsname.dto.TrnsNameSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD = 'OFFLINE'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+</mapper>

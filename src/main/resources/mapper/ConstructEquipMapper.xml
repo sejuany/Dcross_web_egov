@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.constructequip.mapper.ConstructEquipMapper">
+
+    <!-- 건설기계설정 목록 조회 -->
+    <select id="getCeMortRegList" parameterType="com.dacos.constructequip.dto.ConstructEquipSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TO_CHAR(TS.PROC_DT, 'YYYYMMDD')         AS PROC_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD LIKE 'CE%'
+            AND TS.WORK_CD NOT LIKE 'CERS%'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="PROC_ST != null and PROC_ST != ''">
+            AND TS.PROC_ST = #{PROC_ST}
+        </if>
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 건설기계설정 상세 조회 -->
+    <select id="getCeMortRegDetail" parameterType="string" resultType="java.util.Map">
+        SELECT *
+        FROM TR_SERVICE
+        WHERE SERVICE_ID = #{serviceId}
+    </select>
+
+    <!-- 건설기계말소 목록 조회 -->
+    <select id="getCeMortErsList" parameterType="com.dacos.constructequip.dto.ConstructEquipSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD LIKE 'CERS%'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 건기다건말소 목록 조회 -->
+    <select id="getCeMortErsGroupList" parameterType="com.dacos.constructequip.dto.ConstructEquipSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD = 'CERSGRP'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+</mapper>

@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="WARN">
+    <Appenders>
+        <!-- 콘솔 출력 설정 -->
+        <Console name="Console" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{MM-dd HH:mm:ss.SSS} [%replace{%t}{tomcat-handler-}{H-}] %-5level %logger{2.} - %msg%n"/>
+        </Console>
+    </Appenders>
+    
+    <Loggers>
+        <!-- dacos 패키지 로그 레벨 설정 -->
+        <Logger name="com.dacos" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        
+        <!-- 스프링 및 기타 로그 레벨 설정 -->
+        <Logger name="org.springframework" level="info" additivity="false">
+            <AppenderRef ref="Console"/>
+        </Logger>
+        
+        <!-- 쿼리 출력 -->
+		<Logger name="p6spy" level="info" additivity="false">
+		    <AppenderRef ref="Console"/>
+		</Logger>        
+
+        <!-- 루트 로그 설정 -->
+        <Root level="warn">
+            <AppenderRef ref="Console"/>
+        </Root>
+    </Loggers>
+</Configuration>

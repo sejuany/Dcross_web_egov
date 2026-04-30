@@ -1,0 +1,371 @@
+:root {
+    --primary-blue: #1c3553;
+    --accent-blue: #2c4a6e;
+    --text-white: #ffffff;
+    --text-muted: #a0aec0;
+    --bg-light: #ffffff;
+    --input-border: #e2e8f0;
+    --btn-gray: #718096;
+    --btn-hover: #4a5568;
+}
+
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Pretendard', sans-serif;
+}
+
+body,
+html {
+    height: 100%;
+    width: 100%;
+    overflow: hidden;
+    /* 스크롤 절대 방지 */
+}
+
+#root {
+    height: 100%;
+    min-width: 1280px;
+}
+
+.login-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    overflow: hidden;
+}
+
+/* Left Section: Branding */
+.login-left {
+    flex: 1;
+    background-color: var(--primary-blue);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--text-white);
+    padding: 2rem;
+    min-width: 300px;
+}
+
+.brand-content {
+    width: 100%;
+    max-width: 530px;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.main-logo {
+    width: 100%;
+    max-width: 350px;
+    /* 로고 크기 조절 */
+    height: auto;
+    margin-bottom: 1rem;
+    object-fit: contain;
+}
+
+.brand-tagline {
+    font-size: clamp(0.9rem, 1.2vw, 1.1rem);
+    font-weight: 300;
+    margin-bottom: 2.5rem;
+    letter-spacing: 2px;
+    opacity: 0.9;
+}
+
+.notice-box {
+    font-size: clamp(0.7rem, 0.9vw, 0.8rem);
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.6);
+    border-top: 1px solid rgba(255, 255, 255, 0.15);
+    padding-top: 1.5rem;
+    width: 100%;
+    text-align: left;
+}
+
+.notice-box p {
+    margin-bottom: 0.5rem;
+}
+
+/* Right Section: Login Form */
+.login-right {
+    flex: 1.2;
+    background-color: var(--bg-light);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+}
+
+.form-wrapper {
+    width: 100%;
+    max-width: 360px;
+}
+
+.welcome-text {
+    font-size: clamp(1.8rem, 2.5vw, 2.8rem);
+    color: var(--primary-blue);
+    text-align: center;
+    margin-bottom: 3.5rem;
+    font-weight: 800;
+    position: relative;
+    padding-bottom: 1rem;
+    letter-spacing: -1px;
+}
+
+.welcome-text::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 60px;
+    height: 4px;
+    background-color: var(--primary-blue);
+    border-radius: 2px;
+}
+
+.input-group {
+    margin-bottom: 1.8rem;
+    position: relative;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 12px 0;
+    border: none;
+    border-bottom: 2px solid var(--input-border);
+    font-size: 1rem;
+    outline: none;
+    transition: all 0.3s ease;
+    background: transparent;
+}
+
+.input-group input:focus {
+    border-bottom-color: var(--primary-blue);
+}
+
+.input-group input::placeholder {
+    color: #cbd5e0;
+}
+
+.login-btn {
+    width: 100%;
+    padding: 1.1rem;
+    background-color: var(--primary-blue);
+    /* 버튼 색상을 메인 컬러로 변경하여 더 고급스럽게 */
+    color: white;
+    border: none;
+    border-radius: 8px;
+    /* 둥근 버튼보다 약간 각진 형태가 더 전문적일 수 있음 */
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    margin-top: 1.5rem;
+    letter-spacing: 1px;
+}
+
+.login-btn:hover {
+    background-color: var(--accent-blue);
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(28, 53, 83, 0.2);
+}
+
+.login-btn:active {
+    transform: translateY(0);
+}
+
+.form-footer {
+    margin-top: 1.5rem;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Checkbox Customization */
+.checkbox-container {
+    display: flex;
+    align-items: center;
+    font-size: 0.85rem;
+    color: #718096;
+    cursor: pointer;
+    -webkit-user-select: none;
+    user-select: none;
+}
+
+.checkbox-container input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    height: 18px;
+    width: 18px;
+    background-color: #edf2f7;
+    border: 1px solid #cbd5e0;
+    margin-right: 10px;
+    border-radius: 4px;
+    transition: all 0.2s;
+}
+
+.checkbox-container:hover input~.checkmark {
+    background-color: #e2e8f0;
+}
+
+.checkbox-container input:checked~.checkmark {
+    background-color: var(--primary-blue);
+    border-color: var(--primary-blue);
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+.checkbox-container input:checked~.checkmark:after {
+    display: block;
+}
+
+/* Responsive Design */
+@media (max-width: 900px) {
+    .login-left {
+        padding: 1.5rem;
+    }
+
+    .main-logo {
+        max-width: 280px;
+    }
+}
+
+@media (max-width: 700px) {
+
+    body,
+    html {
+        overflow: auto;
+        /* 모바일에서는 스크롤 허용 */
+    }
+
+    .login-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 100vh;
+        overflow: auto;
+    }
+
+    .login-left {
+        flex: none;
+        height: 40vh;
+        min-height: 300px;
+    }
+
+    .login-right {
+        flex: none;
+        height: 60vh;
+        min-height: 450px;
+        padding-bottom: 3rem;
+    }
+
+    .welcome-text {
+        margin-bottom: 2rem;
+    }
+}
+
+/* -------------------------------------
+   Toast Message Notification Styles
+------------------------------------- */
+.toast-notification {
+    position: fixed !important;
+    bottom: 50px !important;
+    left: 50% !important;
+    transform: translateX(-50%) !important;
+    background-color: rgba(51, 51, 51, 0.9) !important;
+    color: white !important;
+    padding: 12px 24px !important;
+    border-radius: 8px !important;
+    font-size: 14px !important;
+    z-index: 9999 !important;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3) !important;
+    animation: fadeInOut 2s forwards;
+    white-space: nowrap !important;
+    height: auto !important;
+    min-height: 20px !important;
+    width: auto !important;
+    display: block !important;
+    text-align: center !important;
+    top: auto !important;
+}
+
+@keyframes fadeInOut {
+    0% {
+        opacity: 0;
+        bottom: 40px;
+    }
+
+    15% {
+        opacity: 1;
+        bottom: 50px;
+    }
+
+    85% {
+        opacity: 1;
+        bottom: 50px;
+    }
+
+    100% {
+        opacity: 0;
+        bottom: 40px;
+    }
+}
+
+.signup-guide {
+    margin-top: 14px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.85rem;
+    color: #718096;
+}
+
+.signup-link-btn {
+    border: none;
+    background: transparent;
+    color: var(--primary-blue);
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+    padding: 0;
+    position: relative;
+}
+
+.signup-link-btn::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -3px;
+    width: 0;
+    height: 1px;
+    background-color: var(--primary-blue);
+    transition: width 0.2s ease;
+}
+
+.signup-link-btn:hover::after {
+    width: 100%;
+}
+
+.signup-link-btn:hover {
+    color: var(--accent-blue);
+}

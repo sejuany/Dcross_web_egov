@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.commonmenu.mapper.CommonMenuMapper">
+
+    <!-- 코드 목록 조회 -->
+    <select id="getCodeList" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+            resultType="java.util.Map">
+        SELECT CODE_ID, CODE_NM, CODE_TYPE, USE_YN, ORDER_NO
+        FROM TM_CODE
+        WHERE 1=1
+        <if test="SEARCH_KEYWORD != null and SEARCH_KEYWORD != ''">
+            AND (CODE_ID LIKE '%' || #{SEARCH_KEYWORD} || '%'
+              OR CODE_NM LIKE '%' || #{SEARCH_KEYWORD} || '%')
+        </if>
+        ORDER BY CODE_TYPE, ORDER_NO
+    </select>
+
+    <!-- 게시판 목록 조회 -->
+    <select id="getBoardList" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            BD.BOARD_ID,
+            BD.TITLE,
+            BD.CONTENT,
+            BD.MEMBER_ID,
+            BD.USE_YN,
+            TO_CHAR(BD.REG_DT, 'YYYYMMDD') AS REG_DT
+        FROM TM_BOARD BD
+        WHERE 1=1
+        <if test="SEARCH_KEYWORD != null and SEARCH_KEYWORD != ''">
+            AND BD.TITLE LIKE '%' || #{SEARCH_KEYWORD} || '%'
+        </if>
+        ORDER BY BD.REG_DT DESC
+    </select>
+
+    <!-- 메뉴 목록 조회 -->
+    <select id="getMenuList" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+            resultType="java.util.Map">
+        SELECT MENU_ID, MENU_NM, PARENT_MENU_ID, MENU_URL, USE_YN, ORDER_NO
+        FROM TM_MENU
+        WHERE 1=1
+        ORDER BY PARENT_MENU_ID, ORDER_NO
+    </select>
+
+    <!-- 로그인 로그 조회 -->
+    <select id="getLoginLogList" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            LL.LOG_ID,
+            LL.MEMBER_ID,
+            LL.COMPANY_ID,
+            TC.COMPANY_NM,
+            LL.LOGIN_IP,
+            LL.LOGIN_ST,
+            TO_CHAR(LL.LOGIN_DT, 'YYYY-MM-DD HH24:MI:SS') AS LOGIN_DT
+        FROM TM_LOGIN_LOG LL, TM_COMPANY TC
+        WHERE LL.COMPANY_ID = TC.COMPANY_ID(+)
+          AND LL.LOGIN_DT BETWEEN
+              TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+              AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        <if test="MEMBER_ID != null and MEMBER_ID != ''">
+            AND LL.MEMBER_ID LIKE '%' || #{MEMBER_ID} || '%'
+        </if>
+        ORDER BY LL.LOGIN_DT DESC
+    </select>
+
+    <!-- 조회 로그 조회 -->
+    <select id="getSearchLogList" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            SL.LOG_ID,
+            SL.MEMBER_ID,
+            SL.COMPANY_ID,
+            TC.COMPANY_NM,
+            SL.SEARCH_TYPE,
+            SL.SEARCH_KEY,
+            TO_CHAR(SL.SEARCH_DT, 'YYYY-MM-DD HH24:MI:SS') AS SEARCH_DT
+        FROM TM_SEARCH_LOG SL, TM_COMPANY TC
+        WHERE SL.COMPANY_ID = TC.COMPANY_ID(+)
+          AND SL.SEARCH_DT BETWEEN
+              TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+              AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY SL.SEARCH_DT DESC
+    </select>
+
+    <!-- 권한변경이력 조회 -->
+    <select id="getAccountHistoryList" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            AH.HIST_ID,
+            AH.MEMBER_ID,
+            AH.BEFORE_AUTH,
+            AH.AFTER_AUTH,
+            AH.CHG_MEMBER_ID,
+            TO_CHAR(AH.CHG_DT, 'YYYY-MM-DD HH24:MI:SS') AS CHG_DT
+        FROM TM_ACCOUNT_HISTORY AH
+        WHERE AH.CHG_DT BETWEEN
+            TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+            AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        <if test="MEMBER_ID != null and MEMBER_ID != ''">
+            AND AH.MEMBER_ID LIKE '%' || #{MEMBER_ID} || '%'
+        </if>
+        ORDER BY AH.CHG_DT DESC
+    </select>
+	
+	<!-- 세금 정보 조회 -->
+	<select id="getTmTax" parameterType="string" resultType="java.util.Map" >
+        SELECT
+	        WORK_CD,
+	        STAMP_PER,
+	        STAMP_AMT,
+	        REGIST_PER,
+	        REGIST_AMT,
+	        STAMP_BASE,
+	        REGIST_BASE,
+	        ACQ1_PER,
+	        ACQ2_PER,
+	        ACQ3_PER,
+	        ACQ210_PER,
+	        ACQ211_PER,
+	        ACQ0_PER         
+	    FROM
+	        TM_TAX         
+	    WHERE
+	        WORK_CD =  #{WORK_CD}
+	        AND sysdate between start_dt and end_dt         
+	        AND USE_YN = 'Y'
+	</select>
+	
+	<!-- 서비스 사용 조회 -->
+	<select id="getWorkCp" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest" resultType="java.util.Map" >
+		SELECT WORK_CD,
+		       COMPANY_ID,
+		       GOVT_ID,
+		       PERM_GB,
+		       PAYMENT_GB,
+		       PAYMENT_OP,
+		       PAYMENT_TP,
+		       PAYMENT_ME,
+		       FEE,
+		       USE_YN
+		  FROM TM_WORK_CP
+		 WHERE COMPANY_ID = #{COMPANY_ID}
+		   AND WORK_CD = #{WORK_CD}
+		   AND USE_YN = 'Y'
+	</select>
+
+</mapper>

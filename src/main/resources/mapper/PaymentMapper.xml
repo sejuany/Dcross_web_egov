@@ -1,0 +1,380 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.payment.mapper.PaymentMapper">
+
+    <!-- 납부현황 조회 -->
+    <select id="getPayInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+		<choose>
+		        <otherwise>
+		            /* 1. TR_MORTGAGE (저당권 관련) */
+		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
+		                   TO_CHAR(TS.REQUEST_DT,'YYYYMMDD') as REQUEST_DT, TS.REQUEST_DT AS SORT_DT,
+		                   TO_CHAR(TS.JUDGE_DT,'YYYYMMDD') as JUDGE_DT, TO_CHAR(TM.PAY_DT,'YYYYMMDD') as PAY_DT,
+		                   TM.VBANK_NO, TM.TOTAL_AMT, TMD.MEMBER_NM, TB.BRANCH_NM, TS.MEMBER_ID, TC.COMPANY_NM,
+		                   DECODE(TS.WORK_CD, '000', TM.MORT_NM, TM.PAY_NM) as REQUEST_NM,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'FEE') FEE_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'STAMP') STAMP_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'REGIS') REGIS_AMT,
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'REGIS') EPAY_NO,
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG') UREG_EPAY_NO,
+		                   0 PRE_ACQ_AMT, 0 ACQ_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'INJI') INJI_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BOND') BOND_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BFEE') BFEE_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TMAN') TMAN_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TPROX') TPROX_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TNUM') NUMP_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UNUM') NUMP_PROXY_AMT,
+		                   (SELECT CONFIRM_NO FROM TR_MORTGAGE WHERE SERVICE_ID = TS.SERVICE_ID) as CONFIRM_NO,
+		                   TM.DSIGN_GB, TS.GOVT_ID, TM.PAY_TP, TCI.CARID_NO, '' AS INJI_NO,
+		                   DECODE(TS.WORK_CD, '000', TM.MORT_NM, '001', TM.PAY_NM) as CU_NAME,
+		                   DECODE(TS.WORK_CD, '000', '2', '') as REG_GB, 
+		                   DECODE(TS.WORK_CD, '000', TC.COMPANY_NO, '') as REG_NO, 
+		                   '' as CAR_NM, '' as GOVT_TX,
+		                   (SELECT DECODE(COUNT(*), 0, 0, COUNT(*)-1) FROM TR_JOINT WHERE SERVICE_ID = TS.SERVICE_ID) AS MORT_COUNT,
+		                   '' as BASE_ADDRESS, 0 ORIX_NEWCAR_AMT, '' as TASK_CD                
+		            FROM TR_SERVICE TS, TR_MORTGAGE TM, TM_MEMBER_DT TMD, TM_COMPANY TC, TM_BRANCH TB, TR_CARINFO TCI
+		            WHERE TS.SERVICE_ID = TM.SERVICE_ID
+		              AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID AND TS.COMPANY_ID = TMD.COMPANY_ID AND TS.MEMBER_ID = TMD.MEMBER_ID
+		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
+		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID  
+		              AND TS.SERVICE_ID = TCI.SERVICE_ID
+		              <include refid="commonWhereSql" />
+		
+		            UNION ALL
+		
+		            /* 2. TR_TRNSNAME (이전등록 관련) */
+		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
+		                   TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') as REQUEST_DT, TS.REQUEST_DT AS SORT_DT,
+		                   TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') as JUDGE_DT, TO_CHAR(TM.PAY_DT, 'YYYYMMDD') as PAY_DT,
+		                   TM.VBANK_NO, TM.TOTAL_AMT, NVL(TMD.MEMBER_NM, '다코스대행') AS MEMBER_NM,
+		                   TB.BRANCH_NM, TS.MEMBER_ID, TC.COMPANY_NM, TNB.BUY_NM as REQUEST_NM,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'FEE') FEE_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'STAMP') STAMP_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG') REGIS_AMT,
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ') EPAY_NO,
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG') UREG_EPAY_NO,
+		                   0 PRE_ACQ_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ') ACQ_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'INJI') INJI_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BOND') BOND_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BFEE') BFEE_AMT,  
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'MCHG') TMAN_AMT,  
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TPROX') TPROX_AMT,  
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TNUM') NUMP_AMT,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UNUM') NUMP_PROXY_AMT,  
+		                   (SELECT CONFIRM_NO FROM TR_DSIGN WHERE SERVICE_ID = TS.SERVICE_ID AND DSIGN_SEQ = 1) as CONFIRM_NO,
+		                   TNS.DSIGN_GB as DSIGN_GB, TS.GOVT_ID, TM.PAY_TP as PAY_TP, TM.CARID_NO, TM.INJI_NO, TNB.BUY_NM as CU_NAME,
+		                   DECODE(TNB.REG_GB, 'R', '1', 'F', '1', '2') as REG_GB, 
+		                   DECODE(TNB.REG_GB, 'R', SUBSTR(PKG_COMMON.FN_DECRYPT(TNB.REG_NO), 1, 6), 'F', SUBSTR(PKG_COMMON.FN_DECRYPT(TNB.REG_NO), 1, 6), PKG_COMMON.FN_DECRYPT(TNB.REG_NO)) as REG_NO,
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'MCHG') as CAR_NM,
+		                   '' as GOVT_TX, 0 AS MORT_COUNT, '' as BASE_ADDRESS, 0 ORIX_NEWCAR_AMT, '' as TASK_CD
+		            FROM TR_SERVICE TS, TR_TRNSNAME TM, TR_TRNSNAME_BUY TNB, TR_TRNSNAME_SELL TNS, TM_MEMBER_DT TMD, TM_COMPANY TC, TM_BRANCH TB
+		            WHERE TS.SERVICE_ID = TM.SERVICE_ID AND TS.SERVICE_ID = TNB.SERVICE_ID AND TS.SERVICE_ID = TNS.SERVICE_ID  
+		              AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
+		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
+		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID    
+		              <include refid="commonWhereSql" />
+		              <if test="TASK_CD != null and TASK_CD != ''"> AND TM.TASK_CD = #{TASK_CD} </if>
+		
+		            <if test="GOVT_ID != null and GOVT_ID != ''">
+		            UNION ALL
+		            /* 3. TR_CARNO_DETACH (번호판 반납/교체) */
+		            SELECT '032', TS.SERVICE_ID, TCD.POST_CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
+		                   TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') as REQUEST_DT, TS.REQUEST_DT AS SORT_DT,
+		                   TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') as JUDGE_DT, TO_CHAR(TM.PAY_DT, 'YYYYMMDD') as PAY_DT,
+		                   TM.VBANK_NO, TM.TOTAL_AMT, NVL(TMD.MEMBER_NM, '다코스대행'), TB.BRANCH_NM, TS.MEMBER_ID, TC.COMPANY_NM, TNB.BUY_NM,
+		                   0, 0, (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'MCHG'),
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'MCHG'),
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG'), 0, 0, 0, 0, 0, 0, 0, 0, 0,
+		                   (SELECT CONFIRM_NO FROM TR_DSIGN WHERE SERVICE_ID = TS.SERVICE_ID AND DSIGN_SEQ = 1),
+		                   TNS.DSIGN_GB, TS.GOVT_ID, TM.PAY_TP, TM.CARID_NO, '', TNB.BUY_NM,
+		                   DECODE(TNB.REG_GB, 'R', '1', 'F', '1', '2'), 
+		                   DECODE(TNB.REG_GB, 'R', SUBSTR(PKG_COMMON.FN_DECRYPT(TNB.REG_NO), 1, 6), 'F', SUBSTR(PKG_COMMON.FN_DECRYPT(TNB.REG_NO), 1, 6), PKG_COMMON.FN_DECRYPT(TNB.REG_NO)),
+		                   '', '', 0, '', 0, ''
+		            FROM TR_SERVICE TS, TR_TRNSNAME TM, TR_TRNSNAME_BUY TNB, TR_TRNSNAME_SELL TNS, TM_MEMBER_DT TMD, TM_COMPANY TC, TM_BRANCH TB, TR_CARNO_DETACH TCD
+		            WHERE TS.SERVICE_ID = TM.SERVICE_ID AND TS.SERVICE_ID = TNB.SERVICE_ID AND TS.SERVICE_ID = TNS.SERVICE_ID AND TS.SERVICE_ID = TCD.SERVICE_ID
+		              AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
+		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
+		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID  
+		              AND (TM.CAR_NO LIKE '%하%' OR TM.CAR_NO LIKE '%허%' OR TM.CAR_NO LIKE '%호%')      
+		              <include refid="commonWhereSql" />
+		            </if>
+		
+		            UNION ALL
+		            /* 4. TR_MODIFY (변경등록 관련) */
+		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
+		                   TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') as REQUEST_DT, TS.REQUEST_DT AS SORT_DT,
+		                   TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') as JUDGE_DT, TO_CHAR(TM.PAY_DT, 'YYYYMMDD') as PAY_DT,
+		                   TM.VBANK_NO, TM.TOTAL_AMT, NVL(TMD.MEMBER_NM, '다코스대행'), TB.BRANCH_NM, TS.MEMBER_ID, TC.COMPANY_NM, TM.OWNER_NM,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'FEE'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'STAMP'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'REGIS'),
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'REGIS'),
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG'),
+		                   0, 0, 0, 0, 0, 0, 0,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TNUM'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UNUM'),
+		                   (SELECT CONFIRM_NO FROM TR_DSIGN WHERE SERVICE_ID = TS.SERVICE_ID AND DSIGN_SEQ = 1),
+		                   '', TS.GOVT_ID, 'GUN', TM.CARID_NO, '', 
+		                   TM.OWNER_NM, DECODE(TM.REG_GB, 'R', '1', 'F', '1', '2'), 
+		                   DECODE(TM.REG_GB, 'R', SUBSTR(PKG_COMMON.FN_DECRYPT(TM.REG_NO), 1, 6), 'F', SUBSTR(PKG_COMMON.FN_DECRYPT(TM.REG_NO), 1, 6), PKG_COMMON.FN_DECRYPT(TM.REG_NO)),
+		                   '', '', 0, '', 0, ''
+		            FROM TR_SERVICE TS, TR_MODIFY TM, TM_MEMBER_DT TMD, TM_COMPANY TC, TM_BRANCH TB
+		            WHERE TS.SERVICE_ID = TM.SERVICE_ID AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
+		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
+		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID    
+		              <include refid="commonWhereSql" />
+		
+		            UNION ALL
+		            /* 5. TR_NEWCAR (신규등록 관련) */
+		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
+		                   TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') as REQUEST_DT, TS.REQUEST_DT AS SORT_DT,
+		                   TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') as JUDGE_DT, TO_CHAR(TM.PAY_DT, 'YYYYMMDD') as PAY_DT,
+		                   TM.VBANK_NO, TM.TOTAL_AMT, NVL(TMD.MEMBER_NM, '다코스대행'), TB.BRANCH_NM, TS.MEMBER_ID, TC.COMPANY_NM, TM.OWNER_NM,
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'FEE'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'STAMP'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG'),
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ'),
+		                   (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG'),
+		                   (SELECT PRE_PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'INJI'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BOND'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BFEE'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TMAN'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TPROX'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TNUM'),
+		                   (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UNUM'),
+		                   (SELECT CONFIRM_NO FROM TR_DSIGN WHERE SERVICE_ID = TS.SERVICE_ID AND DSIGN_SEQ = 1),
+		                   '', TS.GOVT_ID, TM.BOND_DC, TM.CARID_NO, TM.INJI_NO, TM.OWNER_NM,
+		                   DECODE(TM.REG_GB, 'R', '1', 'F', '1', '2'), 
+		                   DECODE(TM.REG_GB, 'R', SUBSTR(PKG_COMMON.FN_DECRYPT(TM.REG_NO), 1, 6), 'F', SUBSTR(PKG_COMMON.FN_DECRYPT(TM.REG_NO), 1, 6), PKG_COMMON.FN_DECRYPT(TM.REG_NO)),
+		                   TM.CAR_NM, TM.GOVT_TX, 0, PKG_COMMON.FN_DECRYPT(TM.BASE_ADDRESS),
+		                   (SELECT SUM(PAY_AMT) FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD IN ('FEE','BOND','BFEE','TNUM', 'UNUM')),
+		                   TM.TASK_CD
+		            FROM TR_SERVICE TS, TR_NEWCAR TM, TM_MEMBER_DT TMD, TM_COMPANY TC, TM_BRANCH TB
+		            WHERE TS.SERVICE_ID = TM.SERVICE_ID AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
+		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
+		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID    
+		              <include refid="commonWhereSql" />
+		              <if test="LOCAL_ID != null and LOCAL_ID != ''">
+		                  <choose>
+		                      <when test="LOCAL_ID == 'LOCAL'"> AND TM.IMSIGV_CD = #{GOVT_ID} </when>
+		                      <otherwise> AND (TM.IMSIGV_CD <![CDATA[<>]]> #{GOVT_ID} OR TM.IMSIGV_CD IS NULL) </otherwise>
+		                  </choose>
+		              </if>
+		        </otherwise>
+		    </choose>
+		    ORDER BY SORT_DT DESC
+		</select>
+		
+		<sql id="commonWhereSql">
+		    <if test="WORK_CD != null and WORK_CD != ''"> AND TS.WORK_CD = #{WORK_CD} </if>
+		    <if test="COMPANY_ID != null and COMPANY_ID != ''"> AND TS.COMPANY_ID = #{COMPANY_ID} </if>
+		    <if test="CAR_NO != null and CAR_NO != ''"> AND TS.CAR_NO LIKE '%' || #{CAR_NO} || '%' </if>
+		    <if test="USER_NM != null and USER_NM != ''"> AND TMD.MEMBER_NM LIKE '%' || #{USER_NM} || '%' </if>
+		    <if test="GOVT_ID != null and GOVT_ID != ''"> AND TS.GOVT_ID = #{GOVT_ID} </if>		    
+		    <choose>
+		        <when test="PROC_ST != null and PROC_ST != ''"> AND TS.PROC_ST = #{PROC_ST} </when>
+		        <otherwise> AND TS.PROC_ST <![CDATA[<>]]> 'DEL' </otherwise>
+		    </choose>
+		    /* 디버깅용 로그: [${BASE_GUBUN}] */
+		    <choose>
+		    	<when test="BASE_GUBUN != null and BASE_GUBUN != '' and BASE_GUBUN == 'REQUEST_DT'">
+		    		AND TS.REQUEST_DT BETWEEN TO_DATE(#{START_DT}, 'YYYYMMDD') AND TO_DATE(#{END_DT} || ' 23:59:59', 'YYYYMMDD HH24:MI:SS')
+		    	</when>
+		    	<when test="BASE_GUBUN != null and BASE_GUBUN != '' and BASE_GUBUN == 'PROC_DT'">
+		    		AND TS.PROC_DT BETWEEN TO_DATE(#{START_DT}, 'YYYYMMDD') AND TO_DATE(#{END_DT} || ' 23:59:59', 'YYYYMMDD HH24:MI:SS')
+		    	</when>		    	
+		    	<otherwise>AND TS.REQUEST_DT BETWEEN TO_DATE(#{START_DT}, 'YYYYMMDD') AND TO_DATE(#{END_DT} || ' 23:59:59', 'YYYYMMDD HH24:MI:SS')</otherwise>
+		    </choose>
+		</sql>
+
+    <!-- 통합가상계좌 조회 -->
+    <select id="getTvbankList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TV.TVBANK_ID,
+            TV.COMPANY_ID,
+            TC.COMPANY_NM,
+            TV.VBANK_NO,
+            TV.USE_YN,
+            TV.BALANCE_AMT
+        FROM
+            TM_TVBANK_MANAGE  TV,
+            TM_COMPANY        TC
+        WHERE
+            TV.COMPANY_ID = TC.COMPANY_ID(+)
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TV.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY TV.COMPANY_ID
+    </select>
+
+    <!-- 매출현황 조회 -->
+    <select id="getSellingInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TS.WORK_CD,
+            COUNT(1)         AS TOT_CNT,
+            SUM(PM.PAY_AMT)  AS TOT_AMT
+        FROM
+            TR_PAYMENT  PM,
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            PM.SERVICE_ID = TS.SERVICE_ID
+            AND TS.COMPANY_ID = TC.COMPANY_ID
+            AND PM.PAY_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        GROUP BY TS.COMPANY_ID, TC.COMPANY_NM, TS.WORK_CD
+        ORDER BY TS.COMPANY_ID, TS.WORK_CD
+    </select>
+
+    <!-- 선납금관리 조회 -->
+    <select id="getPointList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            PO.POINT_ID,
+            PO.COMPANY_ID,
+            TC.COMPANY_NM,
+            PO.POINT_AMT,
+            PO.USE_AMT,
+            PO.REMAIN_AMT,
+            TO_CHAR(PO.REG_DT, 'YYYYMMDD') AS REG_DT
+        FROM
+            TM_POINT_MANAGE  PO,
+            TM_COMPANY       TC
+        WHERE
+            PO.COMPANY_ID = TC.COMPANY_ID(+)
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND PO.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY PO.REG_DT DESC
+    </select>
+
+    <!-- 미납내역관리 조회 -->
+    <select id="getNotPayInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            PM.SERVICE_ID,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TS.CAR_NO,
+            PM.TOTAL_AMT,
+            PM.PAY_ST,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT
+        FROM
+            TR_PAYMENT  PM,
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            PM.SERVICE_ID = TS.SERVICE_ID
+            AND TS.COMPANY_ID = TC.COMPANY_ID
+            AND PM.PAY_ST = 'NOTPAY'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 환불관리 조회 -->
+    <select id="getPayReturnList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            PR.RETURN_ID,
+            PR.SERVICE_ID,
+            PR.COMPANY_ID,
+            TC.COMPANY_NM,
+            PR.RETURN_AMT,
+            PR.RETURN_ST,
+            TO_CHAR(PR.REQ_DT, 'YYYYMMDD') AS REQ_DT
+        FROM
+            TR_PAY_RETURN  PR,
+            TM_COMPANY     TC
+        WHERE
+            PR.COMPANY_ID = TC.COMPANY_ID(+)
+            AND PR.REQ_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY PR.REQ_DT DESC
+    </select>
+
+    <!-- 인지세관리 조회 -->
+    <select id="getInjiseList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            IJ.INJI_ID,
+            IJ.SERVICE_ID,
+            IJ.COMPANY_ID,
+            TC.COMPANY_NM,
+            IJ.INJI_AMT,
+            IJ.INJI_ST,
+            TO_CHAR(IJ.REQ_DT, 'YYYYMMDD') AS REQ_DT
+        FROM
+            TR_INJISE_MANAGE  IJ,
+            TM_COMPANY        TC
+        WHERE
+            IJ.COMPANY_ID = TC.COMPANY_ID(+)
+            AND IJ.REQ_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY IJ.REQ_DT DESC
+    </select>
+
+    <!-- 종합신청현황 조회 -->
+    <select id="getTotalList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="WORK_CD != null and WORK_CD != ''">
+            AND TS.WORK_CD = #{WORK_CD}
+        </if>
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 결제 정보 조회 -->
+    <select id="getPaymentList" parameterType="string" resultType="java.util.Map">
+		SELECT SERVICE_ID,
+		       PAY_KD,
+		       PAY_AMT,
+		       PAY_OP,
+		       PAY_ST,
+		       PRE_PAY_AMT,
+		       VBANK_CD,
+		       VBANK_NO,
+		       TO_CHAR (PAY_DT, 'YYYY/MM/DD HH24:MI:SS') AS PAY_DT,
+		       T_VBANK_GB,
+		       T_VBANK_ID,
+		       REAL_ALOAN
+		  FROM TR_PAYMENT
+		 WHERE SERVICE_ID = #{serviceId}
+		 ORDER BY PAY_KD
+    </select>
+    
+</mapper>

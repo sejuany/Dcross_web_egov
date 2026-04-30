@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.numplate.mapper.NumPlateMapper">
+
+    <!-- 번호판 목록 조회 -->
+    <select id="getNumPlateList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            NL.NUM_ID,
+            NL.CAR_NO,
+            NL.COMPANY_ID,
+            TC.COMPANY_NM,
+            NL.NUM_ST,
+            TO_CHAR(NL.ISSUE_DT, 'YYYYMMDD') AS ISSUE_DT
+        FROM
+            TM_NUMPLATE_LIST  NL,
+            TM_COMPANY        TC
+        WHERE
+            NL.COMPANY_ID = TC.COMPANY_ID(+)
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND NL.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="CAR_NO != null and CAR_NO != ''">
+            AND NL.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+        </if>
+        ORDER BY NL.ISSUE_DT DESC
+    </select>
+
+    <!-- 자동차등록증관리 목록 조회 -->
+    <select id="getCarPaperList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            CP.SERVICE_ID,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(CP.PRINT_DT, 'YYYYMMDD') AS PRINT_DT
+        FROM
+            TR_CAR_PAPER  CP,
+            TR_SERVICE    TS,
+            TM_COMPANY    TC
+        WHERE
+            CP.SERVICE_ID = TS.SERVICE_ID
+            AND TS.COMPANY_ID = TC.COMPANY_ID
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY CP.PRINT_DT DESC
+    </select>
+
+    <!-- 임판회수관리 목록 조회 -->
+    <select id="getTempNumPlateList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            NL.NUM_ID,
+            NL.CAR_NO,
+            NL.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(NL.ISSUE_DT, 'YYYYMMDD') AS ISSUE_DT,
+            TO_CHAR(NL.RETURN_DT, 'YYYYMMDD') AS RETURN_DT
+        FROM
+            TM_NUMPLATE_LIST  NL,
+            TM_COMPANY        TC
+        WHERE
+            NL.COMPANY_ID = TC.COMPANY_ID(+)
+            AND NL.NUM_ST = 'TEMP'
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND NL.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY NL.ISSUE_DT DESC
+    </select>
+
+    <!-- 번호판수불관리 목록 조회 -->
+    <select id="getNumPlateSupplyList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            NS.SUPPLY_ID,
+            NS.COMPANY_ID,
+            TC.COMPANY_NM,
+            NS.SUPPLY_QTY,
+            TO_CHAR(NS.SUPPLY_DT, 'YYYYMMDD') AS SUPPLY_DT
+        FROM
+            TM_NUMPLATE_SUPPLY  NS,
+            TM_COMPANY          TC
+        WHERE
+            NS.COMPANY_ID = TC.COMPANY_ID(+)
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND NS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY NS.SUPPLY_DT DESC
+    </select>
+
+</mapper>

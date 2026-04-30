@@ -1,0 +1,574 @@
+.new-reg-container {
+    background-color: #fff;
+    font-family: 'Malgun Gothic', 'Dotum', sans-serif;
+    color: #333;
+    padding: 0px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Unified Toolbar */
+.erp-toolbar {
+    background: #4a6a8a;
+    /* Blue background to look like a header */
+    padding: 2px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #334a62;
+    color: #fff;
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar-title {
+    font-size: 15px;
+    font-weight: bold;
+    margin-right: 20px;
+    color: #fff;
+}
+
+/* ERP Form Sections */
+.erp-section {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    padding: 0px;
+    margin-bottom: 4px;
+}
+
+.header-info {
+    background-color: #f1f3f6;
+}
+
+.erp-section-title {
+    background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7;
+    padding: 6px 10px;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sub-section-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #2b4b7c;
+    margin: 8px 0 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Grid Layout */
+.erp-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    background-color: #ced4da;
+}
+
+.erp-row {
+    background-color: #fff;
+    display: flex;
+    min-height: 32px;
+    align-items: stretch;
+}
+
+@media (max-width: 1280px) {
+    .erp-row {
+        min-height: 24px;
+    }
+}
+
+.erp-row:not(:last-child) {
+    border-bottom: 1px solid #ced4da;
+}
+
+/* 12-Column Grid System */
+.erp-row>.field-group {
+    border-right: 1px solid #ced4da;
+}
+
+.erp-row>.field-group:last-child {
+    border-right: none;
+}
+
+.col-1 {
+    flex: 0 0 8.333333%;
+}
+
+.col-2 {
+    flex: 0 0 16.666667%;
+}
+
+.col-3 {
+    flex: 0 0 25%;
+}
+
+.col-4 {
+    flex: 0 0 33.333333%;
+}
+
+.col-5 {
+    flex: 0 0 41.666667%;
+}
+
+.col-6 {
+    flex: 0 0 50%;
+}
+
+.col-7 {
+    flex: 0 0 58.333333%;
+}
+
+.col-8 {
+    flex: 0 0 66.666667%;
+}
+
+.col-9 {
+    flex: 0 0 75%;
+}
+
+.col-10 {
+    flex: 0 0 83.333333%;
+}
+
+.col-11 {
+    flex: 0 0 91.666667%;
+}
+
+.col-12 {
+    flex: 0 0 100%;
+}
+
+.field-group {
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    min-width: 0;
+}
+
+/* 테이블 첫번째 th 크기 맞추기 */
+.erp-grid .erp-label {
+	min-width: 120px;
+}
+
+/* Labels and Inputs */
+.erp-label {
+    background-color: #f1f3f6;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-size: 13px;
+    color: #495057;
+    border-right: 1px solid #ced4da;
+    flex-shrink: 0;
+    font-weight: 500;
+    min-width: 65px;
+    /* 작은 해상도에서도 라벨이 너무 찌그러지는 것 방지 */
+}
+
+.erp-label.align-right {
+    justify-content: flex-end;
+    padding-right: 10px;
+}
+
+.erp-label.req::before {
+    content: '* ';
+    color: #e03131;
+    font-weight: bold;
+}
+
+input.erp-input, textarea.erp-input {
+	appearance: auto;
+    height: 32px !important;
+    background-image: none;
+    cursor: text;
+}
+
+.erp-input {
+    height: 32px!important;
+    border: 1px solid #ced4da;
+    padding: 0 4px;
+    font-size: 15px;
+    text-align: center;
+    margin: 2px;
+    flex: 1;
+    max-width: none;
+    width: 100%;
+}
+
+/* 메모 영역*/
+.erp-input.erp-textArea {
+	height: 200px !important;
+    text-align: left;
+}
+
+/* 1280px Optimization for Inputs and Labels */
+@media (max-width: 1280px) {
+    .erp-label {
+        font-size: 15px;
+        padding: 0 2px;
+        min-width: 50px;
+        letter-spacing: -0.3px;
+    }
+}
+
+@media (max-width: 1280px) {
+    .erp-input {
+        font-size: 15px;
+        padding: 0 1px;
+        margin: 1px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    input[type="date"].erp-input {
+        font-size: 13px;
+        padding: 0;
+        letter-spacing: -1px;
+    }
+
+    select.erp-input {
+        padding-left: 1px;
+        padding-right: 12px;
+        text-overflow: ellipsis;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 2px center;
+        background-size: 10px;
+    }
+}
+
+.erp-input:focus {
+    outline: 1px solid #4dabf7;
+    border-color: #4dabf7;
+}
+
+.erp-input.disabled {
+    background-color: #f8f9fa;
+    color: #868e96;
+    border-color: #dee2e6;
+}
+
+.erp-input.highlight-red {
+    border: 1px solid #fa5252;
+    background-color: #fff5f5;
+}
+
+.erp-input.highlight-yellow {
+    background-color: #fff9db;
+    border-color: #fab005;
+}
+
+.erp-input.highlight-blue {
+    background-color: #e7f5ff;
+    border-color: #339af0;
+    color: #1971c2;
+    font-weight: bold;
+}
+
+.flex-grow {
+    flex: 1;
+}
+
+.flex-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.flex-row span, .flex-row label {
+	margin-left: 10px;
+}
+
+.value-red {
+    color: #e03131;
+    font-weight: bold;
+}
+
+.value-black {
+    color: #333;
+    font-weight: 500;
+}
+
+@media (max-width: 1280px) {
+    .value-red,
+    .value-black {
+        font-size: 13px;
+    }
+}
+
+.text-right {
+    text-align: right;
+    justify-content: flex-end;
+}
+
+/* Buttons */
+.btn-erp {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 13px;
+    border: 1px solid #7a8fa6;
+    background-color: #d1dce8;
+    
+    /* Sky blue + Gray mix */
+    color: #334e68;
+    cursor: pointer;
+    border-radius: 2px;
+    font-weight: 600;
+    
+    /* 버튼 글씨 가운데 정렬*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+/* 1280px Optimization for Buttons */
+@media (max-width: 1280px) {
+    .btn-erp {
+        height: 20px;
+        padding: 0 4px;
+        font-size: 12px;
+    }
+}
+
+.btn-erp:hover {
+    background-color: #b9cadc;
+    border-color: #5c7591;
+    color: #1e293b;
+}
+
+.btn-erp.light {
+    background-color: #e2e8f0;
+}
+
+.btn-erp.dark {
+    background-color: #94a3b8;
+    color: #fff;
+    border-color: #475569;
+}
+
+.btn-erp.grey {
+    background-color: #e5e7eb;
+}
+
+.btn-erp.sm {
+    padding: 14px 10px;
+    font-size: 12px;
+}
+
+/* Vehicle Table-like Grid */
+.erp-table-like-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-row {
+    display: flex;
+    background-color: #fff;
+    min-height: 26px;
+}
+
+.grid-label {
+    background-color: #f1f3f6;
+    border-right: 1px solid #ced4da;
+    border-left: 1px solid #ced4da;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+    justify-content: center;
+}
+
+.grid-value {
+    padding: 0 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #ced4da;
+}
+
+.highlight-red-text {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+.text-right {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.info-txt {
+    font-size: 12px;
+    color: #2b4b7c;
+    margin-left: 10px;
+}
+
+/* 결제정보 그리드 ========================== */
+/* 헤더 가운데 정렬 */
+.ag-theme-alpine .ag-header-cell-label {
+    justify-content: center;
+}
+
+.ag-header-cell-text {
+	font-weight: 600;
+	font-size: 13px;
+}
+
+.ag-header-cell-resize {
+	display: none !important;
+}
+
+.ag-theme-alpine .ag-cell {
+	font-size: 13px
+}
+
+/* 셀 가운데 정렬 */
+.ag-theme-alpine .ag-center-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 셀 왼쪽 정렬 */
+.ag-theme-alpine .ag-right-cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* 짝수 행만 색깔 칠하기 */
+.ag-theme-alpine .ag-center-cols-container .ag-row:nth-child(even) .ag-cell {
+    background-color: #f5f6f8;
+}
+
+/* ===================================== */
+
+/* Tabs */
+.tab-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 10px;
+}
+
+.tab-header-list {
+    display: flex;
+    gap: 1px;
+}
+
+.tab-btn {
+    padding: 6px 20px;
+    border: 1px solid #ced4da;
+    border-bottom: none;
+    background-color: #e9ecef;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+}
+
+/* 1280px Optimization for Tabs */
+@media (max-width: 1280px) {
+    .tab-btn {
+        padding: 4px 12px;
+        font-size: 12px;
+    }
+}
+
+.tab-btn.active {
+    background-color: #fff;
+    border-top: 2px solid #007bff;
+    font-weight: bold;
+}
+
+.tab-content {
+    flex: 1;
+    border: 1px solid #ced4da;
+    padding: 10px;
+}
+
+/* Helpers */
+.w-50 {
+    width: 50px;
+}
+
+.w-80 {
+    width: 80px;
+}
+
+.w-100 {
+    width: 100px;
+}
+
+.w-120 {
+    width: 120px;
+}
+
+.w-150 {
+    width: 150px;
+}
+
+.w-180 {
+    width: 180px;
+}
+
+.w-250 {
+    width: 250px;
+}
+
+.w-300 {
+    width: 300px;
+}
+
+.w-350 {
+    width: 350px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.ml-10 {
+    margin-left: 10px;
+}
+.mr-10 {
+    margin-right: 10px;
+}
+
+.border-top {
+    border-top: 1px solid #ced4da;
+}
+
+.chk-label {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.text-left {
+	text-align: left;
+	padding-left: 10px;
+}
+
+/* flex 일 때 좌측정렬 */
+.f-left {
+	justify-content: flex-start;
+}

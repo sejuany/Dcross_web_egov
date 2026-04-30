@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.code.mapper.CodeMapper">
+
+    <!-- 공통 코드 목록 조회 -->
+    <!-- PR_ST 그룹은 ORDER_NO 기준 정렬, 나머지는 CODE_ID 기준 정렬 -->
+    <select id="findCodesByGroupId" parameterType="string" resultType="java.util.Map">
+        SELECT CODE_ID, CODE_NM, ORDER_NO
+        FROM TM_CODE
+        WHERE GROUP_ID = #{groupId}
+          AND USE_YN = 'Y'
+        <choose>
+            <when test="groupId == 'PR_ST'">
+                ORDER BY ORDER_NO ASC, CODE_ID ASC
+            </when>
+            <otherwise>
+                ORDER BY CODE_ID ASC
+            </otherwise>
+        </choose>
+    </select>
+
+    <!-- 대리점 목록 조회 (동적 조건) -->
+    <select id="findCompanyList" resultType="java.util.Map">
+        SELECT CP.COMPANY_ID, CP.COMPANY_NM, WC.GOVT_ID
+        FROM TM_COMPANY CP, TM_WORK_CP WC
+        WHERE CP.COMPANY_ID = WC.COMPANY_ID
+          AND WC.USE_YN = 'Y'
+        <if test="workCd != null and workCd != ''">
+            AND WC.WORK_CD = #{workCd}
+        </if>
+        <if test="govtId != null and govtId != ''">
+            AND WC.GOVT_ID = #{govtId}
+        </if>
+        GROUP BY CP.COMPANY_ID, CP.COMPANY_NM, WC.GOVT_ID
+        ORDER BY CP.COMPANY_NM ASC
+    </select>
+
+</mapper>

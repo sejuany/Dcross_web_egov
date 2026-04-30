@@ -1,0 +1,216 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.auth.mapper.AuthMapper">
+
+    <!-- 사용자 ID로 사용자 정보 조회 (USE_YN = 'Y' 조건 포함) -->
+    <select id="findByUserId" parameterType="string" resultType="com.dacos.auth.dto.UserDto">
+        SELECT
+            MM.LOGIN_ID,
+            MM.PASS_WD,
+            MM.LOGIN_GB,
+            PKG_COMMON.FN_DECRYPT(MM.REGIST_NO) AS REGIST_NO,
+            MD.MEMBER_NM,
+            MD.USE_YN,
+            MD.COMPANY_ID,
+            MD.BRANCH_ID,
+            MD.SANGSA_ID,
+            MD.MEMBER_GB
+        FROM
+            TM_MEMBER_MT MM,
+            TM_MEMBER_DT MD
+        WHERE
+            MM.LOGIN_ID = MD.LOGIN_ID
+            AND MM.LOGIN_ID = MD.MEMBER_ID
+            AND MM.LOGIN_ID = #{userId}
+            AND MM.USE_YN  = 'Y'
+    </select>
+    
+	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+	    SELECT
+	        COMPANY_ID,
+	        COMPANY_NM,
+	        ASSOCIATION_ID,
+	        BIZ_NO,
+	        ADDRESS,
+	        ADDRESS_DT,
+	        POST_NO,
+	        COMPANY_NO  
+	    FROM TM_COMPANY
+	    WHERE COMPANY_ID = #{COMPANY_ID}
+	      AND USE_YN = 'Y'
+	</select>
+	
+	<select id="selectBranchID" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+	    SELECT
+	        BRANCH_ID as CODE_CD,
+	        BRANCH_NM as CODE_NM    
+	    FROM
+	        TM_BRANCH    
+	    WHERE
+	        COMPANY_ID = #{COMPANY_ID}         
+	        AND USE_YN = 'Y'        
+	    ORDER BY
+	        CODE_NM 
+	</select>	
+	
+	<select id="selectAssociation" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+	   SELECT
+	       ASSOCIATION_ID as CODE_CD,
+	       COMPANY_NM as CODE_NM    
+	   FROM
+	       TM_ASSOCIATION
+	</select>		
+	
+	<select id="selectMBCount" parameterType="java.util.HashMap" resultType="java.util.HashMap">
+	    SELECT
+	        COUNT(LOGIN_ID) AS RECCNT
+	    FROM TM_MEMBER_MT
+	    WHERE LOGIN_ID = #{LOGIN_ID}
+	</select>
+	
+	<select id="selectMemberInfo" resultType="hashmap">
+	    SELECT
+	        MT.LOGIN_ID,
+	        MT.LOGIN_GB,
+	        MT.REGIST_NO,
+	        MT.USE_YN,
+	        DT.MEMBER_NM,
+	        DT.TEL_NO,
+	        DT.MPHONE_NO,
+	        DT.COMPANY_ID,
+	        DT.BRANCH_ID,
+	        DT.SANGSA_ID,
+	        DT.MEMBER_GB
+	    FROM TM_MEMBER_MT MT
+	    LEFT JOIN TM_MEMBER_DT DT
+	        ON MT.LOGIN_ID = DT.LOGIN_ID
+	    WHERE MT.LOGIN_ID = #{loginId}
+	</select>
+
+	<select id="selectMemberInfo2" resultType="hashmap">
+		SELECT
+		    MT.LOGIN_ID        AS LOGIN_ID,
+		    MT.LOGIN_GB        AS LOGIN_GB,
+		    PKG_COMMON.FN_DECRYPT(MT.REGIST_NO)   AS REGIST_NO,
+		    MT.USE_YN          AS USE_YN,
+		    DT.MEMBER_NM       AS MEMBER_NM,
+		    PKG_COMMON.FN_DECRYPT(DT.TEL_NO)      AS TEL_NO,
+		    PKG_COMMON.FN_DECRYPT(DT.MPHONE_NO)   AS MPHONE_NO,
+		    DT.COMPANY_ID      AS COMPANY_ID,
+		    DT.BRANCH_ID       AS BRANCH_ID,
+		    DT.SANGSA_ID       AS SANGSA_ID,
+		    DT.MEMBER_GB       AS MEMBER_GB
+		FROM TM_MEMBER_MT MT
+		LEFT JOIN TM_MEMBER_DT DT
+		    ON MT.LOGIN_ID = DT.LOGIN_ID
+		WHERE MT.LOGIN_ID = #{loginId}
+	</select>	
+	
+
+    <!-- BCrypt 비밀번호로 업데이트 (단계적 전환용) -->
+    <update id="updatePasswordToBcrypt">
+        UPDATE TM_MEMBER_MT
+        SET PASS_WD = #{bcryptPassword}
+        WHERE LOGIN_ID = #{userId}
+    </update>
+
+	<update id="updatePasswordReset">
+			UPDATE TM_MEMBER_MT
+			SET PASS_WD = #{PASS_WD},
+			    UPD_USER = #{UPD_USER},
+				UPD_DATE = SYSDATE,
+      	 		ERROR_COUNT = '0'	
+			WHERE LOGIN_ID=#{LOGIN_ID}
+	</update>			
+	
+	<update id="updatePasswordDate">
+		<![CDATA[
+			UPDATE TM_MEMBER_DT
+			SET PWD_CH_DT = sysdate
+			WHERE LOGIN_ID=#{LOGIN_ID}
+		]]>
+	</update>
+	
+	<update id="updateMemberMaster">
+		<![CDATA[
+			UPDATE TM_MEMBER_MT 
+			   SET
+				   LOGIN_GB = #{LOGIN_GB},
+				   REGIST_NO = PKG_COMMON.FN_ENCRYPT(#{REGIST_NO}),
+				   UPD_USER = #{LOGIN_ID},
+				   UPD_DATE = SYSDATE
+			WHERE 
+				   LOGIN_ID = #{LOGIN_ID}
+		]]>
+	</update>
+	
+	<update id="updateMemberDetail">
+		<![CDATA[
+			UPDATE TM_MEMBER_DT SET
+				   TEL_NO = PKG_COMMON.FN_ENCRYPT(#{TEL_NO}),
+				   MPHONE_NO = PKG_COMMON.FN_ENCRYPT(#{MPHONE_NO}),
+				   UPD_USER = #{LOGIN_ID},
+				   MEMBER_NM = #{MEMBER_NM},
+				   UPD_DATE = SYSDATE
+			WHERE 
+				   LOGIN_ID = #{LOGIN_ID}
+		]]>
+	</update> 	
+    
+    <insert id="insertMemberMaster" parameterType="java.util.HashMap">
+	    INSERT INTO TM_MEMBER_MT (
+	        LOGIN_ID,
+	        PASS_WD,
+	        LOGIN_GB,
+	        REGIST_NO,
+	        INS_USER,
+	        INS_DATE
+	    )
+	    VALUES (
+	        #{LOGIN_ID},
+	        #{PASS_WD},
+	        #{LOGIN_GB},
+	        PKG_COMMON.FN_ENCRYPT(#{REGIST_NO}),
+	        'FIRST',
+	        SYSDATE
+	    )
+	</insert>
+	
+	<insert id="insertMemberDetail" parameterType="java.util.HashMap">
+	    INSERT INTO TM_MEMBER_DT (
+	        LOGIN_ID,
+	        MEMBER_ID,
+	        ASSOCIATION_ID,
+	        COMPANY_ID,
+	        BRANCH_ID,
+	        SANGSA_ID,
+	        MEMBER_NM,
+	        MEMBER_GB,
+	        TEL_NO,
+	        MPHONE_NO,
+	        CONFIRM_DT,
+	        USE_YN,
+	        INS_USER,
+	        INS_DATE
+	    )
+	    VALUES (
+	        #{LOGIN_ID},
+	        #{MEMBER_ID},
+	        #{ASSOCIATION_ID},
+	        #{COMPANY_ID},
+	        #{BRANCH_ID},
+	        #{SANGSA_ID},
+	        #{MEMBER_NM},
+	        #{MEMBER_GB},
+	        PKG_COMMON.FN_ENCRYPT(#{TEL_NO}),
+	        PKG_COMMON.FN_ENCRYPT(#{MPHONE_NO}),
+	        NULL,
+	        'W',
+	        'FIRST',
+	        SYSDATE
+	    )
+	</insert>
+
+</mapper>

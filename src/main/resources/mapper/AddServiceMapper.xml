@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.addservice.mapper.AddServiceMapper">
+
+    <!-- 원부스크래핑(차량주행거리) 목록 조회 -->
+    <select id="getCarMileageList" parameterType="com.dacos.addservice.dto.AddServiceSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            SM.SERVICE_ID,
+            SM.CARID_NO,
+            SM.CAR_NO,
+            SM.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(SM.REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+            SM.PROC_ST
+        FROM
+            TR_SCRAP_MILEAGE  SM,
+            TM_COMPANY        TC
+        WHERE
+            SM.COMPANY_ID = TC.COMPANY_ID(+)
+            AND SM.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND SM.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY SM.REQUEST_DT DESC
+    </select>
+
+    <!-- 소유자정보확인 목록 조회 -->
+    <select id="getWonbuScrapList" parameterType="com.dacos.addservice.dto.AddServiceSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            WS.SERVICE_ID,
+            WS.CARID_NO,
+            WS.CAR_NO,
+            WS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(WS.REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+            WS.PROC_ST
+        FROM
+            TR_WONBU_SCRAP  WS,
+            TM_COMPANY      TC
+        WHERE
+            WS.COMPANY_ID = TC.COMPANY_ID(+)
+            AND WS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY WS.REQUEST_DT DESC
+    </select>
+
+    <!-- 시세 조회 -->
+    <select id="getCarSiseList" parameterType="com.dacos.addservice.dto.AddServiceSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            CS.CARID_NO,
+            CS.CAR_NM,
+            CS.SISE_AMT,
+            TO_CHAR(CS.STD_DT, 'YYYYMMDD') AS STD_DT
+        FROM
+            TM_CAR_SISE  CS
+        WHERE 1=1
+        <if test="CARID_NO != null and CARID_NO != ''">
+            AND CS.CARID_NO = #{CARID_NO}
+        </if>
+        ORDER BY CS.STD_DT DESC
+    </select>
+
+    <!-- 365시세현황 조회 -->
+    <select id="getCar365PriceList" parameterType="com.dacos.addservice.dto.AddServiceSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            CP.CARID_NO,
+            CP.PRICE_AMT,
+            TO_CHAR(CP.STD_DT, 'YYYYMMDD') AS STD_DT
+        FROM
+            TM_CAR_365PRICE  CP
+        WHERE 1=1
+        <if test="CARID_NO != null and CARID_NO != ''">
+            AND CP.CARID_NO = #{CARID_NO}
+        </if>
+        ORDER BY CP.STD_DT DESC
+    </select>
+
+    <!-- 카젠매핑 목록 조회 -->
+    <select id="getCarZenMappingList" parameterType="com.dacos.addservice.dto.AddServiceSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            CZ.CARID_NO,
+            CZ.CAR_NM,
+            CZ.CARZEN_CD,
+            TO_CHAR(CZ.REG_DT, 'YYYYMMDD') AS REG_DT
+        FROM
+            TM_CARZEN_MAPPING  CZ
+        WHERE 1=1
+        <if test="CARID_NO != null and CARID_NO != ''">
+            AND CZ.CARID_NO LIKE '%' || #{CARID_NO} || '%'
+        </if>
+        ORDER BY CZ.REG_DT DESC
+    </select>
+
+    <!-- 보험가입여부 목록 조회 -->
+    <select id="getInsuranceList" parameterType="com.dacos.addservice.dto.AddServiceSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            IM.CAR_NO,
+            IM.INSURER_NM,
+            TO_CHAR(IM.INS_SDT, 'YYYYMMDD') AS INS_SDT,
+            TO_CHAR(IM.INS_EDT, 'YYYYMMDD') AS INS_EDT,
+            IM.INS_ST
+        FROM
+            TM_INSURANCE_MANAGE  IM
+        WHERE 1=1
+        <if test="CAR_NO != null and CAR_NO != ''">
+            AND IM.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+        </if>
+        ORDER BY IM.INS_SDT DESC
+    </select>
+
+</mapper>

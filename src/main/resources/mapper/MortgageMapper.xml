@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.mortgage.mapper.MortgageMapper">
+
+    <!-- 저당설정 목록 조회 -->
+    <select id="getMortgageList" parameterType="com.dacos.mortgage.dto.MortgageSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TS.MEMBER_ID,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TO_CHAR(TS.PROC_DT, 'YYYYMMDD')         AS PROC_DT,
+            TS.PROC_ST,
+            TS.GOVT_ID,
+            TMD.MEMBER_NM,
+            TS.JUDGE_ST,
+            TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD')        AS JUDGE_DT
+        FROM
+            TR_SERVICE     TS,
+            TM_COMPANY     TC,
+            TM_MEMBER_DT   TMD
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.MEMBER_ID = TMD.MEMBER_ID
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+            AND TS.WORK_CD LIKE 'MORT%'
+
+        <if test="WORK_CD != null and WORK_CD != ''">
+            AND TS.WORK_CD = #{WORK_CD}
+        </if>
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="PROC_ST != null and PROC_ST != ''">
+            AND TS.PROC_ST = #{PROC_ST}
+        </if>
+        <if test="CAR_NO != null and CAR_NO != ''">
+            AND TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+        </if>
+        <if test="GOVT_ID != null and GOVT_ID != ''">
+            AND TS.GOVT_ID = #{GOVT_ID}
+        </if>
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 저당설정 상세 조회 -->
+    <select id="getMortgageDetail" parameterType="string" resultType="java.util.Map">
+        SELECT *
+        FROM TR_SERVICE
+        WHERE SERVICE_ID = #{serviceId}
+    </select>
+
+    <!-- 저당권변경 목록 조회 -->
+    <select id="getMortgageChangeList" parameterType="com.dacos.mortgage.dto.MortgageSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST,
+            TS.GOVT_ID
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD = 'MORTCHG'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 경정관리 목록 조회 -->
+    <select id="getCorrectionList" parameterType="com.dacos.mortgage.dto.MortgageSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD = 'MORTCRR'
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <!-- 처리지연현황 목록 조회 -->
+    <select id="getDelayList" parameterType="com.dacos.mortgage.dto.MortgageSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
+            TS.PROC_ST
+        FROM
+            TR_SERVICE  TS,
+            TM_COMPANY  TC
+        WHERE
+            TS.COMPANY_ID = TC.COMPANY_ID
+            AND TS.WORK_CD LIKE 'MORT%'
+            AND TS.PROC_ST NOT IN ('COMP', 'DEL')
+            AND TS.REQUEST_DT BETWEEN
+                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        ORDER BY TS.REQUEST_DT ASC
+    </select>
+
+</mapper>

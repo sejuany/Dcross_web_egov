@@ -1,0 +1,387 @@
+.mortgage-reg-container {
+    background-color: #fff;
+    padding: 5px;
+    height: 100%;
+}
+
+/* Action Bars */
+.action-bar-top {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 5px;
+}
+
+.right-actions {
+    display: flex;
+    gap: 5px;
+}
+
+/* ERP Section Styling */
+.erp-section {
+    background: #f8f9fa;
+    border: 1px solid #dee2e6;
+    padding: 8px 12px;
+    margin-bottom: 6px;
+}
+
+.erp-section.no-padding {
+    padding: 0;
+}
+
+.erp-section-title {
+    font-size: 11px;
+    border-bottom: 1px solid #a3b8d7;
+    font-weight: 700;
+    color: #333;
+}
+
+.erp-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.mortgage-info-grid {
+    display: grid !important;
+    grid-template-columns: repeat(3, 1fr);
+    border: 1px solid #ced4da;
+    background-color: #fff;
+}
+
+.esign-grid {
+    display: grid !important;
+    grid-template-columns: repeat(4, 1fr);
+    border: 1px solid #ced4da;
+    background-color: #fff;
+}
+
+.grid-cell {
+    display: flex;
+    align-items: center;
+    border: 0.5px solid #eee;
+    height: 32px;
+}
+
+.grid-cell .erp-label {
+    background-color: #f8f9fa;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    padding-left: 10px;
+    border-right: 1px solid #dee2e6;
+    flex-shrink: 0;
+}
+
+.grid-cell .erp-value {
+    padding: 0 8px;
+    flex: 1;
+}
+
+.erp-row {
+    display: flex;
+    align-items: center;
+}
+
+.erp-label {
+    width: 120px;
+    font-size: 11px;
+    font-weight: 600;
+    color: #555;
+}
+
+.erp-label.gray {
+    background-color: #f1f3f5;
+    border: 1px solid #ced4da;
+    height: 24px;
+    display: flex;
+    align-items: center;
+    padding-left: 8px;
+}
+
+.erp-label.req::before {
+    content: '* ';
+    color: #d9534f;
+}
+
+.erp-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.erp-value.align-right {
+    justify-content: flex-end;
+    font-size: 11px;
+}
+
+.erp-input {
+    height: 24px;
+    border: 1px solid #ced4da;
+    border-radius: 2px;
+    padding: 0 6px;
+    font-size: 11px;
+    width: 100%;
+    max-width: 400px;
+    /* Prevent extreme stretching */
+}
+
+/* Width Utilities */
+.w-50 {
+    width: 50px !important;
+}
+
+.w-80 {
+    width: 80px !important;
+}
+
+.w-100 {
+    width: 100px !important;
+}
+
+.w-120 {
+    width: 120px !important;
+}
+
+.w-150 {
+    width: 150px !important;
+}
+
+.w-200 {
+    width: 200px !important;
+}
+
+.w-250 {
+    width: 250px !important;
+}
+
+.w-300 {
+    width: 300px !important;
+}
+
+.flex-none {
+    flex: none !important;
+}
+
+.erp-input.disabled {
+    background-color: #e9ecef;
+    cursor: not-allowed;
+}
+
+.erp-input.sm {
+    width: 100px;
+}
+
+.erp-input.text-right {
+    text-align: right;
+}
+
+/* Buttons */
+.btn-erp {
+    height: 24px;
+    padding: 0 10px;
+    font-size: 11px;
+    font-weight: 600;
+    border: none;
+    border-radius: 2px;
+    cursor: pointer;
+    background-color: #007bff;
+    color: #fff;
+}
+
+.btn-erp:hover {
+    background-color: #0056b3;
+}
+
+.btn-erp.sm {
+    height: 22px;
+    padding: 0 6px;
+    font-size: 10px;
+}
+
+.btn-erp.btn-receipt {
+    background-color: #007bff;
+}
+
+.btn-erp.btn-close {
+    background-color: #007bff;
+}
+
+.btn-erp.btn-connect {
+    background-color: #007bff;
+    width: 60px;
+    flex-shrink: 0;
+    margin-right: 20px;
+    /* Space before next label */
+}
+
+.btn-erp.btn-sms {
+    background-color: #007bff;
+    width: 100px;
+}
+
+.e-sign-header {
+    display: flex;
+    justify-content: flex-end;
+    margin-bottom: 2px;
+}
+
+/* Table Styling */
+.erp-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 11px;
+    border: 1px solid #ced4da;
+}
+
+.erp-table th {
+    background-color: #e9ecef;
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    color: #333;
+    font-weight: 600;
+}
+
+.erp-table td {
+    padding: 4px 8px;
+    border: 1px solid #ced4da;
+    text-align: center;
+    height: 24px;
+}
+
+.erp-table .align-left {
+    text-align: left;
+}
+
+.erp-table .align-right {
+    text-align: right;
+}
+
+.empty-row td {
+    background-color: #fff;
+}
+
+/* Specific Section Layouts */
+.input-with-select {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+.multi-field {
+    display: flex;
+    gap: 5px;
+    width: 100%;
+}
+
+/* Tab Headers */
+.tab-headers {
+    display: flex;
+    gap: 2px;
+}
+
+.tab-header {
+    padding: 4px 15px;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    border-bottom: none;
+    border-radius: 3px 3px 0 0;
+}
+
+.tab-header.active {
+    background-color: #f8f9fa;
+    border-top: 2px solid #007bff;
+}
+
+.tab-header.dark {
+    background-color: #495057;
+    color: #fff;
+}
+
+/* Payment Section */
+.payment-layout {
+    display: flex;
+    height: 60px;
+    border: 1px solid #ced4da;
+}
+
+.payment-receipt-area {
+    width: 100px;
+    background-color: #eee;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    border-right: 1px solid #ced4da;
+}
+
+.payment-main-info {
+    flex: 2;
+    padding: 6px 12px;
+    background-color: #f8f9fa;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+}
+
+.payment-status-area {
+    width: 280px;
+    background-color: #eee;
+    padding: 6px 10px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 4px;
+    border-left: 1px solid #ced4da;
+}
+
+.status-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.status-label {
+    width: 60px;
+    font-size: 11px;
+    font-weight: 600;
+    text-align: left;
+}
+
+.status-value {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.chk-label {
+    font-size: 11px;
+    white-space: nowrap;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.btn-receipt {
+    background-color: #007bff;
+    padding: 0 5px;
+    height: 36px;
+    width: 70px;
+    line-height: 1.2;
+}
+
+.mt-10 {
+    margin-top: 6px;
+}
+
+.mt-20 {
+    margin-top: 10px;
+}
+
+.input-with-select select {
+    width: 90px;
+    flex-shrink: 0;
+}

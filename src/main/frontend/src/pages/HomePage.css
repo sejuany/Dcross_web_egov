@@ -1,0 +1,120 @@
+.home-dashboard {
+    display: flex;
+    flex-direction: column;
+    gap: 30px;
+}
+
+.dashboard-title {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1c3553;
+    margin-bottom: 10px;
+}
+
+.dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(2, 1fr);
+    gap: 20px;
+}
+
+.widget {
+    background: #fff;
+    border-radius: 12px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+    padding: 20px;
+    border: 1px solid #edf2f7;
+}
+
+.widget.full-width {
+    grid-column: 1 / -1;
+}
+
+.widget-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 16px;
+    font-weight: 600;
+    color: #4a5568;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid #f7fafc;
+}
+
+.info-row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+    font-size: 14px;
+}
+
+.info-row .label {
+    color: #718096;
+}
+
+.info-row .value {
+    color: #2d3748;
+    font-weight: 500;
+}
+
+.status-ok {
+    color: #38a169;
+}
+
+/* Menu Grid */
+.menu-grid {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 15px;
+}
+
+.menu-card {
+    background: #f7fafc;
+    border-radius: 10px;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: 1px solid transparent;
+}
+
+.menu-card:hover {
+    transform: translateY(-5px);
+    background: #fff;
+    border-color: #cbd5e0;
+    box-shadow: 0 6px 12px rgba(0, 0, 0, 0.08);
+}
+
+.menu-icon-box {
+    width: 50px;
+    height: 50px;
+    border-radius: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.menu-title {
+    font-size: 13px;
+    font-weight: 600;
+    color: #4a5568;
+}
+/* 
+@media (max-width: 1024px) {
+    .menu-grid {
+        grid-template-columns: repeat(3, 1fr);
+    }
+}
+
+@media (max-width: 600px) {
+    .dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .menu-grid {
+        grid-template-columns: repeat(2, 1fr);
+    }
+} */

@@ -1,0 +1,308 @@
+.app-container {
+    display: flex;
+    justify-content: center;
+    background-color: #d1d5db;
+    min-height: 100vh;
+}
+
+.app-layout {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    background-color: #f4f6f9;
+    color: #333;
+    overflow: hidden;
+    box-shadow: 0 0 15px rgba(0, 0, 0, 0.1);
+    transition: max-width 0.3s ease;
+}
+
+.layout-body {
+    display: flex;
+    flex: 1;
+    width: 100%;
+}
+
+.main-wrapper {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    overflow: hidden;
+}
+
+/* top nav */
+.header-left {
+	min-width: 540px;
+}
+
+/* Sidebar */
+.main-sidebar {
+    width: 200px;
+    background-color: #1c3553;
+    color: #fff;
+    display: flex;
+    flex-direction: column;
+    z-index: 101;
+}
+
+.sidebar-logo-area {
+    height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 15px;
+    background-color: #fff;
+    border-bottom: 1px solid #dee2e6;
+}
+
+.sidebar-logo {
+    max-width: 100%;
+    max-height: 35px;
+    object-fit: contain;
+}
+
+.sidebar-group {
+    padding: 20px 0;
+}
+
+.group-title {
+    padding: 0 20px 10px;
+    color: rgba(255, 255, 255, 0.5);
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+h1.group-title { font-size: 32px; }
+h2.group-title { font-size: 24px; }
+h3.group-title { font-size: 18px; }
+
+/* Sidebar Footer */
+.sidebar-footer {
+    margin-top: auto;
+    padding: 12px 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+    align-items: center;
+    gap: 15px;
+    background-color: #152840;
+}
+
+.layout-icon-btn {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.5);
+    padding: 6px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+.layout-icon-btn:hover {
+    background: rgba(255, 255, 255, 0.1);
+    color: #fff;
+}
+
+.layout-icon-btn.active {
+    background: rgba(0, 123, 255, 0.2);
+    color: #4dabf7;
+}
+
+.sidebar-menu {
+    list-style: none;
+}
+
+.menu-item {
+    padding: 12px 20px;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all 0.2s;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: rgba(255, 255, 255, 0.8);
+}
+
+.menu-item:hover {
+    background-color: rgba(255, 255, 255, 0.05);
+    color: #fff;
+}
+
+.menu-item.active {
+    background-color: #007bff;
+    color: #fff;
+}
+
+/* Header */
+.main-header {
+    height: 50px;
+    background-color: #1c3553;
+    color: #fff;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 0 10px;
+}
+
+.top-nav {
+    display: flex;
+    flex-wrap: nowrap;
+    align-items: center;
+}
+
+.nav-item {
+    background: none;
+    border: none;
+    padding: 0 12px;
+    height: 50px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+    transition: all 0.2s;
+    white-space: nowrap;
+    /* 네비게이션이 두 줄이 되는 것 방지 */
+}
+
+/* 강제 1280px 모드일때 상단 네비게이션 강제 축소 */
+/* .main-header.is-1280 .nav-item {
+    padding: 0 5px;
+    font-size: 11px;
+} */
+
+/* 해상도별 메뉴 한 줄 유지를 위한 최적화 */
+@media (max-width: 1500px) {
+    .nav-item {
+        padding: 0 6px;
+        font-size: 12px;
+    }
+}
+
+@media (max-width: 1350px) {
+    .nav-item {
+        padding: 0 4px;
+        font-size: 11px;
+    }
+}
+
+@media (max-width: 1200px) {
+    .nav-item {
+        padding: 0 3px;
+        font-size: 10.5px;
+        letter-spacing: -0.5px;
+    }
+}
+
+.nav-item:hover,
+.nav-item.active {
+    color: #fff;
+    background-color: rgba(255, 255, 255, 0.1);
+}
+
+.header-right .user-info {
+    display: flex;
+    align-items: center;
+    gap: 15px;
+    font-size: 12px;
+}
+
+.header-btn {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: none;
+    border: none;
+    font-size: 12px;
+    color: rgba(255, 255, 255, 0.8);
+    cursor: pointer;
+}
+
+.header-btn:hover {
+    color: #fff;
+}
+
+/* Tab Bar System */
+.tab-wrapper {
+    background-color: #e2e8f0;
+    padding-top: 5px;
+}
+
+.tab-bar {
+    display: flex;
+    padding: 0 10px;
+    gap: 2px;
+}
+
+.tab-item {
+    background-color: #cbd5e0;
+    padding: 6px 15px;
+    font-size: 12px;
+    border-radius: 4px 4px 0 0;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    cursor: pointer;
+    color: #4a5568;
+    border: 1px solid transparent;
+    border-bottom: none;
+    transition: all 0.2s;
+}
+
+.tab-item:hover {
+    background-color: #edf2f7;
+}
+
+.tab-item.active {
+    background-color: #fff;
+    color: #1c3553;
+    font-weight: 700;
+    border-color: #cbd5e0 #cbd5e0 #fff #cbd5e0;
+}
+
+.tab-close {
+    padding: 2px;
+    border-radius: 50%;
+    transition: background 0.2s;
+}
+
+.tab-close:hover {
+    background-color: #feb2b2;
+    color: #c53030;
+}
+
+/* Navigation Path (Footer for the tab area) */
+.navigation-path {
+    height: 35px;
+    background-color: #495057;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    padding: 0 20px;
+    font-size: 13px;
+    gap: 10px;
+}
+
+.path-icon {
+    font-weight: 900;
+    color: #adb5bd;
+}
+
+/* Main Content Area */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background-color: #fff;
+    min-width: 1201px;
+}
+
+.content-inner {
+    flex: 1;
+    padding: 0px;
+    overflow-y: auto;
+    padding: 10px 10px;
+}
