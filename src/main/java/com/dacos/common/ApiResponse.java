@@ -32,6 +32,10 @@ public class ApiResponse<T> {
         return new ApiResponse<>(false, null, message);
     }
 
+    public static <T> ApiResponse<T> fail(String message, T data) {
+        return new ApiResponse<>(false, data, message);
+    }
+
     /**
      * 프론트엔드 기존 응답 형식 호환을 위한 헬퍼 메서드
      * 예: ApiResponse.withKey("list", listData) → { "success": true, "list": [...] }

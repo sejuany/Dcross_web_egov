@@ -115,5 +115,215 @@
                 AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
         ORDER BY TS.REQUEST_DT DESC
     </select>
-
+	
+	<insert id="insertTrOwnerInfo" parameterType="map">
+	    INSERT INTO TR_OWNERINFO (
+	        SERVICE_ID, SEQ, REG_NO, DEBTOR_YN, UNION_YN,
+	        DEBTOR_NM, DEBTOR_GB, DEBTOR_RATIO, DEBTOR_ADDR, DSIGN_GB,
+	        DSIGN_HP_GB, DSIGN_HP_NO, DSIGN_TX, DSIGN_ST, DSIGN_DT,
+	        IDEN_ST, IDEN_DT, CONFIRM_NO, DEBTOR_ADDR_DT, DEBTOR_ROAD_CD,
+	        BIZ_NO
+	    )
+	    VALUES (
+	        #{SERVICE_ID}, #{SEQ}, PKG_COMMON.FN_ENCRYPT(#{REG_NO}), #{DEBTOR_YN}, #{UNION_YN},
+	        #{DEBTOR_NM}, #{DEBTOR_GB}, #{DEBTOR_RATIO}, PKG_COMMON.FN_ENCRYPT(#{DEBTOR_ADDR}), #{DSIGN_GB},
+	        #{DSIGN_HP_GB}, PKG_COMMON.FN_ENCRYPT(#{DSIGN_HP_NO}), #{DSIGN_TX}, #{DSIGN_ST},
+	        DECODE(#{DSIGN_DT}, '', SYSDATE, TO_DATE(#{DSIGN_DT}, 'yyyy/mm/dd hh24:mi:ss')),
+	        #{IDEN_ST}, DECODE(#{DSIGN_DT}, '', SYSDATE, TO_DATE(#{DSIGN_DT}, 'yyyy/mm/dd hh24:mi:ss')), #{CONFIRM_NO},
+	        PKG_COMMON.FN_ENCRYPT(#{DEBTOR_ADDR_DT}), #{DEBTOR_ROAD_CD}, #{BIZ_NO}
+	    )
+	</insert>
+	
+	<insert id="insertTrPayment" parameterType="map">
+	    INSERT INTO TR_PAYMENT (
+	        SERVICE_ID, PAY_KD, PAY_AMT, PAY_OP, PAY_ST,
+	        VBANK_CD, VBANK_NO, PAY_DT, T_VBANK_GB, T_VBANK_ID,
+	        INS_USER, PRE_PAY_AMT
+	    )
+	    VALUES (
+	        #{SERVICE_ID}, #{PAY_KD}, #{PAY_AMT}, #{PAY_OP}, #{PAY_ST},
+	        #{VBANK_CD}, #{VBANK_NO}, #{PAY_DT}, #{T_VBANK_GB}, #{T_VBANK_ID},
+	        #{MEMBER_ID}, #{PAY_AMT}
+	    )
+	</insert>
+	
+	<update id="updateTrService" parameterType="map">
+	    UPDATE TR_SERVICE
+	    <set>
+	        SERVICE_ID = #{SERVICE_ID},
+	        <if test="WORK_CD != null and WORK_CD != ''">
+	            WORK_CD = #{WORK_CD},
+	        </if>
+	        <if test="ASSOCIATION_ID != null and ASSOCIATION_ID != ''">
+	            ASSOCIATION_ID = #{ASSOCIATION_ID},
+	        </if>
+	        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+	            COMPANY_ID = #{COMPANY_ID},
+	        </if>
+	        <if test="BRANCH_ID != null and BRANCH_ID != ''">
+	            BRANCH_ID = #{BRANCH_ID},
+	        </if>
+	        <if test="SANGSA_ID != null and SANGSA_ID != ''">
+	            SANGSA_ID = #{SANGSA_ID},
+	        </if>
+	        <if test="MEMBER_ID != null and MEMBER_ID != ''">
+	            MEMBER_ID = #{MEMBER_ID},
+	        </if>
+	        <if test="GOVT_ID != null and GOVT_ID != ''">
+	            GOVT_ID = #{GOVT_ID},
+	        </if>
+	        <if test="CAR_NO != null and CAR_NO != ''">
+	            CAR_NO = #{CAR_NO},
+	        </if>
+	        <if test="REQUEST_DT != null and REQUEST_DT != ''">
+	            <if test="PROC_DT == null or PROC_DT == ''">
+	                REQUEST_DT = SYSDATE,
+	            </if>
+	        </if>
+	        <if test="PROC_ST != null and PROC_ST != ''">
+	            <if test="PROC_ST == 'END'">
+	                <if test="PROC_DT == null or PROC_DT == ''">
+	                    PROC_DT = SYSDATE,
+	                </if>
+	            </if>
+	            <if test="PROC_ST == 'C_REQ'">
+	                INS_DATE = SYSDATE,
+	            </if>
+	        </if>
+	        <if test="JUDGE_ST != null and JUDGE_ST != ''">
+	            <if test="JUDGE_ST == 'S_END'">
+	                JUDGE_DT = SYSDATE,
+	            </if>
+	        </if>
+	        <if test="PROC_ST != null and PROC_ST != ''">
+	            PROC_ST = #{PROC_ST},
+	        </if>
+	        <if test="JUDGE_ST != null and JUDGE_ST != ''">
+	            JUDGE_ST = #{JUDGE_ST},
+	        </if>
+	        <if test="RETURN_TX != null and RETURN_TX != ''">
+	            RETURN_TX = #{RETURN_TX},
+	        </if>
+	        <if test="UPD_USER != null and UPD_USER != ''">
+	            UPD_USER = #{UPD_USER},
+	        </if>
+	        <if test="UPD_USER == null or UPD_USER == ''">
+	            UPD_USER = #{MEMBER_ID},
+	        </if>
+	        UPD_DATE = SYSDATE
+	    </set>
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+	
+	<update id="updateTrCarNoDetach" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	    <set>
+	        SERVICE_ID       = #{SERVICE_ID},
+	        WORK_CD          = #{WORK_CD},
+	        TASK_CD          = #{NUMPLATE_GB},
+	        CAR_NO           = #{CAR_NO},
+	        POST_CAR_NO      = #{POST_CAR_NO},
+	        OWNER_YN         = #{OWNER_YN},
+	        SEND_YN          = #{SEND_YN},
+	        RECEIVE_YN       = #{RECEIVE_YN},
+	
+	        <if test="NUM_MEMO_TX != null and NUM_MEMO_TX != ''">
+	            MEMO_TX = #{NUM_MEMO_TX},
+	        </if>
+	
+	        ETC1             = #{ETC1},
+	        ETC2             = #{ETC2},
+	        ETC3             = #{ETC3},
+	        ETC4             = #{ETC4},
+	        ETC5             = #{ETC5},
+	
+	        <if test="UPD_USER != null and UPD_USER != ''">
+	            UPD_USER = #{UPD_USER},
+	        </if>
+	        <if test="UPD_USER == null or UPD_USER == ''">
+	            UPD_USER = #{MEMBER_ID},
+	        </if>
+	
+	        UPD_DATE         = SYSDATE,
+	        DELIVERY_GB      = #{DELIVERY_GB},
+	        DELIVERY_CP      = #{DELIVERY_CP},
+	        DELIVERY_ADDR    = PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR}),
+	        DELIVERY_ADDR_DT = PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR_DT}),
+	        DELIVERY_POST_NO = #{DELIVERY_POST_NO},
+	        DELIVERY_CP_ADDR = PKG_COMMON.FN_ENCRYPT(#{DELIVERY_CP_ADDR}),
+	
+	        <if test="INSTALL_YN != null and INSTALL_YN != ''">
+	            INSTALL_YN = #{INSTALL_YN},
+	        </if>
+	        <if test="NUMPLATE_ST != null and NUMPLATE_ST != ''">
+	            NUMPLATE_ST = #{NUMPLATE_ST},
+	        </if>
+	
+	        INSTALL_DT       = #{INSTALL_DT},
+	        INSTALL_NM       = #{INSTALL_NM},
+	        INSTALL_TEL_NO   = PKG_COMMON.FN_ENCRYPT(#{INSTALL_TEL_NO}),
+	        INSTALL_FEE      = #{INSTALL_FEE},
+	        INSTALL_SMS_TX   = #{INSTALL_SMS_TX},
+	        RECEIVE_TEL_NO   = PKG_COMMON.FN_ENCRYPT(#{RECEIVE_TEL_NO}),
+	        INSTALL_TM       = #{INSTALL_TM},
+	        DELIVERY_BC      = #{DELIVERY_BC},
+	        LAST_DELIVERY_GB = #{LAST_DELIVERY_GB},
+	        LAST_DELIVERY_ADDR = PKG_COMMON.FN_ENCRYPT(#{LAST_DELIVERY_ADDR}),
+	        LAST_DELIVERY_POST_NO = #{LAST_DELIVERY_POST_NO},
+	        RENT_SEND_YN     = #{RENT_SEND_YN},
+	        RENT_RECEIVE_YN  = #{RENT_RECEIVE_YN},
+	
+	        <if test="RENT_SEND_YN_DT == null and RENT_SEND_YN == 'Y'">
+	            RENT_SEND_YN_DT = SYSDATE,
+	        </if>
+	        <if test="RENT_RECEIVE_YN_DT == null and RENT_RECEIVE_YN == 'Y'">
+	            RENT_RECEIVE_YN_DT = SYSDATE,
+	        </if>
+	        <if test="SEND_YN_DT == null and SEND_YN == 'Y'">
+	            SEND_YN_DT = SYSDATE,
+	        </if>
+	        <if test="RECEIVE_YN_DT == null and RECEIVE_YN == 'Y'">
+	            RECEIVE_YN_DT = SYSDATE,
+	        </if>
+	
+	        <if test="RENT_SEND_YN_DT != null and RENT_SEND_YN == 'N'">
+	            RENT_SEND_YN_DT = NULL,
+	        </if>
+	        <if test="RENT_RECEIVE_YN_DT != null and RENT_RECEIVE_YN == 'N'">
+	            RENT_RECEIVE_YN_DT = NULL,
+	        </if>
+	        <if test="SEND_YN_DT != null and SEND_YN == 'N'">
+	            SEND_YN_DT = NULL,
+	        </if>
+	        <if test="RECEIVE_YN_DT != null and RECEIVE_YN == 'N'">
+	            RECEIVE_YN_DT = NULL,
+	        </if>
+	
+	        <if test="HOLE_YN != null and HOLE_YN != ''">
+	            HOLE_YN = #{HOLE_YN},
+	        </if>
+	        <if test="SEAL_YN != null and SEAL_YN != ''">
+	            SEAL_YN = #{SEAL_YN},
+	        </if>
+	        <if test="NUM_EO != null and NUM_EO != ''">
+	            NUM_EO = #{NUM_EO},
+	        </if>
+	        <if test="INSU_START_DT != null and INSU_START_DT != ''">
+	            INSU_START_DT = #{INSU_START_DT},
+	        </if>
+	
+	        SONGJANG_NO = #{SONGJANG_NO}
+	    </set>
+	
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+	
+	<delete id="deleteTrOwnerInfo" parameterType="map">
+		DELETE FROM TR_OWNERINFO
+		 WHERE SERVICE_ID = #{SERVICE_ID}
+	    <if test="SEQ != null and SEQ != ''">
+	       AND SEQ = #{SEQ}
+	    </if>
+	</delete>
+	
 </mapper>

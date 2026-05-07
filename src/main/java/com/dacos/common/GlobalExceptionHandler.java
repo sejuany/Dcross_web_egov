@@ -21,11 +21,11 @@ public class GlobalExceptionHandler {
      * 비즈니스 예외 처리 (인증 실패, 데이터 없음 등)
      */
     @ExceptionHandler(BusinessException.class)
-    public ResponseEntity<ApiResponse<Void>> handleBusinessException(BusinessException e) {
+    public ResponseEntity<ApiResponse<Object>> handleBusinessException(BusinessException e) {
         logger.warn("[비즈니스 예외] {}", e.getMessage());
         return ResponseEntity
                 .status(e.getStatusCode())
-                .body(ApiResponse.fail(e.getMessage()));
+                .body(ApiResponse.fail(e.getMessage(), e.getData()));
     }
 
     /**

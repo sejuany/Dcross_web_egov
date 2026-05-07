@@ -369,3 +369,27 @@ html {
 .signup-link-btn:hover {
     color: var(--accent-blue);
 }
+
+.mok-trigger-btn {
+    width: 100%;
+    padding: 1.1rem;
+    background-color: transparent;
+    color: var(--primary-blue);
+    border: 2px solid var(--primary-blue);
+    border-radius: 8px;
+    font-size: 1.05rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.mok-trigger-btn:hover {
+    background-color: rgba(28, 53, 83, 0.05);
+    border-color: var(--accent-blue);
+    color: var(--accent-blue);
+}

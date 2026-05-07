@@ -4,28 +4,41 @@
 
 <mapper namespace="com.dacos.auth.mapper.AuthMapper">
 
-    <!-- 사용자 ID로 사용자 정보 조회 (USE_YN = 'Y' 조건 포함) -->
+    <!-- 사용자 ID로 사용자 정보 조회 (상태 확인을 위해 USE_YN 필터 제거) -->
     <select id="findByUserId" parameterType="string" resultType="com.dacos.auth.dto.UserDto">
         SELECT
             MM.LOGIN_ID,
             MM.PASS_WD,
             MM.LOGIN_GB,
             PKG_COMMON.FN_DECRYPT(MM.REGIST_NO) AS REGIST_NO,
+            MM.ERROR_COUNT,
+            MM.USE_YN,
             MD.MEMBER_NM,
-            MD.USE_YN,
             MD.COMPANY_ID,
             MD.BRANCH_ID,
             MD.SANGSA_ID,
-            MD.MEMBER_GB
+            MD.MEMBER_GB,
+            PKG_COMMON.FN_DECRYPT(MD.MPHONE_NO) AS MPHONE_NO
         FROM
             TM_MEMBER_MT MM,
             TM_MEMBER_DT MD
         WHERE
             MM.LOGIN_ID = MD.LOGIN_ID
-            AND MM.LOGIN_ID = MD.MEMBER_ID
             AND MM.LOGIN_ID = #{userId}
-            AND MM.USE_YN  = 'Y'
+            AND ROWNUM = 1
     </select>
+
+    <update id="updateErrorCount">
+        UPDATE TM_MEMBER_MT
+        SET ERROR_COUNT = #{errorCount}
+        WHERE LOGIN_ID = #{userId}
+    </update>
+
+    <update id="updateMemberUseYN">
+        UPDATE TM_MEMBER_MT
+        SET USE_YN = #{useYn}
+        WHERE LOGIN_ID = #{userId}
+    </update>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
 	    SELECT

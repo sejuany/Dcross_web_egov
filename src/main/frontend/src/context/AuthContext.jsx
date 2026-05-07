@@ -49,8 +49,16 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     // user 상태: 새로고침해도 유지되도록 localStorage에서 초기값 로드
     const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
+        try {
+            const savedUser = localStorage.getItem('user');
+            if (savedUser && savedUser !== 'undefined') {
+                return JSON.parse(savedUser);
+            }
+        } catch (error) {
+            console.error('Failed to parse user data from localStorage:', error);
+            localStorage.removeItem('user');
+        }
+        return null;
     });
     const navigate = useNavigate();
 

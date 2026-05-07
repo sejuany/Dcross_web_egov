@@ -42,10 +42,10 @@
 		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
 		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID  
 		              AND TS.SERVICE_ID = TCI.SERVICE_ID
-		              <include refid="commonWhereSql" />
-		
-		            UNION ALL
-		
+		              <if test="PAY_TP != null and PAY_TP != ''"> AND TM.PAY_TP = #{PAY_TP} </if>
+		              <if test="PAY_ST != null and PAY_ST != ''"> AND TM.PAY_ST = #{PAY_ST} </if>
+		              <include refid="commonWhereSql" />		
+		            UNION ALL		
 		            /* 2. TR_TRNSNAME (이전등록 관련) */
 		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
 		                   TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') as REQUEST_DT, TS.REQUEST_DT AS SORT_DT,
@@ -77,6 +77,8 @@
 		              AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
 		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
 		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID    
+		              <if test="PAY_TP != null and PAY_TP != ''"> AND TM.PAY_TP = #{PAY_TP} </if>
+		              <if test="PAY_ST != null and PAY_ST != ''"> AND TM.PAY_ST = #{PAY_ST} </if>		              
 		              <include refid="commonWhereSql" />
 		              <if test="TASK_CD != null and TASK_CD != ''"> AND TM.TASK_CD = #{TASK_CD} </if>
 		
@@ -102,8 +104,7 @@
 		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID  
 		              AND (TM.CAR_NO LIKE '%하%' OR TM.CAR_NO LIKE '%허%' OR TM.CAR_NO LIKE '%호%')      
 		              <include refid="commonWhereSql" />
-		            </if>
-		
+		            </if>		
 		            UNION ALL
 		            /* 4. TR_MODIFY (변경등록 관련) */
 		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
@@ -127,8 +128,9 @@
 		            WHERE TS.SERVICE_ID = TM.SERVICE_ID AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
 		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
 		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID    
-		              <include refid="commonWhereSql" />
-		
+		              <if test="PAY_TP != null and PAY_TP != ''"> AND TM.PAY_TP = #{PAY_TP} </if>
+		              <if test="PAY_ST != null and PAY_ST != ''"> AND TM.PAY_ST = #{PAY_ST} </if>
+		              <include refid="commonWhereSql" />		
 		            UNION ALL
 		            /* 5. TR_NEWCAR (신규등록 관련) */
 		            SELECT TS.WORK_CD, TS.SERVICE_ID, TM.CAR_NO, TS.PROC_ST, TM.PAY_ST, TM.PAY_ME,
@@ -159,7 +161,8 @@
 		            FROM TR_SERVICE TS, TR_NEWCAR TM, TM_MEMBER_DT TMD, TM_COMPANY TC, TM_BRANCH TB
 		            WHERE TS.SERVICE_ID = TM.SERVICE_ID AND TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID(+) AND TS.COMPANY_ID = TMD.COMPANY_ID(+) AND TS.MEMBER_ID = TMD.MEMBER_ID(+)            
 		              AND TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
-		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID    
+		              AND TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID
+		              <if test="PAY_ST != null and PAY_ST != ''"> AND TM.PAY_ST = #{PAY_ST} </if>    
 		              <include refid="commonWhereSql" />
 		              <if test="LOCAL_ID != null and LOCAL_ID != ''">
 		                  <choose>
@@ -377,4 +380,32 @@
 		 ORDER BY PAY_KD
     </select>
     
+    	<!-- 세금 정보 조회 -->
+	<select id="getTmTax" parameterType="string" resultType="java.util.Map" >
+        SELECT
+	        WORK_CD,
+	        STAMP_PER,
+	        STAMP_AMT,
+	        REGIST_PER,
+	        REGIST_AMT,
+	        STAMP_BASE,
+	        REGIST_BASE,
+	        ACQ1_PER,
+	        ACQ2_PER,
+	        ACQ3_PER,
+	        ACQ210_PER,
+	        ACQ211_PER,
+	        ACQ0_PER         
+	    FROM
+	        TM_TAX         
+	    WHERE
+	        WORK_CD =  #{WORK_CD}
+	        AND sysdate between start_dt and end_dt         
+	        AND USE_YN = 'Y'
+	</select>
+	
+	<delete id="deleteTrPayment" parameterType="map">
+		DELETE FROM TR_PAYMENT
+		WHERE SERVICE_ID = #{SERVICE_ID}
+	</delete>
 </mapper>

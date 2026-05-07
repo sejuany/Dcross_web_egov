@@ -8,6 +8,7 @@
  * 예) NewcarList → /newcar/newcar-list
  */
 import React from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './components/member/LoginPage';
 import Layout from './components/layout/Layout';
@@ -28,15 +29,16 @@ import ManagementRoutes from './routes/ManagementRoutes';
 import AdminRoutes from './routes/AdminRoutes';
 import MemberRoutes from './routes/MemberRoutes';
 
+// 전역 설정: 세션(JSESSIONID) 유지 위해 모든 요청에 쿠키 포함
+axios.defaults.withCredentials = true;
+
 function App() {
   return (
     <Router>
       <AuthProvider>
         <TabProvider>
           <Routes>
-            {/* ===== 기본 경로 → 로그인 리다이렉트 ===== */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-
+		  	<Route path="/" element={<Navigate replace to="/login" />} />
             {/* ===== 공통 (인증 불필요) ===== */}
             <Route path="/login" element={<LoginPage />} />
 
@@ -52,7 +54,7 @@ function App() {
             {ServiceRoutes}
             {ManagementRoutes}
             {AdminRoutes}
-            {MemberRoutes}
+			{MemberRoutes}
 
           </Routes>
         </TabProvider>

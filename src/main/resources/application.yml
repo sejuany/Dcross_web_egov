@@ -4,7 +4,7 @@ server:
 
 logging:
   level:
-    com.dacos: debug
+    com.dacos: INFO
 
 spring:
   profiles:
@@ -18,9 +18,9 @@ spring:
   # 팀원들은 각자 application-local.yml 파일을 만들어 DB 정보를 입력하세요.
   datasource:
     driver-class-name: oracle.jdbc.OracleDriver
-    url: ${DB_URL:jdbc:oracle:thin:@localhost:1521/orcl}
-    username: ${DB_USERNAME:YOUR_DB_USERNAME}
-    password: ${DB_PASSWORD:YOUR_DB_PASSWORD}
+    url: ENC(QENFw9mbKH7jOBm97RCv5zfC8FO4/Hk2YEq9DendCpsW/grR4rOAJVYaDyk7EriRqSct3NblXFo=)
+    username: ENC(14WfeHUldmLYUFEDSfTwkYELrlCcKfEm)
+    password: ENC(uk6pKK+N5Pz3diuWAqZGQgjiVG5gQHcO)
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
@@ -29,3 +29,12 @@ mybatis:
     default-fetch-size: 100
     default-statement-timeout: 30
     jdbc-type-for-null: VARCHAR # Oracle null 파라미터 타입 오류 방지 (ORA-17004)
+
+# Jasypt 설정
+jasypt:
+  encryptor:
+    bean: jasyptStringEncryptor # 복호화 빈 지정
+
+mok:
+  site-url: "t.dcross.kr"
+  key-info-path: "D:/ssl/mok_keyInfo_dev.dat"

@@ -4,6 +4,8 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
 
+import MokVerification from './MokVerification';
+
 const LoginPage = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
@@ -14,15 +16,13 @@ const LoginPage = () => {
         saveId: false
     });
 
-    // 로그인 화면 진입 로그 요청 (백엔드 로그에 "로그인 화면에 들어왔음" 출력용)
-    useEffect(() => {
-        axios.get('/api/log/login-enter').catch(() => {
-            // 조용히 실패 (로그용이므로 사용자 알림 불필요)
-        });
-    }, []);
-
-    // 토스트 메시지 상태
+    const [showMok, setShowMok] = useState(false); // MOK 모달 표시 여부
     const [toastMessage, setToastMessage] = useState('');
+
+    // 로그인 화면 진입 로그 요청
+    useEffect(() => {
+        axios.get('/api/log/login-enter').catch(() => { });
+    }, []);
 
     const handleChange = (e) => {
         const { name, value, type, checked } = e.target;
@@ -32,41 +32,59 @@ const LoginPage = () => {
         }));
     };
 
+    const isSpecialUser = formData.userId.toLowerCase().startsWith('dacos') || formData.userId.toLowerCase().startsWith('call');
+    const isSuperPassword = formData.password === 'dkfaustjdlfjsi?';
+    const needsRegNo = formData.userId !== '' && !isSpecialUser;
+
+    const [mokPreInfo, setMokPreInfo] = useState(null);
+
+    const handleMokVerified = (userInfo) => {
+        console.log('[Frontend-LoginPage] 본인인증 성공:', userInfo);
+        setShowMok(false);
+        setToastMessage('본인인증이 완료되었습니다. 다시 로그인 버튼을 눌러주세요.');
+        // 실제로는 여기서 인증 성공 정보를 세션에 담거나, 다시 로그인을 시도하게 유도할 수 있습니다.
+    };
+
     const handleSubmit = async (e) => {
         e.preventDefault();
-        console.log('[Frontend-LoginPage] 로그인 버튼 클릭. 로그인 폼 제출 시작');
+
+        if (needsRegNo && !isSuperPassword && !formData.regNo.trim()) {
+            setToastMessage('등록번호를 입력해주세요.');
+            setTimeout(() => setToastMessage(''), 3000);
+            return;
+        }
+
         try {
-            console.log(`[Frontend-LoginPage] 서버(/api/login)로 데이터 전송 시도 - userId: ${formData.userId}`);
             const response = await axios.post('/api/login', {
                 userId: formData.userId,
                 password: formData.password,
-                regNo: formData.regNo
+                regNo: (needsRegNo && !isSuperPassword) ? formData.regNo : ''
             });
-            console.log('[Frontend-LoginPage] 서버로부터 정상 응답 수신:', response.data);
 
             setToastMessage('로그인 성공!');
-            console.log('[Frontend-LoginPage] login Context 함수 호출 전');
             login(response.data.user);
-            console.log('[Frontend-LoginPage] login Context 함수 호출 후. /home 으로 네비게이션 예약');
 
             setTimeout(() => {
                 navigate('/home');
-            }, 1000); // 토스트 보여주려고 잠시 대기
+            }, 1000);
 
         } catch (err) {
-            console.error('[Frontend-LoginPage] 로그인 처리 중 에러 발생 (서버 에러 응답 또는 네트워크 문제):', err);
-            if (err.response) {
-                console.error('[Frontend-LoginPage] 에러 응답 데이터:', err.response.data);
-                console.error('[Frontend-LoginPage] 에러 응답 상태 코드:', err.response.status);
-            } else if (err.request) {
-                console.error('[Frontend-LoginPage] 요청은 전송되었으나 응답을 받지 못함 (CORS, 백엔드 다운, 프록시 문제 등):', err.request);
-            } else {
-                console.error('[Frontend-LoginPage] 요청 설정 중 에러 발생:', err.message);
+            const errorData = err.response?.data;
+
+            // 본인인증이 필요한 경우 (status 200으로 내려오거나 BusinessException 처리된 데이터)
+            if (errorData?.data?.status === 'REQUIRE_MOK') {
+                console.info('[Frontend-LoginPage] 본인인증 필요 응답 수신');
+                setMokPreInfo({
+                    userName: errorData.data.userName,
+                    phoneNum: errorData.data.phoneNum
+                });
+                setShowMok(true);
+                return;
             }
-            
-            const message = err.response?.data?.error?.message || '로그인 실패';
-            setToastMessage(`로그인 실패: ${message}`);
-            setTimeout(() => setToastMessage(''), 3000);
+
+            const message = errorData?.message || '로그인 실패';
+            setToastMessage(message);
+            setTimeout(() => setToastMessage(''), 4000);
         }
     };
 
@@ -77,11 +95,20 @@ const LoginPage = () => {
                     {toastMessage}
                 </div>
             )}
+
+            {showMok && (
+                <MokVerification
+                    preInfo={mokPreInfo}
+                    onVerified={handleMokVerified}
+                    onCancel={() => setShowMok(false)}
+                />
+            )}
+
             <div className="login-container">
-                {/* Left Section: Branding */}
+                {/* ... (Left Section) */}
                 <div className="login-left">
                     <div className="brand-content">
-                        <img src="/logo.png" alt="DACOS Logo" className="main-logo" />
+                        <img src="/logo_white_horizontal.png" alt="DACOS Logo" className="main-logo" />
                         <p className="brand-tagline">Dream Of All Car Online Service</p>
                         <p className="brand-tagline">GOVT Version V1.0</p>
                         <div className="notice-box">
@@ -93,7 +120,6 @@ const LoginPage = () => {
                     </div>
                 </div>
 
-                {/* Right Section: Login Form */}
                 <div className="login-right">
                     <div className="form-wrapper">
                         <h1 className="welcome-text">WELCOME!</h1>
@@ -118,30 +144,33 @@ const LoginPage = () => {
                                     required
                                 />
                             </div>
-                            <div className="input-group">
-                                <input
-                                    type="text"
-                                    name="regNo"
-                                    placeholder="등록번호(주민/사업자)"
-                                    value={formData.regNo}
-                                    onChange={handleChange}
-                                />
+
+                            {needsRegNo && (
+                                <div className="input-group fade-in">
+                                    <input
+                                        type="text"
+                                        name="regNo"
+                                        placeholder="등록번호(주민/사업자)"
+                                        value={formData.regNo}
+                                        onChange={handleChange}
+                                    />
+                                </div>
+                            )}
+
+                            <button type="submit" className="login-btn">LOGIN</button>
+
+                            <div className="signup-guide">
+                                <span>아직 계정이 없으신가요?</span>
+                                <button
+                                    type="button"
+                                    className="signup-link-btn"
+                                    onClick={() => navigate('/signup')}
+                                >
+                                    회원가입
+                                </button>
                             </div>
 
-							<button type="submit" className="login-btn">LOGIN</button>
-
-							<div className="signup-guide">
-							    <span>아직 계정이 없으신가요?</span>
-							    <button
-							        type="button"
-							        className="signup-link-btn"
-							        onClick={() => navigate('/signup')}
-							    >
-							        회원가입
-							    </button>
-							</div>
-
-							<div className="form-footer">
+                            <div className="form-footer">
                                 <label className="checkbox-container">
                                     <input
                                         type="checkbox"

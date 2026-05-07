@@ -1,9 +1,8 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+﻿﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useAuth } from '../../context/AuthContext';
 import ErpSection from '../common/ErpSection';
@@ -25,8 +24,11 @@ const getFormattedDateOffset = (offsetDays) => {
 const PayInfo = () => {
     const navigate = useNavigate();
     const gridRef = useRef(null);
+	
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기
 
+	//console.table(user);
+	
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
     const [companyList, setCompanyList] = useState([]);
@@ -52,6 +54,15 @@ const PayInfo = () => {
         try {
             const cleanParam = (val) => (val === '전체' || val === '전체 (회사)' || val === '전체 (관청)') ? '' : val;
 			
+			const govtList = codeListMap['GOVT'];
+			// 만약 현재 govtId가 비어있는데, 목록은 딱 1개라면 그 값을 사용함
+			const finalGovtId = (!searchFilters.govtId && govtList?.length === 1) ? govtList[0].CODE_ID : searchFilters.govtId;
+				
+			if (companyList && companyList.length === 1) {
+		        searchFilters.companyID = companyList[0].COMPANY_ID;
+		    }
+				
+											
             const params = {
                 WORK_CD: searchFilters.workCD,
 				COMPANY_ID: cleanParam(searchFilters.companyID),
@@ -98,9 +109,25 @@ const PayInfo = () => {
                     newCodeMap[groupId] = tempMap;
                 }
             });
-            setCodeMap(newCodeMap);
-            setCodeListMap(newCodeListMap);
-            console.log(newCodeListMap);
+			
+			const filteredGovt = newCodeListMap['GOVT'];
+
+			if (user.member_GB.substring(0, 1) === 'G') {
+			    const govtResult = filteredGovt.filter(item => item.CODE_ID === user.company_ID);
+			    newCodeListMap['GOVT'] = govtResult;
+
+			    // ✨ 핵심: 필터링 결과가 1개라면 즉시 상태값에 반영
+			    if (govtResult.length === 1) {
+			        setSearchFilters(prev => ({
+			            ...prev,
+			            govtId: govtResult[0].CODE_ID // 'CHANG' 같은 값이 바로 들어감
+			        }));
+			    }
+			}
+			
+			setCodeMap(newCodeMap);
+			setCodeListMap(newCodeListMap);			
+            //console.log(newCodeListMap);
         } catch (error) {
             console.error('공통 코드 조회 실패:', error);
         }
@@ -121,6 +148,8 @@ const PayInfo = () => {
 	// codeListMap에 적용 시
 	codeListMap['WORK_CD'] = SGB_DATA;
 	
+	console.table(codeListMap['GOVT']);
+	
 	const BASE_GUBUN = [
 	    { CODE_ID: 'PROC_DT', CODE_NM: '처리일' },
 	    { CODE_ID: 'REQUEST_DT', CODE_NM: '신청일' }
@@ -138,26 +167,56 @@ const PayInfo = () => {
         //fetchPaymentList();
     }, []);
 
-    useEffect(() => {
-        const fetchCompanies = async () => {
-            try {
-                // 사용자의 요청에 따라 관청(govtId) 조건 없이 WORK_CD='010'에 해당하는 
-                // 전체 회사 목록을 한 번만 불러와서 리스트에 넣어줍니다.
-                const response = await axios.get('/api/companies', {
-                    params: {
-                        workCd: '010' // 업무구분 신규등록 고정
-                    }
-                });
-                if (response.data.success) {
-                    setCompanyList(response.data.list);
-                }
-            } catch (error) {
-                console.error('회사 목록 갱신 실패:', error);
-            }
-        };
-        fetchCompanies();
-    }, []); // 의존성 배열을 비워 컴포넌트 마운트 시 최초 1회만 불러옵니다.
+    useEffect(() => {        
+        fetchCompanies('000');
+    }, []); 
 
+	const fetchCompanies = async (workCd) => {
+        try {
+            // 사용자의 요청에 따라 관청(govtId) 조건 없이 WORK_CD='010'에 해당하는 
+            // 전체 회사 목록을 한 번만 불러와서 리스트에 넣어줍니다.
+			console.log('member_GB : ' + user.member_GB)
+			const requestParams = {
+				workCd: workCd
+			};
+			
+			if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+				// 일반 회사인경우
+				requestParams.companyId = user.company_ID
+			}
+			if (user.member_GB.substring(0, 1) === 'G') {
+				// 관청인 경우
+				requestParams.govtId = user.company_ID
+			}
+			
+			console.table(requestParams);
+            const response = await axios.get('/api/companies', {
+                params: requestParams
+            });
+            if (response.data.success) {
+                setCompanyList(response.data.list);
+            }
+        } catch (error) {
+            console.error('회사 목록 갱신 실패:', error);
+        }
+    };
+	
+	const handleWorkCdChange = (e) => {
+	    const selectedWorkCd = e.target.value;
+	    		
+	    // 상태 업데이트 (화면 표시용)
+	    setSearchFilters(prev => ({ ...prev, workCD: selectedWorkCd }));
+	    
+		if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+			// 일반 회사인 경우엔 하면 안되므로.
+			return;	
+		}
+		
+	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
+	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
+	    fetchCompanies(selectedWorkCd); 
+	};
+	
     // UA 권한 컬럼정의
 	const UA_ColumnDefs = [
 		{ headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 33, cellClass: 'ag-right-aligned-cell', 
@@ -358,19 +417,35 @@ const PayInfo = () => {
     };
 
     const handleResetClick = () => {
-        setSearchFilters({
-            workCD: '',
-            companyID: '',
-            govtId: '',
-            userNM: '',
-            clientName: '',
-            carNo: '',
-			baseGubun: '',
-            startDate: getFormattedDateOffset(0),
-            endDate: getFormattedDateOffset(0),
-            PAYST: '전체',
-            processStatus: '전체'
-        });
+		// 1. 기본적으로 초기화할 값들을 세팅합니다.
+	    const resetValues = {
+	        workCD: '',
+	        companyID: '',
+	        govtId: '',
+	        userNM: '',
+	        clientName: '',
+	        carNo: '',
+	        baseGubun: 'PROC_DT',
+	        startDate: getFormattedDateOffset(0),
+	        endDate: getFormattedDateOffset(0),
+	        PAY_ST: '',
+	        PAY_TP: '',
+	        processStatus: ''
+	    };
+
+	    // 2. 회사(Company) 목록이 1개뿐이라면 초기화 시에도 해당 값을 유지
+	    if (companyList && companyList.length === 1) {
+	        resetValues.companyID = companyList[0].COMPANY_ID;
+	    }
+
+	    // 3. 관청(GOVT) 목록이 1개뿐이라면 초기화 시에도 해당 값을 유지
+	    const govtList = codeListMap['GOVT'];
+	    if (govtList && govtList.length === 1) {
+	        resetValues.govtId = govtList[0].CODE_ID; // CODE_ID가 식별자인 경우
+	    }
+
+	    // 4. 상태 업데이트
+	    setSearchFilters(resetValues);
     };
 
     const handleExportExcel = () => {
@@ -474,10 +549,6 @@ const PayInfo = () => {
                 <div className="toolbar-left">
                     <span className="title-count">{totalCount}</span> 건
                 </div>
-				<div className="toolbar-center">
-					<button className="btn-status">납부영수증</button>
-				    <button className="btn-status" style={{ marginLeft: '10px' }}>통합영수증</button>
-                </div>
                 <div className="toolbar-right">
                     <button className="btn-status" onClick={handleSearchClick}>조회[F2]</button>
                     <button className="btn-status" onClick={handleExportExcel}>엑셀[F7]</button>
@@ -490,23 +561,25 @@ const PayInfo = () => {
             <ErpSection isHeader={true}>
                 <div className="erp-row">
                     <ErpField label="신청구분" span={5}>
-						<select className="erp-input" value={searchFilters.workCD} onChange={e => setSearchFilters({ ...searchFilters, workCD: e.target.value })}>
+						<select className="erp-input" value={searchFilters.workCD} onChange={handleWorkCdChange}>
                             <option value="">전체</option>
                             {codeListMap['WORK_CD'] && codeListMap['WORK_CD'].map(code => (
                                 <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
                             ))}
                         </select>
                         <select className="erp-input" value={searchFilters.companyID} onChange={e => setSearchFilters({ ...searchFilters, companyID: e.target.value })}>
-                            <option value="">전체 (회사)</option>
-                            {companyList.map(comp => (
-                                <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
-                            ))}
-                        </select>
+							{/* 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
+						    {companyList.length !== 1 && <option value="">전체 (회사)</option>}
+						    {companyList.map(comp => (
+						        <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
+						    ))}
+                        </select>						
                         <select className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
-                            <option value="">전체 (관청)</option>
-                            {codeListMap['GOVT'] && codeListMap['GOVT'].map(code => (
-                                <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
-                            ))}
+							{/* 관청 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
+						    {codeListMap['GOVT']?.length !== 1 && <option value="">전체 (관청)</option>}
+						    {codeListMap['GOVT']?.map(code => (
+						        <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
+						    ))}						
                         </select>
                     </ErpField>
                     <ErpField label="신청자명" span={3}>
@@ -527,21 +600,21 @@ const PayInfo = () => {
                     <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })} />                    
                     <ErpField label="신청상태" span={4}>
                         <select className="erp-input" value={searchFilters.processStatus} onChange={e => setSearchFilters({ ...searchFilters, processStatus: e.target.value })}>
-                            <option value="전체">전체</option>
+                            <option value="">전체</option>
                             {codeListMap['PR_ST'] && codeListMap['PR_ST'].map(code => (
                                 <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
                             ))}
                         </select>
                     </ErpField>
                     <ErpField label="납부상태" span={3}>
-                        <select className="erp-input" value={searchFilters.PAYST} onChange={e => setSearchFilters({ ...searchFilters, PAYST: e.target.value })}>
-							<option value="전체">전체</option>
+                        <select className="erp-input" value={searchFilters.PAY_ST} onChange={e => setSearchFilters({ ...searchFilters, PAY_ST: e.target.value })}>
+							<option value="">전체</option>
 							{codeListMap['PAYST'] && codeListMap['PAYST'].map(code => (
 						    	<option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
 						    ))}
 						</select>                    
-                        <select className="erp-input" value={searchFilters.PAYTP} onChange={e => setSearchFilters({ ...searchFilters, PAYTP: e.target.value })}>
-							<option value="전체">전체</option>
+                        <select className="erp-input" value={searchFilters.PAY_TP} onChange={e => setSearchFilters({ ...searchFilters, PAY_TP: e.target.value })}>
+							<option value="">전체</option>
 							{codeListMap['PAYTP'] && codeListMap['PAYTP'].map(code => (
 								<option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
 							))}

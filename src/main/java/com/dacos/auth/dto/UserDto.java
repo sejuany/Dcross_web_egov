@@ -17,4 +17,6 @@ public class UserDto {
     private String BRANCH_ID;
     private String SANGSA_ID;
     private String MEMBER_GB;
+    private String MPHONE_NO;
+    private String ERROR_COUNT;
 }

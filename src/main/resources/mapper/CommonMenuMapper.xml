@@ -105,30 +105,6 @@
         ORDER BY AH.CHG_DT DESC
     </select>
 	
-	<!-- 세금 정보 조회 -->
-	<select id="getTmTax" parameterType="string" resultType="java.util.Map" >
-        SELECT
-	        WORK_CD,
-	        STAMP_PER,
-	        STAMP_AMT,
-	        REGIST_PER,
-	        REGIST_AMT,
-	        STAMP_BASE,
-	        REGIST_BASE,
-	        ACQ1_PER,
-	        ACQ2_PER,
-	        ACQ3_PER,
-	        ACQ210_PER,
-	        ACQ211_PER,
-	        ACQ0_PER         
-	    FROM
-	        TM_TAX         
-	    WHERE
-	        WORK_CD =  #{WORK_CD}
-	        AND sysdate between start_dt and end_dt         
-	        AND USE_YN = 'Y'
-	</select>
-	
 	<!-- 서비스 사용 조회 -->
 	<select id="getWorkCp" parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest" resultType="java.util.Map" >
 		SELECT WORK_CD,
@@ -145,6 +121,38 @@
 		 WHERE COMPANY_ID = #{COMPANY_ID}
 		   AND WORK_CD = #{WORK_CD}
 		   AND USE_YN = 'Y'
+	</select>
+	
+	<!-- 기존 MiPlatform 메인메뉴 조회 -->
+	<select id="selectMainMenu" resultType="java.util.Map">
+	    SELECT
+	        ID,
+	        NAME,
+	        FILENAME,
+	        IMAGEID,
+	        VIEWAUTH,
+	        WRITEAUTH,
+	        MESSAGE,
+	        FILTERUSE,
+	        ETCDATA,
+	        WEBID,
+	        WEBPATH
+	    FROM TM_MAINMENU
+	    ORDER BY ID
+	</select>
+	
+	<!-- 기존 MiPlatform gdsUserAuth 조회 -->
+	<select id="selectUserWorkAuth"
+	        parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+	        resultType="java.util.Map">
+	    SELECT
+	        WORK_CD,
+	        GOVT_ID,
+	        PERM_GB,
+	        USE_YN
+	    FROM TM_WORK_MB
+	    WHERE MEMBER_ID = #{MEMBER_ID}
+	      AND COMPANY_ID = #{COMPANY_ID}
 	</select>
 
 </mapper>

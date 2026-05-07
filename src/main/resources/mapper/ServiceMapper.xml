@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.commonmenu.mapper.ServiceMapper">
+	
+	<!-- 서비스 아이디 조회 -->
+	<select id="selectServiceId" parameterType="map" resultType="string">
+	    SELECT LPAD(SEQ_SERVICE_ID.NEXTVAL, 5, '0') AS SERVICE_ID
+	    FROM DUAL
+	</select>
+	
+</mapper>

@@ -18,10 +18,13 @@ public interface CodeMapper {
      * @return { CODE_ID, CODE_NM, ORDER_NO }
      */
     List<Map<String, Object>> findCodesByGroupId(@Param("groupId") String groupId);
+    
+
+    List<Map<String, Object>> getCodeList(List<String> groupIds);
 
     /**
      * 대리점 목록 조회 (조건 선택)
      * @return { COMPANY_ID, COMPANY_NM, GOVT_ID }
      */
-    List<Map<String, Object>> findCompanyList(@Param("workCd") String workCd, @Param("govtId") String govtId);
+    List<Map<String, Object>> findCompanyList(@Param("workCd") String workCd, @Param("govtId") String govtId, @Param("companyId") String companyId);
 }

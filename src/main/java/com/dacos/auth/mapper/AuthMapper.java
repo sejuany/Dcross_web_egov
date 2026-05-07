@@ -54,4 +54,8 @@ public interface AuthMapper {
     void updateMemberMaster(Map<String, Object> request);
 
     void updateMemberDetail(Map<String, Object> request);
+    
+    void updateErrorCount(@Param("userId") String userId, @Param("errorCount") String errorCount);
+    
+    void updateMemberUseYN(@Param("userId") String userId, @Param("useYn") String useYn);
 }

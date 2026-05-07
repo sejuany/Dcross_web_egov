@@ -194,6 +194,7 @@ input.erp-input, textarea.erp-input {
     height: 32px !important;
     background-image: none;
     cursor: text;
+    font-size: 14px;
 }
 
 .erp-input {
@@ -433,7 +434,9 @@ input.erp-input, textarea.erp-input {
 }
 
 .ag-header-cell-resize {
-	display: none !important;
+    opacity: 0;           /* 안 보이게 */
+    width: 8px;           /* 영역은 유지 */
+    cursor: col-resize;   /* 커서는 유지 */
 }
 
 .ag-theme-alpine .ag-cell {

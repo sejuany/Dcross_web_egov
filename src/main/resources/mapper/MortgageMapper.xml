@@ -128,5 +128,148 @@
                 AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
         ORDER BY TS.REQUEST_DT ASC
     </select>
-
+    
+    <select id="getTrCarInfo" parameterType="map" resultType="map">
+	    SELECT SERVICE_ID, WORK_CD, EULBU_NO, CARID_NO, CAR_NM,
+	           CAR_KD, CAR_US, CAR_YY, CARREG_DT, MORT_CT, SHARE_YN,
+	           DIST_CT, INS_USER, INS_DATE, UPD_USER, UPD_DATE, PRE_CAR_NO, MORT_NM,
+	           TO_CHAR(MORTREG_DT,'YYYY/MM/DD') AS MORTREG_DT
+	    FROM TR_CARINFO
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
+	
+	<select id="getCompanyInfo" parameterType="map" resultType="map">
+	    SELECT ASSOCIATION_ID,
+	           COMPANY_ID,
+	           BIZ_NO,
+	           COMPANY_NO,
+	           COMPANY_NM,
+	           CEO_NM,
+	           POST_NO,
+	           ADDRESS,
+	           ADDRESS_DT,
+	           TEL_NO,
+	           MPHONE_NO,
+	           RT_BANK_CD,
+	           RT_ACC_NO,
+	           RT_ACC_NM,
+	           USE_YN
+	    FROM TM_COMPANY
+	    WHERE USE_YN = 'Y'
+	    <if test="AssoID != null and AssoID != ''">
+	        AND ASSOCIATION_ID = #{AssoID}
+	    </if>
+	    AND COMPANY_ID = #{CompanyID}
+	</select>
+	
+	<select id="getWorkCp" parameterType="map" resultType="map">
+	    SELECT WORK_CD,
+	           COMPANY_ID,
+	           GOVT_ID,
+	           PERM_GB,
+	           PAYMENT_GB,
+	           PAYMENT_OP,
+	           PAYMENT_TP,
+	           PAYMENT_ME,
+	           FEE,
+	           USE_YN
+	    FROM TM_WORK_CP
+	    WHERE COMPANY_ID = #{CompanyID}
+	      AND WORK_CD = #{WORK_CD}
+	      AND USE_YN = 'Y'
+	</select>
+	
+	<select id="getTrService" parameterType="map" resultType="map">
+	    SELECT 
+	        SERVICE_ID,
+	        WORK_CD,
+	        COMPANY_ID,
+	        ASSOCIATION_ID,
+	        GOVT_ID,
+	        BRANCH_ID,
+	        SANGSA_ID,
+	        MEMBER_ID,
+	        CAR_NO,
+	        TO_CHAR(REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+	        PROC_DT,
+	        TO_CHAR(JUDGE_DT, 'YYYYMMDD') AS JUDGE_DT,
+	        PROC_ST,
+	        JUDGE_ST,
+	        RETURN_TX,
+	        INS_USER,
+	        INS_DATE,
+	        UPD_USER,
+	        UPD_DATE,
+	        LINK_ID,
+	        IMPO_YN,
+	        READ_YN,
+	        AUTO_YN
+	    FROM TR_SERVICE
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
+	
+	<insert id="insertTrService" parameterType="map">
+	    INSERT INTO TR_SERVICE (
+	        SERVICE_ID, WORK_CD, COMPANY_ID, ASSOCIATION_ID, GOVT_ID,
+	        MEMBER_ID, CAR_NO, REQUEST_DT, PROC_ST, BRANCH_ID,
+	        SANGSA_ID, JUDGE_ST, RETURN_TX, INS_USER, AUTO_YN,
+	        LINK_ID
+	    )
+	    VALUES (
+	        #{SERVICE_ID}, #{WORK_CD}, #{COMPANY_ID}, #{ASSOCIATION_ID}, #{GOVT_ID},
+	        #{MEMBER_ID}, #{CAR_NO}, SYSDATE, #{PROC_ST}, #{BRANCH_ID},
+	        #{SANGSA_ID}, #{JUDGE_ST}, #{RETURN_TX}, #{MEMBER_ID}, #{AUTO_YN},
+	        #{LINK_ID}
+	    )
+	</insert>
+	
+	<update id="updateTrPayment" parameterType="map">
+	    UPDATE TR_PAYMENT
+	    <set>
+	        SERVICE_ID = #{SERVICE_ID},
+	        <if test="PAY_KD != null and PAY_KD != ''">
+	            PAY_KD = #{PAY_KD},
+	        </if>
+	        <if test="PAY_AMT != null and PAY_AMT != ''">
+	            PAY_AMT = #{PAY_AMT},
+	            <if test="PRE_PAY_AMT == null or PRE_PAY_AMT == ''">
+	                PRE_PAY_AMT = #{PAY_AMT},
+	            </if>
+	        </if>
+	        <if test="PAY_OP != null and PAY_OP != ''">
+	            PAY_OP = #{PAY_OP},
+	        </if>
+	        <if test="PAY_ST != null and PAY_ST != ''">
+	            PAY_ST = #{PAY_ST},
+	        </if>
+	        <if test="VBANK_CD != null and VBANK_CD != ''">
+	            VBANK_CD = #{VBANK_CD},
+	        </if>
+	        <if test="VBANK_NO != null and VBANK_NO != ''">
+	            VBANK_NO = #{VBANK_NO},
+	        </if>
+	        <if test="PAY_DT != null and PAY_DT != ''">
+	            <!-- PAY_DT 유지 -->
+	        </if>
+	        <if test="T_VBANK_GB != null and T_VBANK_GB != ''">
+	            T_VBANK_GB = #{T_VBANK_GB},
+	        </if>
+	        <if test="T_VBANK_ID != null and T_VBANK_ID != ''">
+	            T_VBANK_ID = #{T_VBANK_ID},
+	        </if>
+	        <if test="REAL_ALOAN != null and REAL_ALOAN != ''">
+	            REAL_ALOAN = #{REAL_ALOAN},
+	        </if>
+	        <if test="REAL_RLOAN != null and REAL_RLOAN != ''">
+	            REAL_RLOAN = #{REAL_RLOAN},
+	        </if>
+	        <if test="REAL_TAX_ACQ != null and REAL_TAX_ACQ != ''">
+	            REAL_TAX_ACQ = #{REAL_TAX_ACQ},
+	        </if>
+	        UPD_USER = #{MEMBER_ID},
+	        UPD_DATE = SYSDATE
+	    </set>
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	      AND PAY_KD = #{PAY_KD}
+	</update>
 </mapper>

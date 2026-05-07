@@ -10,14 +10,27 @@ import lombok.Getter;
 public class BusinessException extends RuntimeException {
 
     private final int statusCode;
+    private final Object data;
 
     public BusinessException(String message) {
-        super(message);
-        this.statusCode = 400;
+        this(message, 400, null);
     }
 
     public BusinessException(String message, int statusCode) {
+        this(message, statusCode, null);
+    }
+
+    public BusinessException(String message, int statusCode, Object data) {
         super(message);
         this.statusCode = statusCode;
+        this.data = data;
+    }
+
+    public int getStatusCode() {
+        return statusCode;
+    }
+
+    public Object getData() {
+        return data;
     }
 }

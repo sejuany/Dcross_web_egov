@@ -262,6 +262,15 @@
     		<version>3.0.5</version> 
     	</dependency>
 
+		<!-- MobileOK 본인인증 라이브러리 (로컬 JAR) -->
+		<dependency>
+			<groupId>com.mobileok</groupId>
+			<artifactId>mobileok-manager</artifactId>
+			<version>1.0.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/mobileOKManager-jdk1.8_1.0.1.jar</systemPath>
+		</dependency>
+
 	</dependencies>
 
 	<build>
@@ -400,6 +409,7 @@
 				<version>3.4.2</version>
 				<configuration>
 					<jvmArguments>-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dstdout.encoding=UTF-8</jvmArguments>
+					<includeSystemScope>true</includeSystemScope>
 				</configuration>
 				<executions>
 					<execution>
