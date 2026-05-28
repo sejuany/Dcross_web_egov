@@ -9,6 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -40,6 +42,35 @@ public class CodeController {
         List<Map<String, Object>> codes = codeService.getCodesByGroupId(groupId);
         return ResponseEntity.ok(ApiResponse.withKey("codes", codes));
     }
+    
+    /**
+     * 공통 코드 다건 조회
+     */
+    @PostMapping("/codes/list")
+    public ResponseEntity<Map<String, Object>> getCodeList(
+            @RequestBody Map<String, Object> request) {
+
+        List<String> groupIds = (List<String>) request.get("groupIds");
+
+        logger.info(
+            "[CodeController] 코드 다건 조회 요청 - {}",
+            groupIds
+        );
+
+        // null 방어
+        if (groupIds == null || groupIds.isEmpty()) {
+            return ResponseEntity.ok(
+                ApiResponse.withKey("codes", Map.of())
+            );
+        }
+
+        Map<String, List<Map<String, Object>>> codes =
+            codeService.getCodeList(groupIds);
+
+        return ResponseEntity.ok(
+            ApiResponse.withKey("codes", codes)
+        );
+    }
 
     /**
      * 대리점 목록 조회
@@ -49,9 +80,10 @@ public class CodeController {
     @GetMapping("/companies")
     public ResponseEntity<Map<String, Object>> getCompanies(
             @RequestParam(value = "workCd", required = false) String workCd,
+            @RequestParam(value = "companyId", required = false) String companyId,
             @RequestParam(value = "govtId", required = false) String govtId) {
         logger.info("[CodeController] 대리점 목록 조회 요청");
-        List<Map<String, Object>> companies = codeService.getCompanyList(workCd, govtId);
+        List<Map<String, Object>> companies = codeService.getCompanyList(workCd, govtId, companyId);
         return ResponseEntity.ok(ApiResponse.withKey("list", companies));
     }
 }

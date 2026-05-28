@@ -10,6 +10,8 @@ import com.dacos.auth.dto.LoginRequest;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.auth.mapper.AuthMapper;
 import com.dacos.common.BusinessException;
+import com.dacos.common.CommonRepository;
+import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.util.CryptoUtils;
 import java.util.List;
 import java.util.HashMap;
@@ -27,6 +29,10 @@ public class AuthService {
 
     @Autowired
     private AuthMapper authMapper;
+    @Autowired
+    private MortgageMapper mortMapper;
+    @Autowired
+    private CommonRepository common;
 
     // BCrypt 인코더 (strength 12)
     private final BCryptPasswordEncoder bcryptEncoder = new BCryptPasswordEncoder(12);
@@ -217,4 +223,60 @@ public class AuthService {
         authMapper.updateMemberMaster(request);
         authMapper.updateMemberDetail(request);
     }
+    
+    // 모든 화면에서 공통으로 필요한 dsService 데이터 조회
+    // 초기화의 경우 toMap()를 던져주고, 상세 조회 페이지의 경우 dsService를 넣어준다.
+    public Map<String, Object> getCommonServiceData(Map<String, Object> param) { 
+		// 반환값
+	    Map<String, Object> result = new HashMap<>();
+	    
+	    logger.info("[AuthService] user: {}", param);
+	    
+	    // 공통 사용자 정보
+	    Map<String, Object> mServiceInfo = new HashMap<>();
+	    mServiceInfo.putAll(param);
+	    
+	    // 공통 조회
+	    List<Map<String, Object>> lBranchList =
+	        common.selectList(mServiceInfo, "getBranchList");
+
+	    Map<String, Object> mCompanyInfo =
+	        common.select(mServiceInfo, "getCompanyInfo");
+	    
+	    List<Map<String, Object>> lBaseList =
+	        common.selectList(mServiceInfo, "getBaseList");
+
+	    Map<String, Object> mWorkCp =
+	        common.select(mServiceInfo, "getWorkCp");
+	    
+	    
+	    // 관청 기본값
+	    if (mWorkCp != null) {
+	        mServiceInfo.put("GOVT_ID", mWorkCp.get("GOVT_ID"));
+	    }
+	    
+	    // 결과 세팅
+	    result.put("dsService", mServiceInfo);
+	    result.put("dsCompanyInfo", mCompanyInfo);
+	    result.put("dsBranchList", lBranchList);
+	    result.put("dsBaseList", lBaseList);
+	    result.put("dsWorkCp", mWorkCp);
+	    
+	    return result;
+	}
+    
+	public Map<String, Object> toMap(UserDto user, String workCd) {
+	    Map<String, Object> map = new HashMap<>();
+	
+	    map.put("LOGIN_ID", user.getLOGIN_ID());
+	    map.put("COMPANY_ID", user.getCOMPANY_ID());
+	    map.put("MEMBER_ID", user.getLOGIN_ID());
+	    map.put("UPD_USER", user.getLOGIN_ID());
+	    map.put("ASSOCIATION_ID", user.getASSOCIATION_ID());
+	    map.put("BRANCH_ID", user.getBRANCH_ID());
+	    map.put("SANGSA_ID", user.getSANGSA_ID());
+	    map.put("WORK_CD", workCd);
+	
+	    return map;
+	}
 }

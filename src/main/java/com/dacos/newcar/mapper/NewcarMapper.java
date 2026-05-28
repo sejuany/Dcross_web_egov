@@ -31,8 +31,21 @@ public interface NewcarMapper {
      *  신규등록 기본정보 초기화
      */
     Map<String, Object> initNewCar();
-
-	List<String> getNumplateList(Map<String, Object> param);
+	
+	/** 소유자 정보 (SERVICE_ID 기반) */
+    List<Map<String, Object>> getOwnerInfoList(Map<String, Object> param);
+	
+	/** 지점 목록 (COMPANY_ID 필요) */
+	List<Map<String, Object>> getBranchList(Map<String, Object> param);
+	
+	/** 본거지 목록 (COMPANY_ID 필요) */
+	List<Map<String, Object>> getBaseList(Map<String, Object> param);
+	
+	/** 번호판 정보 (SERVICE_ID 기반) */
+	Map<String, Object> getTrCarNoDetach(Map<String, Object> param);
+	
+	/** 번호판 리스트 (복합조건) */
+	List<String> getNumPlateList(Map<String, Object> param);
 	
 	void callAvailNumplate(Map<String, Object> param);
 	

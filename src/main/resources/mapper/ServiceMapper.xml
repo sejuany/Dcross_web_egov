@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.commonmenu.mapper.ServiceMapper">
+	
+	<!-- 서비스 아이디 조회 -->
+	<select id="selectServiceId" parameterType="map" resultType="string">
+	    SELECT LPAD(SEQ_SERVICE_ID.NEXTVAL, 5, '0') AS SERVICE_ID
+	    FROM DUAL
+	</select>
+		
+	<update id="updateTrService" parameterType="map">
+	    UPDATE TR_SERVICE
+	    <set>
+	        SERVICE_ID = #{SERVICE_ID},
+	        <if test="WORK_CD != null and WORK_CD != ''">
+	            WORK_CD = #{WORK_CD},
+	        </if>
+	        <if test="ASSOCIATION_ID != null and ASSOCIATION_ID != ''">
+	            ASSOCIATION_ID = #{ASSOCIATION_ID},
+	        </if>
+	        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+	            COMPANY_ID = #{COMPANY_ID},
+	        </if>
+	        <if test="BRANCH_ID != null and BRANCH_ID != ''">
+	            BRANCH_ID = #{BRANCH_ID},
+	        </if>
+	        <if test="SANGSA_ID != null and SANGSA_ID != ''">
+	            SANGSA_ID = #{SANGSA_ID},
+	        </if>
+	        <if test="MEMBER_ID != null and MEMBER_ID != ''">
+	            MEMBER_ID = #{MEMBER_ID},
+	        </if>
+	        <if test="GOVT_ID != null and GOVT_ID != ''">
+	            GOVT_ID = #{GOVT_ID},
+	        </if>
+	        <if test="CAR_NO != null and CAR_NO != ''">
+	            CAR_NO = #{CAR_NO},
+	        </if>
+	        <if test="REQUEST_DT != null and REQUEST_DT != ''">
+	            <if test="PROC_DT == null or PROC_DT == ''">
+	                REQUEST_DT = SYSDATE,
+	            </if>
+	        </if>
+	        <if test="PROC_ST != null and PROC_ST != ''">
+	            <if test="PROC_ST == 'END'">
+	                <if test="PROC_DT == null or PROC_DT == ''">
+	                    PROC_DT = SYSDATE,
+	                </if>
+	            </if>
+	            <if test="PROC_ST == 'C_REQ'">
+	                INS_DATE = SYSDATE,
+	            </if>
+	        </if>
+	        <if test="JUDGE_ST != null and JUDGE_ST != ''">
+	            <if test="JUDGE_ST == 'S_END'">
+	                JUDGE_DT = SYSDATE,
+	            </if>
+	        </if>
+	        <if test="PROC_ST != null and PROC_ST != ''">
+	            PROC_ST = #{PROC_ST},
+	        </if>
+	        <if test="JUDGE_ST != null and JUDGE_ST != ''">
+	            JUDGE_ST = #{JUDGE_ST},
+	        </if>
+	        <if test="RETURN_TX != null and RETURN_TX != ''">
+	            RETURN_TX = #{RETURN_TX},
+	        </if>
+	        <if test="UPD_USER != null and UPD_USER != ''">
+	            UPD_USER = #{UPD_USER},
+	        </if>
+	        <if test="UPD_USER == null or UPD_USER == ''">
+	            UPD_USER = #{MEMBER_ID},
+	        </if>
+	        UPD_DATE = SYSDATE
+	    </set>
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+</mapper>

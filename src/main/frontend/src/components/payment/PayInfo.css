@@ -407,7 +407,6 @@
 
     /* 2. 현대적인 형태와 여백 */
     height: 28px; /* 버튼 높이와 조화 */
-    padding: 0 30px 0 10px; /* 우측에 커스텀 화살표 공간 확보 */
     font-size: 13px;
     font-family: 'Malgun Gothic', sans-serif;
     color: #334e68;

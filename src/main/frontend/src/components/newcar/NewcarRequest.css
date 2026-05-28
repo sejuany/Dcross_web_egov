@@ -10,13 +10,12 @@
 
 /* Unified Toolbar */
 .erp-toolbar {
-    background: #4a6a8a;
-    /* Blue background to look like a header */
+	background: linear-gradient(to bottom, #3c638d, #2f557d);
+    border-bottom: 1px solid #294868;
     padding: 2px 10px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-bottom: 2px solid #334a62;
     color: #fff;
 }
 
@@ -161,6 +160,59 @@
 	min-width: 120px;
 }
 
+
+.erp-input:focus {
+    outline: 1px solid #4dabf7;
+    border-color: #4dabf7;
+}
+
+.erp-input.disabled {
+    background-color: #f8f9fa;
+    color: #868e96;
+    border-color: #dee2e6;
+}
+
+.erp-input.highlight-red {
+    border: 1px solid #fa5252;
+    background-color: #fff5f5;
+}
+
+.erp-input.highlight-yellow {
+    background-color: #fff9db;
+    border-color: #fab005;
+}
+
+.erp-input.highlight-blue {
+    background-color: #e7f5ff;
+    border-color: #339af0;
+    color: #1971c2;
+    font-weight: bold;
+}
+
+/* Buttons */
+.btn-erp {
+    height: 24px;
+    padding: 0 9px;
+    font-size: 13px;
+    border-radius: 3px;
+    border: 1px solid #2e5b8d;
+    background: linear-gradient(to bottom, #4a7db6, #35679e);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    
+    /* 버튼 글씨 가운데 정렬*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-erp:hover {
+    background: linear-gradient(to bottom, #5a8dc6, #4174ad);
+    transform: translateY(-1px);
+}
+
 /* Labels and Inputs */
 .erp-label {
     background-color: #f1f3f6;
@@ -194,6 +246,7 @@ input.erp-input, textarea.erp-input {
     height: 32px !important;
     background-image: none;
     cursor: text;
+    font-size: 14px;
 }
 
 .erp-input {
@@ -206,6 +259,34 @@ input.erp-input, textarea.erp-input {
     flex: 1;
     max-width: none;
     width: 100%;
+}
+
+/* readonly */
+input.erp-input:read-only,
+textarea.erp-input:read-only {
+    background-color: #ebeff2 !important;
+    color: #868e96;
+    border-color: #ced4da;
+    cursor: not-allowed;
+}
+
+/* disabled */
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled {
+    background-color: #ebeff2 !important;
+    color: #868e96;
+    border-color: #ced4da;
+    cursor: not-allowed;
+}
+
+/* hover */
+input.erp-input:read-only:hover,
+textarea.erp-input:read-only:hover,
+input.erp-input:disabled:hover,
+textarea.erp-input:disabled:hover,
+select.erp-input:disabled:hover {
+    cursor: not-allowed;
 }
 
 /* 메모 영역*/
@@ -251,34 +332,6 @@ input.erp-input, textarea.erp-input {
     }
 }
 
-.erp-input:focus {
-    outline: 1px solid #4dabf7;
-    border-color: #4dabf7;
-}
-
-.erp-input.disabled {
-    background-color: #f8f9fa;
-    color: #868e96;
-    border-color: #dee2e6;
-}
-
-.erp-input.highlight-red {
-    border: 1px solid #fa5252;
-    background-color: #fff5f5;
-}
-
-.erp-input.highlight-yellow {
-    background-color: #fff9db;
-    border-color: #fab005;
-}
-
-.erp-input.highlight-blue {
-    background-color: #e7f5ff;
-    border-color: #339af0;
-    color: #1971c2;
-    font-weight: bold;
-}
-
 .flex-grow {
     flex: 1;
 }
@@ -317,26 +370,6 @@ input.erp-input, textarea.erp-input {
     justify-content: flex-end;
 }
 
-/* Buttons */
-.btn-erp {
-    height: 24px;
-    padding: 0 8px;
-    font-size: 13px;
-    border: 1px solid #7a8fa6;
-    background-color: #d1dce8;
-    
-    /* Sky blue + Gray mix */
-    color: #334e68;
-    cursor: pointer;
-    border-radius: 2px;
-    font-weight: 600;
-    
-    /* 버튼 글씨 가운데 정렬*/
-    display: flex;
-    align-items: center;
-    justify-content: center;
-}
-
 /* 1280px Optimization for Buttons */
 @media (max-width: 1280px) {
     .btn-erp {
@@ -346,29 +379,60 @@ input.erp-input, textarea.erp-input {
     }
 }
 
-.btn-erp:hover {
-    background-color: #b9cadc;
-    border-color: #5c7591;
-    color: #1e293b;
+.btn-erp.light {
+    background: linear-gradient(to bottom, #ffffff, #eef4fb);
+    border-color: #aebfd3;
+    color: #24496f;
 }
 
-.btn-erp.light {
-    background-color: #e2e8f0;
+
+/* disabled */
+.btn-erp:disabled,
+.btn-erp.light:disabled {
+    background: linear-gradient(to bottom, #dbe3ec, #c8d4e1);
+    border: 1px solid #a8b8ca;
+    color: #5a6b7d;
+    cursor: not-allowed;
+    opacity: 1;
+    box-shadow: inset 0 1px 1px rgba(255,255,255,0.4);
+}
+
+/* disabled hover 막기 */
+.btn-erp:disabled:hover,
+.btn-erp.light:disabled:hover {
+    background: linear-gradient(to bottom, #dbe3ec, #c8d4e1);
+    border-color: #a8b8ca;
+    color: #5a6b7d;
+    transform: none;
 }
 
 .btn-erp.dark {
-    background-color: #94a3b8;
-    color: #fff;
-    border-color: #475569;
+    background: linear-gradient(to bottom, #647c98, #50657d);
+    border-color: #405364;
 }
 
 .btn-erp.grey {
-    background-color: #e5e7eb;
+    background: linear-gradient(to bottom, #f7f9fc, #e7eef7);
+    border-color: #c2cfdd;
+    color: #35506d;
 }
 
+/* small */
 .btn-erp.sm {
     padding: 14px 10px;
     font-size: 12px;
+}
+
+/* medium */
+.btn-erp.md {
+    padding: 14px 18px;
+    font-size: 13px;
+}
+
+/* large */
+.btn-erp.lg {
+    padding: 14px 28px;
+    font-size: 13px;
 }
 
 /* Vehicle Table-like Grid */
@@ -433,7 +497,9 @@ input.erp-input, textarea.erp-input {
 }
 
 .ag-header-cell-resize {
-	display: none !important;
+    opacity: 0;           /* 안 보이게 */
+    width: 8px;           /* 영역은 유지 */
+    cursor: col-resize;   /* 커서는 유지 */
 }
 
 .ag-theme-alpine .ag-cell {
@@ -572,3 +638,4 @@ input.erp-input, textarea.erp-input {
 .f-left {
 	justify-content: flex-start;
 }
+

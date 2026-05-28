@@ -8,6 +8,7 @@
  * 예) NewcarList → /newcar/newcar-list
  */
 import React from 'react';
+import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './components/member/LoginPage';
 import Layout from './components/layout/Layout';
@@ -16,6 +17,7 @@ import HomePage from './pages/HomePage';
 import { TabProvider } from './context/TabContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
+import CompanyRoutes from './routes/CompanyRoutes';
 import './App.css';
 
 // ===== 모듈별 라우트 임포트 =====
@@ -34,9 +36,7 @@ function App() {
       <AuthProvider>
         <TabProvider>
           <Routes>
-            {/* ===== 기본 경로 → 로그인 리다이렉트 ===== */}
-            <Route path="/" element={<Navigate to="/login" replace />} />
-
+		  	<Route path="/" element={<Navigate replace to="/login" />} />
             {/* ===== 공통 (인증 불필요) ===== */}
             <Route path="/login" element={<LoginPage />} />
 
@@ -52,8 +52,8 @@ function App() {
             {ServiceRoutes}
             {ManagementRoutes}
             {AdminRoutes}
-            {MemberRoutes}
-
+			{MemberRoutes}
+			{CompanyRoutes}
           </Routes>
         </TabProvider>
       </AuthProvider>

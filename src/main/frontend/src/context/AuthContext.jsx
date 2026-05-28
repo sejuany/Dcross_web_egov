@@ -49,7 +49,8 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }) => {
     // user 상태: 새로고침해도 유지되도록 localStorage에서 초기값 로드
     const [user, setUser] = useState(() => {
-        const savedUser = localStorage.getItem('user');
+		//const savedUser = localStorage.getItem('user'); 기존 localStorage로 로그인정보저장
+        const savedUser = sessionStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
     const navigate = useNavigate();
@@ -66,7 +67,8 @@ export const AuthProvider = ({ children }) => {
      */
     const logout = useCallback(() => {
         setUser(null);
-        localStorage.removeItem('user');
+        //localStorage.removeItem('user');
+		sessionStorage.removeItem('user');
         navigate('/login');
     }, [navigate]);
 
@@ -78,7 +80,9 @@ export const AuthProvider = ({ children }) => {
         console.log('AuthContext: Setting user data', userData);
         setUser(userData);
         // 새로고침해도 로그인 상태 유지를 위해 localStorage에 저장
-        localStorage.setItem('user', JSON.stringify(userData));
+        //localStorage.setItem('user', JSON.stringify(userData));
+		// 로그인세션이 저절로 지워지게 하기 위해 local이 아닌 sessionStorage에 저장
+		sessionStorage.setItem('user', JSON.stringify(userData));
         resetTimer(); // 세션 타이머 시작
     };
 

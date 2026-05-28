@@ -5,6 +5,7 @@ import java.util.Map;
 
 import org.apache.ibatis.annotations.Mapper;
 
+import com.dacos.addservice.dto.AddServiceDto;
 import com.dacos.mortgage.dto.MortgageSearchRequest;
 
 /**
@@ -27,4 +28,13 @@ public interface MortgageMapper {
 
     /** 처리지연현황 목록 조회 */
     List<Map<String, Object>> getDelayList(MortgageSearchRequest request);
+    
+	Map<String, Object> getTrService(String serviceId);
+	
+	Map<String, Object> getTrCarInfo(Map<String, Object> param);
+	
+	Map<String, Object> getCompanyInfo(Map<String, Object> param);
+	
+	Map<String, Object> getWorkCp(Map<String, Object> param);
+	
 }

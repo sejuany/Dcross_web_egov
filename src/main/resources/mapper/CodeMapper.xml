@@ -16,7 +16,7 @@
                 ORDER BY ORDER_NO ASC, CODE_ID ASC
             </when>
             <otherwise>
-                ORDER BY CODE_ID ASC
+                ORDER BY GROUP_ID, TO_NUMBER(ORDER_NO)
             </otherwise>
         </choose>
     </select>
@@ -30,11 +30,26 @@
         <if test="workCd != null and workCd != ''">
             AND WC.WORK_CD = #{workCd}
         </if>
+        <if test="companyId != null and companyId != ''">
+            AND CP.COMPANY_ID = #{companyId}
+        </if>        
         <if test="govtId != null and govtId != ''">
             AND WC.GOVT_ID = #{govtId}
         </if>
         GROUP BY CP.COMPANY_ID, CP.COMPANY_NM, WC.GOVT_ID
         ORDER BY CP.COMPANY_NM ASC
     </select>
+	    
+	<!-- 공통 코드 다건 조회 -->
+	<select id="getCodeList" parameterType="java.util.List" resultType="java.util.HashMap">
+	    SELECT GROUP_ID, CODE_ID, CODE_NM, ORDER_NO
+	    FROM TM_CODE
+	    WHERE GROUP_ID IN
+	    <foreach collection="list" item="item" open="(" separator="," close=")">
+	        #{item}
+	    </foreach>
+	    AND USE_YN = 'Y'
+	    ORDER BY GROUP_ID, ORDER_NO, CODE_ID
+	</select>
 
 </mapper>

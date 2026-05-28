@@ -15,9 +15,4 @@ public interface NumPlateMapper {
 
     List<Map<String, Object>> getNumPlateList(NumPlateSearchRequest request);
 
-    List<Map<String, Object>> getCarPaperList(NumPlateSearchRequest request);
-
-    List<Map<String, Object>> getTempNumPlateList(NumPlateSearchRequest request);
-
-    List<Map<String, Object>> getNumPlateSupplyList(NumPlateSearchRequest request);
 }

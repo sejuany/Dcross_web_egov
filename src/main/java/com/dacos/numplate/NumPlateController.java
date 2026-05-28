@@ -38,27 +38,4 @@ public class NumPlateController {
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
-    /** 자동차등록증관리 목록 조회 - POST /api/numplate/carpaper/list */
-    @PostMapping("/numplate/carpaper/list")
-    public ResponseEntity<Map<String, Object>> getCarPaperList(@RequestBody NumPlateSearchRequest request) {
-        logger.info("[NumPlateController] 자동차등록증관리 목록 조회 요청");
-        List<Map<String, Object>> list = numPlateService.getCarPaperList(request);
-        return ResponseEntity.ok(ApiResponse.withKey("list", list));
-    }
-
-    /** 임판회수관리 목록 조회 - POST /api/numplate/temp/list */
-    @PostMapping("/numplate/temp/list")
-    public ResponseEntity<Map<String, Object>> getTempNumPlateList(@RequestBody NumPlateSearchRequest request) {
-        logger.info("[NumPlateController] 임판회수관리 목록 조회 요청");
-        List<Map<String, Object>> list = numPlateService.getTempNumPlateList(request);
-        return ResponseEntity.ok(ApiResponse.withKey("list", list));
-    }
-
-    /** 번호판수불관리 목록 조회 - POST /api/numplate/supply/list */
-    @PostMapping("/numplate/supply/list")
-    public ResponseEntity<Map<String, Object>> getNumPlateSupplyList(@RequestBody NumPlateSearchRequest request) {
-        logger.info("[NumPlateController] 번호판수불관리 목록 조회 요청");
-        List<Map<String, Object>> list = numPlateService.getNumPlateSupplyList(request);
-        return ResponseEntity.ok(ApiResponse.withKey("list", list));
-    }
 }

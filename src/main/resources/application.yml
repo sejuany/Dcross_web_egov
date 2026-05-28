@@ -4,7 +4,7 @@ server:
 
 logging:
   level:
-    com.dacos: debug
+    com.dacos: INFO
 
 spring:
   profiles:

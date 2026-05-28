@@ -17,4 +17,5 @@ public class UserDto {
     private String BRANCH_ID;
     private String SANGSA_ID;
     private String MEMBER_GB;
+    private String ASSOCIATION_ID;
 }

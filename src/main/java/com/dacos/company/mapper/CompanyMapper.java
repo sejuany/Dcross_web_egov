@@ -7,9 +7,6 @@ import org.apache.ibatis.annotations.Mapper;
 
 import com.dacos.company.dto.CompanySearchRequest;
 
-/**
- * 기업관리 관련 MyBatis 매퍼 인터페이스
- */
 @Mapper
 public interface CompanyMapper {
 
@@ -20,4 +17,16 @@ public interface CompanyMapper {
     List<Map<String, Object>> getCompanyUserList(CompanySearchRequest request);
 
     List<Map<String, Object>> getNumplateDeliveryList(CompanySearchRequest request);
+
+    List<Map<String, Object>> getSangsaList(CompanySearchRequest request);
+
+    String getNextSangsaId(CompanySearchRequest request);
+
+    int insertSangsa(CompanySearchRequest request);
+
+    Map<String, Object> getSangsaDetail(CompanySearchRequest request);
+    
+    int countSangsaName(CompanySearchRequest request);
+    
+    List<Map<String, Object>> selectCompanyConfigList(Map<String, Object> param);
 }

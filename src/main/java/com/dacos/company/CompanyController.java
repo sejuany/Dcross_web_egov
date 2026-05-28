@@ -63,4 +63,43 @@ public class CompanyController {
         List<Map<String, Object>> list = companyService.getNumplateDeliveryList(request);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
+
+    /**
+     * 영업팀 목록 조회 - POST /api/company/sangsa/list
+     *
+     * TM_SANGSA 기준
+     * COMPANY_ID + BRANCH_ID로 조회
+     * KEYWORD가 있으면 SANGSA_ID / SANGSA_NM 검색
+     */
+    @PostMapping("/company/sangsa/list")
+    public ResponseEntity<Map<String, Object>> getSangsaList(@RequestBody CompanySearchRequest request) {
+        logger.info(
+                "[CompanyController] 영업팀 목록 조회 요청 - companyId: {}, branchId: {}, keyword: {}",
+                request.getCOMPANY_ID(),
+                request.getBRANCH_ID(),
+                request.getKEYWORD()
+        );
+
+        List<Map<String, Object>> list = companyService.getSangsaList(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    /**
+     * 영업팀 신규등록 - POST /api/company/sangsa/save
+     *
+     * 프론트에서는 COMPANY_ID, BRANCH_ID, SANGSA_NM만 보냄.
+     * SANGSA_ID는 서버에서 COMPANY_ID + BRANCH_ID 기준 MAX + 1 생성.
+     */
+    @PostMapping("/company/sangsa/save")
+    public ResponseEntity<Map<String, Object>> saveSangsa(@RequestBody CompanySearchRequest request) {
+        logger.info(
+                "[CompanyController] 영업팀 신규등록 요청 - companyId: {}, branchId: {}, sangsaNm: {}",
+                request.getCOMPANY_ID(),
+                request.getBRANCH_ID(),
+                request.getSANGSA_NM()
+        );
+
+        Map<String, Object> sangsaInfo = companyService.saveSangsa(request);
+        return ResponseEntity.ok(ApiResponse.withKey("sangsaInfo", sangsaInfo));
+    }
 }

@@ -26,9 +26,9 @@ public interface CommonMenuMapper {
     List<Map<String, Object>> getSearchLogList(CommonMenuSearchRequest request);
 
     List<Map<String, Object>> getAccountHistoryList(CommonMenuSearchRequest request);
-
-	Map<String, Object> getTmTax(String request);
-	
-	Map<String, Object> getWorkCp(AddServiceDto request);
+    
+    List<Map<String, Object>> selectMainMenu();
+    
+    List<Map<String, Object>> selectUserWorkAuth(CommonMenuSearchRequest request);
 
 }

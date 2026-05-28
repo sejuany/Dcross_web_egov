@@ -4,7 +4,6 @@ import axios from 'axios';
 import './MortRegList.css';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useAuth } from '../../context/AuthContext';
 import ErpSection from '../common/ErpSection';

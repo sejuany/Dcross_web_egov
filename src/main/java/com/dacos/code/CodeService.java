@@ -2,6 +2,7 @@ package com.dacos.code;
 
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,12 +30,30 @@ public class CodeService {
         logger.info("[CodeService] 코드 조회 - groupId: {}", groupId);
         return codeMapper.findCodesByGroupId(groupId);
     }
+    
+    /**
+     * 공통 코드 다건 조회
+     */
+    public Map<String, List<Map<String, Object>>> getCodeList(
+            List<String> groupIds) {
 
+        logger.info(
+            "[CodeService] 코드 다건 조회 - {}",
+            groupIds
+        );
+
+        List<Map<String, Object>> list = codeMapper.getCodeList(groupIds);
+
+        return list.stream()
+            .collect(Collectors.groupingBy(
+                v -> String.valueOf(v.get("GROUP_ID"))
+            ));
+    }
     /**
      * 대리점 목록 조회
      */
-    public List<Map<String, Object>> getCompanyList(String workCd, String govtId) {
+    public List<Map<String, Object>> getCompanyList(String workCd, String govtId, String companyId) {
         logger.info("[CodeService] 대리점 목록 조회 - workCd: {}, govtId: {}", workCd, govtId);
-        return codeMapper.findCompanyList(workCd, govtId);
+        return codeMapper.findCompanyList(workCd, govtId, companyId);
     }
 }

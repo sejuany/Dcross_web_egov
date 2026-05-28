@@ -12,4 +12,9 @@ public class CompanySearchRequest {
     private String COMPANY_TYPE;
     private String USE_YN;
     private String MEMBER_ID;
+    private String BRANCH_ID;
+    private String SANGSA_ID;
+    private String SANGSA_NM;
+    private String KEYWORD;
+    private String SEARCH_KEYWORD;
 }

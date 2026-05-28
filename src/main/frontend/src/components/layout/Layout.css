@@ -1,6 +1,6 @@
 .app-container {
-    display: flex;
-    justify-content: center;
+    /* display: flex; */
+    /* justify-content: center; */
     background-color: #d1d5db;
     min-height: 100vh;
 }

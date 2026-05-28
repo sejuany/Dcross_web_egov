@@ -115,5 +115,32 @@
                 AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
         ORDER BY TS.REQUEST_DT DESC
     </select>
-
+	
+	<insert id="insertTrOwnerInfo" parameterType="map">
+	    INSERT INTO TR_OWNERINFO (
+	        SERVICE_ID, SEQ, REG_NO, DEBTOR_YN, UNION_YN,
+	        DEBTOR_NM, DEBTOR_GB, DEBTOR_RATIO, DEBTOR_ADDR, DSIGN_GB,
+	        DSIGN_HP_GB, DSIGN_HP_NO, DSIGN_TX, DSIGN_ST, DSIGN_DT,
+	        IDEN_ST, IDEN_DT, CONFIRM_NO, DEBTOR_ADDR_DT, DEBTOR_ROAD_CD,
+	        BIZ_NO
+	    )
+	    VALUES (
+	        #{SERVICE_ID}, #{SEQ}, PKG_COMMON.FN_ENCRYPT(#{REG_NO}), #{DEBTOR_YN}, #{UNION_YN},
+	        #{DEBTOR_NM}, #{DEBTOR_GB}, #{DEBTOR_RATIO}, PKG_COMMON.FN_ENCRYPT(#{DEBTOR_ADDR}), #{DSIGN_GB},
+	        #{DSIGN_HP_GB}, PKG_COMMON.FN_ENCRYPT(#{DSIGN_HP_NO}), #{DSIGN_TX}, #{DSIGN_ST},
+	        DECODE(#{DSIGN_DT}, '', SYSDATE, TO_DATE(#{DSIGN_DT}, 'yyyy/mm/dd hh24:mi:ss')),
+	        #{IDEN_ST}, DECODE(#{DSIGN_DT}, '', SYSDATE, TO_DATE(#{DSIGN_DT}, 'yyyy/mm/dd hh24:mi:ss')), #{CONFIRM_NO},
+	        PKG_COMMON.FN_ENCRYPT(#{DEBTOR_ADDR_DT}), #{DEBTOR_ROAD_CD}, #{BIZ_NO}
+	    )
+	</insert>
+	
+	
+	<delete id="deleteTrOwnerInfo" parameterType="map">
+		DELETE FROM TR_OWNERINFO
+		 WHERE SERVICE_ID = #{SERVICE_ID}
+	    <if test="SEQ != null and SEQ != ''">
+	       AND SEQ = #{SEQ}
+	    </if>
+	</delete>
+	
 </mapper>

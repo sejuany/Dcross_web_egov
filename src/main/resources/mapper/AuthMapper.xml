@@ -16,7 +16,8 @@
             MD.COMPANY_ID,
             MD.BRANCH_ID,
             MD.SANGSA_ID,
-            MD.MEMBER_GB
+            MD.MEMBER_GB,
+            MD.ASSOCIATION_ID
         FROM
             TM_MEMBER_MT MM,
             TM_MEMBER_DT MD
@@ -108,7 +109,6 @@
 		WHERE MT.LOGIN_ID = #{loginId}
 	</select>	
 	
-
     <!-- BCrypt 비밀번호로 업데이트 (단계적 전환용) -->
     <update id="updatePasswordToBcrypt">
         UPDATE TM_MEMBER_MT

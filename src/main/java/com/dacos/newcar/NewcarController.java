@@ -17,7 +17,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
-import com.dacos.common.BusinessException;
+import com.dacos.common.CommonRepository;
+import com.dacos.common.util.AuthUtil;
+import com.dacos.common.util.CommonUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 
 import jakarta.servlet.http.HttpSession;
@@ -27,19 +29,21 @@ import jakarta.servlet.http.HttpSession;
  * - 예외 처리는 GlobalExceptionHandler가 담당합니다.
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/newcar")
 public class NewcarController {
 
     private static final Logger logger = LoggerFactory.getLogger(NewcarController.class);
 
     @Autowired
     private NewcarService newcarService;
-
+    @Autowired
+    private CommonRepository common;
+    
     /**
      * 신차 목록 조회
      * POST /api/newcar/list
      */
-    @PostMapping("/newcar/list")
+    @PostMapping("/list")
     public ResponseEntity<Map<String, Object>> getNewCarList(@RequestBody NewcarSearchRequest request) {
         logger.info("[NewcarController] 신차 목록 조회 요청");
         List<Map<String, Object>> list = newcarService.getNewCarList(request);
@@ -51,7 +55,7 @@ public class NewcarController {
      * 신차 상세 조회
      * GET /api/newcar/detail/{serviceId}
      */
-    @GetMapping("/newcar/detail/{serviceId}")
+    @GetMapping("/detail/{serviceId}")
     public ResponseEntity<Map<String, Object>> getNewCarDetail(
             @PathVariable("serviceId") String serviceId) {
         logger.info("[NewcarController] 신차 상세 조회 요청 - serviceId: {}", serviceId);
@@ -64,85 +68,103 @@ public class NewcarController {
      * 신규등록 기본정보 초기화
      * 접수번호 없는 경우 이쪽으로 들어온다.
      */
-    @GetMapping("/newcar/init")
+    @GetMapping("/init")
     public ResponseEntity<Map<String, Object>> initNewCar(HttpSession session) {
-        UserDto user = (UserDto) session.getAttribute("user");
 
-        if (user == null) {
-            throw new BusinessException("로그인 정보 없음", 401);
-        }
-    	
+        UserDto user = AuthUtil.getLoginUser(session);
+
         logger.info("[NewcarController] 신규등록 기본정보 초기화 - user: {}", user);
-        Map<String, Object> result = new HashMap<>();
 
-        result.put("LOGIN_ID", user.getLOGIN_ID());
-        result.put("SERVICE_ID", "");
-        result.put("WORK_CD", "010");
+        Map<String, Object> result = newcarService.initNewCar(user);
         
-        // 결제정보 초기값
-        List<Map<String, Object>> payment = newcarService.getPaymentList(user);
-        result.put("dsPaymentList", payment);
-
         return ResponseEntity.ok(ApiResponse.withKey("data", result));
     }
     
     
     /**
-     * 번호판 목록 조회
+     * 선택 가능한 번호판 목록 조회
      */
-    @PostMapping("/newcar/numplateList")
-    public ResponseEntity<Map<String, Object>> getNumplateList(
-            @RequestBody Map<String, Object> param,
-            HttpSession session) {
+    @PostMapping("/numplateList")
+    public List<String> getNumplateList(
+            @RequestBody Map<String, Object> param, HttpSession session) {
+    	// 세션 체크
+ 		UserDto user = AuthUtil.getLoginUser(session);
 
-        UserDto user = (UserDto) session.getAttribute("user");
-
-        if (user == null) {
-            throw new BusinessException("로그인 정보 없음", 401);
-        }
-
-        List<String> list = newcarService.getNumplateList(param, user);
-
-        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+ 		return newcarService.getNumplateList(param, user);
+    }
+    
+    /**
+     *  미사용 번호판 상태복구
+     */
+    @PostMapping("/numplateRelease")
+    public boolean numplateRelease(
+            @RequestBody Map<String, Object> param, HttpSession session) {
+    	// 세션 체크
+ 		AuthUtil.getLoginUser(session);
+ 		// 미사용 번호판 상태복구
+ 		return newcarService.getNumPlateRelease(param);
     }
     
 
 	/**
 	 * 번호판 선택
 	 */
-	@PostMapping("/newcar/numplateSelect")
-	public ResponseEntity<Map<String, Object>> selectNumplate(
-	        @RequestBody Map<String, Object> param,
-	        HttpSession session) {
+	@PostMapping("/numplateSelect")
+	public ApiResponse<Object> selectNumplate(
+	        @RequestBody Map<String, Object> param, HttpSession session) {
 	
-	    UserDto user = (UserDto) session.getAttribute("user");
-	
-	    if (user == null) {
-	        throw new BusinessException("로그인 정보 없음", 401);
-	    }
-	
-	    newcarService.selectNumplate(param, user);
-	
-	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+		// 세션 체크
+ 		UserDto user = AuthUtil.getLoginUser(session);
+ 		
+ 		return newcarService.selectNumplate(param, user);
 	}
 	
+    /**
+     * 번호판 미사용 처리 
+     */
+    @PostMapping("/updateNumplateUseYn")
+    public ResponseEntity<Map<String, Object>> updateNumplateUseYn(
+            @RequestBody Map<String, Object> param,
+            HttpSession session) {
+
+    	// 세션 체크
+    	UserDto user = AuthUtil.getLoginUser(session);
+
+    	// 번호판 미사용 처리
+    	newcarService.updateNumplateUseYn(param, user);
+    	
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
 	
 	/**
 	 * 문자 전송
 	 */
-	@PostMapping("/newcar/numplateSms")
+	@PostMapping("/numplateSms")
 	public ResponseEntity<Map<String, Object>> sendSms(
 	        @RequestBody Map<String, Object> param,
 	        HttpSession session) {
 	
-	    UserDto user = (UserDto) session.getAttribute("user");
+	    // 세션 체크
+ 		UserDto user = AuthUtil.getLoginUser(session);
 	
-	    if (user == null) {
-	        throw new BusinessException("로그인 정보 없음", 401);
-	    }
-	
-	    newcarService.sendSms(param, user);
+	    common.insert(param, "insertSmsSend");
 	
 	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
 	}
+
+	/**
+	 * 신규등록 저장 및 신청
+	 */
+	@PostMapping("/process")
+	public Map<String, Object> processNewCar(
+	        @RequestBody Map<String, Object> request,
+	        HttpSession session) {
+
+	    // 세션 체크
+	    UserDto user = AuthUtil.getLoginUser(session);
+
+	    return newcarService.processNewCar(request, user);
+	}
+
+
 }

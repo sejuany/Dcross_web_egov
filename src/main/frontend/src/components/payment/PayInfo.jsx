@@ -1,9 +1,8 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+﻿﻿import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
-import 'ag-grid-community/styles/ag-grid.css';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useAuth } from '../../context/AuthContext';
 import ErpSection from '../common/ErpSection';
@@ -22,11 +21,14 @@ const getFormattedDateOffset = (offsetDays) => {
     return `${year}-${month}-${day}`;
 };
 
+// 관청을 보여줄지 말지 선택
+let bGovtVisible = false;
+
 const PayInfo = () => {
     const navigate = useNavigate();
-    const gridRef = useRef(null);
-    const { user } = useAuth(); // 로그인 사용자 정보 가져오기
-
+    const gridRef = useRef(null);	
+    const { user } = useAuth(); // 로그인 사용자 정보 가져오기 use_YN	'Y', regist_NO	'UA', member_NM	'다코스관리자', branch_ID	'dacos', login_GB	'UA', sangsa_ID	'dacos', login_ID	'dacos', member_GB	'UA', company_ID	'dacos', pass_WD	null
+		
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
     const [companyList, setCompanyList] = useState([]);
@@ -43,19 +45,175 @@ const PayInfo = () => {
 		baseGubun: 'PROC_DT',
         startDate: getFormattedDateOffset(0),
         endDate: getFormattedDateOffset(0),
-        processStatus: '',
+        processStatus: 'END',
         PAY_ST: '',
 		PAY_TP: ''
     });
 
+	const SGB_DATA = [
+	    { CODE_ID: '000', CODE_NM: '저당설정' },
+	    { CODE_ID: '001', CODE_NM: '저당말소' },
+	    { CODE_ID: '010', CODE_NM: '신규등록' },
+	    { CODE_ID: '011', CODE_NM: '이전등록' },
+	    { CODE_ID: '030', CODE_NM: '변경등록' },
+	    { CODE_ID: '032', CODE_NM: '변경(이전)' },
+	    { CODE_ID: '002', CODE_NM: '저당권변경' },
+	    { CODE_ID: '003', CODE_NM: '저당권이전' },
+	    { CODE_ID: '031', CODE_NM: '등록증재발급' }
+	];
+	
+	// codeListMap에 적용 시
+	codeListMap['WORK_CD'] = SGB_DATA;	
+
+	const BASE_GUBUN = [
+	    { CODE_ID: 'PROC_DT', CODE_NM: '처리일' },
+	    { CODE_ID: 'REQUEST_DT', CODE_NM: '신청일' }
+	];
+
+	// codeListMap에 적용 시
+	codeListMap['BASE_GUBUN'] = BASE_GUBUN;
+
+	// 일부 지자체의 경우에 대해 처리
+	const LOCAL = [
+	    { CODE_ID: 'LOCAL', CODE_NM: '관내' },
+	    { CODE_ID: 'GLOBAL', CODE_NM: '관외' }
+	];	
+	
+		
+	// useEffect시 []); 로 끝나면 딱 한번만 실행됨.
+	useEffect(() => {		
+
+		fetchCodes();        
+	    fetchCompanies('000');
+		
+		if (user.member_GB.substring(0, 1) === 'U' || user.member_GB === 'GU') {
+			if (user.member_GB.substring(0, 1) === 'U') {
+				bGovtVisible = true;	// 최고관리자인 경우는 관청을 보여준다. 
+			}			
+		}
+			
+	}, []); 
+	
+	// 화면에 사용할 코드값 가져오기.
+	const fetchCodes = async () => {
+	    try {
+	        const groupIds = ['SGB', 'BANK', 'PAYST', 'PR_ST', 'PAYME', 'DSIGB', 'GOVT', 'PAYTP', 'TRNGB', 'TASK'];
+	        const responses = await Promise.all(
+	            groupIds.map(id => axios.get(`/api/codes/${id}`))
+	        );
+
+	        const newCodeMap = {};
+	        const newCodeListMap = {};
+	        responses.forEach((res, index) => {
+	            const groupId = groupIds[index];
+	            if (res.data.success) {
+	                newCodeListMap[groupId] = res.data.codes;
+	                const tempMap = {};
+	                res.data.codes.forEach(code => {
+	                    tempMap[code.CODE_ID] = code.CODE_NM;
+	                });
+	                newCodeMap[groupId] = tempMap;
+	            }
+	        });
+			/*
+			const filteredGovt = newCodeListMap['GOVT'];
+			
+			// 로그인 한 사람이 관청이라면
+			if (user.member_GB.substring(0, 1) === 'G') {
+				// 해당 관청코드만 필터링 하여 처리
+			    const govtResult = filteredGovt.filter(item => item.CODE_ID === user.company_ID);
+			    newCodeListMap['GOVT'] = govtResult;
+
+			    // 필터링 결과가 1개라면 즉시 상태값에 반영
+			    if (govtResult.length === 1) {
+			        setSearchFilters(prev => ({
+			            ...prev,
+			            govtId: govtResult[0].CODE_ID // 'CHANG' 같은 값이 바로 들어감
+			        }));
+			    }
+			}
+			*/
+			
+			if (user.company_ID === 'CHANG' || user.company_ID === 'DAEGU') {
+				// 창원이나 대구인 경우엔 관내 / 관외를 표시해야 한다.					
+				bGovtVisible = true;
+				newCodeListMap['GOVT'] = LOCAL;
+			}	
+			
+			
+			setCodeMap(newCodeMap);
+			setCodeListMap(newCodeListMap);			
+	        //console.log(newCodeListMap);
+	    } catch (error) {
+	        console.error('공통 코드 조회 실패:', error);
+	    }
+	};
+	
+	// 각 업무별 회원사 정보 가져오기. 처음엔 설정 기준
+	const fetchCompanies = async (workCd) => {
+	    try {
+	        // 사용자의 요청에 따라 관청(govtId) 조건 없이 WORK_CD='010'에 해당하는 
+	        // 전체 회사 목록을 한 번만 불러와서 리스트에 넣어줍니다.
+			console.log('member_GB : ' + user.member_GB)
+			const requestParams = {
+				workCd: workCd
+			};
+			
+			if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+				// 일반 회사인경우
+				requestParams.companyId = user.company_ID
+			}
+			if (user.member_GB.substring(0, 1) === 'G') {
+				// 관청인 경우
+				requestParams.govtId = user.company_ID
+			}
+			
+			console.table(requestParams);
+	        const response = await axios.get('/api/companies', {
+	            params: requestParams
+	        });
+	        if (response.data.success) {
+	            setCompanyList(response.data.list);
+	        }
+	    } catch (error) {
+	        console.error('회사 목록 갱신 실패:', error);
+	    }
+	};	
+
+	// 조회 버튼 눌렀을때
     const fetchPaymentList = async () => {
         try {
             const cleanParam = (val) => (val === '전체' || val === '전체 (회사)' || val === '전체 (관청)') ? '' : val;
+
+			/*
+			// 화면을 초기화할때 이미 정해져 있을테지만 조회시 다시한번 강화시킬 목적			
+			const govtList = codeListMap['GOVT'];
+			// 만약 현재 govtId가 비어있는데, 목록은 딱 1개라면 그 값을 사용함
+			const finalGovtId = (!searchFilters.govtId && govtList?.length === 1) ? govtList[0].CODE_ID : searchFilters.govtId;
+			*/
+			let finalGovtId = '';
+			let sLocalID = '';
 			
-            const params = {
+			if (user.member_GB.substring(0, 1) === 'G') {
+				// 관청인 경우
+				finalGovtId = user.company_ID;
+				if (user.company_ID === 'CHANG' || user.company_ID === 'DAEGU') {
+					sLocalID = searchFilters.govtId;
+				}
+			} else {
+				finalGovtId = searchFilters.govtId;
+			}
+			//alert(finalGovtId);
+				
+			// 회원사가 로그인 했을때 1개만 있는 경우
+			if (companyList && companyList.length === 1) {
+		        searchFilters.companyID = companyList[0].COMPANY_ID;
+		    }
+
+		    const params = {
                 WORK_CD: searchFilters.workCD,
 				COMPANY_ID: cleanParam(searchFilters.companyID),
-				GOVT_ID: cleanParam(searchFilters.govtId),
+				GOVT_ID: finalGovtId,
 				USER_NM: searchFilters.userNM,
 				CAR_NO: searchFilters.carNo,
 				BASE_GUBUN: searchFilters.baseGubun, 				
@@ -63,7 +221,8 @@ const PayInfo = () => {
 				END_DT: searchFilters.endDate.replace(/-/g, ''),
 				PROC_ST: cleanParam(searchFilters.processStatus),
 				PAY_ST: searchFilters.PAY_ST,
-				PAY_TP: searchFilters.PAY_TP
+				PAY_TP: searchFilters.PAY_TP,
+				LOCAL_ID : sLocalID
             };
 
             const response = await axios.post('/api/payment/list', params);
@@ -78,86 +237,29 @@ const PayInfo = () => {
         }
     };
 
-    const fetchCodes = async () => {
-        try {
-            const groupIds = ['SGB', 'BANK', 'PAYST', 'PR_ST', 'PAYME', 'DSIGB', 'GOVT', 'PAYTP', 'LOCAL', 'TRNGB', 'TASK'];
-            const responses = await Promise.all(
-                groupIds.map(id => axios.get(`/api/codes/${id}`))
-            );
 
-            const newCodeMap = {};
-            const newCodeListMap = {};
-            responses.forEach((res, index) => {
-                const groupId = groupIds[index];
-                if (res.data.success) {
-                    newCodeListMap[groupId] = res.data.codes;
-                    const tempMap = {};
-                    res.data.codes.forEach(code => {
-                        tempMap[code.CODE_ID] = code.CODE_NM;
-                    });
-                    newCodeMap[groupId] = tempMap;
-                }
-            });
-            setCodeMap(newCodeMap);
-            setCodeListMap(newCodeListMap);
-            console.log(newCodeListMap);
-        } catch (error) {
-            console.error('공통 코드 조회 실패:', error);
-        }
-    };
 
-	const SGB_DATA = [
-	    { CODE_ID: '000', CODE_NM: '저당설정' },
-	    { CODE_ID: '001', CODE_NM: '저당말소' },
-	    { CODE_ID: '010', CODE_NM: '신규등록' },
-	    { CODE_ID: '011', CODE_NM: '이전등록' },
-	    { CODE_ID: '030', CODE_NM: '변경등록' },
-	    { CODE_ID: '032', CODE_NM: '변경(이전)' },
-	    { CODE_ID: '002', CODE_NM: '저당권변경' },
-	    { CODE_ID: '003', CODE_NM: '저당권이전' },
-	    { CODE_ID: '031', CODE_NM: '등록증재발급' }
-	];
-
-	// codeListMap에 적용 시
-	codeListMap['WORK_CD'] = SGB_DATA;
-	
-	const BASE_GUBUN = [
-	    { CODE_ID: 'PROC_DT', CODE_NM: '처리일' },
-	    { CODE_ID: 'REQUEST_DT', CODE_NM: '신청일' }
-	];
-
-	// codeListMap에 적용 시
-	codeListMap['BASE_GUBUN'] = BASE_GUBUN;
 	
     const formatCode = (groupId, value) => {
         return codeMap[groupId] && codeMap[groupId][value] ? codeMap[groupId][value] : value;
     };
 
-    useEffect(() => {
-        fetchCodes();
-        //fetchPaymentList();
-    }, []);
-
-    useEffect(() => {
-        const fetchCompanies = async () => {
-            try {
-                // 사용자의 요청에 따라 관청(govtId) 조건 없이 WORK_CD='010'에 해당하는 
-                // 전체 회사 목록을 한 번만 불러와서 리스트에 넣어줍니다.
-                const response = await axios.get('/api/companies', {
-                    params: {
-                        workCd: '010' // 업무구분 신규등록 고정
-                    }
-                });
-                if (response.data.success) {
-                    setCompanyList(response.data.list);
-                }
-            } catch (error) {
-                console.error('회사 목록 갱신 실패:', error);
-            }
-        };
-        fetchCompanies();
-    }, []); // 의존성 배열을 비워 컴포넌트 마운트 시 최초 1회만 불러옵니다.
-
+	const handleWorkCdChange = (e) => {
+	    const selectedWorkCd = e.target.value;
+	    		
+	    // 상태 업데이트 (화면 표시용)
+	    setSearchFilters(prev => ({ ...prev, workCD: selectedWorkCd }));
+	    
+		if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+			// 일반 회사인 경우엔 하면 안되므로.
+			return;	
+		}
+		
+	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
+	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
+	    fetchCompanies(selectedWorkCd); 
+	};
+	
     // UA 권한 컬럼정의
 	const UA_ColumnDefs = [
 		{ headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 33, cellClass: 'ag-right-aligned-cell', 
@@ -337,9 +439,287 @@ const PayInfo = () => {
 	    { headerName: '계약번호', field: 'CONFIRM_NO', width: 94 },
 	    { headerName: '회사명', field: 'COMPANY_NM', width: 94 }
 	];	
+	
+	const NH_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 95, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '고객명', field: 'REQUEST_NM', width: 98, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '계약번호', field: 'CONFIRM_NO', width: 110, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '매도관리비', field: 'TMAN_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
+	
+	const AutoPlus_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 95, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '이전등록대행비', field: 'TPROX_AMT', width: 90, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
 
+	const GU_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 110, cellClass: 'ag-center-aligned-cell', valueGetter: params => {
+	        if (params.node.isRowPinned()) return "";
+	        const { CAR_NO, MORT_COUNT } = params.data || {};
+	        return (MORT_COUNT && MORT_COUNT !== '0' && MORT_COUNT !== 0) ? `${CAR_NO} 외 ${MORT_COUNT}건` : CAR_NO;
+	    }},
+	    { headerName: '민원인', field: 'REQUEST_NM', width: 85, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청기업', field: 'COMPANY_NM', width: 85, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 67, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 53, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 69, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 56, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 56, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세번호', field: 'INJI_NO', width: 125, cellClass: 'ag-right-aligned-cell' },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
+	
+	const KB_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 126, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 74, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '차대번호', field: 'CARID_NO', width: 130, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '처리관청', field: 'GOVT_ID', width: 87, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('Govt', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', 
+	      cellStyle: params => (!params.node.isRowPinned() && params.data && params.data.PRE_ACQ_AMT !== params.data.ACQ_AMT) ? { backgroundColor: 'yellow' } : null,
+	      valueFormatter: params => params.value?.toLocaleString() 
+	    },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '수수료', field: 'FEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대', field: 'NUMP_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대행', field: 'NUMP_PROXY_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '이전등록대행비', field: 'TPROX_AMT', width: 96, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '계약번호', field: 'CONFIRM_NO', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
+	
+	const Obs_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 95, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '수수료', field: 'FEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대', field: 'NUMP_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대행', field: 'NUMP_PROXY_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '고객명', field: 'CU_NAME', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차명', field: 'CAR_NM', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차대번호', field: 'CARID_NO', width: 119, cellClass: 'ag-right-aligned-cell' },
+	    { headerName: '비고', field: 'GOVT_TX', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
+	
+	const AJ_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 95, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대', field: 'NUMP_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대행', field: 'NUMP_PROXY_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '고객명', field: 'CU_NAME', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차대번호', field: 'CARID_NO', width: 119, cellClass: 'ag-right-aligned-cell' }
+	];
+	
+	const SOCARSCAR_ColumnDefs = [
+	    { 
+	      headerName: '', field: 'CHK', width: 27, 
+	      checkboxSelection: params => !params.node.isRowPinned() && (params.data?.PROC_ST === 'END'), // 마이플랫폼 로직 대응 (PROC_ST가 'END'일때만 활성화)
+	      headerCheckboxSelection: true,
+	      cellClass: 'ag-center-aligned-cell'
+	    },
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 95, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대', field: 'NUMP_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대행', field: 'NUMP_PROXY_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호(취득세)', field: 'EPAY_NO', width: 147, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호(등록세)', field: 'UREG_EPAY_NO', width: 152, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '고객명', field: 'CU_NAME', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
+	
+	const AutoRego_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 95, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "" : params.data?.CAR_NO },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '수수료', field: 'FEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대', field: 'NUMP_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대행', field: 'NUMP_PROXY_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '고객명', field: 'CU_NAME', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차명', field: 'CAR_NM', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차대번호', field: 'CARID_NO', width: 119, cellClass: 'ag-right-aligned-cell' },
+	    { headerName: '비고', field: 'GOVT_TX', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '사용본거지', field: 'BASE_ADDRESS', width: 74, cellClass: 'ag-left-aligned-cell' }
+	];
+	
+	const IMS_ColumnDefs = [
+	    { headerName: '순번', width: 33, cellClass: 'ag-center-aligned-cell', valueGetter: params => params.node.isRowPinned() ? "합계" : params.node.rowIndex + 1 },
+	    { headerName: '업무구분', field: 'WORK_CD', width: 54, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('SGB', params.value) },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 134, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 130, cellClass: 'ag-center-aligned-cell', valueGetter: params => {
+	        if (params.node.isRowPinned()) return "";
+	        const { CAR_NO, MORT_COUNT } = params.data || {};
+	        return (MORT_COUNT && MORT_COUNT !== '0' && MORT_COUNT !== 0) ? `${CAR_NO} 외 ${MORT_COUNT}건` : CAR_NO;
+	    }},
+	    { headerName: '입금총액', field: 'TOTAL_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value ? Number(params.value).toLocaleString() : '0' },
+	    { headerName: '가상계좌', field: 'VBANK_NO', width: 113, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청상태', field: 'PROC_ST', width: 70, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 61, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '정산', field: 'PAY_TP', width: 53, cellClass: 'ag-center-aligned-cell', valueFormatter: params => formatCode('PAYTP', params.value) },
+	    { headerName: '취득세', field: 'ACQ_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '등록면허세', field: 'REGIS_AMT', width: 74, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '증지대', field: 'STAMP_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '인지세', field: 'INJI_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권금액', field: 'BOND_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '채권수수료', field: 'BFEE_AMT', width: 72, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대', field: 'NUMP_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '번호판대행', field: 'NUMP_PROXY_AMT', width: 79, cellClass: 'ag-right-aligned-cell', valueFormatter: params => params.value?.toLocaleString() },
+	    { headerName: '소속명', field: 'BRANCH_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청자명', field: 'MEMBER_NM', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 72, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '납부일자', field: 'PAY_DT', width: 74, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '전자납부번호', field: 'EPAY_NO', width: 94, cellClass: 'ag-center-aligned-cell' },
+	    { headerName: '고객명', field: 'CU_NAME', width: 94, cellClass: 'ag-center-aligned-cell' }
+	];
+	
+	
     // user ID에 따라 컬럼 속성 분기
     const columnDefs = React.useMemo(() => {
+		if (user.member_GB.substring(0, 1) === 'U' || user.member_GB === 'GU') {
+			return UA_ColumnDefs;					
+		}
+			
+		
+		
+		
         if (user && user.userId === 'number03') {
             //return number03ColumnDefs;
         }
@@ -358,19 +738,35 @@ const PayInfo = () => {
     };
 
     const handleResetClick = () => {
-        setSearchFilters({
-            workCD: '',
-            companyID: '',
-            govtId: '',
-            userNM: '',
-            clientName: '',
-            carNo: '',
-			baseGubun: '',
-            startDate: getFormattedDateOffset(0),
-            endDate: getFormattedDateOffset(0),
-            PAYST: '전체',
-            processStatus: '전체'
-        });
+		// 1. 기본적으로 초기화할 값들을 세팅합니다.
+	    const resetValues = {
+	        workCD: '',
+	        companyID: '',
+	        govtId: '',
+	        userNM: '',
+	        clientName: '',
+	        carNo: '',
+	        baseGubun: 'PROC_DT',
+	        startDate: getFormattedDateOffset(0),
+	        endDate: getFormattedDateOffset(0),
+	        PAY_ST: '',
+	        PAY_TP: '',
+	        processStatus: 'END'
+	    };
+
+	    // 2. 회사(Company) 목록이 1개뿐이라면 초기화 시에도 해당 값을 유지
+	    if (companyList && companyList.length === 1) {
+	        resetValues.companyID = companyList[0].COMPANY_ID;
+	    }
+
+	    // 3. 관청(GOVT) 목록이 1개뿐이라면 초기화 시에도 해당 값을 유지
+	    const govtList = codeListMap['GOVT'];
+	    if (govtList && govtList.length === 1) {
+	        resetValues.govtId = govtList[0].CODE_ID; // CODE_ID가 식별자인 경우
+	    }
+
+	    // 4. 상태 업데이트
+	    setSearchFilters(resetValues);
     };
 
     const handleExportExcel = () => {
@@ -474,10 +870,6 @@ const PayInfo = () => {
                 <div className="toolbar-left">
                     <span className="title-count">{totalCount}</span> 건
                 </div>
-				<div className="toolbar-center">
-					<button className="btn-status">납부영수증</button>
-				    <button className="btn-status" style={{ marginLeft: '10px' }}>통합영수증</button>
-                </div>
                 <div className="toolbar-right">
                     <button className="btn-status" onClick={handleSearchClick}>조회[F2]</button>
                     <button className="btn-status" onClick={handleExportExcel}>엑셀[F7]</button>
@@ -490,24 +882,26 @@ const PayInfo = () => {
             <ErpSection isHeader={true}>
                 <div className="erp-row">
                     <ErpField label="신청구분" span={5}>
-						<select className="erp-input" value={searchFilters.workCD} onChange={e => setSearchFilters({ ...searchFilters, workCD: e.target.value })}>
+						<select className="erp-input" value={searchFilters.workCD} onChange={handleWorkCdChange}>
                             <option value="">전체</option>
                             {codeListMap['WORK_CD'] && codeListMap['WORK_CD'].map(code => (
                                 <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
                             ))}
                         </select>
                         <select className="erp-input" value={searchFilters.companyID} onChange={e => setSearchFilters({ ...searchFilters, companyID: e.target.value })}>
-                            <option value="">전체 (회사)</option>
-                            {companyList.map(comp => (
-                                <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
-                            ))}
+							{/* 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
+						    {companyList.length !== 1 && <option value="">전체 (회사)</option>}
+						    {companyList.map(comp => (
+						        <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
+						    ))}
                         </select>
-                        <select className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
-                            <option value="">전체 (관청)</option>
-                            {codeListMap['GOVT'] && codeListMap['GOVT'].map(code => (
-                                <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
-                            ))}
-                        </select>
+                        <select style={{ visibility: bGovtVisible ? 'visible' : 'hidden' }} className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
+							{/* 관청 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
+						    {codeListMap['GOVT']?.length !== 1 && <option value="">전체 (관청)</option>}
+						    {codeListMap['GOVT']?.map(code => (
+						        <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
+						    ))}						
+                        </select>						
                     </ErpField>
                     <ErpField label="신청자명" span={3}>
                         <input type="text" className="erp-input" value={searchFilters.userNM} onChange={e => setSearchFilters({ ...searchFilters, userNM: e.target.value })} />
@@ -527,21 +921,21 @@ const PayInfo = () => {
                     <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })} />                    
                     <ErpField label="신청상태" span={4}>
                         <select className="erp-input" value={searchFilters.processStatus} onChange={e => setSearchFilters({ ...searchFilters, processStatus: e.target.value })}>
-                            <option value="전체">전체</option>
+                            <option value="">전체</option>
                             {codeListMap['PR_ST'] && codeListMap['PR_ST'].map(code => (
                                 <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
                             ))}
                         </select>
                     </ErpField>
                     <ErpField label="납부상태" span={3}>
-                        <select className="erp-input" value={searchFilters.PAYST} onChange={e => setSearchFilters({ ...searchFilters, PAYST: e.target.value })}>
-							<option value="전체">전체</option>
+                        <select className="erp-input" value={searchFilters.PAY_ST} onChange={e => setSearchFilters({ ...searchFilters, PAY_ST: e.target.value })}>
+							<option value="">전체</option>
 							{codeListMap['PAYST'] && codeListMap['PAYST'].map(code => (
 						    	<option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
 						    ))}
 						</select>                    
-                        <select className="erp-input" value={searchFilters.PAYTP} onChange={e => setSearchFilters({ ...searchFilters, PAYTP: e.target.value })}>
-							<option value="전체">전체</option>
+                        <select className="erp-input" value={searchFilters.PAY_TP} onChange={e => setSearchFilters({ ...searchFilters, PAY_TP: e.target.value })}>
+							<option value="">전체</option>
 							{codeListMap['PAYTP'] && codeListMap['PAYTP'].map(code => (
 								<option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
 							))}

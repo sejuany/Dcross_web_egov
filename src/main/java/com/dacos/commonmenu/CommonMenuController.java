@@ -12,8 +12,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
 import com.dacos.commonmenu.dto.CommonMenuSearchRequest;
+
+import jakarta.servlet.http.HttpSession;
 
 /**
  * 관리자메뉴 컨트롤러
@@ -75,6 +78,34 @@ public class CommonMenuController {
     public ResponseEntity<Map<String, Object>> getAccountHistoryList(@RequestBody CommonMenuSearchRequest request) {
         logger.info("[CommonMenuController] 권한변경이력 조회 요청");
         List<Map<String, Object>> list = commonMenuService.getAccountHistoryList(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+    
+    @PostMapping("/menu/main/list")
+    public ResponseEntity<Map<String, Object>> getMainMenuList() {
+        logger.info("[CommonMenuController] TM_MAINMENU 목록 조회 요청");
+
+        List<Map<String, Object>> list = commonMenuService.selectMainMenu();
+
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+    
+    @PostMapping("/menu/my-menus")
+    public ResponseEntity<Map<String, Object>> getMyMenus(HttpSession session) {
+        logger.info("[CommonMenuController] 내 메뉴 조회 요청");
+
+        UserDto user = (UserDto) session.getAttribute("user");
+
+        if (user == null) {
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("success", false);
+            result.put("message", "로그인이 필요합니다.");
+
+            return ResponseEntity.status(401).body(result);
+        }
+
+        List<Map<String, Object>> list = commonMenuService.getMyMenus(user);
+
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 }

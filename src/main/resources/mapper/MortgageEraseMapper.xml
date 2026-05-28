@@ -72,5 +72,16 @@
                 AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
         ORDER BY TS.REQUEST_DT DESC
     </select>
-
+	
+		
+	<select id="selectTrService" parameterType="map" resultType="map">
+	    SELECT 
+	        SERVICE_ID, WORK_CD, COMPANY_ID, ASSOCIATION_ID, GOVT_ID, BRANCH_ID, SANGSA_ID,
+	        MEMBER_ID, CAR_NO, TO_CHAR(REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+	        PROC_DT, TO_CHAR(JUDGE_DT, 'YYYYMMDD') AS JUDGE_DT, PROC_ST,
+	        JUDGE_ST, RETURN_TX, INS_USER,
+	        INS_DATE, UPD_USER, UPD_DATE, LINK_ID, IMPO_YN, READ_YN, AUTO_YN
+	    FROM TR_SERVICE
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
 </mapper>
