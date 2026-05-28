@@ -4,11 +4,10 @@
 
 <mapper namespace="com.dacos.newcar.mapper.NewcarMapper">
 
-    <!-- ============================================================ -->
-    <!-- 신차 등록 목록 조회 (동적 SQL)                                -->
-    <!-- ============================================================ -->
-    <select id="getNewCarList" parameterType="com.dacos.newcar.dto.NewcarSearchRequest"
-            resultType="java.util.Map">
+	<!-- ============================================================ -->
+	<!-- 신차 등록 목록 조회 (동적 SQL)                                -->
+	<!-- ============================================================ -->
+	<select id="getNewCarList" parameterType="com.dacos.newcar.dto.NewcarSearchRequest" resultType="java.util.Map">
         SELECT
             TS.SERVICE_ID,
             TS.WORK_CD,
@@ -95,147 +94,147 @@
                 TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
                 AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
 
-        <!-- 업무 구분 -->
-        <if test="WORK_CD != null and WORK_CD != ''">
+        		<!-- 업무 구분 -->
+		<if test="WORK_CD != null and WORK_CD != ''">
             AND TS.WORK_CD = #{WORK_CD}
-        </if>
+		</if>
 
-        <!-- 특정 대리점 -->
-        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+		<!-- 특정 대리점 -->
+		<if test="COMPANY_ID != null and COMPANY_ID != ''">
             AND TS.COMPANY_ID = #{COMPANY_ID}
-        </if>
+		</if>
 
-        <!-- 포함 대리점 목록 (IN) -->
-        <if test="IN_COMPANY_ID != null and IN_COMPANY_ID != ''">
+		<!-- 포함 대리점 목록 (IN) -->
+		<if test="IN_COMPANY_ID != null and IN_COMPANY_ID != ''">
             AND TS.COMPANY_ID IN
-            <foreach collection="IN_COMPANY_ID.split(',')" item="id" open="(" separator="," close=")">
+			<foreach collection="IN_COMPANY_ID.split(',')" item="id" open="(" separator="," close=")">
                 #{id}
-            </foreach>
-        </if>
+			</foreach>
+		</if>
 
-        <!-- 제외 대리점 목록 (NOT IN) -->
-        <if test="NOT_IN_COMPANY_ID != null and NOT_IN_COMPANY_ID != ''">
+		<!-- 제외 대리점 목록 (NOT IN) -->
+		<if test="NOT_IN_COMPANY_ID != null and NOT_IN_COMPANY_ID != ''">
             AND TS.COMPANY_ID NOT IN
-            <foreach collection="NOT_IN_COMPANY_ID.split(',')" item="id" open="(" separator="," close=")">
+			<foreach collection="NOT_IN_COMPANY_ID.split(',')" item="id" open="(" separator="," close=")">
                 #{id}
-            </foreach>
-        </if>
+			</foreach>
+		</if>
 
-        <!-- 지점 -->
-        <if test="BRANCH_ID != null and BRANCH_ID != ''">
+		<!-- 지점 -->
+		<if test="BRANCH_ID != null and BRANCH_ID != ''">
             AND TS.BRANCH_ID = #{BRANCH_ID}
-        </if>
+		</if>
 
-        <!-- 영업사원 -->
-        <if test="SANGSA_ID != null and SANGSA_ID != ''">
+		<!-- 영업사원 -->
+		<if test="SANGSA_ID != null and SANGSA_ID != ''">
             AND TS.SANGSA_ID = #{SANGSA_ID}
-        </if>
+		</if>
 
-        <!-- 처리 상태 -->
-        <choose>
-            <when test="PROC_ST != null and PROC_ST != ''">
-                <choose>
-	                <when test="PROC_ST == 'WAIT'">
+		<!-- 처리 상태 -->
+		<choose>
+			<when test="PROC_ST != null and PROC_ST != ''">
+				<choose>
+					<when test="PROC_ST == 'WAIT'">
 		                AND TS.PROC_ST IN ('C_REQ', 'SAV')
-	                </when>
-	                <otherwise>
+					</when>
+					<otherwise>
 		                AND TS.PROC_ST = #{PROC_ST}
-	                </otherwise>
-                </choose>
-            </when>
-            <otherwise>
+					</otherwise>
+				</choose>
+			</when>
+			<otherwise>
                 AND TS.PROC_ST &lt;&gt; 'DEL'
-            </otherwise>
-        </choose>
+			</otherwise>
+		</choose>
 
-        <!-- 심사 상태 -->
-        <if test="JUDGE_ST != null and JUDGE_ST != ''">
-            <choose>
-                <when test="JUDGE_ST == 'ALL'">
+		<!-- 심사 상태 -->
+		<if test="JUDGE_ST != null and JUDGE_ST != ''">
+			<choose>
+				<when test="JUDGE_ST == 'ALL'">
                     AND TS.JUDGE_ST IS NOT NULL
-                </when>
-                <otherwise>
+				</when>
+				<otherwise>
                     AND TS.JUDGE_ST = #{JUDGE_ST}
-                </otherwise>
-            </choose>
-        </if>
+				</otherwise>
+			</choose>
+		</if>
 
-        <!-- 차량 번호 (차량번호 또는 차대번호 LIKE 검색) -->
-        <if test="CAR_NO != null and CAR_NO != ''">
+		<!-- 차량 번호 (차량번호 또는 차대번호 LIKE 검색) -->
+		<if test="CAR_NO != null and CAR_NO != ''">
             AND (TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
                 OR TN.CARID_NO LIKE '%' || #{CAR_NO} || '%')
-        </if>
+		</if>
 
-        <!-- 납입 상태 -->
-        <if test="PAY_ST != null and PAY_ST != ''">
+		<!-- 납입 상태 -->
+		<if test="PAY_ST != null and PAY_ST != ''">
             AND TN.PAY_ST = #{PAY_ST}
-        </if>
+		</if>
 
-        <!-- 관청 -->
-        <if test="GOVT_ID != null and GOVT_ID != ''">
+		<!-- 관청 -->
+		<if test="GOVT_ID != null and GOVT_ID != ''">
             AND TS.GOVT_ID = #{GOVT_ID}
-        </if>
+		</if>
 
-        <!-- 번호판 처리 상태 -->
-        <if test="NUM_PROC_ST != null and NUM_PROC_ST != ''">
+		<!-- 번호판 처리 상태 -->
+		<if test="NUM_PROC_ST != null and NUM_PROC_ST != ''">
             AND NL.PROC_ST = #{NUM_PROC_ST}
-        </if>
+		</if>
 
-        <!-- 탁송 구분 (IN) -->
-        <if test="DELIVERY_GB != null and DELIVERY_GB != ''">
+		<!-- 탁송 구분 (IN) -->
+		<if test="DELIVERY_GB != null and DELIVERY_GB != ''">
             AND CD.DELIVERY_GB IN
-            <foreach collection="DELIVERY_GB.split(',')" item="gb" open="(" separator="," close=")">
+			<foreach collection="DELIVERY_GB.split(',')" item="gb" open="(" separator="," close=")">
                 #{gb}
-            </foreach>
-        </if>
+			</foreach>
+		</if>
 
-        <!-- 시간 구분 (IN) -->
-        <if test="TIME_DVSN != null and TIME_DVSN != ''">
+		<!-- 시간 구분 (IN) -->
+		<if test="TIME_DVSN != null and TIME_DVSN != ''">
             AND SUBSTR(TO_CHAR(TS.REQUEST_DT, 'HH24'), 1, 2) IN
-            <foreach collection="TIME_DVSN.split(',')" item="t" open="(" separator="," close=")">
+			<foreach collection="TIME_DVSN.split(',')" item="t" open="(" separator="," close=")">
                 #{t}
-            </foreach>
-        </if>
+			</foreach>
+		</if>
 
-        <!-- 고객명 LIKE 검색 -->
-        <if test="CUSTOMER_NM != null and CUSTOMER_NM != ''">
+		<!-- 고객명 LIKE 검색 -->
+		<if test="CUSTOMER_NM != null and CUSTOMER_NM != ''">
             AND (CD.CUSTOMER_NM LIKE '%' || #{CUSTOMER_NM} || '%'
                 OR TN.OWNER_NM LIKE '%' || #{CUSTOMER_NM} || '%')
-        </if>
+		</if>
 
-        <!-- 담당자명 LIKE 검색 -->
-        <if test="USER_NM != null and USER_NM != ''">
+		<!-- 담당자명 LIKE 검색 -->
+		<if test="USER_NM != null and USER_NM != ''">
             AND (TMD.MEMBER_NM LIKE '%' || #{USER_NM} || '%'
                 OR TN.GOVT_TX LIKE '%' || #{USER_NM} || '%')
-        </if>
+		</if>
 
-        <!-- 가상계좌 LIKE 검색 -->
-        <if test="VBANK_NO != null and VBANK_NO != ''">
+		<!-- 가상계좌 LIKE 검색 -->
+		<if test="VBANK_NO != null and VBANK_NO != ''">
             AND PM.VBANK_NO LIKE '%' || #{VBANK_NO} || '%'
-        </if>
+		</if>
 
-        <!-- 기타 구분: 비과세 대상 -->
-        <if test="ETC_GB_GU == 'NTAX_TRGET_CD_YN'">
+		<!-- 기타 구분: 비과세 대상 -->
+		<if test="ETC_GB_GU == 'NTAX_TRGET_CD_YN'">
             AND TN.NTAX_TRGET_CD &lt;&gt; '00'
-        </if>
+		</if>
 
-        <!-- 미열람 조건 -->
-        <if test="READ_YN != null and READ_YN != ''">
-            <choose>
-                <when test="GOVT_ID == 'CHANG'">
+		<!-- 미열람 조건 -->
+		<if test="READ_YN != null and READ_YN != ''">
+			<choose>
+				<when test="GOVT_ID == 'CHANG'">
                     AND TS.READ_YN IS NULL
-                </when>
-                <otherwise>
+				</when>
+				<otherwise>
                     AND (TS.READ_YN IS NULL OR TS.READ_YN = 'Y')
-                </otherwise>
-            </choose>
-        </if>
+				</otherwise>
+			</choose>
+		</if>
 
         ORDER BY TS.REQUEST_DT DESC
-    </select>
+	</select>
 
-    <!-- 신규등록 상세 조회 -->
-    <select id="getNewCarDetail" parameterType="string" resultType="java.util.Map">
+	<!-- 신규등록 상세 조회 -->
+	<select id="getNewCarDetail" parameterType="string" resultType="java.util.Map">
         SELECT
             SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, BOND_YN, BOND_DC, CARID_NO, REG_GB,
             PKG_COMMON.FN_DECRYPT(REG_NO)               AS REG_NO,
@@ -268,14 +267,14 @@
             TO_CHAR(INSURER_EDT, 'YYYYMMDD')            AS INSURER_EDT,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO)            AS ADDR_INFO,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO2)           AS ADDR_INFO2,
-            LOW_POLLUTION_YN, CONTRACTOR_NM,
+            LOW_POLLUTION_YN, CONTRACTOR_NM, CARD_YN,
             TO_CHAR(CONTRACTOR_DT, 'YYYYMMDD')          AS CONTRACTOR_DT
         FROM TR_NEWCAR
         WHERE SERVICE_ID = #{serviceId}
-    </select>
-    
-    <!-- 신청건 중 차대번호 조회 -->
-    <select id="selectDuplicateCarIdNO" parameterType="map" resultType="java.util.Map">
+	</select>
+
+	<!-- 신청건 중 차대번호 조회 -->
+	<select id="selectDuplicateCarIdNO" parameterType="map" resultType="java.util.Map">
 	    SELECT SV.SERVICE_ID
 	    FROM TR_SERVICE SV
 	         JOIN TR_NEWCAR NC ON SV.SERVICE_ID = NC.SERVICE_ID
@@ -285,10 +284,10 @@
 	          'D_REQ', 'D_ING', 'D_END', 'D_CON',
 	          'J_REQ', 'J_ING', 'J_END', 'END'
 	      )
-	      AND SV.REQUEST_DT <![CDATA[<=]]> SYSDATE
+	      AND SV.REQUEST_DT 		<![CDATA[<=]]> SYSDATE
 	</select>
-    
-    <select id="getTrOwnerInfo" parameterType="map" resultType="map">
+
+	<select id="getTrOwnerInfo" parameterType="map" resultType="map">
 	    SELECT  SERVICE_ID, SEQ, GUBUN,
 	            ORG_NM,
 	            TO_CHAR(ISSUE_DT, 'YYYYMMDD') AS ISSUE_DT,
@@ -309,12 +308,12 @@
 	            BIZ_NO
 	    FROM TR_OWNERINFO
 	    WHERE SERVICE_ID = #{SERVICE_ID}
-	    <if test="SEQ != null and SEQ != ''">
+		<if test="SEQ != null and SEQ != ''">
 	        AND SEQ = #{SEQ}
-	    </if>
+		</if>
 	    ORDER BY SEQ
 	</select>
-		
+
 	<select id="getBranchList" parameterType="map" resultType="map">
 	    SELECT COMPANY_ID, BRANCH_ID, BRANCH_NM, BIZ_NO, POST_NO,
 	           ADDRESS, ADDRESS_DT, TEL_NO, MPHONE_NO, BASE_ID,
@@ -325,7 +324,7 @@
 	      AND USE_YN = 'Y'
 	    ORDER BY BRANCH_NM
 	</select>
-	
+
 	<select id="getBaseList" parameterType="map" resultType="map">
 	    SELECT COMPANY_ID, BASE_ID, BASE_NM, BIZ_NO, POST_NO,
 	           ADDRESS, ADDRESS_DT, BUBJUNG_CD, BUBJUNG_NM, HJD_CD,
@@ -334,19 +333,18 @@
 	    WHERE COMPANY_ID = #{COMPANY_ID}
 	    ORDER BY BASE_NM
 	</select>
-	
+
 	<!-- 번호판 상태 체크 -->
-	<select id="checkDuplicateCarNo"
-	        parameterType="java.util.Map" resultType="java.util.Map">
+	<select id="checkDuplicateCarNo" parameterType="java.util.Map" resultType="java.util.Map">
 	
 	    SELECT SERVICE_ID,
 	           REQ_CAR_NO
 	      FROM TR_NEWCAR
 	     WHERE REQ_CAR_NO = #{CAR_NO}
-	       AND SERVICE_ID <![CDATA[<>]]> #{SERVICE_ID}
+	       AND SERVICE_ID 		<![CDATA[<>]]> #{SERVICE_ID}
 	
 	</select>
-	
+
 	<select id="getTrCarNoDetach" parameterType="map" resultType="map">
 	    SELECT 
 	           SERVICE_ID, WORK_CD, TASK_CD AS NUMPLATE_GB,
@@ -380,8 +378,8 @@
 	           RECEIVE_NM, CUSTOMER_NM, HOLE_YN, SEAL_YN
 	    FROM TR_CARNO_DETACH
 	    WHERE SERVICE_ID = #{SERVICE_ID}
-	</select> 
-	
+	</select>
+
 	<select id="getOwnerInfoList" parameterType="map" resultType="map">
         SELECT  
             SERVICE_ID,
@@ -415,15 +413,15 @@
         FROM TR_OWNERINFO
         WHERE SERVICE_ID = #{SERVICE_ID}
 
-        <if test="SEQ != null and SEQ != ''">
+		<if test="SEQ != null and SEQ != ''">
             AND SEQ = #{SEQ}
-        </if>
+		</if>
 
         ORDER BY SEQ
-    </select>
+	</select>
 
-    <!-- 신규등록 신청 -->
-    <insert id="insertTrNewCar" parameterType="java.util.Map">
+	<!-- 신규등록 신청 -->
+	<insert id="insertTrNewCar" parameterType="java.util.Map">
 		INSERT INTO TR_NEWCAR (
 		    SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, BOND_YN,
 		    BOND_DC, CARID_NO, REG_GB, REG_NO, BIZ_NO,
@@ -442,7 +440,7 @@
 		    BOND_BANK_CD, BOND_BANK_NO, BOND_LINK_YN, STANDARD_AMT, MEMO_TX,
 		    RT_BANK_CD, RT_ACC_NO, RT_ACC_NM, RT_AMT, CARP_ADDRESS, GOVT_TX,
 		    CARP_ADDRESS_DT, CARP_POST_NO, VH_TY_CD, INSURER_CD, INSURER_SDT, INSURER_EDT,
-		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT
+		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT, CARD_YN
 		)
 		VALUES (
 		    #{SERVICE_ID}, #{WORK_CD}, #{PROC_CD}, #{TASK_CD}, #{BOND_YN},
@@ -462,11 +460,11 @@
 		    #{BOND_BANK_CD}, #{BOND_BANK_NO}, #{BOND_LINK_YN}, #{STANDARD_AMT}, #{MEMO_TX},
 		    #{RT_BANK_CD}, #{RT_ACC_NO}, #{RT_ACC_NM}, #{RT_AMT}, PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}), #{GOVT_TX},
 		    PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}), #{CARP_POST_NO}, #{VH_TY_CD}, #{INSURER_CD}, #{INSURER_SDT}, #{INSURER_EDT},
-		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}
+		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}, #{CARD_YN}
 		)
 	</insert>
-	
-	
+
+
 	<insert id="insertTrCarNoDetach" parameterType="map">
 	    INSERT INTO TR_CARNO_DETACH (
 	        SERVICE_ID, WORK_CD, TASK_CD, CAR_NO, POST_CAR_NO,
@@ -491,168 +489,173 @@
 	        PKG_COMMON.FN_ENCRYPT(#{STATUS_SMS_NO}), #{HOLE_YN}, #{SEAL_YN}
 	    )
 	</insert>
-	
+
 	<update id="updateTrNewCar" parameterType="map">
 	    UPDATE TR_NEWCAR
-	    <set>
-	        <if test="WORK_CD != null and WORK_CD != ''">
+		<set>
+			<if test="WORK_CD != null and WORK_CD != ''">
 	            WORK_CD = #{WORK_CD},
-	        </if>
-	        <if test="PROC_CD != null and PROC_CD != ''">
+			</if>
+			<if test="PROC_CD != null and PROC_CD != ''">
 	            PROC_CD = #{PROC_CD},
-	        </if>
-	        <if test="TASK_CD != null and TASK_CD != ''">
+			</if>
+			<if test="TASK_CD != null and TASK_CD != ''">
 	            TASK_CD = #{TASK_CD},
-	        </if>
-	        <if test="BOND_YN != null and BOND_YN != ''">
+			</if>
+			<if test="BOND_YN != null and BOND_YN != ''">
 	            BOND_YN = #{BOND_YN},
-	        </if>
-	        <if test="BOND_DC != null and BOND_DC != ''">
+			</if>
+			<if test="BOND_DC != null and BOND_DC != ''">
 	            BOND_DC = #{BOND_DC},
-	        </if>
-	        <if test="CARID_NO != null and CARID_NO != ''">
+			</if>
+			<if test="CARID_NO != null and CARID_NO != ''">
 	            CARID_NO = #{CARID_NO},
-	        </if>
-	        <if test="REG_GB != null and REG_GB != ''">
+			</if>
+			<if test="REG_GB != null and REG_GB != ''">
 	            REG_GB = #{REG_GB},
-	        </if>
-	        <if test="REG_NO != null and REG_NO != ''">
+			</if>
+			<if test="REG_NO != null and REG_NO != ''">
 	            REG_NO = PKG_COMMON.FN_ENCRYPT(#{REG_NO}),
-	        </if>
-	        <if test="BIZ_NO != null and BIZ_NO != ''">
+			</if>
+			<if test="BIZ_NO != null and BIZ_NO != ''">
 	            BIZ_NO = #{BIZ_NO},
-	        </if>
-	        <if test="OWNER_NM != null and OWNER_NM != ''">
+			</if>
+			<if test="OWNER_NM != null and OWNER_NM != ''">
 	            OWNER_NM = #{OWNER_NM},
-	        </if>
-	        <if test="OWNER_BRANCH_ID != null and OWNER_BRANCH_ID != ''">
+			</if>
+			<if test="OWNER_BRANCH_ID != null and OWNER_BRANCH_ID != ''">
 	            OWNER_BRANCH_ID = #{OWNER_BRANCH_ID},
-	        </if>
-	        <if test="POST_NO != null and POST_NO != ''">
+			</if>
+			<if test="POST_NO != null and POST_NO != ''">
 	            POST_NO = #{POST_NO},
-	        </if>
-	        <if test="BUBJUNG_CD != null and BUBJUNG_CD != ''">
+			</if>
+			<if test="BUBJUNG_CD != null and BUBJUNG_CD != ''">
 	            BUBJUNG_CD = #{BUBJUNG_CD},
-	        </if>
-	        <if test="ADDRESS != null and ADDRESS != ''">
+			</if>
+			<if test="ADDRESS != null and ADDRESS != ''">
 	            ADDRESS = PKG_COMMON.FN_ENCRYPT(#{ADDRESS}),
-	        </if>
-	        <if test="ADDRESS_DT != null and ADDRESS_DT != ''">
+			</if>
+			<if test="ADDRESS_DT != null and ADDRESS_DT != ''">
 	            ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{ADDRESS_DT}),
-	        </if>
+			</if>
 			<if test="RT_ACC_NM != null and RT_ACC_NM != ''">
 			    RT_ACC_NM = #{RT_ACC_NM},
 			</if>
 			<if test="RT_ACC_NO != null and RT_ACC_NO != ''">
 			    RT_ACC_NO = #{RT_ACC_NO},
 			</if>
-	        <if test="BASE_BRANCH_ID != null and BASE_BRANCH_ID != ''">
+			<if test="BASE_BRANCH_ID != null and BASE_BRANCH_ID != ''">
 	            BASE_BRANCH_ID = #{BASE_BRANCH_ID},
-	        </if>
-	        <if test="BASE_POST_NO != null and BASE_POST_NO != ''">
+			</if>
+			<if test="BASE_POST_NO != null and BASE_POST_NO != ''">
 	            BASE_POST_NO = #{BASE_POST_NO},
-	        </if>
-	        <if test="BASE_BUBJUNG_CD != null and BASE_BUBJUNG_CD != ''">
+			</if>
+			<if test="BASE_BUBJUNG_CD != null and BASE_BUBJUNG_CD != ''">
 	            BASE_BUBJUNG_CD = #{BASE_BUBJUNG_CD},
-	        </if>
-	        <if test="BASE_ADDRESS != null and BASE_ADDRESS != ''">
+			</if>
+			<if test="BASE_ADDRESS != null and BASE_ADDRESS != ''">
 	            BASE_ADDRESS = PKG_COMMON.FN_ENCRYPT(#{BASE_ADDRESS}),
-	        </if>
-	        <if test="BASE_ADDRESS_DT != null and BASE_ADDRESS_DT != ''">
+			</if>
+			<if test="BASE_ADDRESS_DT != null and BASE_ADDRESS_DT != ''">
 	            BASE_ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{BASE_ADDRESS_DT}),
-	        </if>
-	        <if test="TEL_NO != null and TEL_NO != ''">
+			</if>
+			<if test="TEL_NO != null and TEL_NO != ''">
 	            TEL_NO = PKG_COMMON.FN_ENCRYPT(#{TEL_NO}),
-	        </if>
-	        <if test="MPHONE_NO != null and MPHONE_NO != ''">
+			</if>
+			<if test="MPHONE_NO != null and MPHONE_NO != ''">
 	            MPHONE_NO = PKG_COMMON.FN_ENCRYPT(#{MPHONE_NO}),
-	        </if>
-	        <if test="PRDTC_CD != null and PRDTC_CD != ''">
+			</if>
+			<if test="PRDTC_CD != null and PRDTC_CD != ''">
 	            PRDTC_CD = #{PRDTC_CD},
-	        </if>
-	        <if test="REQ_CAR_YN != null and REQ_CAR_YN != ''">
+			</if>
+			<if test="REQ_CAR_YN != null and REQ_CAR_YN != ''">
 	            REQ_CAR_YN = #{REQ_CAR_YN},
-	        </if>
-	        <if test="REQ_CAR_NO != null and REQ_CAR_NO != ''">
+			</if>
+			<if test="REQ_CAR_NO != null and REQ_CAR_NO != ''">
 	            REQ_CAR_NO = #{REQ_CAR_NO},
-	        </if>
-	        <if test="CAR_NO != null and CAR_NO != ''">
+			</if>
+			<if test="CAR_NO != null and CAR_NO != ''">
 	            CAR_NO = #{CAR_NO},
-	        </if>
-	        <if test="IMSIGV_DT != null and IMSIGV_DT != ''">
+			</if>
+			<if test="IMSIGV_DT != null and IMSIGV_DT != ''">
 	            IMSIGV_DT = #{IMSIGV_DT},
-	        </if>
-	        <if test="IMSIGV_CD != null and IMSIGV_CD != ''">
+			</if>
+			<if test="IMSIGV_CD != null and IMSIGV_CD != ''">
 	            IMSIGV_CD = #{IMSIGV_CD},
-	        </if>
-	        <if test="IMSINUM_YN != null and IMSINUM_YN != ''">
+			</if>
+			<if test="IMSINUM_YN != null and IMSINUM_YN != ''">
 	            IMSINUM_YN = #{IMSINUM_YN},
-	        </if>
-	        <if test="IMSINUM_DT != null and IMSINUM_DT != ''">
+			</if>
+			<if test="IMSINUM_DT != null and IMSINUM_DT != ''">
 	            IMSINUM_DT = #{IMSINUM_DT},
-	        </if>
-	        <if test="NUMPLATE_GB != null and NUMPLATE_GB != ''">
+			</if>
+			<if test="NUMPLATE_GB != null and NUMPLATE_GB != ''">
 	            NUMPLATE_GB = #{NUMPLATE_GB},
-	        </if>
-	        <if test="DISTR_YN != null and DISTR_YN != ''">
+			</if>
+			<if test="DISTR_YN != null and DISTR_YN != ''">
 	            DISTR_YN = #{DISTR_YN},
-	        </if>
-	        <if test="DISTR_CD != null and DISTR_CD != ''">
+			</if>
+			<if test="DISTR_CD != null and DISTR_CD != ''">
 	            DISTR_CD = #{DISTR_CD},
-	        </if>
-	        <if test="INSURER_NM != null and INSURER_NM != ''">
+			</if>
+			<if test="INSURER_NM != null and INSURER_NM != ''">
 	            INSURER_NM = #{INSURER_NM},
-	        </if>
-	        <if test="PAY_GB != null and PAY_GB != ''">
+			</if>
+			<if test="PAY_GB != null and PAY_GB != ''">
 	            PAY_GB = #{PAY_GB},
-	        </if>
-	        <if test="PAY_NM != null and PAY_NM != ''">
+			</if>
+			<if test="PAY_NM != null and PAY_NM != ''">
 	            PAY_NM = #{PAY_NM},
-	        </if>
-	        <if test="PAY_HP_NO != null and PAY_HP_NO != ''">
+			</if>
+			<if test="PAY_HP_NO != null and PAY_HP_NO != ''">
 	            PAY_HP_NO = PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}),
-	        </if>
-	        <if test="PAY_ME != null and PAY_ME != ''">
+			</if>
+			<if test="PAY_ME != null and PAY_ME != ''">
 	            PAY_ME = #{PAY_ME},
-	        </if>
-	        <if test="PAY_ST != null and PAY_ST != ''">
+			</if>
+			<if test="PAY_ST != null and PAY_ST != ''">
 	            PAY_ST = #{PAY_ST},
-	        </if>
-	        <if test="TOTAL_AMT != null">
+			</if>
+			<if test="TOTAL_AMT != null">
 	            TOTAL_AMT = #{TOTAL_AMT},
-	        </if>
-	        <if test="VBANK_CD != null and VBANK_CD != ''">
+			</if>
+			<if test="BUY_AMT != null">
+	            BUY_AMT = #{BUY_AMT},
+			</if>
+			<if test="PREREG_AMT != null">
+	            PREREG_AMT = #{PREREG_AMT},
+			</if>
+			<if test="VBANK_CD != null and VBANK_CD != ''">
 	            VBANK_CD = #{VBANK_CD},
-	        </if>
-	        <if test="VBANK_NO != null and VBANK_NO != ''">
+			</if>
+			<if test="VBANK_NO != null and VBANK_NO != ''">
 	            VBANK_NO = #{VBANK_NO},
-	        </if>
-	        <if test="UPD_USER != null and UPD_USER != ''">
+			</if>
+			<if test="UPD_USER != null and UPD_USER != ''">
 	            UPD_USER = #{UPD_USER},
-	        </if>
+			</if>
+			<if test="CARD_YN != null and CARD_YN != ''">
+	            CARD_YN = #{CARD_YN},
+			</if>
 	
 	        UPD_DATE = SYSDATE
-	    </set>
+		</set>
 	
 	    WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
-	
+
 	<update id="updateProcSt">
 	    UPDATE TR_SERVICE
-	    <set>
-	        <if test="PROC_ST != null and PROC_ST != ''">
+		<set>
+			<if test="PROC_ST != null and PROC_ST != ''">
 	            PROC_ST = #{PROC_ST},
-	        </if>
+			</if>
 	        UPD_DATE = SYSDATE
-	    </set>
+		</set>
 	    WHERE SERVICE_ID IN 
-        <foreach collection="SERVICE_IDS"
-	            item="id"
-	            open="("
-	            separator=","
-	            close=")">
+		<foreach collection="SERVICE_IDS" item="id" open="(" separator="," close=")">
 	       #{id}
-	   </foreach>
+		</foreach>
 	</update>
-	
+
 </mapper>

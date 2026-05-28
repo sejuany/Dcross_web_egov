@@ -413,7 +413,7 @@
 	    VALUES (
 	        #{SERVICE_ID}, #{PAY_KD}, #{PAY_AMT}, #{PAY_OP}, #{PAY_ST},
 	        #{VBANK_CD}, #{VBANK_NO}, #{PAY_DT}, #{T_VBANK_GB}, #{T_VBANK_ID},
-	        #{MEMBER_ID}, #{PAY_AMT}
+	        #{MEMBER_ID}, #{PRE_PAY_AMT}
 	    )
 	</insert>
 	

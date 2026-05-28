@@ -67,6 +67,7 @@ public class NewcarController {
     /**
      * 신규등록 기본정보 초기화
      * 접수번호 없는 경우 이쪽으로 들어온다.
+     * GET /api/newcar/init
      */
     @GetMapping("/init")
     public ResponseEntity<Map<String, Object>> initNewCar(HttpSession session) {
@@ -83,6 +84,7 @@ public class NewcarController {
     
     /**
      * 선택 가능한 번호판 목록 조회
+     *  POST /api/newcar/numplateList
      */
     @PostMapping("/numplateList")
     public List<String> getNumplateList(
@@ -95,6 +97,7 @@ public class NewcarController {
     
     /**
      *  미사용 번호판 상태복구
+     *  POST /api/newcar/numplateRelease
      */
     @PostMapping("/numplateRelease")
     public boolean numplateRelease(
@@ -108,6 +111,7 @@ public class NewcarController {
 
 	/**
 	 * 번호판 선택
+	 * POST /api/newcar/numplateSelect
 	 */
 	@PostMapping("/numplateSelect")
 	public ApiResponse<Object> selectNumplate(
@@ -121,6 +125,7 @@ public class NewcarController {
 	
     /**
      * 번호판 미사용 처리 
+     * POST /api/newcar/updateNumplateUseYn
      */
     @PostMapping("/updateNumplateUseYn")
     public ResponseEntity<Map<String, Object>> updateNumplateUseYn(
@@ -138,6 +143,7 @@ public class NewcarController {
 	
 	/**
 	 * 문자 전송
+	 * POST /api/newcar/numplateSms
 	 */
 	@PostMapping("/numplateSms")
 	public ResponseEntity<Map<String, Object>> sendSms(
@@ -154,6 +160,7 @@ public class NewcarController {
 
 	/**
 	 * 신규등록 저장 및 신청
+	 * POST /api/newcar/process
 	 */
 	@PostMapping("/process")
 	public Map<String, Object> processNewCar(
@@ -166,5 +173,5 @@ public class NewcarController {
 	    return newcarService.processNewCar(request, user);
 	}
 
-
+	
 }

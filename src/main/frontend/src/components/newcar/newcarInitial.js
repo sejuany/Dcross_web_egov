@@ -90,6 +90,7 @@ export const initialDsNewCar = {
 	PAY_ST: '',
 	VBANK_CD: '',
 	VBANK_NO: '',
+	CARD_YN: 'N',
 
 	// 환급
 	RT_BANK_CD: '',
@@ -335,6 +336,7 @@ export const newCarMap = {
 	PAY_ST: 'PAY_ST',
 	VBANK_CD: 'VBANK_CD',
 	VBANK_NO: 'VBANK_NO',
+	CARD_YN: 'CARD_YN',
 
 	// 환급
 	RT_BANK_CD: 'RT_BANK_CD',

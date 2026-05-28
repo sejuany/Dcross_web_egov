@@ -399,7 +399,7 @@
     padding-right: 5px !important;
 }
 
-.erp-input {
+.status-container .erp-input {
     /* 1. 기본 스타일 제거 (가장 중요) */
     appearance: none;
     -webkit-appearance: none;
@@ -413,7 +413,7 @@
     background-color: #ffffff;
     
     /* 3. 테두리와 모서리 */
-    border: 1px solid #d1dce8;
+    border: 1px solid #09103a8f;
     border-radius: 4px;
     cursor: pointer;
     transition: all 0.2s ease-in-out;
@@ -426,20 +426,20 @@
 }
 
 /* 5. 마우스 올렸을 때 (Hover) */
-.erp-input:hover {
+.status-container .erp-input:hover {
     border-color: #4a89dc;
     background-color: #f9fbff;
 }
 
 /* 6. 클릭했을 때 (Focus) */
-.erp-input:focus {
+.status-container .erp-input:focus {
     outline: none;
     border-color: #4a89dc;
     box-shadow: 0 0 0 3px rgba(74, 137, 220, 0.15); /* 은은한 후광 효과 */
 }
 
 /* 7. 옵션 박스 스타일 (일부 브라우저 제한적) */
-.erp-input option {
+.status-container .erp-input option {
     padding: 10px;
     background: #ffffff;
     color: #333;

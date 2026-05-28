@@ -1,42 +1,32 @@
 package com.dacos.newcar;
 
-import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.StringJoiner;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.dacos.addservice.dto.AddServiceDto;
 import com.dacos.auth.AuthService;
 import com.dacos.auth.dto.UserDto;
-import com.dacos.auth.mapper.AuthMapper;
 import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
+import com.dacos.common.CommonService;
 import com.dacos.common.mapper.CommonMapper;
 import com.dacos.common.util.CommonUtil;
-import com.dacos.commonmenu.dto.CommonMenuSearchRequest;
-import com.dacos.commonmenu.mapper.CommonMenuMapper;
 import com.dacos.company.mapper.CompanyMapper;
 import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 import com.dacos.newcar.mapper.NewcarMapper;
 import com.dacos.numplate.mapper.NumPlateMapper;
 import com.dacos.payment.mapper.PaymentMapper;
-import com.ibm.icu.text.SimpleDateFormat;
-
-import lombok.RequiredArgsConstructor;
 
 /**
  * 신차 등록 서비스
@@ -64,6 +54,8 @@ public class NewcarService {
     private CommonMapper commonMapper;
     @Autowired
     private CompanyMapper companyMapper;
+    @Autowired
+    private CommonService commonService;
     @Autowired
     private AuthService authService;
     @Autowired
@@ -285,111 +277,182 @@ public class NewcarService {
 	}
 	
 	/**
-	 * 신규등록 저장
+	 * 신규등록 저장 및 신청 프로세스
+	 * - 저장/수정 공통 처리
+	 * - 일반 신청건은 관청 서버 연계 처리
+	 * - 폴스타 선납건은 가상계좌 생성 및 납부 요청 처리
 	 */
 	@Transactional
 	public Map<String, Object> processNewCar(Map<String, Object> request, UserDto user) {
-
-	    logger.info("[NewcarService] 신규등록 저장");
-
-	    // 데이터 파싱
-	    Map<String, Object> mService = commonUtil.getMap(request, "dsService");
-	    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
-	    Map<String, Object> mCarNoDetach = commonUtil.getMap(request, "dsCarNoDetach");
-
-	    List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
-	    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
-
-	    // 데이터 병합
-	    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
-
-		logger.info("mNewCar >>> " + mNewCar);
-		logger.info("input >>> " + input);
-		
-	    // 로그인 사용자
-	    input.put("UPD_USER", user.getLOGIN_ID());
-
-	    // 서비스번호
-	    String serviceId = (String) input.get("SERVICE_ID");
-
-	    // insert
-	    if (commonUtil.isEmpty(serviceId)) {
-	        insertNewCar(input, mService, lOwnerInfoList, lPaymentList);
-	    } 
-	    
-	    // update
-	    else {
-	        updateNewCar(input, mService, lOwnerInfoList, lPaymentList);
-	    }
-
 	    // 성공 반환
 	    Map<String, Object> result = new HashMap<>();
+	   
+		try {
+			logger.info("[NewcarService] 신규등록 저장 및 신청 프로세스");
+			
+			 // 데이터 파싱
+		    Map<String, Object> mService = commonUtil.getMap(request, "dsService");
+		    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
+		    Map<String, Object> mCarNoDetach = commonUtil.getMap(request, "dsCarNoDetach");
+		    
+		    List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
+		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
+		    
+		    // 처리상태
+		    String procSt = String.valueOf(mService.get("PROC_ST"));
+		    
+		    boolean isRequest = "REQ".equals(procSt)|| "B_REQ".equals(procSt);
+		    
+		    // 데이터 병합
+		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
+		    
+		    logger.info("mNewCar >>> " + mNewCar);
+		    logger.info("input >>> " + input);
+		    
+		    // 로그인 사용자
+		    input.put("UPD_USER", user.getLOGIN_ID());
+		    
+		    // 서비스번호
+		    String serviceId = (String) input.get("SERVICE_ID");
+		    
+		    // insert
+		    if (commonUtil.isEmpty(serviceId)) {
+		    	insertNewCar(input, mService, lOwnerInfoList, lPaymentList);
+		    } 
+		    
+		    // update
+		    else {
+		    	updateNewCar(input, mService, lOwnerInfoList, lPaymentList);
+		    }
 
-	    result.put("SERVICE_ID", input.get("SERVICE_ID"));
-	    result.put("ReturnPage",
-	            "/NC/NewCarRequest.do?SERVICE_ID=" + input.get("SERVICE_ID"));
-	    
-	    // 신청 시작
-	    if("REQ".equals(mService.get("PROC_ST"))) {
-	        // 관청 서버 전송은 롤백이 불가능하므로 마지막에 처리
-	        // 오류 발생 시 전체 트랜잭션 롤백
-	    	
-	    	// 선납인 경우 
-	    	if("B".equals(mNewCar.get("PAY_GB"))) {
-	    		throw new RuntimeException("신규등록은 선납 요청이 불가능합니다.");
-	    	}
-	    	
-	        // 관청 연계 데이터로 변환
-	        Map<String, Object> linkData = commonUtil.filterMap(input,
-	                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
-	                + " REQUEST_DT, COMPANY_ID, COMPANY_NM, COMPANY_NO,"
-	                + " ADDRESS, ADDRESS_DT, POST_NO, BASE_ADDRESS, BASE_ADDRESS_DT, BASE_POST_NO,"
-	                + " OWNER_NM, REG_GB, REG_NO, BIZ_NO, BUBJUNG_CD, BASE_BUBJUNG_CD,"
-	                + " REQ_CAR_NO, GOVT_ID, NTAX_TRGET_CD, NTAX_WHO, NTAX_TRGET_GR_CD, NTAX_APPLC_CD,"
-	                + " MEMBER_ID, PROC_ST, PAY_GB, PAY_ME, TEL_NO, MPHONE_NO,"
-	                + " BOND_DC, BOND_LINK_YN, BOND_BANK_CD, ADDR_INFO, ADDR_INFO2");
-	        
-	        logger.info("linkData >>" + linkData);
-	        
-	        // 공동소유자 정보
-	        StringBuilder ownerInfo = new StringBuilder();
+		    result.put("SERVICE_ID", input.get("SERVICE_ID"));
+		    result.put("MESSAGE", "저장완료");
+		    result.put("", "저장완료");
+		    
+		    logger.info("isRequest : {}",isRequest);
+		    if(isRequest) {
+		    	
+		    	logger.info("PAY_GB : {}", mNewCar.get("PAY_GB"));
+				
+		    	// 선납건(폴스타 등)은 가상계좌 생성 후 입금 대기 처리
+		    	if("B".equals(mNewCar.get("PAY_GB"))) {
+		    		// TODO 가상계좌 생성 및 입금 확인 로직 필요
+		    		// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
+	 	    		try {
+						logger.debug("프로시져 호출 전");
+	 	    			
+	 	    			input.put("pInput",  input.get("SERVICE_ID"));
+						input.put("pReturn",  "");
+	 	    			
+						common.call(input, "processVBank");
 
-	        for (Map<String, Object> owner : lOwnerInfoList) {
-	            StringJoiner joiner = new StringJoiner("ß");
-	            
-	            joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
-	            joiner.add("SEQ»"         + getVal(owner, "SEQ"));
-	            joiner.add("DEBTOR_NM»"   + getVal(owner, "DEBTOR_NM"));
-	            joiner.add("DEBTOR_GB»"   + getVal(owner, "DEBTOR_GB"));
-	            joiner.add("REG_NO»"      + getVal(owner, "REG_NO"));
-	            joiner.add("DEBTOR_RATIO»"+ getVal(owner, "DEBTOR_RATIO"));
-	            joiner.add("DEBTOR_ADDR»" + (getVal(owner, "DEBTOR_ADDR") + " " 
-	            						  + getVal(owner, "DEBTOR_ADDR_DT")).trim());
-	            joiner.add("DSIGN_GB»"    + getVal(owner, "DSIGN_GB"));
-	            joiner.add("DSIGN_HP_NO»" + getVal(owner, "DSIGN_HP_NO"));
-	            joiner.add("DSIGN_TX»"    + getVal(owner, "DSIGN_TX"));
-	            joiner.add("CONFIRM_NO»"  + getVal(owner, "CONFIRM_NO"));
-	            joiner.add("DSIGN_ST»"    + getVal(owner, "DSIGN_ST"));
-	            joiner.add("IDEN_ST»"     + getVal(owner, "IDEN_ST"));
+					} catch (Exception ex) {
+						logger.error("processVBank 호출 예외", ex);
+						// 예외를 던지면 @Transactional 메서드에서 롤백됩니다.
+						throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
+					}
+					
+					// OUT 파라미터 확인
+					String pReturn = input.get("pReturn") != null ? input.get("pReturn").toString() : "";
+					if (pReturn == null || pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
+						throw new RuntimeException("가상계좌 발급 실패: " + pReturn);
+					}
+		    	}
+		    	
+		    	/*
+		    	// 후납건은 바로 관청 서버 연계
+		        Map<String, Object> linkData = commonUtil.filterMap(input,
+		                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
+		                + " REQUEST_DT, COMPANY_ID, COMPANY_NM, COMPANY_NO,"
+		                + " ADDRESS, ADDRESS_DT, POST_NO, BASE_ADDRESS, BASE_ADDRESS_DT, BASE_POST_NO,"
+		                + " OWNER_NM, REG_GB, REG_NO, BIZ_NO, BUBJUNG_CD, BASE_BUBJUNG_CD,"
+		                + " REQ_CAR_NO, GOVT_ID, NTAX_TRGET_CD, NTAX_WHO, NTAX_TRGET_GR_CD, NTAX_APPLC_CD,"
+		                + " MEMBER_ID, PROC_ST, PAY_GB, PAY_ME, TEL_NO, MPHONE_NO,"
+		                + " BOND_DC, BOND_LINK_YN, BOND_BANK_CD, ADDR_INFO, ADDR_INFO2");
+		        
+		        logger.info("linkData >>" + linkData);
+		        
+		        // 공동소유자 정보
+		        StringBuilder ownerInfo = new StringBuilder();
 
-	            // 관청별 마감 분기 처리
-	            if ("BUSAN".equals(input.get("GOVT_ID"))) {
-	                ownerInfo.append(joiner.toString()).append("þ");
-	            } else {
-	                joiner.add("DSIGN_DT»" + getVal(owner, "DSIGN_DT"));
-	                joiner.add("IDEN_DT»"  + getVal(owner, "IDEN_DT"));
-	                ownerInfo.append(joiner.toString()).append("þ");
-	            }
-	        }
+		        for (Map<String, Object> owner : lOwnerInfoList) {
+		            StringJoiner joiner = new StringJoiner("ß");
+		            
+		            joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
+		            joiner.add("SEQ»"         + getVal(owner, "SEQ"));
+		            joiner.add("DEBTOR_NM»"   + getVal(owner, "DEBTOR_NM"));
+		            joiner.add("DEBTOR_GB»"   + getVal(owner, "DEBTOR_GB"));
+		            joiner.add("REG_NO»"      + getVal(owner, "REG_NO"));
+		            joiner.add("DEBTOR_RATIO»"+ getVal(owner, "DEBTOR_RATIO"));
+		            joiner.add("DEBTOR_ADDR»" + (getVal(owner, "DEBTOR_ADDR") + " " 
+		            						  + getVal(owner, "DEBTOR_ADDR_DT")).trim());
+		            joiner.add("DSIGN_GB»"    + getVal(owner, "DSIGN_GB"));
+		            joiner.add("DSIGN_HP_NO»" + getVal(owner, "DSIGN_HP_NO"));
+		            joiner.add("DSIGN_TX»"    + getVal(owner, "DSIGN_TX"));
+		            joiner.add("CONFIRM_NO»"  + getVal(owner, "CONFIRM_NO"));
+		            joiner.add("DSIGN_ST»"    + getVal(owner, "DSIGN_ST"));
+		            joiner.add("IDEN_ST»"     + getVal(owner, "IDEN_ST"));
 
-	        linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
-	        linkData.put("SID", "신규등록신청");
-	        
-	        // TODO 여기부터 진행 예정
-	    }
+		            // 관청별 마감 분기 처리
+		            if ("BUSAN".equals(input.get("GOVT_ID"))) {
+		                ownerInfo.append(joiner.toString()).append("þ");
+		            } else {
+		                joiner.add("DSIGN_DT»" + getVal(owner, "DSIGN_DT"));
+		                joiner.add("IDEN_DT»"  + getVal(owner, "IDEN_DT"));
+		                ownerInfo.append(joiner.toString()).append("þ");
+		            }
+		        }
 
-	    return ApiResponse.withKey("data", result);
+		        linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
+		        linkData.put("SID", "신규등록신청");
+
+		        // 원부 조회 처리
+		        JsonNode jsonResponse = commonService.linkServer(linkData);
+
+		        // errorCode = 0(성공), -1(실패)
+		        String sErrorCode = jsonResponse.path("errorCode").asText();
+
+		        // 통신 오류
+		        if ("-1".equals(sErrorCode)) {
+		            result.put("MESSAGE", "관청서버와 통신 중 오류가 발생하였습니다.");
+		            throw new RuntimeException("관청 서버 통신 오류");
+		            
+		        }
+
+	            JsonNode returnMsg = jsonResponse.path("returnMSG");
+
+	            List<Map<String, Object>> lResultList = commonService.setJsonObjectToList(returnMsg);
+	            String sCode = commonService.getListData(lResultList, 0, "code");
+	            String sMessage = commonService.getListData(lResultList, 0, "message");
+
+	            // 관청 오류
+				if ("-1".equals(sCode)) {
+				
+				    result.put("RESULT_CD", "-1");
+				    result.put("MESSAGE", "관청오류");
+				
+				} else {
+				    result.put("RESULT_CD", "0");
+				    result.put("MESSAGE", "신청완료");
+				}*/
+		    }
+		} catch (RuntimeException e) {
+		
+		    logger.error("신규등록 처리 오류", e);
+		    result.put("RESULT_CD", "-2");
+		    result.put("MESSAGE", e.getMessage());
+		
+		} catch (Exception e) {
+		    logger.error("신규등록 처리 중 시스템 오류", e);
+		    result.put("RESULT_CD", "-3");
+		    result.put("MESSAGE", "처리 중 오류가 발생하였습니다.");
+		
+		}
+		
+		return ApiResponse.withKey("data", result);
 	}
+	
+	// 
 	
 	/**
 	 * Map에서 값을 꺼내 문자열로 반환 (null이면 빈 값)

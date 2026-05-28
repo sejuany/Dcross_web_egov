@@ -3,7 +3,6 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.payment.mapper.CommonMapper">
-	
 	<select id="selectJibunAddress" parameterType="map" resultType="map">
 	
 	    SELECT A.GICHO_NO AS POST_NO,
@@ -18,7 +17,7 @@
 	       AND A.BUILDS_NO = #{BUILDS_NO}
 	
 	</select>
-		
+
 	<select id="selectAddress" parameterType="map" resultType="map">
 	
 	    SELECT DISTINCT
@@ -61,21 +60,21 @@
 	               AND A.EMD_SN = B.EMD_SN
 	             WHERE A.BUILDB_NO = #{BUILDB_NO}
 	
-                 <choose>
+		<choose>
 
-	                <when test='"Y".equals(BUBJUNGRI_NM)'>
+			<when test='"Y".equals(BUBJUNGRI_NM)'>
 	                    AND A.BUBJUNGRI_NM LIKE TRIM(#{ROAD_NM}) || '%'
-	                </when>
-	
-	                <otherwise>
+			</when>
+
+			<otherwise>
 	                    AND A.ROAD_NM LIKE TRIM(#{ROAD_NM}) || '%'
-	                </otherwise>
-	
-	            </choose>
-	
-	            <if test="BUILDS_NO != null and BUILDS_NO != ''">
+			</otherwise>
+
+		</choose>
+
+		<if test="BUILDS_NO != null and BUILDS_NO != ''">
 	                AND A.BUILDS_NO = #{BUILDS_NO}
-	            </if>
+		</if>
 	
 	            UNION ALL
 	
@@ -110,27 +109,51 @@
 		             
 	             WHERE A.JIBUNB_NO = #{BUILDB_NO}
 	
-	            <choose>
-	
-	                <when test='"Y".equals(BUBJUNGRI_NM)'>
+		<choose>
+
+			<when test='"Y".equals(BUBJUNGRI_NM)'>
 	                    AND A.BUBJUNGRI_NM LIKE TRIM(#{ROAD_NM}) || '%'
-	                </when>
-	
-	                <otherwise>
+			</when>
+
+			<otherwise>
 	                    AND A.BUBJUNG_NM LIKE TRIM(#{ROAD_NM}) || '%'
-	                </otherwise>
-	
-	            </choose>
-	
-	            <if test="BUILDS_NO != null and BUILDS_NO != ''">
+			</otherwise>
+
+		</choose>
+
+		<if test="BUILDS_NO != null and BUILDS_NO != ''">
 	                AND A.JIBUNS_NO = #{BUILDS_NO}
-	            </if>
+		</if>
 	
 	      )
 	
 	     ORDER BY ROAD_AD, BUILDB_NO, BUILDS_NO
 	</select>
+
+	<select id="selectCodeDetail" parameterType="map" resultType="map">
 	
+	    SELECT
+	        CODE_ID,
+	        CODE_NM,
+	        DETAIL_NM
+	    FROM TM_CODE
+	    WHERE GROUP_ID = #{GROUP_ID}
+	      AND CODE_ID = #{CODE_ID}
+	      AND USE_YN = 'Y'
+	      AND TO_CHAR(SYSDATE, 'YYYYMMDD')
+	          BETWEEN START_DT AND END_DT
+	    ORDER BY TO_NUMBER(ORDER_NO)
+	
+	</select>
+
+	<!-- 가상계좌 생성-->
+	<select id="processVBank" statementType="CALLABLE" parameterType="map">
+	{ call Pkg_VbankNo.sp_Insert_WCMS_GW_TR(
+		#{pInput, mode=IN, jdbcType=VARCHAR},
+		#{pReturn, mode=OUT, jdbcType=VARCHAR}
+		)
+	}
+	</select>
 	<!-- 문자 전송 -->
 	<insert id="insertSmsSend" parameterType="map">
 	    INSERT INTO MSG_QUEUE (
@@ -152,5 +175,43 @@
 	        SYSDATE
 	    )
 	</insert>
+
+	<!-- 로그 기록 -->
+	<insert id="insertCarDailyLog" parameterType="map">
 	
+	    MERGE INTO TS_CAR_DAILY_LOG D
+	    USING (
+	        SELECT
+	            #{CAR_NO} AS CAR_NO,
+	            TRUNC(SYSDATE) AS CDATE,
+	            #{GOVT_ID} AS GOVT_ID,
+	            #{COMPANY_ID} AS COMPANY_ID
+	        FROM DUAL
+	    ) S
+	    ON (
+	        D.CAR_NO = S.CAR_NO
+	        AND D.CDATE = S.CDATE
+	    )
+	
+	    WHEN MATCHED THEN
+	        UPDATE SET D.CNT = D.CNT + 1
+	
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+	            CAR_NO,
+	            CDATE,
+	            CNT,
+	            GOVT_ID,
+	            COMPANY_ID
+	        )
+	        VALUES (
+	            S.CAR_NO,
+	            S.CDATE,
+	            1,
+	            S.GOVT_ID,
+	            S.COMPANY_ID
+	        )
+	
+	</insert>
+
 </mapper>
