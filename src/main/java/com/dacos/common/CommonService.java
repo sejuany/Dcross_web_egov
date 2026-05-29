@@ -218,10 +218,10 @@ public class CommonService {
     
 	// 여러줄의 데이터를 보내야 할 때 사용, 관청도 추가
     public JsonNode linkServer(Map<String, Object> hmRequestData) {
-
+    	logger.info("linkServer로 넘어옴 >>" + hmRequestData);
         JsonNode jsonData =
             objectMapper.valueToTree(hmRequestData);
-
+        
         return connectLinkServer(jsonData);
     }
 	
@@ -251,6 +251,7 @@ public class CommonService {
 	
     // 관청서버로 데이터 송 수신
     public JsonNode connectLinkServer(JsonNode jSendData) {
+    	logger.info("[LINK] 연계 시작");
         InetAddress ip = null; 
         int iTimeout = 300000; // 기본 5분
 
@@ -300,6 +301,8 @@ public class CommonService {
             iTimeout = 3000000;
         }
         
+        logger.info("govtId : {}", govtId);
+        logger.info("[LINK] URL : {}", sGLinkUrl);
         logger.debug("SERVER IP : " + ip.getHostAddress());
         
         String sReturnCode = "";
@@ -339,6 +342,8 @@ public class CommonService {
                 
                 // ==================== [경로 A] 부산 통신 (HTTPS) ====================
                 if (isBusan) {
+                	
+                    logger.info("[LINK] 부산 HTTPS 연계 시작");
                     HttpsURLConnection conn = null;
                     
                     // SSL Keystore 설정
@@ -363,6 +368,8 @@ public class CommonService {
                     conn.setConnectTimeout(iTimeout);
                     
                     String sSendData = objectMapper.writeValueAsString(jSendData);
+                    
+                    logger.info("[LINK] 요청 데이터 생성 완료");
 
                     sSendData = sSendData.replace("&", "ø").replace("%", "‰");
                     logger.debug("https 보낼데이터 > : " + sSendData);
@@ -374,6 +381,8 @@ public class CommonService {
                     	
                         iCnt++;
                         
+                        logger.info("[LINK] 전송 시도 횟수 : {}", iCnt);
+                        
                         if (iCnt > 10) {
                         	throw new RuntimeException("10번 이상 시도해서 강제 예외 발생시킴"); 
                         }
@@ -383,7 +392,11 @@ public class CommonService {
                         {
 	                        pw.write("reqData=" + sSendData);
 	                        pw.flush();
+	                        
+	                        logger.info("[LINK] 관청 서버 전송 완료");
                         }
+                        
+                        logger.info("[LINK] 응답 수신 시작");
                         
                         // 응답 데이터 수신
                         try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) 
@@ -397,6 +410,8 @@ public class CommonService {
                                 buffer.append(line).append("\r\n");
                             }
                             
+                            logger.info("[LINK] 응답 수신 완료");
+                            
                             // 통신 성공
                             sReturnCode = "0";
                             sReturnMsg = buffer.toString();
@@ -406,21 +421,28 @@ public class CommonService {
                         // 성공 시 반복 종료
                         break;
                     }
+                    
+                    logger.info("[LINK] 부산 HTTPS 연계 종료");
 
                 // ==================== [경로 B] 일반 관청 통신 (HTTP) ====================
                 } else {
-
+                	
+                	logger.info("[LINK] 일반 HTTP 연계 시작");
+                	
                 	HttpURLConnection httpCon = (HttpURLConnection) new URL(sGLinkUrl).openConnection();
                 	httpCon.setDoOutput(true);
                 	httpCon.setRequestMethod("POST");
                 	httpCon.setReadTimeout(iTimeout);
                 	httpCon.setConnectTimeout(iTimeout);
+                	
+                	logger.info("[LINK] URL : {}", sGLinkUrl);
                     
                     String sSendData = jSendData.toString();
                     logger.debug("보낼데이터 : " + sSendData);
                     
                     // 데이터 암호화 및 특수문자 치환
                     sSendData = encrypt(sSendData);
+                    logger.info("[LINK] 데이터 암호화 완료");
                     
                     sSendData = sSendData.replace("&", "ø").replace("%", "‰").replace("+", "û");    
                     
@@ -433,12 +455,16 @@ public class CommonService {
                         }
                     }
 					
+                    logger.info("[LINK] 관청 서버 전송 시작");
 					
 					try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(httpCon.getOutputStream(), StandardCharsets.UTF_8))) {
 					    pw.write("reqData=" + sSendData);
 					    pw.flush();
+					    logger.info("[LINK] 관청 서버 전송 완료");
 					}
                     
+					logger.info("[LINK] 응답 수신 시작");
+					
 	                try (BufferedReader reader = new BufferedReader(new InputStreamReader(httpCon.getInputStream(), StandardCharsets.UTF_8))) 
 	                {
 	                    StringBuilder buffer = new StringBuilder();
@@ -448,12 +474,18 @@ public class CommonService {
 	                    while ((line = reader.readLine()) != null) {
 	                        buffer.append(line);
 	                    }
+	                    
+	                    logger.info("[LINK] 응답 수신 완료");
 
 	                    sReturnCode = "0";
 
 	                    sReturnMsg = buffer.toString().replaceAll("\\r\\n", "");
-
+	                    
+	                    logger.info("[LINK] 응답 데이터 변환 완료");
+	                    
 	                    httpCon.disconnect();
+	                    
+	                    logger.info("[LINK] 일반 HTTP 연계 종료");
 	                }
                 }
             } else {
@@ -468,6 +500,8 @@ public class CommonService {
             sReturnMsg = jsonTemp.path("returnLinkServer").asText();
             
             sReturnMsg = decrypt(sReturnMsg);    
+            
+            logger.info("sReturnMsg 복호화 완료 >>" + sReturnMsg);
             
         } catch (SocketTimeoutException e) { 
             logger.debug("타임아웃 에러 : " + e.toString());

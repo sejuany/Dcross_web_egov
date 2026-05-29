@@ -26,7 +26,8 @@ public class SpaForwardController {
         "/login",
         "/newcar/**",
         "/mortgage/**",
-        "/dashboard/**"
+        "/dashboard/**",
+        "/numplate/**"
     })
     public String forwardToIndex() {
         return "forward:/index.html";

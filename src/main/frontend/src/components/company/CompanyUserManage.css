@@ -1,0 +1,978 @@
+/* =========================================================
+   CompanyUserManage 화면 폭 / 그리드 / 기본정보 정렬 보정
+   ========================================================= */
+
+/* 페이지를 다른 관리 화면처럼 전체 폭으로 사용 */
+.cum-page {
+    width: 100%;
+    min-height: calc(100vh - 70px);
+    padding: 18px 20px;
+    background: #f4f7f9;
+    box-sizing: border-box;
+}
+
+/* 가운데 좁은 카드 제거 */
+.cum-card {
+    width: 100%;
+    max-width: none;
+    margin: 0;
+    background: #fff;
+    border: 1px solid #cfd8e3;
+    border-radius: 4px;
+    box-shadow: none;
+    overflow: hidden;
+}
+
+/* 상단 헤더 높이 정리 */
+.cum-header {
+    height: 52px;
+    padding: 0 22px;
+    border-bottom: 2px solid #1d3d63;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.cum-header h3 {
+    margin: 0;
+    font-size: 1.05rem;
+    color: #102a43;
+    display: flex;
+    align-items: center;
+    font-weight: 900;
+}
+
+.cum-square-icon {
+    width: 10px;
+    height: 10px;
+    background: #1d3d63;
+    margin-right: 10px;
+}
+
+.cum-header-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.cum-header-actions button {
+    height: 30px;
+    min-width: 72px;
+    padding: 0 12px;
+    border: none;
+    border-radius: 3px;
+    background: #6f7f98;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 800;
+    cursor: pointer;
+}
+
+.cum-header-actions button:hover {
+    background: #53657f;
+}
+
+/* 본문을 넓게 사용 */
+.cum-body {
+    padding: 18px 22px 24px;
+}
+
+/* 검색영역: 화면 폭에 맞게 */
+.cum-search-section {
+    margin-bottom: 16px;
+    padding: 14px 16px;
+    background: #f8fafc;
+    border: 1px solid #d9e2ec;
+    border-radius: 5px;
+}
+
+.cum-search-grid {
+    display: grid;
+    grid-template-columns: 1.35fr 1.35fr 1fr;
+    gap: 12px 26px;
+    align-items: center;
+}
+
+.cum-field {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    min-width: 0;
+}
+
+.cum-field label {
+    width: 70px;
+    min-width: 70px;
+    text-align: right;
+    color: #102a43;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.cum-field input,
+.cum-field select {
+    width: 100%;
+    min-width: 0;
+    height: 34px;
+    padding: 0 10px;
+    border: 1px solid #c7d2e2;
+    border-radius: 3px;
+    background: #fff;
+    color: #1f2933;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.cum-date-range {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+}
+
+.cum-date-range input {
+    flex: 1;
+}
+
+.cum-date-range span {
+    color: #102a43;
+    font-weight: 800;
+}
+
+.cum-radio-group {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    flex-wrap: wrap;
+}
+
+.cum-radio-group label {
+    width: auto;
+    min-width: auto;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    font-size: 13px;
+    font-weight: 700;
+    color: #1f2933;
+    text-align: left;
+}
+
+.cum-radio-group input {
+    width: auto;
+    height: auto;
+    padding: 0;
+}
+
+/* 섹션 타이틀 */
+.cum-section {
+    margin-bottom: 18px;
+}
+
+.cum-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 8px;
+    color: #102a43;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.cum-section-title span {
+    width: 10px;
+    height: 10px;
+    background: #1d3d63;
+}
+
+.cum-section-title em {
+    margin-left: 4px;
+    color: #65758b;
+    font-size: 12px;
+    font-style: normal;
+    font-weight: 800;
+}
+
+/* =========================================================
+   회원 리스트 AG Grid: 다른 페이지 표 양식과 맞춤
+   ========================================================= */
+
+.cum-ag-grid-wrap {
+    width: 100%;
+    height: 330px;
+    border: 1px solid #cfd8e3;
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.cum-ag-grid-wrap .ag-root-wrapper {
+    border: none;
+}
+
+.cum-ag-grid-wrap .ag-header {
+    background: #53657f;
+    border-bottom: 1px solid #44546a;
+}
+
+.cum-ag-grid-wrap .ag-header-cell {
+    background: #53657f;
+    color: #ffffff;
+    font-weight: 800;
+    font-size: 12px;
+    border-right: 1px solid #7b8ba3;
+}
+
+.cum-ag-grid-wrap .ag-header-cell-label {
+    justify-content: center;
+}
+
+.cum-ag-grid-wrap .ag-row {
+    font-size: 12px;
+    color: #1f2933;
+    border-bottom: 1px solid #d8dee8;
+}
+
+.cum-ag-grid-wrap .ag-row-even {
+    background: #ffffff;
+}
+
+.cum-ag-grid-wrap .ag-row-odd {
+    background: #f4f6f9;
+}
+
+.cum-ag-grid-wrap .ag-row-hover {
+    background: #eaf3ff !important;
+}
+
+.cum-ag-grid-wrap .cum-ag-selected-row {
+    background: #dcecff !important;
+}
+
+.cum-ag-grid-wrap .ag-cell {
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #e0e6ef;
+    padding-left: 8px;
+    padding-right: 8px;
+}
+
+.cum-ag-center {
+    justify-content: center;
+    text-align: center;
+}
+
+.cum-ag-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.cum-ag-status.status-Y {
+    background: #d9fff1;
+    color: #047857;
+}
+
+.cum-ag-status.status-N {
+    background: #ffe4e6;
+    color: #be123c;
+}
+
+.cum-ag-status.status-W {
+    background: #fff4d6;
+    color: #a16207;
+}
+
+.cum-ag-status.status-R {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.cum-ag-empty {
+    color: #718096;
+    font-weight: 700;
+}
+
+/* =========================================================
+   회원 기본정보: 칸 깨짐 보정
+   ========================================================= */
+
+.cum-form-table {
+    position: relative;
+    width: 100%;
+    border: 1px solid #d5dfeb;
+    border-radius: 3px;
+    overflow: hidden;
+    background: #fff;
+}
+
+/* 기본 3열 */
+.cum-form-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr;
+    min-height: 48px;
+    border-bottom: 1px solid #dfe7f1;
+}
+
+.cum-form-row:last-child {
+    border-bottom: none;
+}
+
+.cum-form-field {
+    display: grid;
+    grid-template-columns: 125px minmax(0, 1fr);
+    min-width: 0;
+    border-right: 1px solid #dfe7f1;
+    background: #fff;
+}
+
+.cum-form-field:last-child {
+    border-right: none;
+}
+
+.cum-form-field > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 8px;
+    background: #f3f6fa;
+    border-right: 1px solid #dfe7f1;
+    color: #34445a;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+    box-sizing: border-box;
+}
+
+.cum-form-field input,
+.cum-form-field select {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    outline: none;
+    padding: 0 12px;
+    background: #fff;
+    color: #1f2933;
+    font-size: 13px;
+    box-sizing: border-box;
+}
+
+.cum-form-field input[readonly],
+.cum-form-field input:disabled {
+    background: #eef2f6;
+    color: #65758b;
+}
+
+/* 라디오가 들어가는 칸 */
+.cum-form-field .cum-radio-group {
+    padding: 0 14px;
+    min-height: 48px;
+    background: #fff;
+}
+
+/* 사용 여부 칸 안쪽 라디오 간격 */
+.cum-form-field .cum-radio-group label {
+    height: 100%;
+}
+
+/* 로그인 등록번호 영역 */
+.regist-field {
+    grid-template-columns: 125px minmax(0, 1fr);
+}
+
+.cum-regist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.cum-regist-row input {
+    height: 34px;
+    border: 1px solid #c7d2e2;
+    border-radius: 3px;
+    background: #fff;
+    text-align: center;
+}
+
+.cum-regist-row input:first-child {
+    width: 105px;
+    flex: none;
+}
+
+.cum-regist-row input:nth-child(3) {
+    width: 50px;
+    flex: none;
+}
+
+.cum-regist-row span {
+    font-weight: 900;
+    color: #1f2933;
+}
+
+.cum-regist-row em {
+    color: #1d3d63;
+    font-style: normal;
+    font-weight: 900;
+    letter-spacing: 3px;
+}
+
+/* 안내문 칸 */
+.cum-guide-text {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    color: #65758b;
+    font-size: 12px;
+    font-weight: 700;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+/* 패스워드 초기화 버튼 위치: 기본정보 오른쪽 위 */
+.cum-password-row {
+    position: absolute;
+    right: 12px;
+    top: 8px;
+    z-index: 2;
+}
+
+.cum-password-row button {
+    height: 30px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 3px;
+    background: #1d3d63;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.cum-password-row button:disabled {
+    background: #9aa8bb;
+    cursor: not-allowed;
+}
+
+/* 첫 번째 행 오른쪽 버튼 공간 확보 */
+.cum-form-row:first-child .cum-form-field:last-child {
+    padding-right: 145px;
+    box-sizing: border-box;
+}
+
+/* =========================================================
+   회원 권한정보
+   ========================================================= */
+
+.cum-work-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(160px, 1fr));
+    gap: 12px;
+}
+
+.cum-work-card {
+    border: 1px solid #d5dfeb;
+    border-radius: 4px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.cum-work-card.disabled {
+    opacity: 0.55;
+}
+
+.cum-work-title {
+    height: 36px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef3f8;
+    border-bottom: 1px solid #d5dfeb;
+    color: #102a43;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.cum-work-line {
+    display: grid;
+    grid-template-columns: 58px minmax(0, 1fr);
+    min-height: 38px;
+    border-bottom: 1px solid #e4ebf3;
+}
+
+.cum-work-line:last-child {
+    border-bottom: none;
+}
+
+.cum-work-line > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f9fc;
+    border-right: 1px solid #e4ebf3;
+    color: #34445a;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.cum-work-line .cum-radio-group {
+    padding: 0 10px;
+    gap: 10px;
+}
+
+.cum-work-line .cum-radio-group label {
+    font-size: 12px;
+}
+
+/* 반응형 */
+@media (max-width: 1300px) {
+    .cum-search-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .cum-form-row {
+        grid-template-columns: 1fr;
+    }
+
+    .cum-form-field {
+        border-right: none;
+        border-bottom: 1px solid #dfe7f1;
+    }
+
+    .cum-form-field:last-child {
+        border-bottom: none;
+    }
+
+    .cum-password-row {
+        position: static;
+        padding: 10px;
+        text-align: right;
+        border-top: 1px solid #dfe7f1;
+        background: #fff;
+    }
+
+    .cum-form-row:first-child .cum-form-field:last-child {
+        padding-right: 0;
+    }
+
+    .cum-work-grid {
+        grid-template-columns: repeat(2, minmax(160px, 1fr));
+    }
+}
+
+/* =========================================================
+   CompanyUserManage 최종 화면 보정
+   - 전체 폭 사용
+   - AG Grid 우측 빈 공간 제거
+   - 기본정보 라디오 글자 깨짐 방지
+   ========================================================= */
+
+.cum-page {
+    width: 100%;
+    min-height: calc(100vh - 80px);
+    padding: 14px 18px 24px;
+    background: #f4f7f9;
+    box-sizing: border-box;
+}
+
+.cum-card {
+    width: 100%;
+    max-width: none !important;
+    margin: 0 !important;
+    border: 1px solid #cfd8e3;
+    border-radius: 3px;
+    box-shadow: none;
+    background: #fff;
+}
+
+.cum-body {
+    padding: 16px 18px 22px;
+}
+
+/* 검색영역 */
+.cum-search-section {
+    padding: 14px 14px;
+    margin-bottom: 14px;
+}
+
+.cum-search-grid {
+    grid-template-columns: 1.2fr 1.2fr 1fr;
+    gap: 10px 24px;
+}
+
+.cum-field label {
+    width: 70px;
+    min-width: 70px;
+    white-space: nowrap;
+}
+
+.cum-field input,
+.cum-field select {
+    height: 32px;
+    font-size: 12px;
+}
+
+/* 회원 리스트 AG Grid */
+.cum-ag-grid-wrap {
+    width: 100%;
+    height: 330px;
+    border: 1px solid #cfd8e3;
+    overflow: hidden;
+}
+
+.cum-ag-grid-wrap .ag-root-wrapper {
+    width: 100%;
+    border: none;
+}
+
+.cum-ag-grid-wrap .ag-header {
+    background: #53657f;
+}
+
+.cum-ag-grid-wrap .ag-header-cell {
+    background: #53657f;
+    color: #fff;
+    font-weight: 800;
+    font-size: 12px;
+    border-right: 1px solid #7b8ba3;
+}
+
+.cum-ag-grid-wrap .ag-header-cell-label {
+    justify-content: center;
+}
+
+.cum-ag-grid-wrap .ag-row {
+    font-size: 12px;
+    color: #1f2933;
+    border-bottom: 1px solid #d8dee8;
+}
+
+.cum-ag-grid-wrap .ag-row-even {
+    background: #ffffff;
+}
+
+.cum-ag-grid-wrap .ag-row-odd {
+    background: #f4f6f9;
+}
+
+.cum-ag-grid-wrap .ag-row-hover {
+    background: #eaf3ff !important;
+}
+
+.cum-ag-grid-wrap .cum-ag-selected-row {
+    background: #dcecff !important;
+}
+
+.cum-ag-grid-wrap .ag-cell {
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #e0e6ef;
+    padding-left: 8px;
+    padding-right: 8px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cum-ag-center {
+    justify-content: center;
+    text-align: center;
+}
+
+.cum-ag-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 20px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 800;
+    background: #e2e8f0;
+    color: #4a5568;
+}
+
+.cum-ag-status.status-Y {
+    background: #d9fff1;
+    color: #047857;
+}
+
+.cum-ag-status.status-N {
+    background: #ffe4e6;
+    color: #be123c;
+}
+
+.cum-ag-status.status-W {
+    background: #fff4d6;
+    color: #a16207;
+}
+
+.cum-ag-status.status-R {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+/* =========================================================
+   회원 기본정보 레이아웃 재정리
+   ========================================================= */
+
+.cum-form-table {
+    width: 100%;
+    border: 1px solid #d5dfeb;
+    border-radius: 3px;
+    overflow: hidden;
+    background: #fff;
+}
+
+/* 기존 grid 강제 3등분 제거 */
+.cum-form-row {
+    display: grid;
+    grid-template-columns: 1.15fr 1.3fr 1.3fr;
+    min-height: 48px;
+    border-bottom: 1px solid #dfe7f1;
+}
+
+.cum-form-row:last-child {
+    border-bottom: none;
+}
+
+.cum-form-field {
+    display: grid;
+    grid-template-columns: 110px minmax(0, 1fr);
+    min-width: 0;
+    border-right: 1px solid #dfe7f1;
+    background: #fff;
+}
+
+.cum-form-field:last-child {
+    border-right: none;
+}
+
+.cum-form-field > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 110px;
+    padding: 0 6px;
+    background: #f3f6fa;
+    border-right: 1px solid #dfe7f1;
+    color: #34445a;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+    white-space: nowrap;
+    box-sizing: border-box;
+}
+
+.cum-form-field input,
+.cum-form-field select {
+    width: 100%;
+    min-width: 0;
+    height: 100%;
+    border: none;
+    outline: none;
+    padding: 0 12px;
+    background: #fff;
+    color: #1f2933;
+    font-size: 12px;
+    box-sizing: border-box;
+}
+
+.cum-form-field input[readonly],
+.cum-form-field input:disabled {
+    background: #eef2f6;
+    color: #65758b;
+}
+
+/* 라디오 글자 세로 깨짐 방지 */
+.cum-radio-group {
+    display: flex;
+    align-items: center;
+    flex-wrap: nowrap;
+    gap: 16px;
+    min-width: 0;
+}
+
+.cum-radio-group label {
+    width: auto !important;
+    min-width: auto !important;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    white-space: nowrap;
+    word-break: keep-all;
+    font-size: 12px;
+    font-weight: 700;
+    color: #1f2933;
+}
+
+.cum-radio-group input {
+    width: auto !important;
+    height: auto !important;
+    flex: none;
+}
+
+.cum-form-field .cum-radio-group {
+    padding: 0 16px;
+}
+
+/* 첫 번째 행의 사용여부 칸은 버튼 때문에 오른쪽 공간 확보 */
+.cum-form-row:first-child .cum-form-field:last-child {
+    padding-right: 140px;
+    box-sizing: border-box;
+}
+
+/* 패스워드 버튼 */
+.cum-password-row {
+    position: absolute;
+    right: 12px;
+    top: 8px;
+    z-index: 3;
+}
+
+.cum-password-row button {
+    height: 30px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 3px;
+    background: #1d3d63;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+/* 등록번호 */
+.cum-regist-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 6px 12px;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+.cum-regist-row input {
+    height: 32px;
+    border: 1px solid #c7d2e2;
+    border-radius: 3px;
+    background: #fff;
+    text-align: center;
+}
+
+.cum-regist-row input:first-child {
+    width: 105px;
+    flex: none;
+}
+
+.cum-regist-row input:nth-child(3) {
+    width: 48px;
+    flex: none;
+}
+
+.cum-regist-row em {
+    color: #1d3d63;
+    font-style: normal;
+    font-weight: 900;
+    letter-spacing: 3px;
+}
+
+.cum-guide-text {
+    display: flex;
+    align-items: center;
+    padding: 0 14px;
+    color: #65758b;
+    font-size: 12px;
+    font-weight: 700;
+    background: #fff;
+    box-sizing: border-box;
+}
+
+/* 회원 권한정보 */
+.cum-work-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(180px, 1fr));
+    gap: 10px;
+}
+
+.cum-work-card {
+    border: 1px solid #d5dfeb;
+    border-radius: 3px;
+    background: #fff;
+    overflow: hidden;
+}
+
+.cum-work-title {
+    height: 34px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef3f8;
+    border-bottom: 1px solid #d5dfeb;
+    color: #102a43;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.cum-work-line {
+    display: grid;
+    grid-template-columns: 55px minmax(0, 1fr);
+    min-height: 36px;
+    border-bottom: 1px solid #e4ebf3;
+}
+
+.cum-work-line:last-child {
+    border-bottom: none;
+}
+
+.cum-work-line > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f7f9fc;
+    border-right: 1px solid #e4ebf3;
+    color: #34445a;
+    font-size: 12px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.cum-work-line .cum-radio-group {
+    padding: 0 10px;
+    gap: 12px;
+}
+
+.cum-work-card.disabled {
+    opacity: 0.55;
+}
+
+.cum-field select:disabled {
+    background: #eef2f6;
+    color: #4a5568;
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.cum-field select:disabled {
+    background: #eef2f6;
+    color: #4a5568;
+    cursor: not-allowed;
+    opacity: 1;
+}
+
+.cum-field select:disabled {
+    background: #eef2f6;
+    color: #4a5568;
+    cursor: not-allowed;
+    opacity: 1;
+}

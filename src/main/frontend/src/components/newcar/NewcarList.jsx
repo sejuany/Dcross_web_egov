@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTabs } from '../../context/TabContext'; // 전역 탭 
 import axios from 'axios';
 import './NewcarList.css';
 import { AgGridReact } from 'ag-grid-react';
@@ -8,6 +9,7 @@ import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useAuth } from '../../context/AuthContext';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
+import CommonMultiSelect from '../common/CommonMultiSelect';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -21,18 +23,34 @@ const getFormattedDateOffset = (offsetDays) => {
     return `${year}-${month}-${day}`;
 };
 
+const timeOptions = [
+	{ label: '8시', value: '08' },
+    { label: '9시', value: '09' },
+    { label: '10시', value: '10' },
+    { label: '11시', value: '11' },
+    { label: '12시', value: '12' },
+    { label: '13시', value: '13' },
+    { label: '14시', value: '14' },
+    { label: '15시', value: '15' },
+    { label: '16시', value: '16' },
+    { label: '17시', value: '17' },
+];
+
 const NewcarList = () => {
     const navigate = useNavigate();
+	const { tabs, activeTabId, removeTab } = useTabs(); // 탭 관리
     const gridRef = useRef(null);
+	const waitGridRef = useRef(null);
+	const fileInputRef = useRef(null);
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기
-
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
     const [companyList, setCompanyList] = useState([]);
     const [toastMessage, setToastMessage] = useState('');
     const [rowData, setRowData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
-
+	const [waitRowData, setWaitRowData] = useState([]);
+	const [showWaitPopup, setShowWaitPopup] = useState(false);
     const [searchFilters, setSearchFilters] = useState({
         workCode: '010',
         companyID: '',
@@ -45,8 +63,16 @@ const NewcarList = () => {
         nullOpt: '',
         processStatus: '전체',
         deliveryType: '',
-        deliveryStatus: '전체'
+        deliveryStatus: '전체',
+		selectedTimes: [],
+		selectedDeliveryGb: []
     });
+	
+	const dlvOptions =
+	  (codeListMap['DLVGB'] || []).map(code => ({
+	    label: code.CODE_NM,
+	    value: code.CODE_ID,
+    }));
 
     const fetchNewCarList = async () => {
         try {
@@ -63,8 +89,9 @@ const NewcarList = () => {
                 END_DT: searchFilters.endDate.replace(/-/g, ''),
                 NULL_OPT: searchFilters.nullOpt,
                 PROC_ST: cleanParam(searchFilters.processStatus),
-                DELIVERY_GB: searchFilters.deliveryType,
-                DELIVERY_ST: cleanParam(searchFilters.deliveryStatus)
+                NUM_PROC_ST: cleanParam(searchFilters.deliveryStatus),
+				TIME_DVSN: searchFilters.selectedTimes.join(','),
+				DELIVERY_GB: searchFilters.selectedDeliveryGb.join(',')
             };
 
             const response = await axios.post('/api/newcar/list', params);
@@ -78,10 +105,35 @@ const NewcarList = () => {
             setTimeout(() => setToastMessage(''), 2500);
         }
     };
+	
+	const fetchWaitList = async () => {
+
+	    try {
+			const cleanParam = (val) => (val === '전체' || val === '전체 (회사)' || val === '전체 (관청)') ? '' : val;
+
+	        const response = await axios.post(
+	            '/api/newcar/list',
+	            {
+	                WORK_CD: '010',
+					COMPANY_ID: cleanParam(searchFilters.companyID),
+					START_DT: searchFilters.startDate.replace(/-/g, ''),
+	                END_DT: searchFilters.endDate.replace(/-/g, ''),
+					PROC_ST: 'WAIT'
+	            }
+	        );
+
+	        if (response.data.success) {
+	            setWaitRowData(response.data.list);
+	        }
+
+	    } catch (error) {
+	        console.error(error);
+	    }
+	};
 
     const fetchCodes = async () => {
         try {
-            const groupIds = ['SGB', 'PR_ST', 'PAYST', 'FUEL', 'IMPST', 'DELIV', 'CARKD', 'GOVT'];
+            const groupIds = ['SGB', 'PR_ST', 'PAYST', 'FUEL', 'IMPST', 'DELIV', 'CARKD', 'GOVT', 'NUMST', 'DLVGB'];
             const responses = await Promise.all(
                 groupIds.map(id => axios.get(`/api/codes/${id}`))
             );
@@ -136,66 +188,6 @@ const NewcarList = () => {
         fetchCompanies();
     }, []); // 의존성 배열을 비워 컴포넌트 마운트 시 최초 1회만 불러옵니다.
 
-    // 전체 항목 (50여개)
-    const wholeColumnDefs = [
-        { headerCheckboxSelection: true, checkboxSelection: true, width: 40, pinned: 'left' },
-        { headerName: '접수번호', field: 'SERVICE_ID', width: 100 },
-        { headerName: '업무코드', field: 'WORK_CD', width: 90, valueFormatter: params => formatCode('SGB', params.value) },
-        { headerName: '회사ID', field: 'COMPANY_ID', width: 90 },
-        { headerName: '사원ID', field: 'MEMBER_ID', width: 90 },
-        { headerName: '요청차량번호', field: 'REQ_CAR_NO', width: 110 },
-        { headerName: '신청일시', field: 'REQUEST_DT', width: 120 },
-        { headerName: '처리일자', field: 'PROC_DT', width: 100 },
-        { headerName: '심사일자', field: 'JUDGE_DT', width: 100 },
-        { headerName: '진행상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
-        { headerName: '심사상태', field: 'JUDGE_ST', width: 90 },
-        { headerName: '공채금액', field: 'BOND_AMT', width: 100 },
-        { headerName: '결제구분', field: 'PAY_GB', width: 90 },
-        { headerName: '지점명', field: 'COMPANY_NM', width: 120 },
-        { headerName: '사원명', field: 'MEMBER_NM', width: 90 },
-        { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
-        { headerName: '지정상태', field: 'DSIGN_ST', width: 90 },
-        { headerName: '차대번호', field: 'CARID_NO', width: 160 },
-        { headerName: '처리코드', field: 'PROC_CD', width: 90 },
-        { headerName: '업무코드(상세)', field: 'TASK_CD', width: 110 },
-        { headerName: '공채할인', field: 'BOND_DC', width: 90 },
-        { headerName: '차량번호', field: 'CAR_NO', width: 110 },
-        { headerName: '배송주소', field: 'DELIVERY_ADDR', width: 250 },
-        { headerName: '배송구분', field: 'DELIVERY_GB', width: 90 },
-        { headerName: '번호판처리상태', field: 'NUM_PROC_ST', width: 120, valueFormatter: params => formatCode('DELIV', params.value) },
-        { headerName: '고객명', field: 'CUSTOMER_NM', width: 90 },
-        { headerName: '임판여부', field: 'IMSINUM_YN', width: 90, valueFormatter: params => formatCode('IMPST', params.value) },
-        { headerName: '임판일자', field: 'IMSINUM_DT', width: 120 },
-        { headerName: '연료코드', field: 'FUEL_CD', width: 90, valueFormatter: params => formatCode('FUEL', params.value) },
-        { headerName: '차량명', field: 'CAR_NM', width: 150 },
-        { headerName: '차종', field: 'CAR_KD', width: 90, valueFormatter: params => formatCode('CARKD', params.value) },
-        { headerName: '면세적용코드', field: 'NTAX_APPLC_CD', width: 110 },
-        { headerName: '관청세금', field: 'GOVT_TX', width: 90 },
-        { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
-        { headerName: '저공해여부', field: 'LOW_POLLUTION_YN', width: 100 },
-        { headerName: '관청ID', field: 'GOVT_ID', width: 90, valueFormatter: params => formatCode('GOVT', params.value) },
-        { headerName: '번호판구분', field: 'NUMPLATE_GB', width: 100 },
-        { headerName: '기본주소', field: 'BASE_ADDRESS', width: 200 },
-        { headerName: '상세주소', field: 'BASE_ADDRESS_DT', width: 200 },
-        { headerName: '취득금액', field: 'BUY_AMT', width: 100 },
-        { headerName: '환급세금', field: 'RETURN_TX', width: 90 },
-        { headerName: '세금가상계좌', field: 'TAX_VBANK_NO', width: 120 },
-        { headerName: 'CHK', field: 'CHK', width: 60 },
-        { headerName: 'T가상계좌ID', field: 'T_VBANK_ID', width: 100 },
-        { headerName: '총금액', field: 'TOTAL_AMT', width: 100 },
-        { headerName: '인지대', field: 'INJI_AMT', width: 100 },
-        { headerName: '증지대', field: 'STAMP_AMT', width: 100 },
-        { headerName: '번호판대', field: 'TNUM_AMT', width: 100 },
-        { headerName: '취득세', field: 'ACQ_AMT', width: 100 },
-        { headerName: '등록면허세', field: 'UREG_AMT', width: 100 },
-        { headerName: '대행수수료', field: 'BFEE_AMT', width: 100 },
-        { headerName: '실공채금액', field: 'REAL_BOND_AMT', width: 100 },
-        { headerName: '수령인명', field: 'RECEIVE_NM', width: 90 },
-        { headerName: '수령인연락처', field: 'RECEIVE_TEL_NO', width: 120 },
-        { headerName: '시리얼번호', field: 'SERIAL_NO', width: 100 },
-    ];
-
-
     // 기본 사용자 항목 (24개)
     const defaultColumnDefs = [
         { headerCheckboxSelection: true, checkboxSelection: true, width: 40 },
@@ -208,14 +200,20 @@ const NewcarList = () => {
         { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
         { headerName: '사용연료', field: 'FUEL_CD', width: 90, valueFormatter: params => formatCode('FUEL', params.value) },
         { headerName: '임판여부', field: 'IMSINUM_YN', width: 90, valueFormatter: params => formatCode('IMPST', params.value) },
-        { headerName: '비고', field: 'REMARK', width: 120 },
+        { headerName: '비고', field: 'GOVT_TX', width: 120 },
         { headerName: '배송지', field: 'DELIVERY_ADDR', width: 250 },
         { headerName: '고객명', field: 'CUSTOMER_NM', width: 90 },
         { headerName: '전자납부번호', field: 'TAX_VBANK_NO', width: 120 },
         { headerName: '신청일자', field: 'REQUEST_DT', width: 120 },
         { headerName: '심사일자', field: 'JUDGE_DT', width: 100 },
-        { headerName: '배송상태', field: 'NUM_PROC_ST', width: 120, valueFormatter: params => formatCode('DELIV', params.value) },
-        { headerName: '배송구분', field: 'DELIVERY_GB', width: 90 },
+        { headerName: '배송상태', field: 'NUM_PROC_ST', width: 120, valueFormatter: params => formatCode('NUMST', params.value) },
+        { headerName: '배송구분', field: 'DELIVERY_GB', width: 90, valueFormatter: params => {
+		    const value = params.value;
+	        if (value === 'null' || value == null) {
+	            return '';
+	        }
+	        return formatCode('DLVGB', value);
+	    }},
         { headerName: '차량명', field: 'CAR_NM', width: 150 },
         { headerName: '차종', field: 'CAR_KD', width: 90, valueFormatter: params => formatCode('CARKD', params.value) },
         { headerName: '취득가액', field: 'BUY_AMT', width: 100 },
@@ -225,13 +223,26 @@ const NewcarList = () => {
         { headerName: '관청', field: 'GOVT_ID', width: 90, valueFormatter: params => formatCode('GOVT', params.value) },
     ];
 
+	// 신규등록대기
+    const waitColumnDefs = [
+        { headerCheckboxSelection: true, checkboxSelection: true, width: 40 },
+        { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
+        { headerName: '신청상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
+        { headerName: '차대번호', field: 'CARID_NO', width: 160 },
+        { headerName: '고객명', field: 'CUSTOMER_NM', width: 90 },
+        { headerName: '차량명', field: 'CAR_NM', width: 150, flex: 1 },
+        { headerName: '차량번호', field: 'CAR_NO', width: 110 },
+        { headerName: '임판여부', field: 'IMSINUM_YN', width: 90, valueFormatter: params => formatCode('IMPST', params.value) },
+        { headerName: '요청일자', field: 'REQUEST_DT', width: 120 },
+    ];
+
     // number03 사용자 전용 항목 (21개)
     const number03ColumnDefs = [
         { headerCheckboxSelection: true, checkboxSelection: true, width: 40, pinned: 'left' },
         { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40 }, // 순번 (내장 rowIndex 사용)
         { headerName: '차대번호', field: 'CARID_NO', width: 160 },
         { headerName: '차량번호', field: 'CAR_NO', width: 110 },
-        { headerName: '배송구분', field: 'DELIVERY_GB', width: 90 },
+        { headerName: '배송구분', field: 'DELIVERY_GB', width: 90, valueFormatter: params => formatCode('DLVGB', params.value) },
         { headerName: '신청상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) }, // PROC_ST 가 신청/진행상태
         { headerName: '배송지', field: 'DELIVERY_ADDR', width: 250 },
         { headerName: '차량명', field: 'CAR_NM', width: 150 },
@@ -244,7 +255,7 @@ const NewcarList = () => {
         { headerName: '전자납부번호', field: 'TAX_VBANK_NO', width: 120 },
         { headerName: '심사일자', field: 'JUDGE_DT', width: 100 },
         { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
-        { headerName: '배송상태', field: 'NUM_PROC_ST', width: 120, valueFormatter: params => formatCode('DELIV', params.value) }, // 쿼리 기준 배송상태 대신 활용할 필드 (NUM_PROC_ST 혹은 DELIVERY_GB 의존)
+        { headerName: '배송상태', field: 'NUM_PROC_ST', width: 120, valueFormatter: params => formatCode('NUMST', params.value) }, // 쿼리 기준 배송상태 대신 활용할 필드 (NUM_PROC_ST 혹은 DELIVERY_GB 의존)
         { headerName: '차종', field: 'CAR_KD', width: 90, valueFormatter: params => formatCode('CARKD', params.value) },
         { headerName: '회사명', field: 'COMPANY_NM', width: 120 },
         { headerName: '신청인', field: 'MEMBER_NM', width: 90 },
@@ -265,9 +276,127 @@ const NewcarList = () => {
         }
     };
 
+    const handleWaitClick = async () => {
+		await fetchWaitList();
+
+	    setShowWaitPopup(true);
+    };
+
+    const handleRegistClick = () => {
+		navigate('/newcar/newcar-request');
+    };
+
     const handleSearchClick = () => {
         fetchNewCarList();
     };
+	
+	const handleWaitRequestClick = async () => {
+		if (!waitGridRef.current) return;
+
+	    const selectedRows =
+	        waitGridRef.current.api.getSelectedRows();
+
+	    if (selectedRows.length === 0) {
+	        setToastMessage('선택된 항목이 없습니다.');
+	        setTimeout(() => setToastMessage(''), 2500);
+	        return;
+	    }
+
+		// SAV 아닌 항목 존재 여부 확인
+	    const hasInvalidRow = selectedRows.some(
+	        row => row.PROC_ST !== 'SAV'
+	    );
+
+		if (hasInvalidRow) {
+	        setToastMessage('저장상태만 신청 가능합니다.');
+	        setTimeout(() => setToastMessage(''), 2500);
+	        return;
+	    }
+		
+		// 저장상태 -> 신청대기 상태 변경
+		try {
+
+		     // SERVICE_ID 목록 추출
+		     const serviceIds = selectedRows.map(
+		         row => row.SERVICE_ID
+		     );
+			 
+			 const params = {
+				 SERVICE_IDS: serviceIds,
+	             PROC_ST: 'W_REQ'
+             };
+			 
+		     const response = await axios.post('/api/newcar/change-proc-st', params);
+
+		     if (response.data.success) {
+		         setToastMessage('신청 처리되었습니다.');
+
+		         // 팝업 재조회
+		         await fetchWaitList();
+
+		         // 메인도 재조회
+		         await fetchNewCarList();
+		     } else {
+		         setToastMessage(
+		             response.data.message || '처리 실패'
+		         );
+		     }
+		 } catch (error) {
+		     console.error(error);
+		     setToastMessage('신청 처리 중 오류 발생');
+		 }
+
+		 setTimeout(() => setToastMessage(''), 2500);
+    };
+	
+	const handleExcelClick = () => {
+	    fileInputRef.current.click();
+	};
+	
+	const handleExcelUpload = async (e) => {
+	    const file = e.target.files[0];
+
+	    if (!file) return;
+
+	    const formData = new FormData();
+	    formData.append('file', file);
+
+	    try {
+
+	        const res = await axios.post(
+	            '/api/newcar/excel-upload',
+	            formData,
+	            {
+	                headers: {
+	                    'Content-Type': 'multipart/form-data'
+	                }
+	            }
+	        );
+
+	        if (res.data.success) {
+
+	            setToastMessage(
+	                `업로드 완료 (${res.data.insertCount})건`
+	            );
+
+	            fetchNewCarList();
+
+	        } else {
+	            setToastMessage('업로드 실패');
+	        }
+
+	    } catch (err) {
+
+	        console.error(err);
+
+	        setToastMessage('업로드 중 오류 발생');
+	    }
+
+	    setTimeout(() => setToastMessage(''), 2500);
+
+	    // 같은 파일 재업로드 가능하게 초기화
+	    e.target.value = '';
+	};
 
     const handleResetClick = () => {
         setSearchFilters({
@@ -275,14 +404,16 @@ const NewcarList = () => {
             companyID: '',
             govtId: '',
             userNM: '',
-            clientName: '',
+            customerNM: '',
             carNo: '',
             startDate: getFormattedDateOffset(-14),
             endDate: getFormattedDateOffset(0),
             nullOpt: '',
             processStatus: '전체',
             deliveryType: '',
-            deliveryStatus: '전체'
+            deliveryStatus: '전체',
+			selectedTimes: [],
+			selectedDeliveryGb: []
         });
     };
 
@@ -311,7 +442,8 @@ const NewcarList = () => {
     };
 
     const handleCloseClick = () => {
-        navigate('/home');
+		if (!activeTabId) return;
+	    removeTab(activeTabId);
     };
 
     useEffect(() => {
@@ -332,6 +464,10 @@ const NewcarList = () => {
                 case 'F9':
                     e.preventDefault();
                     handleCloseClick();
+                    break;
+				case 'F10':
+                    e.preventDefault();
+                    handleRegistClick();
                     break;
                 default:
                     break;
@@ -354,16 +490,27 @@ const NewcarList = () => {
             {/* 상단 툴바 부분(버튼) */}
             <div className="status-toolbar">
                 <div className="toolbar-left">
-                    <span className="toolbar-title">등록[F10]</span>
+                    <button className="btn-status" onClick={handleRegistClick}>등록[F10]</button>
                     <span className="title-count">{totalCount}</span> 건
+					<button className="btn-status blue" onClick={handleWaitClick} style={{ marginLeft: '10px' }}>신규등록 대기</button>
+					<button className="btn-status red" onClick={handleExcelClick} style={{ marginLeft: '10px' }}>Excel 업로드</button>
+					<input
+					    type="file"
+					    ref={fileInputRef}
+					    style={{ display: 'none' }}
+					    accept=".xlsx,.xls"
+					    onChange={handleExcelUpload}
+					/>
+					{/*
                     <button className="btn-status blue" style={{ marginLeft: '10px' }}>배송구분 변경</button>
+					*/}
                 </div>
                 <div className="toolbar-right">
-                    <button className="btn-status">통합영수증</button>
+                    {/*<button className="btn-status">통합영수증</button>
                     <button className="btn-status red">세금계산서</button>
-                    <button className="btn-status grey">입금처리</button>
+                    <button className="btn-status grey">입금처리</button>*/}
                     <button className="btn-status" onClick={handleSearchClick}>조회[F2]</button>
-                    <button className="btn-status" onClick={handleExportExcel}>엑셀[F7]</button>
+                    <button className="btn-status" >엑셀[F7]</button>
                     <button className="btn-status" onClick={handleResetClick}>초기화[F8]</button>
                     <button className="btn-status" onClick={handleCloseClick}>닫기[F9]</button>
                 </div>
@@ -377,14 +524,14 @@ const NewcarList = () => {
                         <select className="erp-input" value={searchFilters.workCode} disabled>
                             <option value="010">신규등록</option>
                         </select>
-                        <select className="erp-input" value={searchFilters.companyID} onChange={e => setSearchFilters({ ...searchFilters, companyID: e.target.value })}>
-                            <option value="">전체 (회사)</option>
+                        <select className="erp-input" value={searchFilters.companyID} onChange={e => setSearchFilters({ ...searchFilters, companyID: e.target.value })} disabled={user.company_ID !== 'dacos'}>
+                            <option value="">전체</option>
                             {companyList.map(comp => (
                                 <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
                             ))}
                         </select>
                         <select className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
-                            <option value="">전체 (관청)</option>
+                            <option value="">전체</option>
                             {codeListMap['GOVT'] && codeListMap['GOVT'].map(code => (
                                 <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
                             ))}
@@ -394,7 +541,7 @@ const NewcarList = () => {
                         <input type="text" className="erp-input" value={searchFilters.userNM} onChange={e => setSearchFilters({ ...searchFilters, userNM: e.target.value })} />
                     </ErpField>
                     <ErpField label="고객명" span={2}>
-                        <input type="text" className="erp-input" value={searchFilters.clientName} onChange={e => setSearchFilters({ ...searchFilters, clientName: e.target.value })} />
+                        <input type="text" className="erp-input" value={searchFilters.customerNM} onChange={e => setSearchFilters({ ...searchFilters, customerNM: e.target.value })} />
                     </ErpField>
                     <ErpField label="차량/차대번호" span={3} fontSize="11px">
                         <input type="text" className="erp-input" value={searchFilters.carNo} onChange={e => setSearchFilters({ ...searchFilters, carNo: e.target.value })} />
@@ -402,10 +549,20 @@ const NewcarList = () => {
                 </div>
                 <div className="erp-row">
                     <ErpField label="신청일자" span={5}>
-                        <input type="date" className="erp-input" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} />
+                        <input type="date" className="erp-input" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} style={{ width: '40%', display: 'flex'}}/>
                         <span>~</span>
-                        <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })} />
-                        <select className="erp-input" value={searchFilters.nullOpt} onChange={e => setSearchFilters({ ...searchFilters, nullOpt: e.target.value })}></select>
+                        <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })}  style={{ width: '40%', display: 'flex'}}/>
+						<CommonMultiSelect
+						    options={timeOptions}
+						    selectedValues={searchFilters.selectedTimes || []}
+						    setSelectedValues={(newTimes) => {
+						        // newTimes가 배열인지 확인하고 상태 업데이트
+						        setSearchFilters(prev => ({
+						            ...prev,
+						            selectedTimes: typeof newTimes === 'function' ? newTimes(prev.selectedTimes) : newTimes
+						        }));
+						    }}
+						/>
                     </ErpField>
                     <ErpField label="처리상태" span={2}>
                         <select className="erp-input" value={searchFilters.processStatus} onChange={e => setSearchFilters({ ...searchFilters, processStatus: e.target.value })}>
@@ -416,11 +573,24 @@ const NewcarList = () => {
                         </select>
                     </ErpField>
                     <ErpField label="배송구분" span={2}>
-                        <select className="erp-input" value={searchFilters.deliveryType} onChange={e => setSearchFilters({ ...searchFilters, deliveryType: e.target.value })}></select>
+						<CommonMultiSelect
+						    options={dlvOptions}
+						    selectedValues={searchFilters.selectedDeliveryGb || []}
+						    setSelectedValues={(newDeliGbs) => {
+						        // newTimes가 배열인지 확인하고 상태 업데이트
+						        setSearchFilters(prev => ({
+						            ...prev,
+						            selectedDeliveryGb: typeof newDeliGbs === 'function' ? newDeliGbs(prev.selectedDeliveryGb) : newDeliGbs
+						        }));
+						    }}
+						/>
                     </ErpField>
                     <ErpField label="배송상태" span={3}>
-                        <select className="erp-input" value={searchFilters.deliveryStatus} onChange={e => setSearchFilters({ ...searchFilters, deliveryStatus: e.target.value })}>
+						<select className="erp-input" value={searchFilters.deliveryStatus} onChange={e => setSearchFilters({ ...searchFilters, deliveryStatus: e.target.value })}>
                             <option value="전체">전체</option>
+                            {codeListMap['NUMST'] && codeListMap['NUMST'].map(code => (
+                                <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
+                            ))}
                         </select>
                     </ErpField>
                 </div>
@@ -442,6 +612,64 @@ const NewcarList = () => {
                     />
                 </div>
             </div>
+			{showWaitPopup && (
+			    <div className="wait-popup-overlay">
+
+			        <div className="wait-popup">
+
+			            {/* 헤더 */}
+			            <div className="wait-popup-header">
+							<div className="wait-popup-header-left">
+							    <span>신규등록대기</span>
+	
+							    <button
+							        className="btn-status blue"
+							        style={{ marginLeft: '10px' }}
+							        onClick={handleWaitRequestClick}
+							    >
+							        신청
+							    </button>
+							</div>
+	
+							<div className="wait-popup-header-right">
+							    <button
+							        className="btn-status"
+							        onClick={() => setShowWaitPopup(false)}
+							    >
+							        닫기
+							    </button>
+							</div>
+			            </div>
+
+			            {/* GRID */}
+			            <div
+							className="ag-theme-alpine"
+						    style={{
+						        flex: 1,
+						        width: '100%',
+						    }}
+			            >
+
+			                <AgGridReact
+								ref={waitGridRef}
+			                    rowData={waitRowData}
+			                    columnDefs={waitColumnDefs}
+			                    defaultColDef={{
+			                        sortable: true,
+			                        resizable: true,
+			                    }}
+			                    rowSelection="multiple"
+			                    onRowDoubleClicked={
+			                        handleRowDoubleClicked
+			                    }
+			                />
+
+			            </div>
+
+			        </div>
+
+			    </div>
+			)}
         </div>
     );
 };

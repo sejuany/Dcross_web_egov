@@ -28,6 +28,7 @@ import TrnsnameRoutes from './routes/TrnsnameRoutes';
 import ServiceRoutes from './routes/ServiceRoutes';
 import ManagementRoutes from './routes/ManagementRoutes';
 import AdminRoutes from './routes/AdminRoutes';
+import NumberPlateRoutes from './routes/NumberPlateRoutes';
 import MemberRoutes from './routes/MemberRoutes';
 
 function App() {
@@ -52,6 +53,7 @@ function App() {
             {ServiceRoutes}
             {ManagementRoutes}
             {AdminRoutes}
+            {NumberPlateRoutes}
 			{MemberRoutes}
 			{CompanyRoutes}
           </Routes>

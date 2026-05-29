@@ -19,8 +19,6 @@ import com.dacos.company.dto.CompanySearchRequest;
 
 /**
  * 기업관리 컨트롤러
- * - 기업관리(CompanyManageV4), 사용자관리(CompanyUserManage),
- *   탈부착업체관리(NumplateDeliveryManage), 회원사관리(CompanyNew)
  */
 @RestController
 @RequestMapping("/api")
@@ -56,11 +54,63 @@ public class CompanyController {
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
+    /** 사용자 업무권한 조회 - POST /api/company/user/work */
+    @PostMapping("/company/user/work")
+    public ResponseEntity<Map<String, Object>> getCompanyUserWork(@RequestBody CompanySearchRequest request) {
+        logger.info(
+                "[CompanyController] 사용자 업무권한 조회 요청 - companyId: {}, memberId: {}",
+                request.getCOMPANY_ID(),
+                request.getMEMBER_ID()
+        );
+
+        List<Map<String, Object>> list = companyService.getCompanyUserWork(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    /** 지점 업무 사용 가능 여부 조회 - POST /api/company/user/branch-work */
+    @PostMapping("/company/user/branch-work")
+    public ResponseEntity<Map<String, Object>> getBranchWorkInfo(@RequestBody CompanySearchRequest request) {
+        logger.info(
+                "[CompanyController] 지점 업무정보 조회 요청 - companyId: {}, branchId: {}",
+                request.getCOMPANY_ID(),
+                request.getBRANCH_ID()
+        );
+
+        Map<String, Object> data = companyService.getBranchWorkInfo(request);
+        return ResponseEntity.ok(ApiResponse.withKey("data", data));
+    }
+
+    /** 사용자 권한/기본정보 저장 - POST /api/company/user/update */
+    @PostMapping("/company/user/update")
+    public ResponseEntity<Map<String, Object>> updateCompanyUserWork(@RequestBody Map<String, Object> request) {
+        logger.info("[CompanyController] 사용자 권한정보 저장 요청");
+
+        Map<String, Object> result = companyService.updateCompanyUserWork(request);
+        return ResponseEntity.ok(ApiResponse.withKey("data", result));
+    }
+
+    /** 사용자 패스워드 초기화 - POST /api/company/user/password-reset */
+    @PostMapping("/company/user/password-reset")
+    public ResponseEntity<Map<String, Object>> resetCompanyUserPassword(@RequestBody Map<String, Object> request) {
+        logger.info("[CompanyController] 사용자 패스워드 초기화 요청 - loginId: {}", request.get("LOGIN_ID"));
+
+        Map<String, Object> result = companyService.resetCompanyUserPassword(request);
+        return ResponseEntity.ok(ApiResponse.withKey("data", result));
+    }
+
     /** 탈부착업체 목록 조회 - POST /api/company/numplate/list */
     @PostMapping("/company/numplate/list")
     public ResponseEntity<Map<String, Object>> getNumplateDeliveryList(@RequestBody CompanySearchRequest request) {
         logger.info("[CompanyController] 탈부착업체 목록 조회 요청");
         List<Map<String, Object>> list = companyService.getNumplateDeliveryList(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    /** 배송자 목록 조회 - POST /api/company/assign/list */
+    @PostMapping("/company/assign/list")
+    public ResponseEntity<Map<String, Object>> getNumplateAssignList(@RequestBody CompanySearchRequest request) {
+        logger.info("[CompanyController] 배송자 목록 조회 요청");
+        List<Map<String, Object>> list = companyService.getNumplateAssignList(request);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 

@@ -65,12 +65,36 @@ export const AuthProvider = ({ children }) => {
      * - localStorage에서 사용자 정보 삭제
      * - 로그인 페이지로 이동
      */
-    const logout = useCallback(() => {
-        setUser(null);
-        //localStorage.removeItem('user');
-		sessionStorage.removeItem('user');
-        navigate('/login');
-    }, [navigate]);
+	const logout = useCallback(() => {
+	    setUser(null);
+
+	    // 로그인 정보 제거
+	    sessionStorage.removeItem('user');
+	    localStorage.removeItem('user');
+
+	    // 탭/화면 캐시 후보 제거
+	    sessionStorage.removeItem('tabs');
+	    sessionStorage.removeItem('openTabs');
+	    sessionStorage.removeItem('activeTab');
+	    sessionStorage.removeItem('tabList');
+	    sessionStorage.removeItem('visitedMenus');
+	    sessionStorage.removeItem('menuTabs');
+
+	    localStorage.removeItem('tabs');
+	    localStorage.removeItem('openTabs');
+	    localStorage.removeItem('activeTab');
+	    localStorage.removeItem('tabList');
+	    localStorage.removeItem('visitedMenus');
+	    localStorage.removeItem('menuTabs');
+
+	    if (window.sessionTimeout) {
+	        clearTimeout(window.sessionTimeout);
+	        window.sessionTimeout = null;
+	    }
+
+	    // navigate보다 강하게 전체 React state를 초기화
+	    window.location.replace('/login');
+	}, []);
 
     /**
      * login - 로그인 성공 시 호출
