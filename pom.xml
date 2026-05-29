@@ -46,6 +46,12 @@
 	</repositories>
 
 	<dependencies>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-actuator</artifactId>
+		</dependency>
+
 		<!-- 표준프레임워크 실행환경 -->
 		<dependency>
 			<groupId>org.egovframe.rte</groupId>
