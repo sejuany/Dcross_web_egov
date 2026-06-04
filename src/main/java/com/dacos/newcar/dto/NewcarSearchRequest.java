@@ -11,6 +11,8 @@ public class NewcarSearchRequest {
     private String START_DT;
     /** 조회 종료일 (YYYYMMDD) */
     private String END_DT;
+    /** 조회 날짜 기준 */
+    private String DATE_CD;
     /** 업무 구분 코드 */
     private String WORK_CD;
     /** 대리점 ID */

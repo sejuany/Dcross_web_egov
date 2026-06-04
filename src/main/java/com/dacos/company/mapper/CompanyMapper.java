@@ -58,5 +58,4 @@ public interface CompanyMapper {
 
     int countSangsaName(CompanySearchRequest request);
     
-    List<Map<String, Object>> selectCompanyConfigList(Map<String, Object> param);
 }

@@ -27,7 +27,9 @@
 	           ROAD_AD || '[번지 : ' || JIBUNB_NO || '-' || JIBUNS_NO || ']'
 	               AS ZDISPLAY_AD,
 	           SIGUNGUB_NM,
-	           JIBUN_AD
+	           JIBUN_AD,
+	           JIBUNB_NO,
+			   JIBUNS_NO
 	      FROM (
 	
 	            /* 도로명 검색 */

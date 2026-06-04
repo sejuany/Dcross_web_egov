@@ -125,11 +125,16 @@ const AddressSearchModal = ({
 		log(selectedAddress);
 		
 		onSelect({
-		    ADDR: selectedAddress.ROAD_AD,
-		    ADDR_DT: addrDt,
-		    POST_NO: selectedAddress.POST_NO,
-		    BUBJUNG_CD: selectedAddress.BUBJUNG_CD,
-			ROAD_CD: selectedAddress.ROAD_CD
+			ADDR: selectedAddress.ROAD_AD,
+			ADDR_DT: addrDt,
+			POST_NO: selectedAddress.POST_NO,
+			BUBJUNG_CD: selectedAddress.BUBJUNG_CD,
+			ROAD_CD: selectedAddress.ROAD_CD,
+			HJD_CD: selectedAddress.HJD_CD,
+			EMD_SN: selectedAddress.EMD_SN,
+			JIHA_YN: selectedAddress.JIHA_YN,
+			BUILDB_NO: selectedAddress.BUILDB_NO,
+			BUILDS_NO: selectedAddress.BUILDS_NO
 		});
 
         onClose();

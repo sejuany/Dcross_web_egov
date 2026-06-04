@@ -18,4 +18,8 @@ public class CommonMenuSearchRequest {
     private String CODE_ID;
     private String DETAIL_ID;
     private String ORDER_ID;
+    private String LOGIN_ID;
+    private String FAV_MENU;
+    private String INS_USER;
+    private String UPD_USER;
 }

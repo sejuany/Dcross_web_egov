@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SignForm.css';
 import axios from 'axios';
+import { gf } from '../../utils/utils';
 
 const REG_GB_MASTER = [
     { code: 'A', name: '협회' },
@@ -11,30 +12,20 @@ const REG_GB_MASTER = [
     { code: 'R', name: '관계사' },
 ];
 
-/*
-    특정 회원사 전용 가입 Form을 보여줄 COMPANY_ID 목록
-
-    여기에 들어있는 COMPANY_ID로 회원사 조회 성공 시
-    일반 회원가입 Form이 아니라 renderSpecialSignupForm() 화면이 열린다.
-*/
-const SPECIAL_COMPANY_IDS = [
-    'RC018',
-];
-
 const SIGNUP_FORM_TYPE = {
     NONE: 'NONE',
     DEFAULT: 'DEFAULT',
     SPECIAL: 'SPECIAL',
 };
 
-const getSignupFormTypeByCompanyId = (companyId) => {
+const getSignupFormTypeByCompanyId = async (companyId) => {
     const normalizedCompanyId = String(companyId || '').trim().toUpperCase();
 
-    if (SPECIAL_COMPANY_IDS.includes(normalizedCompanyId)) {
-        return SIGNUP_FORM_TYPE.SPECIAL;
-    }
+    const isSpecial = await gf.isSpecialCompany(normalizedCompanyId);
 
-    return SIGNUP_FORM_TYPE.DEFAULT;
+    return isSpecial
+        ? SIGNUP_FORM_TYPE.SPECIAL
+        : SIGNUP_FORM_TYPE.DEFAULT;
 };
 
 const getRegGbOptionsByCompanyId = (companyId) => {
@@ -510,8 +501,8 @@ const SignForm = () => {
                 return;
             }
 
-            const formType = getSignupFormTypeByCompanyId(companyId);
-            const regOptions = getRegGbOptionsByCompanyId(companyId);
+			const formType = await getSignupFormTypeByCompanyId(companyId);
+			const regOptions = getRegGbOptionsByCompanyId(companyId);
 
             if (regOptions.length === 0) {
                 setCompanySearched(false);
@@ -834,7 +825,7 @@ const SignForm = () => {
 
 		const companyId = formData.searchCompanyId.trim().toUpperCase();
 		const firstCompanyChar = companyId.substring(0, 1);
-		const isSpecialCompany = SPECIAL_COMPANY_IDS.includes(companyId);
+		const isSpecialCompany = await gf.isSpecialCompany(companyId);
 
         let registNo = '';
 

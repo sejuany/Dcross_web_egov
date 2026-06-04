@@ -137,4 +137,50 @@
 	      AND COMPANY_ID = #{COMPANY_ID}
 	</select>
 
+	<select id="selectFavoriteMenu"
+	        parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+	        resultType="java.lang.String">
+	    SELECT FAV_MENU
+	    FROM TM_MEMBER_ETC
+	    WHERE LOGIN_ID = #{LOGIN_ID}
+	</select>
+
+	<insert id="mergeFavoriteMenu"
+	        parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest">
+	    MERGE INTO TM_MEMBER_ETC T
+	    USING (
+	        SELECT #{LOGIN_ID} AS LOGIN_ID
+	        FROM DUAL
+	    ) S
+	    ON (T.LOGIN_ID = S.LOGIN_ID)
+	    WHEN MATCHED THEN
+	        UPDATE SET
+	            T.MEMBER_ID = #{MEMBER_ID},
+	            T.COMPANY_ID = #{COMPANY_ID},
+	            T.FAV_MENU = #{FAV_MENU},
+	            T.UPD_DATE = SYSDATE,
+	            T.UPD_USER = #{UPD_USER}
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+	            LOGIN_ID,
+	            MEMBER_ID,
+	            COMPANY_ID,
+	            FAV_MENU,
+	            INS_DATE,
+	            INS_USER,
+	            UPD_DATE,
+	            UPD_USER
+	        )
+	        VALUES (
+	            #{LOGIN_ID},
+	            #{MEMBER_ID},
+	            #{COMPANY_ID},
+	            #{FAV_MENU},
+	            SYSDATE,
+	            #{INS_USER},
+	            SYSDATE,
+	            #{UPD_USER}
+	        )
+	</insert>
+
 </mapper>

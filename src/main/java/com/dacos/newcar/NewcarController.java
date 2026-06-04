@@ -13,7 +13,9 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
@@ -56,12 +58,58 @@ public class NewcarController {
      * GET /api/newcar/detail/{serviceId}
      */
     @GetMapping("/detail/{serviceId}")
-    public ResponseEntity<Map<String, Object>> getNewCarDetail(
-            @PathVariable("serviceId") String serviceId) {
+    public ResponseEntity<Map<String, Object>> getNewCarDetail(HttpSession session, 
+    		@PathVariable("serviceId") String serviceId) {
         logger.info("[NewcarController] 신차 상세 조회 요청 - serviceId: {}", serviceId);
-        Map<String, Object> detail = newcarService.getNewCarDetail(serviceId);
+        
+        UserDto user = AuthUtil.getLoginUser(session);
+        
+        Map<String, Object> detail = newcarService.getNewCarDetail(user, serviceId);
         // 프론트엔드 호환: { "success": true, "data": {...} }
         return ResponseEntity.ok(ApiResponse.withKey("data", detail));
+    }
+    
+    /**
+     * 다건 상태 변경
+     * POST /api/newcar/change-proc-st
+     */
+    @PostMapping("/change-proc-st")
+    public ResponseEntity<Map<String, Object>> changeProcSt(
+            @RequestBody Map<String, Object> request) {
+        logger.info("[NewcarController] 상태 변경 요청");
+        List<String> serviceIds = (List<String>) request.get("SERVICE_IDS");
+        String procSt = (String) request.get("PROC_ST");
+        int result = newcarService.changeProcSt(serviceIds, procSt);
+        return ResponseEntity.ok(ApiResponse.withKey("result", result));
+    }
+    
+    /**
+     * 엑셀 업로드
+     * POST /api/newcar/excel-upload
+     */
+    @PostMapping("/excel-upload")
+    public ResponseEntity<?> uploadExcel(@RequestParam("file") MultipartFile file, HttpSession session) {
+
+        try {
+        	 // 세션 체크
+    	    UserDto user = AuthUtil.getLoginUser(session);
+    	    
+            int insertCount = newcarService.uploadExcel(file, user);
+
+            return ResponseEntity.ok(Map.of(
+                    "success", true,
+                    "insertCount", insertCount
+            ));
+
+        } catch (Exception e) {
+
+            e.printStackTrace();
+
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
     }
     
     /**
@@ -167,6 +215,7 @@ public class NewcarController {
 	        @RequestBody Map<String, Object> request,
 	        HttpSession session) {
 
+		logger.info("[NewcarController] 신규등록 저장 및 신청 요청 - request: {}", request);
 	    // 세션 체크
 	    UserDto user = AuthUtil.getLoginUser(session);
 

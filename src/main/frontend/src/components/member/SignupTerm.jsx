@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import './SignupTerm.css';
+import { gf } from '../../utils/utils';
 
 const SignupTerm = () => {
     const navigate = useNavigate();
@@ -34,14 +35,16 @@ const SignupTerm = () => {
         });
     };
 
-    const handleNext = () => {
+    const handleNext = async () => {
         const { require1, require2, require3, require4 } = agreed;
         if (require1 && require2 && require3 && require4) {
             // 스크립트의 agreeValue=YY 또는 YN 로직 반영하여 데이터 전달 가능
             const agreeValue = agreed.optional ? 'YY' : 'YN';
             navigate('/signup-form', { state: { agreeValue } });
         } else {
-            alert("개인정보의 수집∙이용 필수 항목을 체크해주세요.\n동의하시지 않는 경우 회원가입이 제한됩니다.");
+			await gf.confirm(
+			    "개인정보의 수집∙이용 필수 항목을 체크해주세요.\n동의하시지 않는 경우 회원가입이 제한됩니다."
+			);
         }
     };
 

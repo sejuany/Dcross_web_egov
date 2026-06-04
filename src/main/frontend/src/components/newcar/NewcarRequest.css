@@ -6,6 +6,7 @@
     height: 100%;
     display: flex;
     flex-direction: column;
+    overflow: hidden;
 }
 
 /* Unified Toolbar */
@@ -17,6 +18,8 @@
     justify-content: space-between;
     align-items: center;
     color: #fff;
+    flex: 0 0 auto;
+    min-height: 28px;
 }
 
 .toolbar-left,
@@ -24,6 +27,8 @@
     display: flex;
     align-items: center;
     gap: 4px;
+    min-width: 0;
+    flex-wrap: wrap;
 }
 
 .toolbar-title {
@@ -38,7 +43,8 @@
     background-color: #fff;
     border: 1px solid #ced4da;
     padding: 0px;
-    margin-bottom: 4px;
+    margin-bottom: 3px;
+    flex: 0 0 auto;
 }
 
 .header-info {
@@ -48,7 +54,7 @@
 .erp-section-title {
     background-color: #dbe4f1;
     border-bottom: 1px solid #a3b8d7;
-    padding: 6px 10px;
+    padding: 4px 8px;
     font-size: 13px;
     font-weight: bold;
     display: flex;
@@ -77,7 +83,7 @@
 .erp-row {
     background-color: #fff;
     display: flex;
-    min-height: 32px;
+    min-height: 28px;
     align-items: stretch;
 }
 
@@ -191,7 +197,7 @@
 
 /* Buttons */
 .btn-erp {
-    height: 24px;
+    height: 22px;
     padding: 0 9px;
     font-size: 13px;
     border-radius: 3px;
@@ -227,6 +233,9 @@
     flex-shrink: 0;
     font-weight: 500;
     min-width: 65px;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
     /* 작은 해상도에서도 라벨이 너무 찌그러지는 것 방지 */
 }
 
@@ -244,22 +253,24 @@
 input.erp-input,
 textarea.erp-input {
     appearance: auto;
-    height: 32px !important;
+    height: 28px !important;
     background-image: none;
     cursor: text;
     font-size: 14px;
 }
 
 .erp-input {
-    height: 32px !important;
+    height: 28px !important;
     border: 1px solid #a3a3a3;
     padding: 0 4px;
     font-size: 15px;
     text-align: center;
-    margin: 2px;
+    margin: 1px;
     flex: 1;
     max-width: none;
     width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
 }
 
 /* readonly */
@@ -422,19 +433,20 @@ select.erp-input:disabled:hover {
 
 /* small */
 .btn-erp.sm {
-    padding: 14px 10px;
+    padding: 0 8px;
     font-size: 12px;
+    min-width: 52px;
 }
 
 /* medium */
 .btn-erp.md {
-    padding: 14px 18px;
+    padding: 0 14px;
     font-size: 13px;
 }
 
 /* large */
 .btn-erp.lg {
-    padding: 14px 28px;
+    padding: 0 24px;
     font-size: 13px;
 }
 
@@ -538,16 +550,18 @@ select.erp-input:disabled:hover {
     flex: 1;
     display: flex;
     flex-direction: column;
-    margin-top: 10px;
+    margin-top: 6px;
+    min-height: 0;
 }
 
 .tab-header-list {
     display: flex;
     gap: 1px;
+    flex: 0 0 auto;
 }
 
 .tab-btn {
-    padding: 6px 20px;
+    padding: 4px 18px;
     border: 1px solid #ced4da;
     border-bottom: none;
     background-color: #e9ecef;
@@ -573,7 +587,156 @@ select.erp-input:disabled:hover {
 .tab-content {
     flex: 1;
     border: 1px solid #ced4da;
-    padding: 10px;
+    padding: 4px;
+    min-height: 0;
+    overflow: auto;
+    background-color: #f7f9fc;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tab-content .erp-row {
+    min-height: 26px;
+}
+
+.tab-content .erp-input {
+    height: 25px !important;
+    margin: 1px;
+    padding: 0 4px;
+    font-size: 13px;
+}
+
+.tab-content .btn-erp.sm,
+.tab-content .btn-erp.md {
+    height: 22px;
+    min-width: 52px;
+    padding: 0 6px;
+}
+
+.tab-content .erp-section:last-child {
+    margin-bottom: 0;
+}
+
+.owner-info-section,
+.delivery-info-section,
+.payment-info-section {
+    order: 1;
+    flex: 0 0 auto;
+}
+
+.fixed-reg-info-section {
+    order: 2;
+    flex: 0 0 auto;
+}
+
+.owner-split-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px;
+    align-items: stretch;
+}
+
+.owner-panel {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.owner-panel .erp-row {
+    flex-wrap: wrap;
+}
+
+.owner-panel .erp-label {
+    width: 96px !important;
+    min-width: 96px;
+    padding: 0 4px;
+    font-size: 12px;
+}
+
+.owner-panel .col-9,
+.owner-panel .col-12 {
+    flex: 0 0 100%;
+}
+
+.owner-main-panel .erp-grid>.erp-row:first-child .col-3 {
+    flex: 0 0 25%;
+}
+
+.owner-main-panel .erp-grid>.erp-row:first-child .erp-label {
+    width: 86px !important;
+    min-width: 86px;
+}
+
+.owner-panel .btn-erp.sm {
+    margin-left: 2px !important;
+}
+
+.owner-split-layout .erp-section-title,
+.fixed-reg-info-section .erp-section-title {
+    background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.fixed-reg-info-section .erp-label {
+    width: 105px !important;
+    min-width: 105px;
+    padding: 0 4px;
+    font-size: 12px;
+}
+
+.fixed-reg-info-section .erp-textArea {
+    height: 48px !important;
+}
+
+@media (max-width: 1280px) {
+    .owner-split-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .owner-split-layout .erp-section-title,
+    .fixed-reg-info-section .erp-section-title {
+        font-size: 16px;
+    }
+}
+
+#ADDRESS,
+#BASE_ADDRESS,
+#DELIVERY_ADDR,
+input[name="CARP_ADDRESS"] {
+    flex: 1 1 180px;
+    text-align: left;
+}
+
+#ADDRESS_DT,
+#BASE_ADDRESS_DT,
+#DELIVERY_ADDR_DT,
+input[name="CARP_ADDRESS_DT"] {
+    flex: 0 1 170px;
+    width: auto !important;
+    min-width: 100px;
+}
+
+input[name="CARP_POST_NO"] {
+    flex: 0 0 82px;
+}
+
+@media (max-width: 1100px) {
+    .tab-content {
+        padding: 6px;
+    }
+
+    #ADDRESS_DT,
+    #BASE_ADDRESS_DT,
+    #DELIVERY_ADDR_DT,
+    input[name="CARP_ADDRESS_DT"] {
+        flex-basis: 180px;
+    }
 }
 
 /* Helpers */

@@ -27,4 +27,6 @@ public interface CodeMapper {
      * @return { COMPANY_ID, COMPANY_NM, GOVT_ID }
      */
     List<Map<String, Object>> findCompanyList(@Param("workCd") String workCd, @Param("govtId") String govtId, @Param("companyId") String companyId);
+    
+    List<Map<String, Object>> getCodeDetailList(List<String> groupIds);
 }

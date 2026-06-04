@@ -51,5 +51,22 @@
 	    AND USE_YN = 'Y'
 	    ORDER BY GROUP_ID, ORDER_NO, CODE_ID
 	</select>
+	
+	<!-- DETAIL_NM 포함 -->
+	<select id="getCodeDetailList" parameterType="java.util.List" resultType="java.util.HashMap">
+	    SELECT
+	        GROUP_ID,
+	        CODE_ID,
+	        CODE_NM,
+	        DETAIL_NM,
+	        ORDER_NO
+	    FROM TM_CODE
+	    WHERE GROUP_ID IN
+	    <foreach collection="list" item="item" open="(" separator="," close=")">
+	        #{item}
+	    </foreach>
+	    AND USE_YN = 'Y'
+	    ORDER BY GROUP_ID, ORDER_NO, CODE_ID
+	</select>
 
 </mapper>

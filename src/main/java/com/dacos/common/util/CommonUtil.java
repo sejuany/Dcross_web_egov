@@ -1,5 +1,6 @@
 package com.dacos.common.util;
 
+import java.lang.reflect.Field;
 import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
@@ -7,6 +8,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.catalina.connector.Response;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -15,6 +19,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.CommonRepository;
+import com.dacos.common.CommonService;
 import com.ibm.icu.text.SimpleDateFormat;
 
 import jakarta.servlet.http.HttpSession;
@@ -22,6 +27,8 @@ import jakarta.servlet.http.HttpSession;
 // 자주 쓰는 메소드용
 @Component
 public class CommonUtil {
+	
+	private static final Logger logger = LoggerFactory.getLogger(CommonService.class);
 	
 	@Autowired
     private CommonRepository common;
@@ -86,6 +93,33 @@ public class CommonUtil {
 	        result.put(key, source.getOrDefault(key, ""));
 	    }
 	
+	    return result;
+	}
+	
+	// KEY를 대문자로 변환
+	public Map<String, Object> toUpperCaseMap(Object obj) {
+
+	    Map<String, Object> result = new HashMap<>();
+
+	    if (obj == null) {
+	        return result;
+	    }
+
+	    for (Field field : obj.getClass().getDeclaredFields()) {
+
+	        field.setAccessible(true);
+
+	        try {
+	            result.put(
+	                field.getName().toUpperCase(),
+	                field.get(obj)
+	            );
+	        }
+	        catch (IllegalAccessException e) {
+	            logger.error("객체 변환 오류", e);
+	        }
+	    }
+
 	    return result;
 	}
 	

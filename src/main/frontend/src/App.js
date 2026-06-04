@@ -19,6 +19,7 @@ import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
 import CompanyRoutes from './routes/CompanyRoutes';
 import './App.css';
+import CommonPopupProvider from './components/common/CommonPopupProvider';
 
 // ===== 모듈별 라우트 임포트 =====
 import MortgageRoutes from './routes/MortgageRoutes';
@@ -36,6 +37,7 @@ function App() {
     <Router>
       <AuthProvider>
         <TabProvider>
+		<CommonPopupProvider>
           <Routes>
 		  	<Route path="/" element={<Navigate replace to="/login" />} />
             {/* ===== 공통 (인증 불필요) ===== */}
@@ -57,6 +59,7 @@ function App() {
 			{MemberRoutes}
 			{CompanyRoutes}
           </Routes>
+		  </CommonPopupProvider>
         </TabProvider>
       </AuthProvider>
     </Router>

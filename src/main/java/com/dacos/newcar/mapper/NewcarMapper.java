@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import com.dacos.newcar.dto.NewcarSearchRequest;
 
@@ -26,6 +27,9 @@ public interface NewcarMapper {
      * @return 상세 정보 (Map으로 반환하여 모든 컬럼 포함)
      */
     Map<String, Object> getNewCarDetail(String serviceId);
+    
+    /** 다건 상태 변경 */
+    int updateProcSt(@Param("SERVICE_IDS") List<String> serviceIds, @Param("PROC_ST") String procSt);
     
     /**
      *  신규등록 기본정보 초기화

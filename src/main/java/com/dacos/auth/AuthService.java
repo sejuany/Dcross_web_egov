@@ -243,6 +243,8 @@ public class AuthService {
 	    Map<String, Object> mCompanyInfo =
 	        common.select(mServiceInfo, "getCompanyInfo");
 	    
+	    logger.info("mCompanyInfo : {}", mCompanyInfo);
+	    
 	    List<Map<String, Object>> lBaseList =
 	        common.selectList(mServiceInfo, "getBaseList");
 

@@ -91,24 +91,29 @@ public class CommonRepository {
 	        boolean useSeq) {
 	
 	    if (list == null || list.isEmpty()) return 0;
-	
+
 	    int seq = 1;
 	    int count = 0;
-	
+
 	    for (Map<String, Object> item : list) {
-	
+
 	        if (item == null || item.isEmpty()) continue;
-	
+
 	        item.put("SERVICE_ID", serviceId);
-	
+
 	        if (useSeq) {
-	            item.put("SEQ", seq++);
+
+	            Object seqObj = item.get("SEQ");
+
+	            if (seqObj == null || String.valueOf(seqObj).trim().isEmpty()) {
+	                item.put("SEQ", seq++);
+	            }
 	        }
-	
+
 	        sqlSession.insert(queryId, item);
 	        count++;
 	    }
-	
+	    
 	    return count;
 	}
 	

@@ -1,32 +1,53 @@
 package com.dacos.newcar;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.StringJoiner;
 
+import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.addservice.dto.AddServiceDto;
 import com.dacos.auth.AuthService;
 import com.dacos.auth.dto.UserDto;
+import com.dacos.auth.mapper.AuthMapper;
 import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
 import com.dacos.common.mapper.CommonMapper;
 import com.dacos.common.util.CommonUtil;
+import com.dacos.common.util.FieldMapper;
+import com.dacos.common.util.FieldMaps;
+import com.dacos.commonmenu.dto.CommonMenuSearchRequest;
+import com.dacos.commonmenu.mapper.CommonMenuMapper;
 import com.dacos.company.mapper.CompanyMapper;
 import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 import com.dacos.newcar.mapper.NewcarMapper;
 import com.dacos.numplate.mapper.NumPlateMapper;
 import com.dacos.payment.mapper.PaymentMapper;
+import com.fasterxml.jackson.databind.JsonNode;
+import com.ibm.icu.text.SimpleDateFormat;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 신차 등록 서비스
@@ -75,7 +96,7 @@ public class NewcarService {
     /**
      * 신차 등록 상세 조회
      */
-    public Map<String, Object> getNewCarDetail(String serviceId) {
+    public Map<String, Object> getNewCarDetail(UserDto user, String serviceId) {
 
         logger.info("[NewcarService] 신차 상세 조회 - serviceId: {}", serviceId);
 
@@ -125,6 +146,7 @@ public class NewcarService {
         }
         
         // 결과 세팅
+        result.put("dsUserInfo", commonUtil.toUpperCaseMap(user));
         result.put("dsNewCar", detail);
         result.put("dsPaymentList", paymentList);
         result.put("dsOwnerInfo", owner0);
@@ -136,6 +158,126 @@ public class NewcarService {
 
         return result;
     }
+    
+    /**
+     * 다건 상태 변경
+     */
+    public int changeProcSt(List<String> serviceIds, String procSt) {
+        return newcarMapper.updateProcSt(serviceIds, procSt);
+    }
+    
+    /**
+     * 엑셀 업로드
+     */
+    @Transactional
+    public int uploadExcel(MultipartFile file, UserDto user) throws Exception {
+
+        int insertCount = 0;
+
+        try (Workbook workbook =
+                 WorkbookFactory.create(file.getInputStream())) {
+
+            Sheet sheet = workbook.getSheetAt(0);
+
+            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+
+                Row row = sheet.getRow(i);
+
+                if (row == null) continue;
+
+                String carIdNo =
+                        getCellValue(row.getCell(0)).trim();
+
+                String ownerNm =
+                        getCellValue(row.getCell(1)).trim();
+
+                String regNo =
+                        getCellValue(row.getCell(2)).replace("-", "").trim();
+
+                String scUserNm =
+                        getCellValue(row.getCell(3)).trim();
+
+                // 빈 차대번호 skip
+                if (carIdNo.isEmpty()) continue;
+                
+                // 등록번호 구분 지정해서 넣어주기
+                String regGb = "";
+                
+                // 사업자번호
+                if (regNo.length() == 10) {
+                	regGb = "C";
+                } else if (regNo.length() == 13) {
+                	String birth = regNo.substring(0, 6);
+                    char genderCode = regNo.charAt(6);
+                    boolean validDate = isValidDateYYMMDD(birth);
+
+                    // 주민등록번호
+                    if (validDate &&
+                            (genderCode == '1' ||
+                             genderCode == '2' ||
+                             genderCode == '3' ||
+                             genderCode == '4')) {
+
+                    	regGb = "R";
+                    }
+
+                    // 외국인등록번호
+                    if (validDate &&
+                            (genderCode == '5' ||
+                             genderCode == '6' ||
+                             genderCode == '7' ||
+                             genderCode == '8')) {
+
+                    	regGb = "F";
+                    }
+
+                    // 그 외는 법인번호로 판단
+                    regGb = "B";
+                } else {
+                	continue;
+                }
+                
+                Map<String, Object> request = new HashMap<>();
+
+                Map<String, Object> dsService = new HashMap<>();
+
+                Map<String, Object> dsNewCar = new HashMap<>();
+
+                Map<String, Object> dsCarNoDetach = new HashMap<>();
+                
+                dsService.put("COMPANY_ID", user.getCOMPANY_ID());
+                dsService.put("ASSOCIATION_ID", user.getASSOCIATION_ID());
+                dsService.put("WORK_CD", "010");
+                dsService.put("PROC_ST", "C_REQ");
+                dsService.put("MEMBER_ID", user.getLOGIN_ID());
+                dsService.put("BRANCH_ID", user.getBRANCH_ID());
+                
+                dsNewCar.put("CARID_NO", carIdNo);
+                dsNewCar.put("OWNER_NM", ownerNm);
+                dsNewCar.put("REG_GB", regGb);
+                dsNewCar.put("REG_NO", regNo);
+                
+                request.put("dsService", dsService);
+                request.put("dsNewCar", dsNewCar);
+                request.put("dsCarNoDetach", dsCarNoDetach);
+                
+                request.put("dsOwnerInfo", new ArrayList<>());
+
+                // 결제정보
+                List<Map<String, Object>> dsPaymentList = getPaymentList(user);
+                request.put("dsPaymentList", dsPaymentList);
+                
+                processNewCar(request, user);
+                insertCount++;
+
+            }
+
+        }
+
+        return insertCount;
+    }
+    
+    
     /**
      * 결제정보 초기값
      */
@@ -222,10 +364,6 @@ public class NewcarService {
 	        authService.getCommonServiceData(param)
 	    );
 	    
-	    // 회사별 초기값 조회
-	    List<Map<String, Object>> configList =
-	        companyMapper.selectCompanyConfigList(param);
-
 	    // 데이터셋 초기화
 	    Map<String, Object> dsNewCar = new HashMap<>();
 	    Map<String, Object> dsOwnerInfo = new HashMap<>();
@@ -236,37 +374,12 @@ public class NewcarService {
 	    Map<String, Object> dsService =
 	        (Map<String, Object>) result.get("dsService");
 	    
-	    // DEFAULT 설정 적용
-	    for(Map<String, Object> config : configList) {
-
-	        String dataset = String.valueOf(config.get("DATASET"));
-	        String fieldId = String.valueOf(config.get("FIELD_ID"));
-	        String ruleType = String.valueOf(config.get("RULE_TYPE"));
-	        String ruleValue = String.valueOf(config.get("RULE_VALUE"));
-
-	        if(!"DEFAULT".equals(ruleType)) {
-	            continue;
-	        }
-
-	        if("dsService".equals(dataset)) {
-	            dsService.put(fieldId, ruleValue);
-
-	        } else if("dsNewCar".equals(dataset)) {
-	            dsNewCar.put(fieldId, ruleValue);
-
-	        } else if("dsOwnerInfo".equals(dataset)) {
-	            dsOwnerInfo.put(fieldId, ruleValue);
-
-	        } else if("dsCarNoDetach".equals(dataset)) {
-	            dsCarNoDetach.put(fieldId, ruleValue);
-	        }
-	    }
-
 	    // 결제정보
 	    List<Map<String, Object>> dsPaymentList =
 	        getPaymentList(user);
 
 	    // 결과 세팅
+	    result.put("dsUserInfo", commonUtil.toUpperCaseMap(user));
 	    result.put("dsNewCar", dsNewCar);
 	    result.put("dsOwnerInfo", dsOwnerInfo);
 	    result.put("dsOwnerInfo1", dsOwnerInfo1);
@@ -275,7 +388,7 @@ public class NewcarService {
 
 	    return result;
 	}
-	
+
 	/**
 	 * 신규등록 저장 및 신청 프로세스
 	 * - 저장/수정 공통 처리
@@ -297,11 +410,14 @@ public class NewcarService {
 		    
 		    List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
 		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
-		    
+		    List<Map<String, Object>> lOwnerInfoList1 = commonUtil.getList(request, "dsOwnerInfo1");
+
+			// 공동동소유자 컬럼명 변환
+			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
+			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
+			
 		    // 처리상태
 		    String procSt = String.valueOf(mService.get("PROC_ST"));
-		    
-		    boolean isRequest = "REQ".equals(procSt)|| "B_REQ".equals(procSt);
 		    
 		    // 데이터 병합
 		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
@@ -317,26 +433,29 @@ public class NewcarService {
 		    
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
-		    	insertNewCar(input, mService, lOwnerInfoList, lPaymentList);
+		    	insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
 		    } 
 		    
 		    // update
 		    else {
-		    	updateNewCar(input, mService, lOwnerInfoList, lPaymentList);
+		    	updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
 		    }
 
 		    result.put("SERVICE_ID", input.get("SERVICE_ID"));
 		    result.put("MESSAGE", "저장완료");
-		    result.put("", "저장완료");
+		    result.put("RESULT_CD", "0");
 		    
+		    // 신청 여부 확인
+		    // 신청 상태: REQ(신청), P_REQ(납부요청)
+		    boolean isRequest = "REQ".equals(procSt)|| "P_REQ".equals(procSt);
 		    logger.info("isRequest : {}",isRequest);
+		    
 		    if(isRequest) {
 		    	
 		    	logger.info("PAY_GB : {}", mNewCar.get("PAY_GB"));
-				
 		    	// 선납건(폴스타 등)은 가상계좌 생성 후 입금 대기 처리
 		    	if("B".equals(mNewCar.get("PAY_GB"))) {
-		    		// TODO 가상계좌 생성 및 입금 확인 로직 필요
+		    		
 		    		// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
 	 	    		try {
 						logger.debug("프로시져 호출 전");
@@ -345,21 +464,30 @@ public class NewcarService {
 						input.put("pReturn",  "");
 	 	    			
 						common.call(input, "processVBank");
+						
+						// OUT 파라미터 확인
+						String pReturn = Objects.toString(input.get("pReturn"), "");
+						
+						logger.debug("프로시져 호출 후 pReturn >> " + pReturn);
+						
+				        if (pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
+				            throw new RuntimeException("가상계좌 발급 실패 : " + pReturn);
+				        }
 
 					} catch (Exception ex) {
 						logger.error("processVBank 호출 예외", ex);
 						// 예외를 던지면 @Transactional 메서드에서 롤백됩니다.
 						throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
 					}
-					
-					// OUT 파라미터 확인
-					String pReturn = input.get("pReturn") != null ? input.get("pReturn").toString() : "";
-					if (pReturn == null || pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
-						throw new RuntimeException("가상계좌 발급 실패: " + pReturn);
-					}
+		    		
+		    		result.put("RESULT_CD", "0");
+		    		result.put("MESSAGE", "처리완료");
+		    		
+		    		// TODO: 관청 신청 시기 조정 필요 
+		    		return ApiResponse.withKey("data", result);
 		    	}
 		    	
-		    	/*
+		    	
 		    	// 후납건은 바로 관청 서버 연계
 		        Map<String, Object> linkData = commonUtil.filterMap(input,
 		                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
@@ -397,11 +525,14 @@ public class NewcarService {
 		            if ("BUSAN".equals(input.get("GOVT_ID"))) {
 		                ownerInfo.append(joiner.toString()).append("þ");
 		            } else {
-		                joiner.add("DSIGN_DT»" + getVal(owner, "DSIGN_DT"));
-		                joiner.add("IDEN_DT»"  + getVal(owner, "IDEN_DT"));
+		            	// date 타입 : 값이 없을 땐 null 
+						joiner.add("DSIGN_DT»" + (owner.get("DSIGN_DT") == null ? "null" : owner.get("DSIGN_DT")));
+						joiner.add("IDEN_DT»" + (owner.get("IDEN_DT") == null ? "null" : owner.get("IDEN_DT")));
 		                ownerInfo.append(joiner.toString()).append("þ");
 		            }
 		        }
+		        
+		        logger.info("ownerInfo 공동소유자 >>> " + ownerInfo);
 
 		        linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
 		        linkData.put("SID", "신규등록신청");
@@ -434,7 +565,7 @@ public class NewcarService {
 				} else {
 				    result.put("RESULT_CD", "0");
 				    result.put("MESSAGE", "신청완료");
-				}*/
+				}
 		    }
 		} catch (RuntimeException e) {
 		
@@ -465,8 +596,8 @@ public class NewcarService {
 	// 신규등록 insert
 	@Transactional
 	private Map<String, String> insertNewCar(Map<String, Object> input,
-	        Map<String, Object> mService, List<Map<String, Object>> lOwnerInfoList,
-	        List<Map<String, Object>> paymentList) {
+			Map<String, Object> mService, List<Map<String, Object>> lOwnerInfoList, 
+			List<Map<String, Object>> lOwnerInfoList1, List<Map<String, Object>> paymentList) {
 	
 		// 중복된 차대번호 조회
 	    if (isDuplicateCar(input)) {
@@ -479,8 +610,13 @@ public class NewcarService {
 	    common.insert(input, "insertTrService");
 	    common.insert(input, "insertTrNewCar");
 	    common.insert(input, "insertTrCarNoDetach");
-	    // 공동소유
+	    
+	    logger.info("insertNewCar >>> " + lOwnerInfoList);
+	    logger.info("insertNewCar1 >>> " + lOwnerInfoList1);
+	    // 공동소유(1)
 	    common.insertList(lOwnerInfoList, "insertTrOwnerInfo", serviceId, true);
+	    // 공동소유(2)
+	    common.insertList(lOwnerInfoList1, "insertTrOwnerInfo", serviceId, true);
 	    // 결제정보
 	    common.insertList(paymentList, "insertTrPayment", serviceId, true);
 	
@@ -491,18 +627,32 @@ public class NewcarService {
 	@Transactional
 	private Map<String, String> updateNewCar(Map<String, Object> input,
 	        Map<String, Object> mService, List<Map<String, Object>> lOwnerInfoList,
-	        List<Map<String, Object>> paymentList) {
+	        List<Map<String, Object>> lOwnerInfoList1, List<Map<String, Object>> paymentList) {
 		
 		String serviceId = input.get("SERVICE_ID").toString();
 		
 	    if (!Objects.equals("RET", input.get("JUDGE_ST")) && isDuplicateCar(input)) {
 	        throw new RuntimeException("중복된 차대번호입니다.");
 	    }
-	
+
+		logger.info("ADDR_INFO={}", input.get("ADDR_INFO"));
+		logger.info("ADDR_INFO2={}", input.get("ADDR_INFO2"));
+
 	    common.update(input, "updateTrService");
 	    common.update(input, "updateTrNewCar");
 	    common.update(input, "updateTrCarNoDetach");
-	    common.replaceList(lOwnerInfoList, "deleteTrOwnerInfo", "insertTrOwnerInfo", serviceId, true);
+	    
+	    logger.info("insertNewCar >>> " + lOwnerInfoList);
+	    logger.info("insertNewCar1 >>> " + lOwnerInfoList1);
+	    
+
+		// 기존 데이터 전체 삭제
+		common.delete(input, "deleteTrOwnerInfo");
+		 // 공동소유1
+		common.insertList(lOwnerInfoList, "insertTrOwnerInfo", serviceId, false);
+		 // 공동소유2
+		common.insertList(lOwnerInfoList1, "insertTrOwnerInfo", serviceId, false);
+		// 결제정보
 	    common.replaceList(paymentList, "deleteTrPayment", "insertTrPayment", serviceId, true);
 	
 	    return Map.of("SERVICE_ID", input.get("SERVICE_ID").toString(),"MESSAGE", "");
@@ -605,5 +755,47 @@ public class NewcarService {
 	    }
 	    
 	}
+	
+	private String getCellValue(Cell cell) {
+
+	    if (cell == null) return "";
+
+	    cell.setCellType(CellType.STRING);
+
+	    return cell.getStringCellValue().trim();
+	}
+	
+	/**
+     * YYMMDD 날짜 검증
+     */
+    private static boolean isValidDateYYMMDD(String yymmdd) {
+
+        if (yymmdd == null || yymmdd.length() != 6) {
+            return false;
+        }
+
+        try {
+
+            int month =
+                    Integer.parseInt(yymmdd.substring(2, 4));
+
+            int day =
+                    Integer.parseInt(yymmdd.substring(4, 6));
+
+            if (month < 1 || month > 12) {
+                return false;
+            }
+
+            if (day < 1 || day > 31) {
+                return false;
+            }
+
+            return true;
+
+        } catch (Exception e) {
+
+            return false;
+        }
+    }
 
 }

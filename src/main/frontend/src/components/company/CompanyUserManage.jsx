@@ -1162,31 +1162,26 @@ function CompanyUserManage() {
                         </div>
 
                         <div className="cum-ag-grid-wrap ag-theme-alpine">
-                            <AgGridReact
-                                ref={gridRef}
-                                rowData={userList}
-                                columnDefs={memberColumnDefs}
-                                defaultColDef={{
-                                    sortable: true,
-                                    resizable: true,
-                                    suppressMovable: true,
-                                }}
-                                rowSelection="single"
-                                suppressRowClickSelection={false}
-                                onRowClicked={async (event) => {
-                                    if (!event.data) {
-                                        return;
-                                    }
+						<AgGridReact
+						    ref={gridRef}
+						    rowData={userList}
+						    columnDefs={memberColumnDefs}
+						    defaultColDef={{
+						        sortable: true,
+						        resizable: true,
+						        suppressMovable: true,
+						    }}
+						    rowSelection="single"
+						    suppressRowClickSelection={true}
+						    onRowClicked={async (event) => {
+						        if (!event.data) {
+						            return;
+						        }
 
-                                    await selectUser(event.data, event.rowIndex);
-                                }}
-                                getRowClass={params => (
-                                    params.node.rowIndex === selectedIndex
-                                        ? 'cum-ag-selected-row'
-                                        : ''
-                                )}
-                                overlayNoRowsTemplate="<span class='cum-ag-empty'>조회된 회원이 없습니다.</span>"
-                            />
+						        await selectUser(event.data, event.rowIndex);
+						    }}
+						    overlayNoRowsTemplate="<span class='cum-ag-empty'>조회된 회원이 없습니다.</span>"
+						/>
                         </div>
                     </section>
 

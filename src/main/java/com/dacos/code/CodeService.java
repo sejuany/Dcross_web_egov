@@ -56,4 +56,19 @@ public class CodeService {
         logger.info("[CodeService] 대리점 목록 조회 - workCd: {}, govtId: {}", workCd, govtId);
         return codeMapper.findCompanyList(workCd, govtId, companyId);
     }
+    
+    public Map<String, List<Map<String, Object>>> getCodeDetailList(List<String> groupIds) {
+        List<Map<String, Object>> list = codeMapper.getCodeDetailList(groupIds);
+
+        Map<String, List<Map<String, Object>>> result = new java.util.HashMap<>();
+
+        for (Map<String, Object> item : list) {
+            String groupId = String.valueOf(item.get("GROUP_ID"));
+
+            result.computeIfAbsent(groupId, key -> new java.util.ArrayList<>())
+                  .add(item);
+        }
+
+        return result;
+    }
 }

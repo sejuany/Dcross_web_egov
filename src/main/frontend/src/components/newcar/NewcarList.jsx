@@ -60,6 +60,7 @@ const NewcarList = () => {
         carNo: '',
         startDate: getFormattedDateOffset(-14),
         endDate: getFormattedDateOffset(0),
+        dateCd: 'REQUEST_DT',
         nullOpt: '',
         processStatus: '전체',
         deliveryType: '',
@@ -87,10 +88,11 @@ const NewcarList = () => {
                 CAR_NO: searchFilters.carNo,
                 START_DT: searchFilters.startDate.replace(/-/g, ''),
                 END_DT: searchFilters.endDate.replace(/-/g, ''),
+                DATE_CD: searchFilters.dateCd,
                 NULL_OPT: searchFilters.nullOpt,
                 PROC_ST: cleanParam(searchFilters.processStatus),
                 NUM_PROC_ST: cleanParam(searchFilters.deliveryStatus),
-				TIME_DVSN: searchFilters.selectedTimes.join(','),
+				TIME_DVSN: searchFilters.dateCd === 'REQUEST_DT' ? searchFilters.selectedTimes.join(',') : '',
 				DELIVERY_GB: searchFilters.selectedDeliveryGb.join(',')
             };
 
@@ -118,6 +120,7 @@ const NewcarList = () => {
 					COMPANY_ID: cleanParam(searchFilters.companyID),
 					START_DT: searchFilters.startDate.replace(/-/g, ''),
 	                END_DT: searchFilters.endDate.replace(/-/g, ''),
+					DATE_CD: searchFilters.dateCd,
 					PROC_ST: 'WAIT'
 	            }
 	        );
@@ -408,6 +411,7 @@ const NewcarList = () => {
             carNo: '',
             startDate: getFormattedDateOffset(-14),
             endDate: getFormattedDateOffset(0),
+            dateCd: 'REQUEST_DT',
             nullOpt: '',
             processStatus: '전체',
             deliveryType: '',
@@ -425,7 +429,7 @@ const NewcarList = () => {
     };
 
     const handleCellClicked = (event) => {
-        const copyAllowedFields = ['CARID_NO', 'CAR_NO'];
+        const copyAllowedFields = ['SERVICE_ID', 'CARID_NO', 'CAR_NO'];
 
         // 클릭한 셀의 컬럼 필드명이 배열에 포함되어 있고 값이 존재할 때
         if (copyAllowedFields.includes(event.colDef.field) && event.value) {
@@ -548,21 +552,27 @@ const NewcarList = () => {
                     </ErpField>
                 </div>
                 <div className="erp-row">
-                    <ErpField label="신청일자" span={5}>
-                        <input type="date" className="erp-input" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} style={{ width: '40%', display: 'flex'}}/>
+                    <ErpField label="신청일자" span={6}>
+                        <select className="erp-input" value={searchFilters.dateCd} onChange={e => setSearchFilters({ ...searchFilters, dateCd: e.target.value })} style={{ width: '22%', display: 'flex'}}>
+                            <option value="REQUEST_DT">신청일자</option>
+                            <option value="REGIST_DATE">등록예정일</option>
+                        </select>
+                        <input type="date" className="erp-input" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} style={{ width: '28%', display: 'flex'}}/>
                         <span>~</span>
-                        <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })}  style={{ width: '40%', display: 'flex'}}/>
-						<CommonMultiSelect
-						    options={timeOptions}
-						    selectedValues={searchFilters.selectedTimes || []}
-						    setSelectedValues={(newTimes) => {
-						        // newTimes가 배열인지 확인하고 상태 업데이트
-						        setSearchFilters(prev => ({
-						            ...prev,
-						            selectedTimes: typeof newTimes === 'function' ? newTimes(prev.selectedTimes) : newTimes
-						        }));
-						    }}
-						/>
+                        <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })}  style={{ width: '28%', display: 'flex'}}/>
+						{searchFilters.dateCd === 'REQUEST_DT' && (
+							<CommonMultiSelect
+							    options={timeOptions}
+							    selectedValues={searchFilters.selectedTimes || []}
+							    setSelectedValues={(newTimes) => {
+							        // newTimes가 배열인지 확인하고 상태 업데이트
+							        setSearchFilters(prev => ({
+							            ...prev,
+							            selectedTimes: typeof newTimes === 'function' ? newTimes(prev.selectedTimes) : newTimes
+							        }));
+							    }}
+							/>
+						)}
                     </ErpField>
                     <ErpField label="처리상태" span={2}>
                         <select className="erp-input" value={searchFilters.processStatus} onChange={e => setSearchFilters({ ...searchFilters, processStatus: e.target.value })}>
@@ -585,7 +595,7 @@ const NewcarList = () => {
 						    }}
 						/>
                     </ErpField>
-                    <ErpField label="배송상태" span={3}>
+                    <ErpField label="배송상태" span={2}>
 						<select className="erp-input" value={searchFilters.deliveryStatus} onChange={e => setSearchFilters({ ...searchFilters, deliveryStatus: e.target.value })}>
                             <option value="전체">전체</option>
                             {codeListMap['NUMST'] && codeListMap['NUMST'].map(code => (

@@ -29,8 +29,8 @@ public class CommonController {
     private CommonRepository comm;
     
     /**
-     * 신차 목록 조회
-     * POST /api/newcar/list
+     * 주소 조회
+     * POST /api/common/search/address
      */
     @PostMapping("/search/address")
     public ResponseEntity<Map<String, Object>> searchAddress(@RequestBody Map<String, Object> param) {

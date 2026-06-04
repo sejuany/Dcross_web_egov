@@ -5,7 +5,7 @@
 
     <!-- 콘솔(Console)에 로그 출력 설정 -->
     <appender name="STDOUT" class="ch.qos.logback.core.ConsoleAppender">
-        <encoder>
+        <encoder charset="UTF-8">
             <pattern>${LOG_PATTERN}</pattern>
         </encoder>
     </appender>

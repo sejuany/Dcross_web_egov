@@ -8,7 +8,7 @@ export const initialDsService = {
 	REQUEST_DT: '',
 	PROC_DT: '',
 	JUDGE_DT: '',
-	PROC_ST: '',
+	PROC_ST: 'INPUT',
 	JUDGE_ST: '',
 	RETURN_TX: '',
 	COMPANY_ID: '',
@@ -18,12 +18,12 @@ export const initialDsService = {
 
 export const initialDsNewCar = {
 	// 기본
-	PROC_CD: '',
-	TASK_CD: '',
+	PROC_CD: 'K',
+	TASK_CD: 'NORML',
 	CARID_NO: '',
 	CAR_NO: '',
 	REG_NO: '',
-	REG_GB: '',
+	REG_GB: 'R',
 	OWNER_NM: '',
 
 	// 차량정보
@@ -40,8 +40,8 @@ export const initialDsNewCar = {
 	GOVT_TX: '',
 
 	// 번호판
-	NUMPLATE_GB: '',
-	IMSINUM_YN: '',
+	NUMPLATE_GB: 'F',
+	IMSINUM_YN: 'N',
 	REQ_CAR_NO: '',
 
 	// 주소
@@ -56,6 +56,9 @@ export const initialDsNewCar = {
 	BASE_POST_NO: '',
 	BASE_BUBJUNG_CD: '',
 	RT_ACC_NO: '',
+
+	ADDR_INFO: '',
+	ADDR_INFO2: '',
 	
 	CARP_ADDRESS: '',
 	CARP_ADDRESS_DT: '',
@@ -77,7 +80,7 @@ export const initialDsNewCar = {
 
 	// 채권
 	BOND_YN: 'N',
-	BOND_DC: '',
+	BOND_DC: 'SELL',
 	BOND_AMT: 0,
 	BOND_BANK_CD: '',
 	BOND_BANK_NO: '',
@@ -85,9 +88,9 @@ export const initialDsNewCar = {
 	// 결제
 	PAY_NM: '',
 	PAY_HP_NO: '',
-	PAY_GB: '',
+	PAY_GB: 'A',
 	PAY_ME: '',
-	PAY_ST: '',
+	PAY_ST: 'N',
 	VBANK_CD: '',
 	VBANK_NO: '',
 	CARD_YN: 'N',
@@ -100,19 +103,20 @@ export const initialDsNewCar = {
 	// 기타
 	MEMO_TX: '',
 	NEWCAR_REG_DT: '',
-	NTAX_TRGET_CD: '',
-	NTAX_TRGET_GR_CD: '',
-	NTAX_APPLC_CD: '',
-	NTAX_WHO: '',
-	STAMP_GB: '',
+	NTAX_TRGET_CD: '00',
+	NTAX_TRGET_GR_CD: '0',
+	NTAX_APPLC_CD: '0',
+	NTAX_WHO: 'REPRE',
+	STAMP_GB: 'TOTAL',
 	INJI_NO: '',
 	PREREG_AMT: '',
-	RATIO_NO: '',
+	RATIO_NO: '100',
 	CONTRACTOR_NM: '',
 	CONTRACTOR_DT: ''
 };
 
 export const initialOwnerInfo = {
+	SEQ: 0,
 	DEBTOR_GB: '',
 	DEBTOR_NM: '',
 	DEBTOR_REG_NO: '',
@@ -127,6 +131,7 @@ export const initialOwnerInfo = {
 };
 
 export const initialOwnerInfo1 = {
+	SEQ: 1,
 	DEBTOR_GB: '',
 	DEBTOR_NM: '',
 	DEBTOR_REG_NO: '',
@@ -160,8 +165,8 @@ export const initialCarNoDetach = {
 	RECEIVE_YN: '',
 	RENT_SEND_YN: '',
 	RENT_RECEIVE_YN: '',
-	HOLE_YN: '',
-	SEAL_YN: ''
+	HOLE_YN: '02',
+	SEAL_YN: '02'
 };
 
 export const initialDsPaymentList = [
@@ -226,7 +231,7 @@ export const initialDsBaseList = [
 
 export const initialDsCarNoDetach = {
     SERVICE_ID: '',
-    WORK_CD: '',
+    WORK_CD: '010',
     NUMPLATE_GB: '',
     CAR_NO: '',
     POST_CAR_NO: '',
@@ -245,8 +250,8 @@ export const initialDsCarNoDetach = {
     CUSTOMER_NM: '',
     STATUS_SMS_NO: '',
     NUM_MEMO_TX: '',
-    HOLE_YN: '',
-    SEAL_YN: ''
+    HOLE_YN: '02',
+    SEAL_YN: '02'
 };
 
 // ===== 매핑 =====
@@ -303,6 +308,8 @@ export const newCarMap = {
 	BASE_POST_NO: 'BASE_POST_NO',
 	BASE_BUBJUNG_CD: 'BASE_BUBJUNG_CD',
 	RT_ACC_NO: 'RT_ACC_NO', // 사용본거지 도로명코드
+	ADDR_INFO: 'ADDR_INFO',
+	ADDR_INFO2: 'ADDR_INFO2',
 	
 	BASE_BRANCH_ID: 'BASE_BRANCH_ID',
 	OWNER_BRANCH_ID: 'OWNER_BRANCH_ID',
@@ -373,8 +380,7 @@ export const ownerMap = {
     DEBTOR_REG_NO: 'REG_NO',
     DEBTOR_BIZ_NO: 'BIZ_NO',
     DEBTOR_RATIO: 'DEBTOR_RATIO',
-    DEBTOR_TEL_NO: 'TEL_NO',
-    DEBTOR_MPHONE_NO: 'MPHONE_NO',
+    DEBTOR_TEL_NO: 'DSIGN_HP_NO',
     DEBTOR_ADDR: 'DEBTOR_ADDR',
     DEBTOR_ADDR_DT: 'DEBTOR_ADDR_DT',
     DEBTOR_ROAD_CD: 'DEBTOR_ROAD_CD',

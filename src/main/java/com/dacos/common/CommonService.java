@@ -17,7 +17,6 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.regex.Pattern;
 
 import javax.crypto.Cipher;
@@ -327,6 +326,7 @@ public class CommonService {
             }
             
 	        String sid = jSendData.path("SID").asText();
+	        logger.debug("SID : " + sid);
 				
 	        // 연계통신 타임아웃 별도 조회 및 설정
 			if (sid.startsWith("DL_")) {
@@ -446,15 +446,6 @@ public class CommonService {
                     
                     sSendData = sSendData.replace("&", "ø").replace("%", "‰").replace("+", "û");    
                     
-                    // 특정 캐피탈사(하나캐피탈) 영업시간 외 제한 처리
-                    if ("CB035".equals(jSendData.path("COMPANY_ID").asText())) {
-                        if ((iYoil < 2 || iYoil > 6 || (iTime < 8 || iTime >= 19)) && "N".equals(gsException)) {
-                            logger.debug("iYoil : " + iYoil + " / today : " + str + " / iTime : " + iTime + " / " + gsException);
-                            Thread.sleep(3000);
-                            throw new Exception(); 
-                        }
-                    }
-					
                     logger.info("[LINK] 관청 서버 전송 시작");
 					
 					try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(httpCon.getOutputStream(), StandardCharsets.UTF_8))) {
@@ -565,4 +556,6 @@ public class CommonService {
 	
 	    return result;
 	}
+	
+
 }

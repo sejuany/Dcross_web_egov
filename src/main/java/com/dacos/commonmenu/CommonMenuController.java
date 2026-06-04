@@ -108,4 +108,72 @@ public class CommonMenuController {
 
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
+
+    @PostMapping("/menu/favorites")
+    public ResponseEntity<Map<String, Object>> getFavoriteMenus(HttpSession session) {
+        logger.info("[CommonMenuController] 자주쓰는 메뉴 조회 요청");
+
+        UserDto user = (UserDto) session.getAttribute("user");
+
+        if (user == null) {
+            logger.warn("[CommonMenuController] 자주쓰는 메뉴 조회 실패 - 세션 사용자 없음");
+
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("success", false);
+            result.put("message", "로그인이 필요합니다.");
+
+            return ResponseEntity.status(401).body(result);
+        }
+
+        String favMenu = commonMenuService.getFavoriteMenu(user);
+
+        logger.info("[CommonMenuController] 자주쓰는 메뉴 조회 응답 - LOGIN_ID={}, FAV_MENU={}",
+                user.getLOGIN_ID(),
+                favMenu);
+
+        return ResponseEntity.ok(ApiResponse.withKey("favMenu", favMenu));
+    }
+
+    @PostMapping("/menu/favorites/save")
+    public ResponseEntity<Map<String, Object>> saveFavoriteMenus(
+            @RequestBody Map<String, Object> request,
+            HttpSession session
+    ) {
+        logger.info("[CommonMenuController] 자주쓰는 메뉴 저장 요청");
+
+        UserDto user = (UserDto) session.getAttribute("user");
+
+        if (user == null) {
+            logger.warn("[CommonMenuController] 자주쓰는 메뉴 저장 실패 - 세션 사용자 없음");
+
+            Map<String, Object> result = new java.util.HashMap<>();
+            result.put("success", false);
+            result.put("message", "로그인이 필요합니다.");
+
+            return ResponseEntity.status(401).body(result);
+        }
+
+        Object rawMenuIds = request.get("menuIds");
+        List<String> menuIds = new java.util.ArrayList<>();
+
+        if (rawMenuIds instanceof List<?>) {
+            for (Object rawMenuId : (List<?>) rawMenuIds) {
+                if (rawMenuId != null) {
+                    menuIds.add(String.valueOf(rawMenuId));
+                }
+            }
+        }
+
+        logger.info("[CommonMenuController] 자주쓰는 메뉴 저장 요청 데이터 - LOGIN_ID={}, REQUEST_MENU_IDS={}",
+                user.getLOGIN_ID(),
+                menuIds);
+
+        String favMenu = commonMenuService.saveFavoriteMenu(user, menuIds);
+
+        logger.info("[CommonMenuController] 자주쓰는 메뉴 저장 응답 - LOGIN_ID={}, FAV_MENU={}",
+                user.getLOGIN_ID(),
+                favMenu);
+
+        return ResponseEntity.ok(ApiResponse.withKey("favMenu", favMenu));
+    }
 }

@@ -396,33 +396,6 @@
 		     ORDER BY COMPANY_ID, TO_NUMBER(BRANCH_ID)
 	</select>
 
-    <!-- 회사별 화면 초기값 조회 -->
-    <select id="selectCompanyConfigList" parameterType="java.util.Map" resultType="java.util.HashMap">
-        SELECT
-            CONFIG_SEQ,
-            COMPANY_ID,
-            WORK_CD,
-            DATASET,
-            FIELD_ID,
-            RULE_TYPE,
-            RULE_VALUE,
-            COND_FIELD,
-            COND_VALUE,
-            ORDER_NO,
-            USE_YN,
-            REMARK
-        FROM TM_COMPANY_CONFIG
-        WHERE USE_YN = 'Y'
-          AND (
-                COMPANY_ID = 'ALL'
-                <if test="COMPANY_ID != null and COMPANY_ID != ''">
-                    OR COMPANY_ID = #{COMPANY_ID}
-                </if>
-              )
-          AND WORK_CD = #{WORK_CD}
-        ORDER BY COMPANY_ID ASC, ORDER_NO ASC, CONFIG_SEQ ASC
-    </select>
-
     <!-- 영업팀 목록 조회 -->
     <select id="getSangsaList"
             parameterType="com.dacos.company.dto.CompanySearchRequest"

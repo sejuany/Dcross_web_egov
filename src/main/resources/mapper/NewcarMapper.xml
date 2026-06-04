@@ -90,9 +90,18 @@
             AND TS.SERVICE_ID  = NL.SERVICE_ID(+)
             AND TN.SERVICE_ID  = PM.SERVICE_ID
             AND PM.PAY_KD      = 'ACQ'
-            AND TS.REQUEST_DT BETWEEN
-                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
-                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+			<choose>
+				<when test="DATE_CD == 'REGIST_DATE'">
+					AND TN.REGIST_DATE BETWEEN
+						TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+						AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+				</when>
+				<otherwise>
+		            AND TS.REQUEST_DT BETWEEN
+		                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+		                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+				</otherwise>
+			</choose>
 
         		<!-- 업무 구분 -->
 		<if test="WORK_CD != null and WORK_CD != ''">
@@ -523,6 +532,9 @@
 			<if test="OWNER_NM != null and OWNER_NM != ''">
 	            OWNER_NM = #{OWNER_NM},
 			</if>
+			<if test="RATIO_NO != null and RATIO_NO != ''">
+			    RATIO_NO = #{RATIO_NO},
+			</if>
 			<if test="OWNER_BRANCH_ID != null and OWNER_BRANCH_ID != ''">
 	            OWNER_BRANCH_ID = #{OWNER_BRANCH_ID},
 			</if>
@@ -558,6 +570,12 @@
 			</if>
 			<if test="BASE_ADDRESS_DT != null and BASE_ADDRESS_DT != ''">
 	            BASE_ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{BASE_ADDRESS_DT}),
+			</if>
+			<if test="ADDR_INFO != null and ADDR_INFO != ''">
+			    ADDR_INFO = PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}),
+			</if>
+			<if test="ADDR_INFO2 != null and ADDR_INFO2 != ''">
+			    ADDR_INFO2 = PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}),
 			</if>
 			<if test="TEL_NO != null and TEL_NO != ''">
 	            TEL_NO = PKG_COMMON.FN_ENCRYPT(#{TEL_NO}),

@@ -86,4 +86,20 @@ public class CodeController {
         List<Map<String, Object>> companies = codeService.getCompanyList(workCd, govtId, companyId);
         return ResponseEntity.ok(ApiResponse.withKey("list", companies));
     }
+    
+    @PostMapping("/codes/detail-list")
+    public ResponseEntity<Map<String, Object>> getCodeDetailList(@RequestBody Map<String, Object> param) {
+        @SuppressWarnings("unchecked")
+        List<String> groupIds = (List<String>) param.get("groupIds");
+
+        logger.info("[CodeController] 코드 다건 상세 조회 요청 - {}", groupIds);
+
+        Map<String, List<Map<String, Object>>> codes = codeService.getCodeDetailList(groupIds);
+
+        Map<String, Object> result = new java.util.HashMap<>();
+        result.put("success", true);
+        result.put("codes", codes);
+
+        return ResponseEntity.ok(result);
+    }
 }

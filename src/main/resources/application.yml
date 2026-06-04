@@ -1,6 +1,11 @@
 server:
   port: 8081
   forward-headers-strategy: framework
+  servlet:
+    encoding:
+      charset: UTF-8
+      enabled: true
+      force: true
 
 logging:
   level:

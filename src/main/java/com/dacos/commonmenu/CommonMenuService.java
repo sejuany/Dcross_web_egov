@@ -2,14 +2,15 @@ package com.dacos.commonmenu;
 
 import java.util.List;
 import java.util.Map;
+import java.util.LinkedHashSet;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import com.dacos.addservice.dto.AddServiceDto;
-import com.dacos.addservice.dto.AddServiceSearchRequest;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.commonmenu.dto.CommonMenuSearchRequest;
 import com.dacos.commonmenu.mapper.CommonMenuMapper;
@@ -81,7 +82,6 @@ public class CommonMenuService {
         String companyId = nvl(user.getCOMPANY_ID());
 
         List<Map<String, Object>> visibleMenus = new java.util.ArrayList<>();
-
         for (Map<String, Object> menu : allMenus) {
             if (isVisibleMenu(menu, userAuth, companyId, userWorkAuthList)) {
                 visibleMenus.add(menu);
@@ -89,6 +89,96 @@ public class CommonMenuService {
         }
 
         return visibleMenus;
+    }
+
+    public String getFavoriteMenu(UserDto user) {
+        CommonMenuSearchRequest request = new CommonMenuSearchRequest();
+        request.setLOGIN_ID(user.getLOGIN_ID());
+
+        String favMenu = nvl(commonMenuMapper.selectFavoriteMenu(request));
+
+        logger.info("[CommonMenuService] 자주쓰는 메뉴 DB 조회 완료 - LOGIN_ID={}, FAV_MENU={}",
+                user.getLOGIN_ID(),
+                favMenu);
+
+        return favMenu;
+    }
+
+    public String saveFavoriteMenu(UserDto user, List<String> menuIds) {
+        logger.info("[CommonMenuService] 자주쓰는 메뉴 저장 시작 - LOGIN_ID={}, REQUEST_MENU_IDS={}",
+                user.getLOGIN_ID(),
+                menuIds);
+
+        List<Map<String, Object>> authorizedMenus = getMyMenus(user);
+
+        Set<String> allowedMenuIds = authorizedMenus.stream()
+                .filter(menu -> !"disabled".equals(getMapValue(menu, "FILENAME")))
+                .filter(menu -> !getMapValue(menu, "WEBPATH").isEmpty())
+                .map(menu -> getMapValue(menu, "ID"))
+                .filter(id -> !id.isEmpty())
+                .collect(Collectors.toCollection(LinkedHashSet::new));
+
+        logger.info("[CommonMenuService] 자주쓰는 메뉴 권한 후보 산출 - LOGIN_ID={}, AUTHORIZED_COUNT={}, ALLOWED_MENU_IDS={}",
+                user.getLOGIN_ID(),
+                authorizedMenus.size(),
+                allowedMenuIds);
+
+        LinkedHashSet<String> selected = new LinkedHashSet<>();
+        LinkedHashSet<String> rejected = new LinkedHashSet<>();
+
+        if (menuIds != null) {
+            for (String menuId : menuIds) {
+                String id = nvl(menuId);
+
+                if (id.isEmpty()) {
+                    logger.info("[CommonMenuService] 자주쓰는 메뉴 저장 제외 - LOGIN_ID={}, MENU_ID={}, REASON=EMPTY_MENU_ID",
+                            user.getLOGIN_ID(),
+                            menuId);
+                    continue;
+                }
+
+                if (!id.isEmpty() && allowedMenuIds.contains(id)) {
+                    selected.add(id);
+                } else {
+                    rejected.add(id);
+                    logger.info("[CommonMenuService] 자주쓰는 메뉴 저장 제외 - LOGIN_ID={}, MENU_ID={}, REASON=NOT_IN_AUTHORIZED_MENU",
+                            user.getLOGIN_ID(),
+                            id);
+                }
+
+                if (selected.size() >= 10) {
+                    logger.info("[CommonMenuService] 자주쓰는 메뉴 최대 선택 수 도달 - LOGIN_ID={}, LIMIT=10, SELECTED_MENU_IDS={}",
+                            user.getLOGIN_ID(),
+                            selected);
+                    break;
+                }
+            }
+        }
+
+        String favMenu = String.join(",", selected);
+
+        logger.info("[CommonMenuService] 자주쓰는 메뉴 저장 대상 확정 - LOGIN_ID={}, SELECTED_MENU_IDS={}, REJECTED_MENU_IDS={}, FAV_MENU={}",
+                user.getLOGIN_ID(),
+                selected,
+                rejected,
+                favMenu);
+
+        CommonMenuSearchRequest request = new CommonMenuSearchRequest();
+        request.setLOGIN_ID(user.getLOGIN_ID());
+        request.setMEMBER_ID(user.getLOGIN_ID());
+        request.setCOMPANY_ID(user.getCOMPANY_ID());
+        request.setFAV_MENU(favMenu);
+        request.setINS_USER(user.getLOGIN_ID());
+        request.setUPD_USER(user.getLOGIN_ID());
+
+        commonMenuMapper.mergeFavoriteMenu(request);
+
+        logger.info("[CommonMenuService] 자주쓰는 메뉴 DB 저장 완료 - LOGIN_ID={}, COMPANY_ID={}, FAV_MENU={}",
+                user.getLOGIN_ID(),
+                user.getCOMPANY_ID(),
+                favMenu);
+
+        return favMenu;
     }
     
     private String getMapValue(Map<String, Object> map, String key) {

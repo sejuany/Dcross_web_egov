@@ -1,8 +1,142 @@
 // console.log 단축용 로그 함수
 export const log = (...args) => console.log(...args);
 
+let commonPopupHandler = null;
+const commonPopupQueue = [];
+let commonPopupRunning = false;
+
+const runCommonPopupQueue = async () => {
+    if (commonPopupRunning) {
+        return;
+    }
+
+    if (commonPopupQueue.length === 0) {
+        return;
+    }
+
+    const job = commonPopupQueue.shift();
+
+    if (!commonPopupHandler) {
+        console.error('[공통팝업] CommonPopupProvider가 등록되지 않았습니다.');
+        job.reject(new Error('CommonPopupProvider가 등록되지 않았습니다.'));
+        runCommonPopupQueue();
+        return;
+    }
+
+    commonPopupRunning = true;
+
+    try {
+        const result = await commonPopupHandler(job.options);
+        job.resolve(result);
+    } catch (error) {
+        job.reject(error);
+    } finally {
+        commonPopupRunning = false;
+        runCommonPopupQueue();
+    }
+};
+
+export const commonPopup = {
+    bind(handler) {
+        commonPopupHandler = handler;
+    },
+
+    unbind() {
+        commonPopupHandler = null;
+    },
+
+    open(options) {
+        return new Promise((resolve, reject) => {
+            commonPopupQueue.push({
+                options,
+                resolve,
+                reject,
+            });
+
+            runCommonPopupQueue();
+        });
+    },
+};
+
+const SPECIAL_COMPANY_CACHE_KEY = 'SPECIAL_COMPANY_IDS';
+
+let specialCompanyIdsCache = null;
+
+const parsePipeCompanyIds = (value) => {
+    return String(value || '')
+        .split('|')
+        .map(item => item.trim())
+        .filter(item => item !== '');
+};
+
 export const gf = {
 	
+	// 공통 알림 팝업
+	alert: (message, title = '알림', options = {}, callback) => {
+	    const promise = commonPopup.open({
+	        type: 'alert',
+	        title,
+	        message,
+	        okText: options.okText || '확인',
+	        width: options.width,
+	    }).then(() => {
+	        if (typeof callback === 'function') {
+	            callback();
+	        }
+
+	        return true;
+	    });
+
+	    return promise;
+	},
+
+	// 공통 확인 팝업
+	confirm: (message, title = '확인', options = {}, callback) => {
+	    const promise = commonPopup.open({
+	        type: 'confirm',
+	        title,
+	        message,
+	        okText: options.okText || '확인',
+	        cancelText: options.cancelText || '취소',
+	        width: options.width,
+	    }).then((result) => {
+	        const ok = result === true;
+
+	        if (typeof callback === 'function') {
+	            callback(ok);
+	        }
+
+	        return ok;
+	    });
+
+	    return promise;
+	},
+	
+	// 특수회원사 여부 확인
+	// GROUP_ID='TUSE', CODE_ID='SPCOM'
+	isSpecialCompany: async (companyId) => {
+		    const targetCompanyId = String(companyId || '').trim().toUpperCase();
+
+		    if (!targetCompanyId) {
+		        return false;
+		    }
+
+		    const codes = await gf.getCodeDetails(['TUSE']);
+		    const list = codes?.TUSE || [];
+
+		    const specialCode = list.find(item =>
+		        (item.CODE_ID || item.codeId || item.code_ID) === 'SPCOM'
+		    );
+
+		    const detailNm =
+		        specialCode?.DETAIL_NM ||
+		        specialCode?.detailNm ||
+		        specialCode?.detail_NM ||
+		        '';
+
+		    return String(detailNm || '').toUpperCase().includes(`|${targetCompanyId}|`);
+		},
+		
 	// 빈값 체크
     isEmpty: (data) => data === '' || data == null,
 
@@ -78,6 +212,26 @@ export const gf = {
 		
 	    return data.codes || {};
 	},
+	
+	// 공통 코드 상세 조회 - DETAIL_NM 포함
+	async getCodeDetails(groupIds = []) {
+
+	    const res = await fetch('/api/codes/detail-list', {
+	        method: 'POST',
+	        headers: {
+	            'Content-Type': 'application/json'
+	        },
+	        body: JSON.stringify({ groupIds })
+	    });
+
+	    const data = await res.json();
+
+	    if (!data.success) {
+	        return {};
+	    }
+
+	    return data.codes || {};
+	},
 
 	getCodeOptions(codes, groupId) {
 	    return codes?.[groupId] || [];
@@ -119,48 +273,6 @@ export const gf = {
 	    return newObj;
 	},
 	
-	// 데이터셋 초기화 공통
-	setInitData(setter, initialData, data, configList = [], datasetName = '') {
-
-	    // 리스트인 경우
-	    if (Array.isArray(initialData)) {
-	        setter(data?.length ? data : initialData);
-	        return;
-	    }
-
-	    // 객체 merge
-	    const merged = {
-	        ...initialData,
-	        ...data
-	    };
-
-	    // DEFAULT 적용
-	    configList.forEach(cfg => {
-
-	        // Dataset 다르면 제외
-	        if (cfg.DATASET !== datasetName) {
-	            return;
-	        }
-
-	        // DEFAULT만 처리
-	        if (cfg.RULE_TYPE !== 'DEFAULT') {
-	            return;
-	        }
-
-	        // 기존 값 없을 때만 기본값 세팅
-	        if (
-	            merged[cfg.FIELD_ID] === undefined ||
-	            merged[cfg.FIELD_ID] === null ||
-	            merged[cfg.FIELD_ID] === ''
-	        ) {
-	            merged[cfg.FIELD_ID] = cfg.RULE_VALUE;
-	        }
-	    });
-
-	    // 최종 적용
-	    setter(merged);
-	},
-	
 
 	// 전체 주소 넣고 조회하기 
 	createAddrParam(address) {
@@ -188,12 +300,12 @@ export const gf = {
 	    
 		// 도로명 패턴
 		const roadMatch = addr.match(
-	        /([가-힣0-9]+?(?:대로|로|길))([0-9]+(?:-[0-9]+)?)/,
+	        /([가-힣0-9]+(?:대로|로|길))([0-9]+(?:-[0-9]+)?)/
 	    );
 
 	    // 지번 패턴
 	    const jibunMatch = addr.match(
-	        /([가-힣0-9]+?(?:읍|면|동|리))([0-9]+(?:-[0-9]+)?)/,
+	        /([가-힣0-9]+(?:읍|면|동|리))([0-9]+(?:-[0-9]+)?)/
 	    );
 		
 
@@ -262,11 +374,8 @@ export const gf = {
 	        '전북특별자치도', '전라남도', '경상북도', '경상남도',
 	        '제주특별자치도', '강원도', '전라도', '경상도', '충청도',
 	        
-			'서울', '부산', '대구', '인천',
-	        '광주', '대전', '울산', '세종',
-	        '경기', '강원', '충북', '충남',
-	        '전북', '전남', '경북', '경남', 
-			'제주'
+			'서울', '부산', '대구', '인천', '광주', '대전', '울산'
+			// 나머지는 세종대로 같이 ㅇㅇ대로가 있어서 삭제함
 	    ];
 
 	    // 시/도 제거
