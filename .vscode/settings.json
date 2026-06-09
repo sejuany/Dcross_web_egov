@@ -1,0 +1,10 @@
+{
+    "java.configuration.updateBuildConfiguration": "automatic",
+    "java.compile.nullAnalysis.mode": "automatic",
+    "terminal.integrated.defaultProfile.windows": "PowerShell",
+    "terminal.integrated.env.windows": {
+    "LANG": "ko_KR.UTF-8"
+    },
+    "terminal.integrated.fontFamily": "Consolas, 'Malgun Gothic', 'D2Coding'"
+    
+}

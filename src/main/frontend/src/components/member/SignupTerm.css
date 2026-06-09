@@ -1,0 +1,190 @@
+:root {
+    /* Login.css의 변수 활용 */
+    --primary-blue: #1c3553;
+    --accent-blue: #2c4a6e;
+}
+
+/* 전체 컨테이너: 화면 중앙에 꽉 차는 느낌으로 확장 */
+.term-wrapper {
+    width: 900px; 
+    height: 90vh; /* 브라우저 높이에 맞춰 확장 */
+    margin: 20px auto;
+    background: #ffffff;
+    border: 1px solid #cbd5e0;
+    padding: 30px;
+    display: flex;
+    flex-direction: column;
+    font-family: 'Malgun Gothic', sans-serif;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+/* 헤더 영역 */
+.term-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid var(--primary-blue);
+    padding-bottom: 12px;
+    margin-bottom: 20px;
+}
+
+.term-header h3 {
+    font-size: 1.25rem;
+    color: #1a202c;
+    display: flex;
+    align-items: center;
+}
+
+.bullet {
+    display: inline-block;
+    width: 12px;
+    height: 12px;
+    background: var(--primary-blue);
+    margin-right: 10px;
+}
+
+.btn-close {
+    padding: 6px 14px;
+    background: #718096;
+    color: white;
+    border: none;
+    cursor: pointer;
+    font-size: 0.85rem;
+    border-radius: 2px;
+}
+
+/* 본문 스크롤 영역: flex-1로 남는 공간을 모두 채움 */
+.term-content {
+    flex: 1;
+    overflow-y: auto;
+    padding-right: 15px;
+    margin-bottom: 20px;
+}
+
+/* 섹션 타이틀 및 체크박스 */
+.term-section {
+    margin-bottom: 30px;
+}
+
+.section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    font-weight: bold;
+    font-size: 1rem;
+    margin-bottom: 10px;
+    color: #2d3748;
+}
+
+/* 텍스트 박스: 가독성 높인 줄간격 */
+.term-box {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    padding: 18px;
+    font-size: 0.92rem;
+    line-height: 1.8;
+    color: #4a5568;
+    margin-bottom: 15px;
+    min-height: 80px;
+    word-break: keep-all; /* 한글 줄바꿈을 단어 단위로 깔끔하게 */
+}
+
+/* 그리드(테이블): 컨테이너에 꽉 차도록 설정 */
+.term-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    table-layout: fixed; /* 열 너비 고정 */
+}
+
+.term-table th {
+    background: #edf2f7;
+    border: 1px solid #cbd5e0;
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    font-weight: bold;
+    text-align: center; /* 가로 중앙 정렬 */
+    vertical-align: middle; /* 세로 중앙 정렬 */
+    color: var(--primary-blue);
+}
+
+.term-table td {
+    border: 1px solid #cbd5e0;
+    padding: 12px 8px;
+    font-size: 0.85rem;
+    text-align: center; /* 데이터 가로 중앙 정렬 */
+    vertical-align: middle; /* 데이터 세로 중앙 정렬 */
+    background: white;
+    line-height: 1.5;
+    word-break: keep-all; /* 줄바꿈 시 단어가 잘리지 않게 함 */
+}
+
+/* 강조 텍스트 */
+.text-red { color: #e53e3e; font-weight: bold; }
+.text-blue { color: #3182ce; font-weight: bold; }
+
+.check-label {
+    font-size: 0.9rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+/* 푸터 영역 */
+.term-footer {
+    border-top: 1px solid #e2e8f0;
+    padding-top: 20px;
+}
+
+.term-footer p {
+    font-size: 0.85rem;
+    color: #718096;
+    margin-bottom: 20px;
+    line-height: 1.6;
+}
+
+.footer-controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.all-check {
+    font-weight: bold;
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+/* 다음 버튼: Login.css 스타일 계승 */
+.btn-next {
+    padding: 12px 50px;
+    background-color: var(--primary-blue);
+    color: white;
+    border: none;
+    border-radius: 6px;
+    font-size: 1.1rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+}
+
+.btn-next:hover {
+    background-color: var(--accent-blue);
+    transform: translateY(-1px);
+}
+
+/* 스크롤바 디자인 (크롬/사파리) */
+.term-content::-webkit-scrollbar {
+    width: 8px;
+}
+.term-content::-webkit-scrollbar-thumb {
+    background: #cbd5e0;
+    border-radius: 4px;
+}
+.term-content::-webkit-scrollbar-track {
+    background: #f7fafc;
+}

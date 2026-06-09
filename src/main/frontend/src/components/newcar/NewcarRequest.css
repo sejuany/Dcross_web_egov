@@ -1,0 +1,932 @@
+.new-reg-container {
+    background-color: #fff;
+    font-family: 'Malgun Gothic', 'Dotum', sans-serif;
+    color: #333;
+    padding: 0px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Unified Toolbar */
+.erp-toolbar {
+    background: linear-gradient(to bottom, #3c638d, #2f557d);
+    border-bottom: 1px solid #294868;
+    padding: 2px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    flex: 0 0 auto;
+    min-height: 28px;
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.toolbar-title {
+    font-size: 15px;
+    font-weight: bold;
+    margin-right: 20px;
+    color: #fff;
+}
+
+/* ERP Form Sections */
+.erp-section {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    padding: 0px;
+    margin-bottom: 3px;
+    flex: 0 0 auto;
+}
+
+.header-info {
+    background-color: #f1f3f6;
+}
+
+.erp-section-title {
+    background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sub-section-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #2b4b7c;
+    margin: 8px 0 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Grid Layout */
+.erp-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    background-color: #ced4da;
+}
+
+.erp-row {
+    background-color: #fff;
+    display: flex;
+    min-height: 28px;
+    align-items: stretch;
+}
+
+@media (max-width: 1280px) {
+    .erp-row {
+        min-height: 24px;
+    }
+}
+
+.erp-row:not(:last-child) {
+    border-bottom: 1px solid #ced4da;
+}
+
+/* 12-Column Grid System */
+.erp-row>.field-group {
+    border-right: 1px solid #ced4da;
+}
+
+.erp-row>.field-group:last-child {
+    border-right: none;
+}
+
+.col-1 {
+    flex: 0 0 8.333333%;
+}
+
+.col-2 {
+    flex: 0 0 16.666667%;
+}
+
+.col-3 {
+    flex: 0 0 25%;
+}
+
+.col-4 {
+    flex: 0 0 33.333333%;
+}
+
+.col-5 {
+    flex: 0 0 41.666667%;
+}
+
+.col-6 {
+    flex: 0 0 50%;
+}
+
+.col-7 {
+    flex: 0 0 58.333333%;
+}
+
+.col-8 {
+    flex: 0 0 66.666667%;
+}
+
+.col-9 {
+    flex: 0 0 75%;
+}
+
+.col-10 {
+    flex: 0 0 83.333333%;
+}
+
+.col-11 {
+    flex: 0 0 91.666667%;
+}
+
+.col-12 {
+    flex: 0 0 100%;
+}
+
+.field-group {
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    min-width: 0;
+}
+
+/* 테이블 첫번째 th 크기 맞추기 */
+.erp-grid .erp-label {
+    min-width: 120px;
+}
+
+
+.erp-input:focus {
+    outline: 1px solid #4dabf7;
+    border-color: #4dabf7;
+}
+
+.erp-input.disabled {
+    background-color: #f8f9fa;
+    color: #868e96;
+    border-color: #dee2e6;
+}
+
+.erp-input.highlight-red {
+    border: 1px solid #fa5252;
+    background-color: #fff5f5;
+}
+
+.erp-input.highlight-yellow {
+    background-color: #fff9db;
+    border-color: #fab005;
+}
+
+.erp-input.highlight-blue {
+    background-color: #e7f5ff;
+    border-color: #339af0;
+    color: #1971c2;
+    font-weight: bold;
+}
+
+/* Buttons */
+.btn-erp {
+    height: 22px;
+    padding: 0 9px;
+    font-size: 13px;
+    border-radius: 3px;
+    border: 1px solid #2e5b8d;
+    background: linear-gradient(to bottom, #4a7db6, #35679e);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s ease;
+
+    /* 버튼 글씨 가운데 정렬*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-erp:hover {
+    background: linear-gradient(to bottom, #5a8dc6, #4174ad);
+    transform: translateY(-1px);
+}
+
+/* Labels and Inputs */
+.erp-label {
+    background-color: #f1f3f6;
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-size: 13px;
+    color: #495057;
+    border-right: 1px solid #ced4da;
+    flex-shrink: 0;
+    font-weight: 500;
+    min-width: 65px;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
+    /* 작은 해상도에서도 라벨이 너무 찌그러지는 것 방지 */
+}
+
+.erp-label.align-right {
+    justify-content: flex-end;
+    padding-right: 10px;
+}
+
+.erp-label.req::before {
+    content: '* ';
+    color: #e03131;
+    font-weight: bold;
+}
+
+input.erp-input,
+textarea.erp-input {
+    appearance: auto;
+    height: 28px !important;
+    background-image: none;
+    cursor: text;
+    font-size: 14px;
+}
+
+.erp-input {
+    height: 28px !important;
+    border: 1px solid #a3a3a3;
+    padding: 0 4px;
+    font-size: 15px;
+    text-align: center;
+    margin: 1px;
+    flex: 1;
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* readonly */
+input.erp-input:read-only,
+textarea.erp-input:read-only {
+    background-color: #ebeff2 !important;
+    color: #868e96;
+    border-color: #ced4da;
+    cursor: not-allowed;
+}
+
+/* disabled */
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled {
+    background-color: #ebeff2 !important;
+    color: #868e96;
+    border-color: #ced4da;
+    cursor: not-allowed;
+}
+
+/* hover */
+input.erp-input:read-only:hover,
+textarea.erp-input:read-only:hover,
+input.erp-input:disabled:hover,
+textarea.erp-input:disabled:hover,
+select.erp-input:disabled:hover {
+    cursor: not-allowed;
+}
+
+/* 메모 영역*/
+.erp-input.erp-textArea {
+    height: 200px !important;
+    text-align: left;
+}
+
+/* 1280px Optimization for Inputs and Labels */
+@media (max-width: 1280px) {
+    .erp-label {
+        font-size: 15px;
+        padding: 0 2px;
+        min-width: 50px;
+        letter-spacing: -0.3px;
+    }
+}
+
+@media (max-width: 1280px) {
+    .erp-input {
+        font-size: 15px;
+        padding: 0 1px;
+        margin: 1px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    input[type="date"].erp-input {
+        font-size: 13px;
+        padding: 0;
+        letter-spacing: -1px;
+    }
+
+    select.erp-input {
+        padding-left: 1px;
+        padding-right: 12px;
+        text-overflow: ellipsis;
+        appearance: none;
+        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
+        background-repeat: no-repeat;
+        background-position: right 2px center;
+        background-size: 10px;
+    }
+}
+
+.flex-grow {
+    flex: 1;
+}
+
+.flex-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.flex-row span,
+.flex-row label {
+    margin-left: 10px;
+}
+
+.value-red {
+    color: #e03131;
+    font-weight: bold;
+}
+
+.value-black {
+    color: #333;
+    font-weight: 500;
+}
+
+@media (max-width: 1280px) {
+
+    .value-red,
+    .value-black {
+        font-size: 13px;
+    }
+}
+
+.text-right {
+    text-align: right;
+    justify-content: flex-end;
+}
+
+/* 1280px Optimization for Buttons */
+@media (max-width: 1280px) {
+    .btn-erp {
+        height: 20px;
+        padding: 0 4px;
+        font-size: 12px;
+    }
+}
+
+.btn-erp.light {
+    background: linear-gradient(to bottom, #ffffff, #eef4fb);
+    border-color: #aebfd3;
+    color: #24496f;
+}
+
+
+/* disabled */
+.btn-erp:disabled,
+.btn-erp.light:disabled {
+    background: linear-gradient(to bottom, #dbe3ec, #c8d4e1);
+    border: 1px solid #a8b8ca;
+    color: #5a6b7d;
+    cursor: not-allowed;
+    opacity: 1;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* disabled hover 막기 */
+.btn-erp:disabled:hover,
+.btn-erp.light:disabled:hover {
+    background: linear-gradient(to bottom, #dbe3ec, #c8d4e1);
+    border-color: #a8b8ca;
+    color: #5a6b7d;
+    transform: none;
+}
+
+.btn-erp.dark {
+    background: linear-gradient(to bottom, #647c98, #50657d);
+    border-color: #405364;
+}
+
+.btn-erp.grey {
+    background: linear-gradient(to bottom, #f7f9fc, #e7eef7);
+    border-color: #c2cfdd;
+    color: #35506d;
+}
+
+/* small */
+.btn-erp.sm {
+    padding: 0 8px;
+    font-size: 12px;
+    min-width: 52px;
+}
+
+/* medium */
+.btn-erp.md {
+    padding: 0 14px;
+    font-size: 13px;
+}
+
+/* large */
+.btn-erp.lg {
+    padding: 0 24px;
+    font-size: 13px;
+}
+
+/* Vehicle Table-like Grid */
+.erp-table-like-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-row {
+    display: flex;
+    background-color: #fff;
+    min-height: 26px;
+}
+
+.grid-label {
+    background-color: #f1f3f6;
+    border-right: 1px solid #ced4da;
+    border-left: 1px solid #ced4da;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+    justify-content: center;
+}
+
+.grid-value {
+    padding: 0 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #ced4da;
+}
+
+.highlight-red-text {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+.text-right {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.info-txt {
+    font-size: 12px;
+    color: #2b4b7c;
+    margin-left: 10px;
+}
+
+/* 결제정보 그리드 ========================== */
+/* 헤더 가운데 정렬 */
+.ag-theme-alpine .ag-header-cell-label {
+    justify-content: center;
+}
+
+.ag-header-cell-text {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.ag-header-cell-resize {
+    opacity: 0;
+    /* 안 보이게 */
+    width: 8px;
+    /* 영역은 유지 */
+    cursor: col-resize;
+    /* 커서는 유지 */
+}
+
+.ag-theme-alpine .ag-cell {
+    font-size: 13px
+}
+
+/* 셀 가운데 정렬 */
+.ag-theme-alpine .ag-center-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 셀 왼쪽 정렬 */
+.ag-theme-alpine .ag-right-cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* 짝수 행만 색깔 칠하기 */
+.ag-theme-alpine .ag-center-cols-container .ag-row:nth-child(even) .ag-cell {
+    background-color: #f5f6f8;
+}
+
+/* ===================================== */
+
+/* Tabs */
+.tab-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 6px;
+    min-height: 0;
+}
+
+.tab-header-list {
+    display: flex;
+    gap: 1px;
+    flex: 0 0 auto;
+}
+
+.tab-btn {
+    padding: 4px 18px;
+    border: 1px solid #ced4da;
+    border-bottom: none;
+    background-color: #e9ecef;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+}
+
+/* 1280px Optimization for Tabs */
+@media (max-width: 1280px) {
+    .tab-btn {
+        padding: 4px 12px;
+        font-size: 12px;
+    }
+}
+
+.tab-btn.active {
+    background-color: #fff;
+    border-top: 2px solid #007bff;
+    font-weight: bold;
+}
+
+.tab-content {
+    flex: 1;
+    border: 1px solid #ced4da;
+    padding: 4px;
+    min-height: 0;
+    overflow: auto;
+    background-color: #f7f9fc;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tab-content .erp-row {
+    min-height: 26px;
+}
+
+.tab-content .erp-input {
+    height: 25px !important;
+    margin: 1px;
+    padding: 0 4px;
+    font-size: 13px;
+}
+
+.tab-content .btn-erp.sm,
+.tab-content .btn-erp.md {
+    height: 22px;
+    min-width: 52px;
+    padding: 0 6px;
+}
+
+.tab-content .erp-section:last-child {
+    margin-bottom: 0;
+}
+
+.owner-info-section,
+.delivery-info-section,
+.payment-info-section {
+    order: 1;
+    flex: 0 0 auto;
+}
+
+.fixed-reg-info-section {
+    order: 2;
+    flex: 0 0 auto;
+}
+
+.owner-split-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px;
+    align-items: stretch;
+}
+
+.owner-panel {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.owner-panel .erp-row {
+    flex-wrap: wrap;
+}
+
+.owner-panel .erp-label {
+    width: 96px !important;
+    min-width: 96px;
+    padding: 0 4px;
+    font-size: 12px;
+}
+
+.owner-panel .col-9,
+.owner-panel .col-12 {
+    flex: 0 0 100%;
+}
+
+.owner-main-panel .erp-grid>.erp-row:first-child .col-3 {
+    flex: 0 0 25%;
+}
+
+.owner-main-panel .erp-grid>.erp-row:first-child .erp-label {
+    width: 86px !important;
+    min-width: 86px;
+}
+
+.owner-panel .btn-erp.sm {
+    margin-left: 2px !important;
+}
+
+.owner-split-layout .erp-section-title,
+.fixed-reg-info-section .erp-section-title {
+    background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.fixed-reg-info-section .erp-label {
+    width: 105px !important;
+    min-width: 105px;
+    padding: 0 4px;
+    font-size: 12px;
+}
+
+.fixed-reg-info-section .erp-textArea {
+    height: 48px !important;
+}
+
+@media (max-width: 1280px) {
+    .owner-split-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .owner-split-layout .erp-section-title,
+    .fixed-reg-info-section .erp-section-title {
+        font-size: 16px;
+    }
+}
+
+#ADDRESS,
+#BASE_ADDRESS,
+#DELIVERY_ADDR,
+input[name="CARP_ADDRESS"] {
+    flex: 1 1 180px;
+    text-align: left;
+}
+
+#ADDRESS_DT,
+#BASE_ADDRESS_DT,
+#DELIVERY_ADDR_DT,
+input[name="CARP_ADDRESS_DT"] {
+    flex: 0 1 170px;
+    width: auto !important;
+    min-width: 100px;
+}
+
+input[name="CARP_POST_NO"] {
+    flex: 0 0 82px;
+}
+
+@media (max-width: 1100px) {
+    .tab-content {
+        padding: 6px;
+    }
+
+    #ADDRESS_DT,
+    #BASE_ADDRESS_DT,
+    #DELIVERY_ADDR_DT,
+    input[name="CARP_ADDRESS_DT"] {
+        flex-basis: 180px;
+    }
+}
+
+/* Helpers */
+.w-50 {
+    width: 50px;
+}
+
+.w-80 {
+    width: 80px;
+}
+
+.w-100 {
+    width: 100px;
+}
+
+.w-120 {
+    width: 120px;
+}
+
+.w-150 {
+    width: 150px;
+}
+
+.w-180 {
+    width: 180px;
+}
+
+.w-250 {
+    width: 250px;
+}
+
+.w-300 {
+    width: 300px;
+}
+
+.w-350 {
+    width: 350px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.ml-10 {
+    margin-left: 10px;
+}
+
+.mr-10 {
+    margin-right: 10px;
+}
+
+.border-top {
+    border-top: 1px solid #ced4da;
+}
+
+.chk-label {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.text-left {
+    text-align: left;
+    padding-left: 10px;
+}
+
+/* flex 일 때 좌측정렬 */
+.f-left {
+    justify-content: flex-start;
+}
+
+/* Estimate Modal Styling */
+.estimate-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.estimate-modal-container {
+    width: 500px;
+    max-width: 90vw;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid #ced4da;
+}
+
+.estimate-modal-header {
+    background: linear-gradient(to bottom, #3c638d, #2f557d);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #294868;
+}
+
+.estimate-modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.estimate-modal-close-btn {
+    border: 0;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+}
+
+.estimate-modal-close-btn:hover {
+    opacity: 1;
+}
+
+.estimate-modal-body {
+    padding: 16px;
+    font-size: 13px;
+    background-color: #fff;
+}
+
+.estimate-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    border: 1px solid #ced4da;
+}
+
+.estimate-table th, .estimate-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ced4da;
+    font-size: 13px;
+}
+
+.estimate-table th {
+    background-color: #f1f3f6;
+    text-align: left;
+    font-weight: bold;
+    color: #495057;
+    width: 150px;
+    border-right: 1px solid #ced4da;
+}
+
+.estimate-table td {
+    text-align: right;
+    color: #333;
+}
+
+.estimate-table tr.total-row th,
+.estimate-table tr.total-row td {
+    background-color: #e7f5ff;
+    font-weight: bold;
+    color: #1971c2;
+    border-bottom: 2px solid #339af0;
+}
+
+.estimate-notice {
+    background-color: #fff9db;
+    border: 1px solid #fab005;
+    border-radius: 4px;
+    padding: 12px;
+    color: #664d03;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    word-break: keep-all;
+    text-align: left;
+}
+
+.estimate-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px 16px;
+    background-color: #f1f3f6;
+    border-top: 1px solid #ced4da;
+}
+
+.estimate-modal-footer .btn-erp {
+    min-width: 70px;
+    height: 24px;
+}

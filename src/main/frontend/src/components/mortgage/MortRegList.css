@@ -1,0 +1,94 @@
+/* MortRegList.css */
+.status-container {
+    background-color: #f0f0f0;
+    font-family: 'Malgun Gothic', 'Dotum', sans-serif;
+    color: #333;
+    padding: 2px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+.status-toolbar {
+    background: #4a6a8a;
+    padding: 4px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #334a62;
+    color: #fff;
+    margin-bottom: 2px;
+}
+
+.toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.title-count {
+    color: #ff6b6b;
+    font-weight: bold;
+    margin: 0 5px;
+}
+
+.btn-status {
+    height: 24px;
+    padding: 0 10px;
+    font-size: 13px;
+    border: 1px solid #7a8fa6;
+    background-color: #d1dce8;
+    color: #334e68;
+    cursor: pointer;
+    border-radius: 2px;
+    font-weight: bold;
+}
+
+.btn-status.grey {
+    background-color: #e0e0e0;
+}
+
+.btn-status:hover {
+    background-color: #adb9c9;
+}
+
+.grid-container {
+    flex: 1;
+    border: 1px solid #999;
+}
+
+/* AG-Grid Theme Customization */
+.ag-theme-alpine {
+    --ag-header-background-color: #5c7591;
+    --ag-header-foreground-color: #fff;
+    --ag-header-column-separator-color: #fff;
+    --ag-row-border-color: #ccc;
+    --ag-font-size: 13px;
+}
+
+.ag-theme-alpine .bg-pink {
+    background-color: #ffccda !important;
+}
+
+.ag-theme-alpine .bg-mint {
+    background-color: #9fe6d4 !important;
+}
+
+.ag-theme-alpine .text-center {
+    justify-content: center !important;
+    text-align: center;
+}
+
+/** Toast Notifications */
+.toast-notification {
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 15px 30px;
+    border-radius: 8px;
+    z-index: 9999;
+}

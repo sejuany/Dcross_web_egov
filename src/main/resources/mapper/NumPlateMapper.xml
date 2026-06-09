@@ -1,0 +1,289 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.numplate.mapper.NumPlateMapper">
+
+    <!-- 번호판 목록 조회 -->
+    <select id="getNumPlateList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+       SELECT TM.CAR_NO, TM.NUM_KIND, TM.USE_YN, NC.CARID_NO,
+               TO_CHAR(TM.INPUT_DT, 'YYYY-MM-DD') as INPUT_DT, TO_CHAR(TM.USE_DT, 'MM-DD HH24:MI') as USE_DT, TM.SERVICE_ID, 
+               TM.PROC_ST, TM.INS_USER, TM.INS_DATE, 
+               TM.UPD_USER, TM.UPD_DATE, TM.GOVT_ID,
+		        CD.DELIVERY_GB, CD.RECEIVE_NM, PKG_COMMON.FN_DECRYPT(CD.RECEIVE_TEL_NO) AS RECEIVE_TEL_NO, NC.IMSINUM_YN, TM.HOLE_YN, 
+		        PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) || ' ' || PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR_DT) as DELIVERY_ADDR, NVL2(CD.RECEIVE_TEL_NO, PKG_COMMON.FN_DECRYPT(CD.RECEIVE_TEL_NO) || ',', '') || PKG_COMMON.FN_DECRYPT(CD.STATUS_SMS_NO) as SMS_NO, CD.CUSTOMER_NM, NC.CAR_NM, PKG_COMMON.FN_DECRYPT(CD.STATUS_SMS_NO) AS STATUS_SMS_NO,
+		       CD.INSTALL_NM, PKG_COMMON.FN_DECRYPT(CD.INSTALL_TEL_NO) AS INSTALL_TEL_NO, CD.INSTALL_DT, CD.INSTALL_TM,
+		       (SELECT SERIAL_NO FROM (SELECT CP.SERVICE_ID, SERIAL_NO FROM TR_CAR_PAPER CP, TM_NUMPLATE_LIST TM WHERE CP.SERVICE_ID = TM.SERVICE_ID ORDER BY PRINT_DT DESC) CPP WHERE CPP.SERVICE_ID = TM.SERVICE_ID AND ROWNUM = 1) as SERIAL_NO,
+		       TM.SPECIAL_YN, TM.ASSIGN_CD, TM.SEAL_YN, TO_CHAR(TM.MAKE_DT, 'YYYY-MM-DD') as MAKE_DT
+        FROM TM_NUMPLATE_LIST TM
+        LEFT OUTER JOIN TR_SERVICE TR
+        ON TM.SERVICE_ID = TR.SERVICE_ID
+    	LEFT OUTER JOIN
+        TR_CARNO_DETACH CD
+            ON TM.SERVICE_ID = CD.SERVICE_ID  
+        LEFT OUTER JOIN
+        TR_NEWCAR NC
+            ON TM.SERVICE_ID = NC.SERVICE_ID
+        WHERE 1=1
+        <if test="DATE_CD == 'INPUT_DT'">
+            AND TO_CHAR(TM.INPUT_DT, 'YYYYMMDD') BETWEEN #{START_DT} AND #{END_DT}
+        </if>
+        <if test="DATE_CD == 'USE_DT'">
+            AND TO_CHAR(TM.USE_DT, 'YYYYMMDD') BETWEEN #{START_DT} AND #{END_DT}
+        </if>
+        <if test="DATE_CD == 'MAKE_DT'">
+            AND TO_CHAR(TM.MAKE_DT, 'YYYYMMDD') BETWEEN #{START_DT} AND #{END_DT}
+        </if>
+        <if test="SERVICE_ID != null and SERVICE_ID != ''">
+            AND TR.SERVICE_ID = #{SERVICE_ID}
+        </if>
+        <if test="GOVT_ID != null and GOVT_ID != ''">
+            AND TR.GOVT_ID = #{GOVT_ID}
+        </if>
+        <if test="CAR_NO != null and CAR_NO != ''">
+        <choose>
+        	<when test="END_CAR_NO != null and END_CAR_NO != ''">
+        		AND TM.CAR_NO LIKE DECODE(LENGTH(#{CAR_NO}), 7, SUBSTR(#{CAR_NO}, 1, 3), DECODE(LENGTH(#{CAR_NO}), 8, SUBSTR(#{CAR_NO}, 1, 4))) || '%' AND SUBSTR(TM.CAR_NO, -4) BETWEEN SUBSTR(#{CAR_NO}, -4) AND #{END_CAR_NO}
+        	</when>
+        	<otherwise>
+        		AND ((TM.CAR_NO LIKE '%' || #{CAR_NO} || '%') OR (NC.CARID_NO LIKE '%' || #{CAR_NO} || '%'))
+        	</otherwise>
+        </choose>
+        </if>
+        <if test="USE_YN != null and USE_YN != ''">
+            AND TM.USE_YN = #{USE_YN}
+        </if>
+        <if test="PROC_ST != null and PROC_ST != ''">
+            AND TM.PROC_ST = #{PROC_ST}
+        </if>
+        <if test="NUM_KIND != null and NUM_KIND != ''">
+        	<if test="NUM_KIND != 'NOT'">
+	            AND TM.NUM_KIND = #{NUM_KIND}
+        	</if>
+        </if>
+        <if test="WORK_CD != null and WORK_CD != ''">
+            AND TR.WORK_CD = #{WORK_CD}
+        </if>
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TR.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="DELIVERY_GB != null and DELIVERY_GB != ''">
+        	<choose>
+                <when test="DELIVERY_GB == 'NOSTAR'">
+                    AND CD.DELIVERY_GB NOT IN ('STARA', 'OBS')
+                </when>
+                <otherwise>
+                    AND CD.DELIVERY_GB IN 
+                    <foreach collection="DELIVERY_GB.split(',')" item="gb" open="(" separator="," close=")">
+                		#{gb}
+            		</foreach>
+                </otherwise>
+            </choose>
+        </if>
+        <if test="DELIVERY_ADDR != null and DELIVERY_ADDR != ''">
+        	AND (PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE #{DELIVERY_ADDR} || '%' 
+        	<if test="DELIVERY_ADDR == '수도권'">
+        		OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '서울%' OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '경기%' OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '인천%'   
+        	</if>
+        	<if test="DELIVERY_ADDR == '수도권제외'">
+        		OR (PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) NOT LIKE '서울%' AND PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) NOT LIKE '경기%' AND PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) NOT LIKE '인천%')  
+			</if>
+        	<if test="DELIVERY_ADDR == '충북'">
+        		OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '충청북도%'
+        	</if>
+        	<if test="DELIVERY_ADDR == '충남'">
+        		OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '충청남도%'
+        	</if>
+        	<if test="DELIVERY_ADDR == '경북'">
+        		OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '경상북도%'
+        	</if>
+        	<if test="DELIVERY_ADDR == '경남'">
+        		OR PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR) LIKE '경상남도%' 
+        	</if>
+        		)
+        </if>
+        <if test="TIME_DVSN != null and TIME_DVSN != ''">
+            AND SUBSTR(TO_CHAR(TR.REQUEST_DT, 'HH24'), 1, 2) IN
+            <foreach collection="TIME_DVSN.split(',')" item="t" open="(" separator="," close=")">
+                #{t}
+            </foreach>
+        </if>
+        <if test="HOLE_YN != null and HOLE_YN != ''">
+            AND TM.HOLE_YN = #{HOLE_YN}
+        </if>
+        <if test="SEAL_YN != null and SEAL_YN != ''">
+            AND TM.SEAL_YN = #{SEAL_YN}
+        </if>
+        <if test="SPECIAL_YN != null and SPECIAL_YN != ''">
+            AND TM.SPECIAL_YN = #{SPECIAL_YN}
+        </if>
+        <if test="ASSIGN_CD != null and ASSIGN_CD != ''">
+        	<choose>
+        		<when test="ASSIGN_CD == 'NOT'">
+        			AND TM.ASSIGN_CD IS NULL
+        		</when>
+        		<otherwise>
+        			<choose>
+        				<when test="ASSIGN_CD == 'SUDO'">
+        					AND TM.ASSIGN_CD IN (SELECT COMPANY_ID || BRANCH_ID FROM TM_CARNO_COMPANY WHERE COMPANY_ID = 'BITS' AND SUBSTR(BRANCH_NM, 0,3) = '수도권' AND USE_YN = 'Y')
+        				</when>
+        				<otherwise>
+        					AND TM.ASSIGN_CD like #{ASSIGN_CD}
+        				</otherwise>
+        			</choose>
+        		</otherwise>
+        	</choose>
+        </if>
+    </select>
+
+    <!-- 자동차등록증관리 목록 조회 -->
+    <select id="getCarPaperList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            CP.SERVICE_ID,
+            TS.CAR_NO,
+            TS.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(CP.PRINT_DT, 'YYYYMMDD') AS PRINT_DT
+        FROM
+            TR_CAR_PAPER  CP,
+            TR_SERVICE    TS,
+            TM_COMPANY    TC
+        WHERE
+            CP.SERVICE_ID = TS.SERVICE_ID
+            AND TS.COMPANY_ID = TC.COMPANY_ID
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY CP.PRINT_DT DESC
+    </select>
+
+    <!-- 임판회수관리 목록 조회 -->
+    <select id="getTempNumPlateList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            NL.NUM_ID,
+            NL.CAR_NO,
+            NL.COMPANY_ID,
+            TC.COMPANY_NM,
+            TO_CHAR(NL.ISSUE_DT, 'YYYYMMDD') AS ISSUE_DT,
+            TO_CHAR(NL.RETURN_DT, 'YYYYMMDD') AS RETURN_DT
+        FROM
+            TM_NUMPLATE_LIST  NL,
+            TM_COMPANY        TC
+        WHERE
+            NL.COMPANY_ID = TC.COMPANY_ID(+)
+            AND NL.NUM_ST = 'TEMP'
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND NL.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY NL.ISSUE_DT DESC
+    </select>
+
+    <!-- 번호판수불관리 목록 조회 -->
+    <select id="getNumPlateSupplyList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            NS.SUPPLY_ID,
+            NS.COMPANY_ID,
+            TC.COMPANY_NM,
+            NS.SUPPLY_QTY,
+            TO_CHAR(NS.SUPPLY_DT, 'YYYYMMDD') AS SUPPLY_DT
+        FROM
+            TM_NUMPLATE_SUPPLY  NS,
+            TM_COMPANY          TC
+        WHERE
+            NS.COMPANY_ID = TC.COMPANY_ID(+)
+
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+            AND NS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        ORDER BY NS.SUPPLY_DT DESC
+    </select>
+    
+	<!-- 번호판 상태 변경 -->
+	<update id="updateNumplateUseYn" parameterType="java.util.Map">
+	
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = #{USE_YN}
+	       
+		<if test='"N".equals(USE_YN)'>
+	        , SERVICE_ID = NULL
+	        , UPD_USER = #{LOGIN_ID}
+	        , USE_DT = NULL
+	    </if>
+	    <if test='"S".equals(USE_YN)'>
+	        , SERVICE_ID = #{SERVICE_ID}
+	        , CARID_NO = #{CARID_NO}
+	        , UPD_USER = #{LOGIN_ID}
+	        , UPD_DATE = SYSDATE
+	    </if>
+		
+	     WHERE CAR_NO = #{CAR_NO}
+	
+	</update>
+	
+		
+	<select id="procedureNewCarAvailNumplateRent" 
+			parameterType="java.util.Map" statementType="CALLABLE">
+	
+	    { call PKG_COMMON.sp_NewCarAvailNumplateRentList(
+	        #{SERVICE_ID, mode=IN, jdbcType=VARCHAR},
+	        #{PRE_CAR_NO, mode=IN, jdbcType=VARCHAR},
+	        #{CONDITION, mode=IN, jdbcType=VARCHAR},
+	        #{CAR_KD, mode=IN, jdbcType=VARCHAR},
+	        #{CARID_NO, mode=IN, jdbcType=VARCHAR},
+	        #{LIMIT, mode=IN, jdbcType=NUMERIC},
+	        #{NUM_KIND, mode=IN, jdbcType=VARCHAR},
+	        #{GOVT_ID, mode=IN, jdbcType=VARCHAR},
+	        #{RENT, mode=IN, jdbcType=VARCHAR},
+	        #{ASSIGN_CD, mode=IN, jdbcType=VARCHAR},
+	        #{pReturn, mode=OUT, jdbcType=VARCHAR}
+	    ) }
+	
+	</select>
+	
+	
+	<select id="procedureNewCarAvailNumplateHole"
+	        parameterType="java.util.Map" statementType="CALLABLE">
+	
+	    { call PKG_COMMON.sp_NewCarAvailNumplateListHole(
+	        #{SERVICE_ID, mode=IN, jdbcType=VARCHAR},
+	        #{PRE_CAR_NO, mode=IN, jdbcType=VARCHAR},
+	        #{CONDITION, mode=IN, jdbcType=VARCHAR},
+	        #{CAR_KD, mode=IN, jdbcType=VARCHAR},
+	        #{CARID_NO, mode=IN, jdbcType=VARCHAR},
+	        #{LIMIT, mode=IN, jdbcType=NUMERIC},
+	        #{NUM_KIND, mode=IN, jdbcType=VARCHAR},
+	        #{GOVT_ID, mode=IN, jdbcType=VARCHAR},
+	        #{WANT_CAR_NO, mode=IN, jdbcType=VARCHAR},
+	        #{ASSIGN_CD, mode=IN, jdbcType=VARCHAR},
+	        #{HOLE_YN, mode=IN, jdbcType=VARCHAR},
+	        #{SEAL_YN, mode=IN, jdbcType=VARCHAR},
+	        #{pReturn, mode=OUT, jdbcType=VARCHAR}
+	    ) }
+	
+	</select>
+	
+	
+	<select id="procedureAvailNumplate"
+	        parameterType="java.util.Map" statementType="CALLABLE">
+	
+	    { call PKG_COMMON.sp_AvailNumplateList(
+	        #{SERVICE_ID, mode=IN, jdbcType=VARCHAR},
+	        #{PRE_CAR_NO, mode=IN, jdbcType=VARCHAR},
+	        #{CONDITION, mode=IN, jdbcType=VARCHAR},
+	        #{CAR_KD, mode=IN, jdbcType=VARCHAR},
+	        #{HOLE_YN, mode=IN, jdbcType=VARCHAR},
+	        #{LIMIT, mode=IN, jdbcType=NUMERIC},
+	        #{NUM_KIND, mode=IN, jdbcType=VARCHAR},
+	        #{GOVT_ID, mode=IN, jdbcType=VARCHAR},
+	        #{pReturn, mode=OUT, jdbcType=VARCHAR}
+	    ) }
+	
+	</select>
+	
+</mapper>

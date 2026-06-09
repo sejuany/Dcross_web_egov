@@ -1,0 +1,211 @@
+/* Receipt Modal */
+
+.receipt-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.receipt-modal-container {
+    width: 900px;
+    max-width: 95vw;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid #ced4da;
+}
+
+.receipt-modal-header {
+    background: linear-gradient(to bottom, #3c638d, #2f557d);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #294868;
+}
+
+.receipt-section-title {
+    font-size: 15px;
+    margin: 0 0 4px 4px;
+}
+
+.receipt-modal-header h3 {
+    margin: 0;
+    font-size: 17px;
+    font-weight: bold;
+    padding: 3px;
+}
+
+.receipt-modal-close-btn {
+    border: 0;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+}
+
+.receipt-modal-close-btn:hover {
+    opacity: 1;
+}
+
+.receipt-modal-body {
+    padding: 16px;
+    font-size: 13px;
+    background: #fff;
+}
+
+.receipt-table {
+    width: 100%;
+    border-collapse: collapse;
+    border: 1px solid #ced4da;
+    margin-bottom: 12px;
+}
+
+.receipt-table th,
+.receipt-table td {
+    border: 1px solid #ced4da;
+    padding: 7px 10px;
+    font-size: 13px;
+}
+
+.receipt-table th {
+    background: #f8f9fa;
+    width: 130px;
+    text-align: center;
+    font-weight: 600;
+}
+
+.receipt-table td {
+    background: #fff;
+    min-width: 180px;
+}
+
+.receipt-table .amount {
+    text-align: right;
+    color: #1971c2;
+    font-weight: 700;
+}
+
+.receipt-total-row th,
+.receipt-total-row td {
+    background: #e7f5ff;
+    color: #1971c2;
+    font-weight: bold;
+    border-bottom: 2px solid #339af0;
+}
+
+.receipt-note {
+    margin-top: 12px;
+    padding: 20px 0;
+    border: 0;
+    background: none;
+    color: #666;
+    text-align: center;
+    font-size: 15px;
+    line-height: 1.5;
+}
+
+.receipt-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px 16px;
+    background-color: #f1f3f6;
+    border-top: 1px solid #ced4da;
+}
+
+.receipt-modal-footer .btn-erp {
+    min-width: 80px;
+    height: 30px;
+}
+
+@media print {
+
+    .receipt-modal-overlay {
+        background: white !important;
+    }
+
+    .receipt-modal-container {
+        width: 100% !important;
+        max-width: none !important;
+        border: none !important;
+        border-radius: 0 !important;
+        box-shadow: none !important;
+        margin: 0 !important;
+    }
+
+    .receipt-modal-header {
+        background: white !important;
+        color: black !important;
+        border-bottom: none !important;
+        justify-content: center;
+        font-size: 17px;
+    }
+
+    .receipt-modal-close-btn,
+    .receipt-modal-footer {
+        display: none !important;
+    }
+
+    .receipt-section-title {
+        background: white !important;
+        border: none !important;
+        padding-left: 0;
+        color: black !important;
+    }
+
+    .receipt-table th {
+        background: white !important;
+        
+    }
+
+    .receipt-modal-header h3 {font-size:26px!important}
+    .receipt-table th, .receipt-table td, .receipt-note, .receipt-section-title {font-size: 22px!important}
+    .receipt-table th {width: 150px}
+}
+
+/* pdf 저장 ===========================*/
+.pdf-mode .receipt-modal-header {
+    background: white !important;
+    color: black !important;
+    border-bottom: none !important;
+    justify-content: center;
+}
+
+.pdf-mode .receipt-modal-close-btn,
+.pdf-mode .receipt-modal-footer {
+    display: none !important;
+}
+
+.pdf-mode .receipt-modal-header h3 {
+    font-size: 26px !important;
+}
+
+.pdf-mode .receipt-table th,
+.pdf-mode .receipt-table td,
+.pdf-mode .receipt-note,
+.pdf-mode .receipt-section-title {
+    font-size: 22px !important;
+}
+
+.pdf-mode .receipt-table th {
+    width: 150px !important;
+    background: white !important;
+}
+
+.pdf-mode .receipt-section-title {
+    background: white !important;
+    border: none !important;
+    color: black !important;
+}

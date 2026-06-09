@@ -1,0 +1,120 @@
+/* TrnsNameList.css */
+.status-container {
+    background-color: #fff;
+    font-family: 'Malgun Gothic', 'Dotum', sans-serif;
+    color: #333;
+    padding: 0px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+}
+
+/* Toast Message */
+.toast-notification {
+    position: fixed;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background-color: rgba(51, 51, 51, 0.9);
+    color: white;
+    padding: 10px 20px;
+    border-radius: 4px;
+    font-size: 15px;
+    z-index: 1000;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    animation: fadeInOut 2s forwards;
+}
+
+@keyframes fadeInOut {
+    0% { opacity: 0; bottom: 20px; }
+    15% { opacity: 1; bottom: 30px; }
+    85% { opacity: 1; bottom: 30px; }
+    100% { opacity: 0; bottom: 20px; }
+}
+
+/* Unified Toolbar */
+.status-toolbar {
+    background: #4a6a8a;
+    padding: 2px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 2px solid #334a62;
+    color: #fff;
+}
+
+.toolbar-left, .toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.toolbar-title {
+    font-size: 15px;
+    font-weight: bold;
+    margin-right: 15px;
+    color: #fff;
+}
+
+.title-count {
+    color: #ffb8b8;
+    font-size: 14px;
+    margin: 0 4px;
+}
+
+/* Button variants */
+.btn-status {
+    height: 24px;
+    padding: 0 8px;
+    font-size: 13px;
+    border: 1px solid #7a8fa6;
+    background-color: #d1dce8;
+    color: #334e68;
+    cursor: pointer;
+    border-radius: 2px;
+    font-weight: 600;
+}
+
+.btn-status:hover {
+    filter: brightness(0.9);
+}
+
+/* AG-Grid Container */
+.grid-container {
+    flex: 1;
+    padding: 10px;
+    border: 1px solid #ced4da;
+    background-color: #fff;
+}
+
+/* AG-Grid Custom ERP Theme Overrides */
+.ag-theme-alpine {
+    --ag-row-height: 22px;
+    --ag-header-height: 24px;
+    --ag-font-size: 14px;
+    --ag-font-family: 'Malgun Gothic', 'Dotum', sans-serif;
+    --ag-header-background-color: #5a6984;
+    --ag-header-foreground-color: #ffffff;
+    --ag-borders: solid 1px;
+    --ag-border-color: #ced4da;
+    --ag-row-border-color: #ced4da;
+    --ag-odd-row-background-color: #ffffff;
+    --ag-even-row-background-color: #f6f8fb;
+    --ag-row-hover-color: #ebf0f5;
+    --ag-selected-row-background-color: #cbd5e1;
+}
+
+.ag-theme-alpine .ag-cell {
+    border-right: 1px solid #ced4da !important;
+    display: flex;
+    align-items: center;
+}
+
+.ag-theme-alpine .ag-header-cell {
+    border-right: 1px solid #ced4da !important;
+}
+
+.ag-theme-alpine .ag-header-cell-label {
+    justify-content: center;
+}

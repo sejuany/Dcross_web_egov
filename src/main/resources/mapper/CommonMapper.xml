@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.payment.mapper.CommonMapper">
+	<select id="selectJibunAddress" parameterType="map" resultType="map">
+	
+	    SELECT A.GICHO_NO AS POST_NO,
+	           A.SIDO_NM || ' ' || A.SIGUNGU_NM || ' ' || A.BUBJUNG_NM || ' ' ||
+	           A.BUBJUNGRI_NM || ' ' || A.JIBUNB_NO ||
+	           DECODE(A.JIBUNS_NO, NULL, '', '-' || A.JIBUNS_NO) || ' ' ||
+	           A.SIGUNGUB_NM AS JIBUN_AD
+	      FROM V_POST_JIBUN A
+	     WHERE A.ROAD_CD = #{ROAD_CD}
+	       AND A.JIHA_YN = #{JIHA_YN}
+	       AND A.BUILDB_NO = #{BUILDB_NO}
+	       AND A.BUILDS_NO = #{BUILDS_NO}
+	
+	</select>
+
+	<select id="selectAddress" parameterType="map" resultType="map">
+	
+	    SELECT DISTINCT
+	           POST_NO, ROAD_AD, BUBJUNG_CD, BUBJUNG_NM,
+	           HJD_CD, HJD_NM, ROAD_CD, EMD_SN,
+	           JIHA_YN, BUILDB_NO, BUILDS_NO,
+	           ROAD_AD || '[번지 : ' || JIBUNB_NO || '-' || JIBUNS_NO || ']'
+	               AS ZDISPLAY_AD,
+	           SIGUNGUB_NM,
+	           JIBUN_AD,
+	           JIBUNB_NO,
+			   JIBUNS_NO
+	      FROM (
+	
+	            /* 도로명 검색 */
+	            SELECT A.GICHO_NO AS POST_NO,
+	                   A.SIDO_NM || ' ' || A.SIGUNGU_NM ||
+	                   DECODE(B.EMD_GB, '0', ' ' || A.BUBJUNG_NM, '') || ' ' ||
+	                   A.ROAD_NM ||
+	                   DECODE(A.JIHA_YN, '0', '', '1', '지하', '2', '공중') || ' ' ||
+	                   A.BUILDB_NO ||
+	                   DECODE(A.BUILDS_NO, 0, ' ',
+	                          '-' || A.BUILDS_NO || ' ' || A.SIGUNGUB_NM) || ' ' ||
+	                   CASE
+	                       WHEN B.EMD_GB = '0' AND A.COMMB_YN = '0' THEN ''
+	                       WHEN B.EMD_GB = '0' AND A.COMMB_YN = '1' THEN '(' || A.SIGUNGUB_NM || ')'
+	                       WHEN B.EMD_GB = '1' AND A.COMMB_YN = '0' THEN '(' || A.BUBJUNG_NM || ')'
+	                       WHEN B.EMD_GB = '1' AND A.COMMB_YN = '1'
+	                           THEN '(' || A.BUBJUNG_NM ||
+	                                DECODE(A.SIGUNGUB_NM, NULL, '', ',' || A.SIGUNGUB_NM) || ')'
+	                   END AS ROAD_AD,
+	                   A.BUBJUNG_CD, A.BUBJUNG_NM,
+	                   A.HJD_CD, A.HJD_NM,
+	                   A.ROAD_CD, A.EMD_SN,
+	                   A.JIHA_YN, A.BUILDB_NO, A.BUILDS_NO,
+	                   A.JIBUNB_NO, A.JIBUNS_NO,
+	                   A.SIGUNGUB_NM,
+	                   A.SIDO_NM || ' ' || A.SIGUNGU_NM || ' ' || A.BUBJUNG_NM || ' ' || JIBUNB_NO || DECODE(A.JIBUNS_NO,NULL,'','-' || A.JIBUNS_NO) AS JIBUN_AD
+	              FROM TM_POST_BUILD A
+	              JOIN TM_POST_CODE B
+	                ON A.ROAD_CD = TRIM(B.SIGUNGU_CD) || TRIM(B.ROAD_NO)
+	               AND A.EMD_SN = B.EMD_SN
+	             WHERE A.BUILDB_NO = #{BUILDB_NO}
+	
+		<choose>
+
+			<when test='"Y".equals(BUBJUNGRI_NM)'>
+	                    AND A.BUBJUNGRI_NM LIKE TRIM(#{ROAD_NM}) || '%'
+			</when>
+
+			<otherwise>
+	                    AND A.ROAD_NM LIKE TRIM(#{ROAD_NM}) || '%'
+			</otherwise>
+
+		</choose>
+
+		<if test="BUILDS_NO != null and BUILDS_NO != ''">
+	                AND A.BUILDS_NO = #{BUILDS_NO}
+		</if>
+	
+	            UNION ALL
+	
+	            /* 지번 검색 */
+	            SELECT A.GICHO_NO AS POST_NO,
+	                   A.SIDO_NM || ' ' || A.SIGUNGU_NM ||
+	                   DECODE(B.EMD_GB, '0', ' ' || A.BUBJUNG_NM, '') || ' ' ||
+	                   A.ROAD_NM ||
+	                   DECODE(A.JIHA_YN, '0', '', '1', '지하', '2', '공중') || ' ' ||
+	                   A.BUILDB_NO ||
+	                   DECODE(A.BUILDS_NO, 0, ' ',
+	                          '-' || A.BUILDS_NO || ' ' || A.SIGUNGUB_NM) || ' ' ||
+	                   CASE
+	                       WHEN B.EMD_GB = '0' AND A.COMMB_YN = '0' THEN ''
+	                       WHEN B.EMD_GB = '0' AND A.COMMB_YN = '1' THEN '(' || A.SIGUNGUB_NM || ')'
+	                       WHEN B.EMD_GB = '1' AND A.COMMB_YN = '0' THEN '(' || A.BUBJUNG_NM || ')'
+	                       WHEN B.EMD_GB = '1' AND A.COMMB_YN = '1'
+	                           THEN '(' || A.BUBJUNG_NM ||
+	                                DECODE(A.SIGUNGUB_NM, NULL, '', ',' || A.SIGUNGUB_NM) || ')'
+	                   END AS ROAD_AD,
+	                   A.BUBJUNG_CD, A.BUBJUNG_NM,
+	                   A.HJD_CD, A.HJD_NM,
+	                   A.ROAD_CD, A.EMD_SN,
+	                   A.JIHA_YN, A.BUILDB_NO, A.BUILDS_NO,
+	                   A.JIBUNB_NO, A.JIBUNS_NO,
+	                   A.SIGUNGUB_NM,
+	                   A.SIDO_NM || ' ' || A.SIGUNGU_NM || ' ' || A.BUBJUNG_NM || ' ' || JIBUNB_NO || DECODE(A.JIBUNS_NO,NULL,'','-' || A.JIBUNS_NO) AS JIBUN_AD
+	              FROM TM_POST_BUILD A
+	              JOIN TM_POST_CODE B
+	                ON A.ROAD_CD = TRIM(B.SIGUNGU_CD) || TRIM(B.ROAD_NO)
+	               AND A.EMD_SN = B.EMD_SN
+		             
+	             WHERE A.JIBUNB_NO = #{BUILDB_NO}
+	
+		<choose>
+
+			<when test='"Y".equals(BUBJUNGRI_NM)'>
+	                    AND A.BUBJUNGRI_NM LIKE TRIM(#{ROAD_NM}) || '%'
+			</when>
+
+			<otherwise>
+	                    AND A.BUBJUNG_NM LIKE TRIM(#{ROAD_NM}) || '%'
+			</otherwise>
+
+		</choose>
+
+		<if test="BUILDS_NO != null and BUILDS_NO != ''">
+	                AND A.JIBUNS_NO = #{BUILDS_NO}
+		</if>
+	
+	      )
+	
+	     ORDER BY ROAD_AD, BUILDB_NO, BUILDS_NO
+	</select>
+
+	<select id="selectCodeDetail" parameterType="map" resultType="map">
+	
+	    SELECT
+	        CODE_ID,
+	        CODE_NM,
+	        DETAIL_NM
+	    FROM TM_CODE
+	    WHERE GROUP_ID = #{GROUP_ID}
+	      AND CODE_ID = #{CODE_ID}
+	      AND USE_YN = 'Y'
+	      AND TO_CHAR(SYSDATE, 'YYYYMMDD')
+	          BETWEEN START_DT AND END_DT
+	    ORDER BY TO_NUMBER(ORDER_NO)
+	
+	</select>
+
+	<!-- 가상계좌 생성-->
+	<select id="processVBank" statementType="CALLABLE" parameterType="map">
+	{ call Pkg_VbankNo.sp_Insert_WCMS_GW_TR(
+		#{pInput, mode=IN, jdbcType=VARCHAR},
+		#{pReturn, mode=OUT, jdbcType=VARCHAR}
+		)
+	}
+	</select>
+	<!-- 문자 전송 -->
+	<insert id="insertSmsSend" parameterType="map">
+	    INSERT INTO MSG_QUEUE (
+	        MSEQ,
+	        MSG_TYPE,
+	        DSTADDR,
+	        CALLBACK,
+	        STAT,
+	        TEXT,
+	        REQUEST_TIME
+	    )
+	    VALUES (
+	        MSG_QUEUE_SEQ.NEXTVAL,
+	        #{MSG_TYPE},
+	        #{PAY_HP_NO},
+	        '16886112',
+	        '0',
+	        #{TEXT},
+	        SYSDATE
+	    )
+	</insert>
+
+	<!-- 로그 기록 -->
+	<insert id="insertCarDailyLog" parameterType="map">
+	
+	    MERGE INTO TS_CAR_DAILY_LOG D
+	    USING (
+	        SELECT
+	            #{CAR_NO} AS CAR_NO,
+	            TRUNC(SYSDATE) AS CDATE,
+	            #{GOVT_ID} AS GOVT_ID,
+	            #{COMPANY_ID} AS COMPANY_ID
+	        FROM DUAL
+	    ) S
+	    ON (
+	        D.CAR_NO = S.CAR_NO
+	        AND D.CDATE = S.CDATE
+	    )
+	
+	    WHEN MATCHED THEN
+	        UPDATE SET D.CNT = D.CNT + 1
+	
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+	            CAR_NO,
+	            CDATE,
+	            CNT,
+	            GOVT_ID,
+	            COMPANY_ID
+	        )
+	        VALUES (
+	            S.CAR_NO,
+	            S.CDATE,
+	            1,
+	            S.GOVT_ID,
+	            S.COMPANY_ID
+	        )
+	
+	</insert>
+
+</mapper>

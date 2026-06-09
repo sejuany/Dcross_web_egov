@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.scheduler.mapper.SchedulerMapper">
+
+    <select id="selectNewcarWaitingServices" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.COMPANY_ID,
+            TS.BRANCH_ID,
+            TS.MEMBER_ID,
+            TS.GOVT_ID,
+            TS.PROC_ST,
+            TS.JUDGE_ST,
+            TN.CARID_NO,
+            TN.CAR_NO,
+            TN.OWNER_NM,
+            PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
+            TN.REGIST_DATE
+        FROM TR_SERVICE TS
+             JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
+        WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
+          AND TS.PROC_ST = 'W_REQ'
+    </select>
+
+    <update id="updateServiceToJudgeRequest" parameterType="map">
+        UPDATE TR_SERVICE
+           SET PROC_ST = 'S_REQ',
+               JUDGE_ST = 'S_REQ',
+               UPD_DATE = SYSDATE,
+               UPD_USER = 'SCHEDULAR'
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND PROC_ST = 'W_REQ'
+    </update>
+
+</mapper>

@@ -1,0 +1,35 @@
+package com.dacos.company.dto;
+
+import lombok.Data;
+
+/**
+ * 기업관리 검색 요청 DTO
+ */
+@Data
+public class CompanySearchRequest {
+
+    private String COMPANY_ID;
+    private String COMPANY_NM;
+    private String COMPANY_TYPE;
+    private String USE_YN;
+
+    private String MEMBER_ID;
+    private String LOGIN_ID;
+    private String MEMBER_NM;
+    private String MEMBER_GB;
+
+    private String AREA;
+
+    private String BRANCH_ID;
+    private String SANGSA_ID;
+    private String SANGSA_NM;
+
+    private String KEYWORD;
+    private String SEARCH_KEYWORD;
+
+    private String ST_DATE;
+    private String ED_DATE;
+
+    private String INS_USER;
+    private String USER_AUTH;
+}
