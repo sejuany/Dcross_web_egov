@@ -3,7 +3,7 @@
     <Appenders>
         <!-- 콘솔 출력 설정 -->
         <Console name="Console" target="SYSTEM_OUT">
-            <PatternLayout pattern="%d{MM-dd HH:mm:ss.SSS} [%replace{%t}{tomcat-handler-}{H-}] %-5level %logger{2.} - %msg%n"/>
+ㅇㄷ            <PatternLayout charset="UTF-8" pattern="%d{MM-dd HH:mm:ss.SSS} [%replace{%t}{tomcat-handler-}{H-}] %-5level %logger{2.} - %msg%n"/>
         </Console>
     </Appenders>
     

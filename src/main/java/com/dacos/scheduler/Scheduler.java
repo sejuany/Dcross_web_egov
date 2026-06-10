@@ -17,8 +17,15 @@ public class Scheduler {
 
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarWaitingServices() {
-        logger.info("[Scheduler] today newcar waiting service scheduler start");
+        logger.info("[Scheduler] 심사대기 -> 심사요청 스케쥴러 동작 시작");
         int updateCount = schedulerService.processTodayNewcarWaitingServices();
-        logger.info("[Scheduler] today newcar waiting service scheduler end - updateCount: {}", updateCount);
+        logger.info("[Scheduler] 심사대기 -> 심사요청 스케쥴러 동작 완료 - updateCount: {}", updateCount);
+    }
+
+    @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
+    public void processTodayNewcarNonPayed() {
+        logger.info("[Scheduler] 등록예정일 15:30분 이후 미입금건 알림 문자 발송 스케쥴러 동작 시작");
+        int updateCount = schedulerService.processTodayNewcarNonPayed();
+        logger.info("[Scheduler] 등록예정일 15:30분 이후 미입금건 알림 문자 발송 스케쥴러 동작 완료 - updateCount: {}", updateCount);
     }
 }

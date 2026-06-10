@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import axios from 'axios';
-import { LogOut, Settings, Bell, ChevronRight, X } from 'lucide-react';
+import { LogOut, Settings, Bell, ChevronRight, X, ClipboardList } from 'lucide-react';
 
 import { useTabs } from '../../context/TabContext';
 import { useAuth } from '../../context/AuthContext';
@@ -122,6 +122,21 @@ const buildAuthorizedMenuConfig = (rawMenuList) => {
     return result;
 };
 
+const pendingSummaryRows = [
+    { name: '저당설정', done: 0, processing: 1259, pending: 26 },
+    { name: '저당말소', done: 0, processing: 876, pending: 8 },
+    { name: '저당권변경', done: 0, processing: 2, pending: 0 },
+    { name: '신규등록', done: 0, processing: 558, pending: 27 },
+    { name: '이전등록', done: 17, processing: 197, pending: 9 },
+    { name: '보험가입확인', done: 213, processing: 182, pending: 34 },
+    { name: '변경등록', done: 0, processing: 19, pending: 0 },
+    { name: '등록증재발급', done: 3, processing: 0, pending: 0 },
+    { name: '번호판재발급', done: 0, processing: 0, pending: 0 },
+    { name: '건기설정', done: 0, processing: 28, pending: 3 },
+    { name: '건기말소', done: 0, processing: 37, pending: 2 },
+    { name: '경정관리', done: 2, processing: 0, pending: 1 },
+];
+
 const Header = ({ activeCategory, setActiveCategory, menuConfig }) => {
     const { user, logout } = useAuth();
     const { addTab } = useTabs();
@@ -182,8 +197,17 @@ const Header = ({ activeCategory, setActiveCategory, menuConfig }) => {
 
 const Sidebar = ({ activeCategory, menuConfig }) => {
     const { addTab } = useTabs();
+    const { user } = useAuth();
 
     const menuItems = menuConfig?.[activeCategory] || [];
+    const companyId = String(
+        user?.COMPANY_ID ??
+        user?.company_ID ??
+        user?.companyId ??
+        user?.company_id ??
+        ''
+    ).toLowerCase();
+    const showPendingSummary = companyId === 'dacos';
 
     return (
         <aside className="main-sidebar">
@@ -221,6 +245,38 @@ const Sidebar = ({ activeCategory, menuConfig }) => {
                     ))}
                 </ul>
             </div>
+
+            {showPendingSummary && (
+                <div className="sidebar-pending-panel" aria-label="미처리내역">
+                    <div className="sidebar-pending-title">
+                        <ClipboardList size={13} />
+                        <span>미처리내역</span>
+                    </div>
+
+                    <table className="sidebar-pending-table">
+                        <thead>
+                            <tr>
+                                <th>구분</th>
+                                <th>완료</th>
+                                <th>중</th>
+                                <th>미</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {pendingSummaryRows.map(row => (
+                                <tr key={row.name}>
+                                    <th title={row.name}>{row.name}</th>
+                                    <td>{row.done.toLocaleString()}</td>
+                                    <td>{row.processing.toLocaleString()}</td>
+                                    <td className={row.pending > 0 ? 'pending-emphasis' : ''}>
+                                        {row.pending.toLocaleString()}
+                                    </td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            )}
         </aside>
     );
 };

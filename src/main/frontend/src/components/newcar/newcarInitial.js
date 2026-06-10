@@ -38,6 +38,7 @@ export const initialDsNewCar = {
 	CAR_US: '',
 	LAST_DT: '',
 	GOVT_TX: '',
+	REGIST_DATE: '',
 
 	// 번호판
 	NUMPLATE_GB: 'F',
@@ -290,6 +291,7 @@ export const newCarMap = {
 	CAR_US: 'CAR_US',
 	LAST_DT: 'LAST_DT',
 	GOVT_TX: 'GOVT_TX',
+	REGIST_DATE: 'REGIST_DATE',
 
 	// 번호판
 	NUMPLATE_GB: 'NUMPLATE_GB',

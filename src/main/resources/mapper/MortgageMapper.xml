@@ -175,10 +175,18 @@
 	           USE_YN
 	    FROM TM_COMPANY
 	    WHERE USE_YN = 'Y'
-	    <if test="AssoID != null and AssoID != ''">
+	    <if test="ASSOCIATION_ID != null and ASSOCIATION_ID != ''">
 	        AND ASSOCIATION_ID = #{ASSOCIATION_ID}
 	    </if>
-	    AND COMPANY_ID = #{COMPANY_ID}
+	    AND COMPANY_ID = NVL(
+	        (
+	            SELECT COMPANY_ID
+	            FROM TM_MEMBER_DT
+	            WHERE MEMBER_ID = #{MEMBER_ID}
+	              AND ROWNUM = 1
+	        ),
+	        #{COMPANY_ID}
+	    )
 	</select>
 	
 	<select id="getTrService" parameterType="map" resultType="map">

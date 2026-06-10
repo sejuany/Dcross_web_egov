@@ -25,6 +25,10 @@
           AND TS.PROC_ST = 'W_REQ'
     </select>
 
+    <select id="selectNewcarNonPayedServices" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        
+    </select>
+
     <update id="updateServiceToJudgeRequest" parameterType="map">
         UPDATE TR_SERVICE
            SET PROC_ST = 'S_REQ',

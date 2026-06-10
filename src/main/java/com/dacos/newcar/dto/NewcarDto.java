@@ -59,4 +59,5 @@ public class NewcarDto {
     private String RECEIVE_NM;
     private String RECEIVE_TEL_NO;
     private String SERIAL_NO;
+    private String REGIST_DATE;
 }

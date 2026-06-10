@@ -34,7 +34,7 @@ public class SchedulerService {
         List<SchedulerDto> targetList = schedulerMapper.selectNewcarWaitingServices();
 
         if (targetList == null || targetList.isEmpty()) {
-            logger.info("[SchedulerService] no target service");
+            logger.info("[SchedulerService] 처리할 건 없음");
             return 0;
         }
 
@@ -52,9 +52,8 @@ public class SchedulerService {
 
             String serviceId = target.getSERVICE_ID();
             String smsText = SMS_TEXT;
-
-            // TODO 문자 발송 기능 추가 위치
-            // 예: smsSender.send(target, smsText);
+            
+            // 심사요청 문자 발송
             Map<String, Object> param = new HashMap<>();
             param.put("PAY_HP_NO", target.getMPHONE_NO());
             param.put("TEXT", smsText);
@@ -62,15 +61,47 @@ public class SchedulerService {
             int result = commonService.sendSms(param);
             logger.info("[SchedulerService] sms text prepared - serviceId: {}, smsText: {}", serviceId, smsText);
 
+            // 심사요청으로 상태 변경
             updateCount += schedulerMapper.updateServiceToJudgeRequest(serviceId);
-
-            // TODO 관청 DB 상태 업데이트
-            // PROC_ST, JUDGE_ST를 'S_REQ'로 변경
 
             //JsonNode jsonResponse = commonService.linkServer(linkData);
             
         }
 
         return updateCount;
+    }
+
+    public int processTodayNewcarNonPayed() {
+        List<SchedulerDto> targetList = schedulerMapper.selectNewcarNonPayedServices();
+
+        if (targetList == null || targetList.isEmpty()) {
+            logger.info("[SchedulerService] 처리할 건 없음");
+            return 0;
+        }
+
+        int updateCount = 0;
+
+        for (SchedulerDto target : targetList) {
+            String SMS_TEXT = "[폴스타코리아 미입금 확인] 고객의 등록비용이 아직 입금되지 않았습니다. 고객에게 입금 요청 부탁드립니다.";
+            String serviceId = target.getSERVICE_ID();
+            String smsText = SMS_TEXT;
+            
+            // 심사요청 문자 발송
+            Map<String, Object> param = new HashMap<>();
+            param.put("PAY_HP_NO", target.getMPHONE_NO());
+            param.put("TEXT", smsText);
+            param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
+            int result = commonService.sendSms(param);
+            logger.info("[SchedulerService] sms text prepared - serviceId: {}, smsText: {}", serviceId, smsText);
+
+            // 심사요청으로 상태 변경
+            updateCount += schedulerMapper.updateServiceToJudgeRequest(serviceId);
+
+            //JsonNode jsonResponse = commonService.linkServer(linkData);
+            
+        }
+
+        return updateCount;
+        
     }
 }

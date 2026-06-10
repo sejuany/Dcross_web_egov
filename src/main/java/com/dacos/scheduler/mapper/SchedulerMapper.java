@@ -13,4 +13,6 @@ public interface SchedulerMapper {
     List<SchedulerDto> selectNewcarWaitingServices();
 
     int updateServiceToJudgeRequest(@Param("SERVICE_ID") String serviceId);
+
+    List<SchedulerDto> selectNewcarNonPayedServices();
 }

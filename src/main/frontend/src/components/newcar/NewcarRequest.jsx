@@ -701,6 +701,7 @@ const NewcarRequest = () => {
 		setDsPaymentList([]);
 		setDsBranchList(initialDsBranchList);
 		setDsBaseList(initialDsBaseList);
+		setDsCompanyInfo({});
 		setDsCarNoDetach(initialDsCarNoDetach);
 
 	    // DB 조회 후 초기값 
@@ -725,6 +726,7 @@ const NewcarRequest = () => {
 			    dsBranchList = [],
 			    dsBaseList = [],
 			    dsCarNoDetach = {},
+				dsCompanyInfo = {},
 				dsUserInfo = {}
 			} = resData.data || {};
 			
@@ -737,6 +739,7 @@ const NewcarRequest = () => {
 			    dsOwnerInfo: [setDsOwnerInfo, initialOwnerInfo, dsOwnerInfo],
 			    dsOwnerInfo1: [setDsOwnerInfo1, initialOwnerInfo1, dsOwnerInfo1],
 			    dsCarNoDetach: [setDsCarNoDetach, initialDsCarNoDetach, dsCarNoDetach],
+			    dsCompanyInfo: [setDsCompanyInfo, {}, dsCompanyInfo],
 			    dsPaymentList: [setDsPaymentList, initialDsPaymentList, dsPaymentList],
 			    dsBranchList: [setDsBranchList, initialDsBranchList, dsBranchList],
 			    dsBaseList: [setDsBaseList, initialDsBaseList, dsBaseList]
@@ -973,6 +976,27 @@ const NewcarRequest = () => {
 	};
 	
 	// 사용본거지 주소 체크해서 소유자 주소 갖고 오기
+	const handleServiceIdCopy = async () => {
+		const serviceId = (dsService.SERVICE_ID ?? '').trim();
+
+		if (!serviceId) {
+			return;
+		}
+
+		try {
+			await navigator.clipboard.writeText(serviceId);
+		} catch (err) {
+			const textarea = document.createElement('textarea');
+			textarea.value = serviceId;
+			textarea.style.position = 'fixed';
+			textarea.style.opacity = '0';
+			document.body.appendChild(textarea);
+			textarea.select();
+			document.execCommand('copy');
+			document.body.removeChild(textarea);
+		}
+	};
+
 	const chekBaseAddr = () => {
 		setDsNewCar(prev => ({
 		    ...prev,
@@ -1037,7 +1061,7 @@ const NewcarRequest = () => {
 						<CommonSelect groupId="SGB" codes={codes} name="WORK_CD" value={dsService.WORK_CD ?? '1'} data-type="service" onChange={handleChange} disabled={isDisabled(true)} />
 					</ErpField>
 					<ErpField label="접수번호" span={3} htmlFor="SERVICE_ID">
-						<input type="text" id="SERVICE_ID" className={`erp-input ${!canEdit() ? 'disabled' : ''}`} data-type="service" value={dsService.SERVICE_ID} readOnly={isReadOnly(true)} onChange={() => { }} />
+						<input type="text" id="SERVICE_ID" className={`erp-input ${!canEdit() ? 'disabled' : ''}`} data-type="service" value={dsService.SERVICE_ID} readOnly={isReadOnly(true)} onClick={handleServiceIdCopy} onChange={() => { }} />
 					</ErpField>
 					<ErpField label="회사명" span={4} htmlFor="COMPANY_NM">
 						<input type="text" className="erp-input" id="COMPANY_NM" name="COMPANY_NM" data-type="company" value={dsCompanyInfo.COMPANY_NM ?? ''} readOnly={isReadOnly(true)} onChange={handleChange} />
@@ -1076,8 +1100,11 @@ const NewcarRequest = () => {
 					<ErpField label="업무 구분" span={3} htmlFor="TASK_CD">
 						<CommonSelect groupId="TASK" codes={codes} name="TASK_CD" value={dsNewCar.TASK_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 					</ErpField>
-					<ErpField label="* 차대번호" span={4} labelWidth="120px" htmlFor="CARID_NO">
+					<ErpField label="* 차대번호" span={3} labelWidth="120px" htmlFor="CARID_NO">
 						<input type="text" className="erp-input highlight-red" id="CARID_NO" name="CARID_NO" value={dsNewCar.CARID_NO} data-type="newcar" onChange={handleChange} readOnly={isReadOnly()} maxLength={17} />
+					</ErpField>
+					<ErpField label="등록예정일자" span={3} labelWidth="120px" htmlFor="REGIST_DATE">
+						<input type="date" className="erp-input highlight-red" id="REGIST_DATE" name="REGIST_DATE" value={dsNewCar.REGIST_DATE} data-type="newcar" onChange={handleChange} readOnly={isReadOnly()} />
 					</ErpField>
 					<ErpField label="임시번호판 상태" span={3} labelWidth="120px" htmlFor="IMSINUM_YN">
 						<CommonSelect groupId="IMPST" codes={codes} name="IMSINUM_YN" value={dsNewCar.IMSINUM_YN ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
@@ -1173,13 +1200,13 @@ const NewcarRequest = () => {
 								</div>
 								<div className="erp-row">
 									<ErpField label="* 등록번호" span={5} htmlFor="REG_NO">
-										<CommonSelect groupId="REGGB" codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
+										<CommonSelect groupId="REGGB" codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} style={{ width: '80%' }} />
 										<input type="text" className="erp-input" id="REG_NO" name="REG_NO" data-type="newcar" value={formatRegNo(dsNewCar.REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="* 성명(상호)" span={5} htmlFor="OWNER_NM">
+									<ErpField label="* 성명(상호)" span={4} htmlFor="OWNER_NM">
 										<input type="text" className="erp-input" id="OWNER_NM" name="OWNER_NM" data-type="newcar" value={dsNewCar.OWNER_NM} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="비율(%)" span={2} htmlFor="RATIO_NO">
+									<ErpField label="비율(%)" span={3} htmlFor="RATIO_NO">
 										<input type="text" className="erp-input" id="RATIO_NO" name="RATIO_NO" data-type="newcar" value={dsNewCar.RATIO_NO} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 								</div>

@@ -136,6 +136,67 @@ h3.group-title { font-size: 18px; }
     color: #fff;
 }
 
+.sidebar-pending-panel {
+    flex: 0 0 auto;
+    margin: 8px 8px 10px;
+    padding: 8px;
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    border-radius: 6px;
+    background: rgba(9, 22, 38, 0.38);
+}
+
+.sidebar-pending-title {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    margin-bottom: 6px;
+    color: #fff;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.sidebar-pending-table {
+    width: 100%;
+    border-collapse: collapse;
+    table-layout: fixed;
+    color: #dbeafe;
+    font-size: 10.5px;
+    line-height: 1.1;
+}
+
+.sidebar-pending-table th,
+.sidebar-pending-table td {
+    height: 18px;
+    padding: 2px 3px;
+    border: 1px solid rgba(148, 163, 184, 0.35);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.sidebar-pending-table thead th {
+    background: rgba(148, 163, 184, 0.35);
+    color: #fff;
+    font-weight: 700;
+    text-align: center;
+}
+
+.sidebar-pending-table tbody th {
+    color: #e5edf7;
+    font-weight: 600;
+    text-align: left;
+}
+
+.sidebar-pending-table td {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.sidebar-pending-table .pending-emphasis {
+    color: #fca5a5;
+    font-weight: 800;
+}
+
 /* Header */
 .main-header {
     height: 50px;

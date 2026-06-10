@@ -1,6 +1,6 @@
-import React, { useEffect, useMemo, useState } from 'react';
+﻿import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Check, Globe, Grid, MousePointer2, Search, Settings, User, X } from 'lucide-react';
+import { Check, ChevronLeft, ChevronRight, FilePenLine, FileSearch, FileText, Globe, Grid, PenIcon, Search, User, X } from 'lucide-react';
 import { useTabs } from '../context/TabContext';
 import { useAuth } from '../context/AuthContext';
 import './HomePage.css';
@@ -32,20 +32,37 @@ const normalizeMenuRow = (row) => {
     };
 };
 
-const getMenuColor = (index) => {
-    const colors = ['#2563eb', '#059669', '#d97706', '#0891b2', '#7c3aed', '#dc2626', '#4f46e5', '#0f766e', '#9333ea', '#475569'];
-    return colors[index % colors.length];
-};
-
 const getUserValue = (user, key) => {
     if (!user) return '';
 
+    const firstSegmentLowerKey = key
+        .split('_')
+        .map((part, index) => index === 0 ? part.toLowerCase() : part)
+        .join('_');
+    const camelKey = key
+        .toLowerCase()
+        .replace(/_([a-z])/g, (_, char) => char.toUpperCase());
+
     return (
         user[key] ??
+        user[firstSegmentLowerKey] ??
         user[key.toLowerCase()] ??
         user[key.charAt(0) + key.slice(1).toLowerCase()] ??
+        user[camelKey] ??
         ''
     );
+};
+
+const getFavoriteMenuIcon = (title) => {
+    if (title.includes('등록현황')) {
+        return FileSearch;
+    }
+
+    if (title.includes('등록')) {
+        return FilePenLine;
+    }
+
+    return FileText;
 };
 
 const HomePage = () => {
@@ -119,9 +136,9 @@ const HomePage = () => {
         const menuMap = new Map(authorizedMenus.map(menu => [menu.id, menu]));
 
         return favoriteMenuIds
-            .map((id, index) => {
+            .map((id) => {
                 const menu = menuMap.get(id);
-                return menu ? { ...menu, color: getMenuColor(index) } : null;
+                return menu ? { ...menu, Icon: getFavoriteMenuIcon(menu.title) } : null;
             })
             .filter(Boolean);
     }, [authorizedMenus, favoriteMenuIds]);
@@ -220,16 +237,22 @@ const HomePage = () => {
             <h1 className="dashboard-title">Dashboard Overview</h1>
 
             <div className="dashboard-grid">
-                <div className="widget menu-widget full-width">
+                <div className="widget menu-widget favorite-service-widget full-width">
                     <div className="widget-header favorite-header">
                         <div className="favorite-title">
-                            <Grid size={20} />
-                            <span>자주쓰는 메뉴</span>
+                            <span>자주사용하는메뉴</span>
                         </div>
-                        <button className="favorite-edit-btn" type="button" onClick={openFavoriteModal}>
-                            <Settings size={16} />
-                            수정
-                        </button>
+                        <div className="favorite-actions">
+                            {/* <button className="favorite-circle-btn" type="button" aria-label="이전 메뉴">
+                                <ChevronLeft size={18} />
+                            </button>
+                            <button className="favorite-circle-btn white" type="button" aria-label="다음 메뉴">
+                                <ChevronRight size={18} />
+                            </button> */}
+                            <button className="favorite-expand-btn" type="button" onClick={openFavoriteModal}>
+                                <PenIcon size={16} />
+                            </button>
+                        </div>
                     </div>
 
                     {menuLoading ? (
@@ -239,22 +262,21 @@ const HomePage = () => {
                     ) : (
                         <div className="menu-grid">
                             {favoriteMenus.map(menu => (
-                                <div
+                                <button
                                     key={menu.id}
+                                    type="button"
                                     className="menu-card"
                                     onClick={() => addTab(menu.tabId, menu.title, menu.path)}
                                 >
-                                    <div className="menu-icon-box" style={{ backgroundColor: menu.color }}>
-                                        <MousePointer2 size={24} color="#fff" />
-                                    </div>
                                     <span className="menu-title">{menu.title}</span>
-                                </div>
+                                    <div className="menu-icon-box">
+                                        <menu.Icon size={18} />
+                                    </div>
+                                </button>
                             ))}
                         </div>
                     )}
-                </div>
-
-                <div className="home-bottom-info">
+                </div><div className="home-bottom-info">
                     <div className="widget info-widget">
                         <div className="widget-header">
                             <User size={20} />
@@ -262,11 +284,11 @@ const HomePage = () => {
                         </div>
                         <div className="widget-content info-inline-content">
                             <div className="info-row">
-                                <span className="label">회사명</span>
+                                <span className="label">회원사</span>
                                 <span className="value">{getUserValue(user, 'COMPANY_NM') || getUserValue(user, 'COMPANY_ID') || '-'}</span>
                             </div>
                             <div className="info-row">
-                                <span className="label">지점명</span>
+                                <span className="label">지점 / 부서</span>
                                 <span className="value">{getUserValue(user, 'BRANCH_NM') || getUserValue(user, 'BRANCH_ID') || '-'}</span>
                             </div>
                             <div className="info-row">

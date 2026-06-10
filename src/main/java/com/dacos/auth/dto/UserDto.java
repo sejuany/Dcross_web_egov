@@ -14,8 +14,11 @@ public class UserDto {
     private String MEMBER_NM;
     private String USE_YN;
     private String COMPANY_ID;
+    private String COMPANY_NM;
     private String BRANCH_ID;
+    private String BRANCH_NM;
     private String SANGSA_ID;
+    private String SANGSA_NM;
     private String MEMBER_GB;
     private String ASSOCIATION_ID;
 }
