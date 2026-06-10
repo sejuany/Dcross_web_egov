@@ -1,5 +1,4 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { useTabs } from '../../context/TabContext'; // 전역 탭 
 import axios from 'axios';
 import './NewcarList.css';
@@ -37,8 +36,7 @@ const timeOptions = [
 ];
 
 const NewcarList = () => {
-    const navigate = useNavigate();
-	const { tabs, activeTabId, removeTab } = useTabs(); // 탭 관리
+	const { tabs, activeTabId, addTab, removeTab } = useTabs(); // 탭 관리
     const gridRef = useRef(null);
 	const waitGridRef = useRef(null);
 	const fileInputRef = useRef(null);
@@ -275,7 +273,9 @@ const NewcarList = () => {
 
     const handleRowDoubleClicked = (event) => {
         if (event.data && event.data.SERVICE_ID) {
-            navigate('/newcar/newcar-request', { state: { receiptNo: event.data.SERVICE_ID } });
+            addTab('newcar-request', '신규등록', '/newcar/newcar-request', {
+                state: { receiptNo: event.data.SERVICE_ID }
+            });
         }
     };
 
@@ -286,7 +286,7 @@ const NewcarList = () => {
     };
 
     const handleRegistClick = () => {
-		navigate('/newcar/newcar-request');
+		addTab('newcar-request', '신규등록', '/newcar/newcar-request');
     };
 
     const handleSearchClick = () => {

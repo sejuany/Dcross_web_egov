@@ -555,8 +555,33 @@ select.erp-input:disabled:hover {
 
 .tab-header-list {
     display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
     gap: 1px;
     flex: 0 0 auto;
+    width: 100%;
+}
+
+.tab-button-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+}
+
+.tab-header-extra {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 28px;
+}
+
+.tab-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-size: 13px;
+    color: #333;
 }
 
 .tab-btn {
@@ -659,11 +684,6 @@ select.erp-input:disabled:hover {
 
 .owner-main-panel .erp-grid>.erp-row:first-child .col-3 {
     flex: 0 0 25%;
-}
-
-.owner-main-panel .erp-grid>.erp-row:first-child .erp-label {
-    width: 86px !important;
-    min-width: 86px;
 }
 
 .owner-panel .btn-erp.sm {

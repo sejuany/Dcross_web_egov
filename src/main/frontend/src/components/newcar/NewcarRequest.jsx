@@ -1174,27 +1174,37 @@ const NewcarRequest = () => {
 			{/* Tab Container */}
 			<div className="tab-container">
 				<div className="tab-header-list">
-					<button className={`tab-btn ${activeTab === 'owner' ? 'active' : ''}`} onClick={() => setActiveTab('owner')}>등록정보</button>
-					<button className={`tab-btn ${activeTab === 'delivery' ? 'active' : ''}`} onClick={() => setActiveTab('delivery')}>배송정보</button>
-					<button className={`tab-btn ${activeTab === 'payment' ? 'active' : ''}`} onClick={() => setActiveTab('payment')}>결제정보</button>
+					<div className="tab-button-group">
+						<button className={`tab-btn ${activeTab === 'owner' ? 'active' : ''}`} onClick={() => setActiveTab('owner')}>등록정보</button>
+						<button className={`tab-btn ${activeTab === 'delivery' ? 'active' : ''}`} onClick={() => setActiveTab('delivery')}>배송정보</button>
+						<button className={`tab-btn ${activeTab === 'payment' ? 'active' : ''}`} onClick={() => setActiveTab('payment')}>결제정보</button>
+					</div>
+					<div className="tab-header-extra">
+						<label className="tab-checkbox-label">
+							<input type="checkbox" checked={isMultiOwner} onChange={e => setIsMultiOwner(e.target.checked)} disabled={isDisabled()} /> 공동소유자 2명
+						</label>
+					</div>
 				</div>
-
+								
 				<div className="tab-content">
 					{activeTab === 'owner' && (
 						<div className="owner-info-section">
 							<div className="owner-split-layout">
 							<ErpSection title="대표 소유자 정보" className="owner-panel owner-main-panel">
 								<div className="erp-row">
-									<ErpField label="신규등록 구분" span={3} htmlFor="PROC_CD">
+									<ErpField label="신규등록 구분" span={6} htmlFor="PROC_CD">
 										<CommonSelect groupId="NEWGB" codes={codes} name="PROC_CD" value={dsNewCar.PROC_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 									</ErpField>
-									<ErpField label="업무구분" required={true} span={3} htmlFor="TASK_CD">
+									<ErpField label="업무구분" required={true} span={6} htmlFor="TASK_CD">
 										<CommonSelect groupId="TASK" codes={codes} name="TASK_CD" value={dsNewCar.TASK_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 									</ErpField>
-									<ErpField label="임시허가관청" span={3}>
+									
+								</div>
+								<div className="erp-row">
+									<ErpField label="임시허가관청" span={6} htmlFor="TEMP_GOVT_ID">
 										<input type="text" className={`erp-input ${!canEdit() ? 'disabled' : ''}`} value="" readOnly={isReadOnly(true)} onChange={() => { }} />
 									</ErpField>
-									<ErpField label="임시허가일자" span={3}>
+									<ErpField label="임시허가일자" span={6} htmlFor="TEMP_ISSUE_DT">
 										<input type="date" className="erp-input" value="" readOnly={isReadOnly(true)} onChange={() => { }} />
 									</ErpField>
 								</div>
@@ -1211,13 +1221,10 @@ const NewcarRequest = () => {
 									</ErpField>
 								</div>
 								<div className="erp-row">
-									<ErpField label="전화번호" span={4} htmlFor="TEL_NO">
-										<input type="text" className="erp-input" id="TEL_NO" name="TEL_NO" data-type="newcar" value={dsNewCar.TEL_NO} onChange={handleChange} readOnly={isReadOnly()} />
-									</ErpField>
 									<ErpField label="휴대폰번호" span={4} htmlFor="MPHONE_NO">
 										<input type="text" className="erp-input" id="MPHONE_NO" name="MPHONE_NO" data-type="newcar" value={dsNewCar.MPHONE_NO} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="보험사 정보" span={4}>
+									<ErpField label="보험사 정보" span={8}>
 										<CommonSelect groupId="INSUR" codes={codes} name="INSURER_CD" value={dsNewCar.INSURER_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 										<input type="date" className="erp-input" id="INSURER_SDT" name="INSURER_SDT" data-type="newcar" value={dsNewCar.INSTALL_DT} onChange={handleChange} readOnly={isReadOnly()} />
 										~
@@ -1245,33 +1252,22 @@ const NewcarRequest = () => {
 
 
 							<ErpSection title="공동 소유자 정보" className="owner-panel owner-co-panel">
-								{/* 체크 */}
-								<div className="erp-row">
-									<div style={{ width: '100%', textAlign: 'right' }}>
-										<label>
-											<input type="checkbox" checked={isMultiOwner} onChange={e => setIsMultiOwner(e.target.checked)} disabled={isDisabled()} /> 공동소유자 2명
-										</label>
-									</div>
-								</div>
-
 								{/* 공동1 */}
 								<div className="erp-row">
-									<ErpField label="성명(상호)" span={4}>
+									<ErpField label="성명(상호)" span={3}>
 										<input className="erp-input" name="DEBTOR_NM" data-type="owner" value={dsOwnerInfo?.DEBTOR_NM ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="등록번호" span={5}>
-										<CommonSelect groupId="REGGB" codes={codes} name="DEBTOR_GB" value={dsOwnerInfo.DEBTOR_GB ?? ''} data-type="owner" onChange={handleChange} disabled={isDisabled()} />
+									<ErpField label="전화번호" span={3}>
+										<input className="erp-input" name="DEBTOR_TEL_NO" data-type="owner" value={dsOwnerInfo?.DEBTOR_TEL_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
+									</ErpField>
+									<ErpField label="등록번호" span={6}>
+										<CommonSelect groupId="REGGB" codes={codes} name="DEBTOR_GB" value={dsOwnerInfo.DEBTOR_GB ?? ''} data-type="owner" onChange={handleChange} disabled={isDisabled()}/>
 										<input className="erp-input" name="DEBTOR_REG_NO" data-type="owner" value={formatRegNo(dsOwnerInfo?.DEBTOR_REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="사업자번호" span={3}>
-										<input className="erp-input" name="DEBTOR_BIZ_NO" data-type="owner" value={dsOwnerInfo?.DEBTOR_BIZ_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
-									</ErpField>
-
 								</div>
-
 								<div className="erp-row">
-									<ErpField label="전화번호" span={4}>
-										<input className="erp-input" name="DEBTOR_TEL_NO" data-type="owner" value={dsOwnerInfo?.DEBTOR_TEL_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
+									<ErpField label="사업자번호" span={4}>
+										<input className="erp-input" name="DEBTOR_BIZ_NO" data-type="owner" value={dsOwnerInfo?.DEBTOR_BIZ_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 									<ErpField label="만료일" span={5}>
 										<input type="date" className="erp-input" name="EXPIRE_DT" data-type="owner" value={dsOwnerInfo?.EXPIRE_DT ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
@@ -1280,7 +1276,6 @@ const NewcarRequest = () => {
 										<input className="erp-input" name="DEBTOR_RATIO" data-type="owner" value={dsOwnerInfo?.DEBTOR_RATIO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 								</div>
-
 								<div className="erp-row">
 									<ErpField label="공동소유자 주소" span={12}>
 										<button className="btn-erp sm light" style={{ marginLeft: '2px' }} onClick={() => openAddressSearchModal('debtor')} disabled={isDisabled()}>주소검색</button>
@@ -1292,21 +1287,26 @@ const NewcarRequest = () => {
 								{/* 공동2 */}
 								{isMultiOwner && (
 									<>
+										<ErpSection title="공동 소유자 2 정보" className="owner-panel owner-co-panel">
 										<div className="erp-row">
-											<ErpField label="성명(상호)(2)" span={3}>
+											<ErpField label="성명(상호)(2)" span={4}>
 												<input className="erp-input" name="DEBTOR_NM" data-type="owner1" value={dsOwnerInfo1?.DEBTOR_NM ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 											</ErpField>
-											<ErpField label="등록번호(2)" span={4}>
-												<CommonSelect groupId="REGGB" codes={codes} name="DEBTOR_REG_GB" value={dsOwnerInfo1.DEBTOR_REG_GB ?? ''} data-type="owner" onChange={handleChange} disabled={isDisabled()} />
-												<input className="erp-input" name="DEBTOR_REG_NO" data-type="owner1" value={formatRegNo(dsOwnerInfo1?.DEBTOR_REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
-											</ErpField>
-											<ErpField label="사업자번호" span={3}>
+											<ErpField label="사업자번호" span={5}>
 												<input className="erp-input" name="DEBTOR_BIZ_NO" data-type="owner1" value={dsOwnerInfo1?.DEBTOR_BIZ_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 											</ErpField>
-											<ErpField label="비율(%)" span={2}>
+											<ErpField label="공동소유 비율(%)" span={3}>
 												<input className="erp-input" name="DEBTOR_RATIO" data-type="owner1" value={dsOwnerInfo1?.DEBTOR_RATIO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 											</ErpField>
 										</div>
+										<div className="erp-row">
+											
+											<ErpField label="등록번호(2)" span={6}>
+												<CommonSelect groupId="REGGB" codes={codes} name="DEBTOR_REG_GB" value={dsOwnerInfo1.DEBTOR_REG_GB ?? ''} data-type="owner" onChange={handleChange} disabled={isDisabled()} />
+												<input className="erp-input" name="DEBTOR_REG_NO" data-type="owner1" value={formatRegNo(dsOwnerInfo1?.DEBTOR_REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
+											</ErpField>
+										</div>
+										</ErpSection>
 									</>
 								)}
 							</ErpSection>

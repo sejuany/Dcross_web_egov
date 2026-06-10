@@ -11,18 +11,22 @@ export const TabProvider = ({ children }) => {
     const navigate = useNavigate();
     const location = useLocation();
 
-    const addTab = (id, title, path) => {
+    const addTab = (id, title, path, navigateOptions = {}) => {
         setTabs((prevTabs) => {
-            const existingTab = prevTabs.find((tab) => tab.id === id);
+            const existingTab = prevTabs.find((tab) => tab.id === id || tab.path === path);
             if (existingTab) {
-                setActiveTabId(id);
-                return prevTabs;
+                setActiveTabId(existingTab.id);
+                return prevTabs.map((tab) =>
+                    tab.id === existingTab.id
+                        ? { ...tab, title, path, state: navigateOptions.state }
+                        : tab
+                );
             }
-            const newTabs = [...prevTabs, { id, title, path, closable: true }];
+            const newTabs = [...prevTabs, { id, title, path, state: navigateOptions.state, closable: true }];
             setActiveTabId(id);
             return newTabs;
         });
-        navigate(path);
+        navigate(path, navigateOptions);
     };
 
     const removeTab = (id, e) => {
@@ -58,7 +62,7 @@ export const TabProvider = ({ children }) => {
         const tab = tabs.find((t) => t.id === id);
         if (tab) {
             setActiveTabId(id);
-            navigate(tab.path);
+            navigate(tab.path, { state: tab.state });
         }
     };
 
