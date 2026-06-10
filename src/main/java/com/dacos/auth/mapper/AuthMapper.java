@@ -58,4 +58,6 @@ public interface AuthMapper {
     void updateMemberDetail(Map<String, Object> request);
     
     Map<String, Object> getCommonServiceData(UserDto user, String workCd);
+    
+    int mergeMemberEtc(Map<String, Object> param);
 }

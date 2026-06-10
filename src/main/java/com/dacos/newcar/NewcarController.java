@@ -228,6 +228,21 @@ public class NewcarController {
 
 	    return newcarService.processNewCar(request, user);
 	}
+	
+	/**
+	 * 신규현황 다건 신청
+	 * POST /api/newcar/request-process
+	 */
+	@PostMapping("/request-process")
+	public ResponseEntity<Map<String, Object>> requestProcess(
+	        @RequestBody List<Map<String, Object>> request,
+	        HttpSession session) {
 
+	    UserDto user = AuthUtil.getLoginUser(session);
+
+	    newcarService.requestProcess(request, user);
+
+	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+	}
 	
 }

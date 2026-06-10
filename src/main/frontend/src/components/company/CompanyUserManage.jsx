@@ -8,6 +8,7 @@ import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 
 import { useAuth } from '../../context/AuthContext';
+import { gf } from '../../utils/utils';
 
 ModuleRegistry.registerModules([AllCommunityModule]);
 
@@ -16,6 +17,23 @@ const MEMBER_GB_OPTIONS = [
     { code: 'A', name: '관리자' },
     { code: 'U', name: '사용자' },
 ];
+
+const SPECIAL_MEMBER_GB_OPTIONS = [
+    { code: 'T', name: '전체' },
+    { code: 'CA', name: '기업 관리자' },
+    { code: 'BA', name: '지점 관리자' },
+    { code: 'SA', name: '팀 관리자' },
+    { code: 'SU', name: '팀 사용자' },
+];
+
+const SPECIAL_MEMBER_GB_EDIT_OPTIONS = [
+    { code: 'CA', name: '기업 관리자' },
+    { code: 'BA', name: '지점 관리자' },
+    { code: 'SA', name: '팀 관리자' },
+    { code: 'SU', name: '팀 사용자' },
+];
+
+const SPECIAL_MEMBER_GB_LIST = ['CA', 'BA', 'SA', 'SU'];
 
 const USE_YN_OPTIONS = [
     { code: 'A', name: '전체' },
@@ -134,11 +152,29 @@ const getValue = (item, ...keys) => {
     return '';
 };
 
-const getMemberGbName = (memberGb) => {
-    const value = String(memberGb || '');
+const getMemberGbName = (memberGb, specialContext = false) => {
+    const value = String(memberGb || '').toUpperCase();
 
     if (!value) {
         return '';
+    }
+
+    if (specialContext) {
+        if (value === 'CA') {
+            return '기업 관리자';
+        }
+
+        if (value === 'BA') {
+            return '지점 관리자';
+        }
+
+        if (value === 'SA') {
+            return '팀 관리자';
+        }
+
+        if (value === 'SU') {
+            return '팀 사용자';
+        }
     }
 
     const last = value.substring(value.length - 1);
@@ -228,6 +264,9 @@ function CompanyUserManage() {
     const gridRef = useRef(null);
     const { user } = useAuth();
 
+    const loginCompanySpecialRef = useRef(false);
+    const [loginCompanySpecial, setLoginCompanySpecial] = useState(false);
+
     const [searchForm, setSearchForm] = useState({
         COMPANY_ID: '',
         BRANCH_ID: '',
@@ -254,97 +293,122 @@ function CompanyUserManage() {
     const selectedLoginGb = detail.LOGIN_GB || 'P';
     const isCorporateLogin = selectedLoginGb === 'C';
 
-	const getLoginInfo = () => {
-	    const contextUser = pickUserObject(user);
-	    const storageUser = pickUserObject(getStoredUser());
+    const getLoginInfo = () => {
+        const contextUser = pickUserObject(user);
+        const storageUser = pickUserObject(getStoredUser());
 
-	    const source = contextUser && Object.keys(contextUser).length > 0
-	        ? contextUser
-	        : storageUser;
+        const source = contextUser && Object.keys(contextUser).length > 0
+            ? contextUser
+            : storageUser;
 
-	    return {
-	        LOGIN_ID:
-	            source.LOGIN_ID ||
-	            source.LoginID ||
-	            source.loginId ||
-	            source.login_ID ||
-	            source.login_id ||
-	            source.userId ||
-	            source.USER_ID ||
-	            source.MEMBER_ID ||
-	            source.memberId ||
-	            source.member_ID ||
-	            '',
+        return {
+            LOGIN_ID:
+                source.LOGIN_ID ||
+                source.LoginID ||
+                source.loginId ||
+                source.login_ID ||
+                source.login_id ||
+                source.userId ||
+                source.USER_ID ||
+                source.MEMBER_ID ||
+                source.memberId ||
+                source.member_ID ||
+                '',
 
-	        COMPANY_ID:
-	            source.COMPANY_ID ||
-	            source.CompanyID ||
-	            source.companyId ||
-	            source.company_ID ||
-	            source.company_id ||
-	            source.COMPANYID ||
-	            source.COMPANY_CD ||
-	            source.companyCd ||
-	            source.company_CD ||
-	            '',
+            COMPANY_ID:
+                source.COMPANY_ID ||
+                source.CompanyID ||
+                source.companyId ||
+                source.company_ID ||
+                source.company_id ||
+                source.COMPANYID ||
+                source.COMPANY_CD ||
+                source.companyCd ||
+                source.company_CD ||
+                '',
 
-	        USER_AUTH:
-	            source.UserAuth ||
-	            source.USER_AUTH ||
-	            source.userAuth ||
-	            source.user_AUTH ||
-	            source.user_auth ||
-	            source.MEMBER_GB ||
-	            source.memberGb ||
-	            source.member_GB ||
-	            source.member_gb ||
-	            source.AUTH_CD ||
-	            source.authCd ||
-	            source.auth_CD ||
-	            '',
+            USER_AUTH:
+                source.UserAuth ||
+                source.USER_AUTH ||
+                source.userAuth ||
+                source.user_AUTH ||
+                source.user_auth ||
+                source.MEMBER_GB ||
+                source.memberGb ||
+                source.member_GB ||
+                source.member_gb ||
+                source.AUTH_CD ||
+                source.authCd ||
+                source.auth_CD ||
+                '',
 
-	        MEMBER_GB:
-	            source.MEMBER_GB ||
-	            source.memberGb ||
-	            source.member_GB ||
-	            source.member_gb ||
-	            source.UserAuth ||
-	            source.USER_AUTH ||
-	            source.userAuth ||
-	            source.user_AUTH ||
-	            '',
+            MEMBER_GB:
+                source.MEMBER_GB ||
+                source.memberGb ||
+                source.member_GB ||
+                source.member_gb ||
+                source.UserAuth ||
+                source.USER_AUTH ||
+                source.userAuth ||
+                source.user_AUTH ||
+                '',
 
-	        LOGIN_GB:
-	            source.LOGIN_GB ||
-	            source.loginGb ||
-	            source.login_GB ||
-	            source.login_gb ||
-	            '',
+            LOGIN_GB:
+                source.LOGIN_GB ||
+                source.loginGb ||
+                source.login_GB ||
+                source.login_gb ||
+                '',
 
-	        BRANCH_ID:
-	            source.BRANCH_ID ||
-	            source.BranchID ||
-	            source.branchId ||
-	            source.branch_ID ||
-	            source.branch_id ||
-	            '',
+            BRANCH_ID:
+                source.BRANCH_ID ||
+                source.BranchID ||
+                source.branchId ||
+                source.branch_ID ||
+                source.branch_id ||
+                '',
 
-	        SANGSA_ID:
-	            source.SANGSA_ID ||
-	            source.SangsaID ||
-	            source.sangsaId ||
-	            source.sangsa_ID ||
-	            source.sangsa_id ||
-	            '',
+            SANGSA_ID:
+                source.SANGSA_ID ||
+                source.SangsaID ||
+                source.sangsaId ||
+                source.sangsa_ID ||
+                source.sangsa_id ||
+                '',
 
-	        ASSOCIATION_ID:
-	            source.ASSOCIATION_ID ||
-	            source.associationId ||
-	            source.association_ID ||
-	            source.association_id ||
-	            '',
-	    };
-	};
+            ASSOCIATION_ID:
+                source.ASSOCIATION_ID ||
+                source.associationId ||
+                source.association_ID ||
+                source.association_id ||
+                '',
+        };
+    };
+
+    const setLoginSpecialCompanyValue = (value) => {
+        loginCompanySpecialRef.current = !!value;
+        setLoginCompanySpecial(!!value);
+    };
+
+    const refreshLoginCompanySpecial = async () => {
+        const loginInfo = getLoginInfo();
+        const companyId = String(loginInfo.COMPANY_ID || '').trim().toUpperCase();
+
+        if (!companyId) {
+            setLoginSpecialCompanyValue(false);
+            return false;
+        }
+
+        try {
+            const result = await gf.isSpecialCompany(companyId);
+            setLoginSpecialCompanyValue(result);
+            return result;
+        } catch (error) {
+            console.error('[CompanyUserManage] 특수회원사 여부 확인 실패:', error);
+            setLoginSpecialCompanyValue(false);
+            return false;
+        }
+    };
 
     const isCompanyAdmin = () => {
         const loginInfo = getLoginInfo();
@@ -353,7 +417,70 @@ function CompanyUserManage() {
         return userAuth === 'UA' || userAuth === 'UU';
     };
 
+    const getLoginMemberGb = () => {
+        const loginInfo = getLoginInfo();
+        return String(loginInfo.MEMBER_GB || loginInfo.USER_AUTH || '').toUpperCase();
+    };
+
+    const isSpecialLoginUser = () => {
+        return loginCompanySpecialRef.current && SPECIAL_MEMBER_GB_LIST.includes(getLoginMemberGb());
+    };
+
+    const isSpecialCa = () => {
+        return isSpecialLoginUser() && getLoginMemberGb() === 'CA';
+    };
+
+    const isSpecialBa = () => {
+        return isSpecialLoginUser() && getLoginMemberGb() === 'BA';
+    };
+
+    const isSpecialSa = () => {
+        return isSpecialLoginUser() && getLoginMemberGb() === 'SA';
+    };
+
+    const isSpecialSu = () => {
+        return isSpecialLoginUser() && getLoginMemberGb() === 'SU';
+    };
+
     const canSelectCompany = isCompanyAdmin();
+
+    const canSelectBranch = () => {
+        if (!isSpecialLoginUser()) {
+            return true;
+        }
+
+        return isSpecialCa();
+    };
+
+    const getSearchMemberGbOptions = () => {
+        return isSpecialLoginUser()
+            ? SPECIAL_MEMBER_GB_OPTIONS
+            : MEMBER_GB_OPTIONS;
+    };
+
+    const getDetailMemberGbOptions = () => {
+        if (!isSpecialLoginUser()) {
+            return MEMBER_GB_OPTIONS.filter(item => item.code !== 'T');
+        }
+
+        if (isSpecialCa()) {
+            return SPECIAL_MEMBER_GB_EDIT_OPTIONS;
+        }
+
+        if (isSpecialBa()) {
+            return SPECIAL_MEMBER_GB_EDIT_OPTIONS.filter(item =>
+                ['BA', 'SA', 'SU'].includes(item.code)
+            );
+        }
+
+        if (isSpecialSa()) {
+            return SPECIAL_MEMBER_GB_EDIT_OPTIONS.filter(item =>
+                ['SA', 'SU'].includes(item.code)
+            );
+        }
+
+        return [];
+    };
 
     const getLoginId = () => {
         const loginInfo = getLoginInfo();
@@ -361,6 +488,7 @@ function CompanyUserManage() {
     };
 
     const resetPageState = () => {
+        setLoginSpecialCompanyValue(false);
         setCompanyOptions([]);
         setBranchOptions([{ CODE_CD: '', CODE_NM: '전체' }]);
         setUserList([]);
@@ -380,7 +508,12 @@ function CompanyUserManage() {
     };
 
     const selectedMemberRole = useMemo(() => {
-        const memberGb = detail.MEMBER_GB || '';
+        const memberGb = String(detail.MEMBER_GB || '').toUpperCase();
+
+        if (loginCompanySpecial && SPECIAL_MEMBER_GB_LIST.includes(memberGb)) {
+            return memberGb;
+        }
+
         const last = memberGb.substring(memberGb.length - 1);
 
         if (last === 'A') {
@@ -392,7 +525,7 @@ function CompanyUserManage() {
         }
 
         return 'U';
-    }, [detail.MEMBER_GB]);
+    }, [detail.MEMBER_GB, loginCompanySpecial]);
 
     const memberColumnDefs = useMemo(() => [
         {
@@ -414,10 +547,10 @@ function CompanyUserManage() {
             headerName: '업무권한',
             field: 'MEMBER_GB',
             flex: 0.8,
-            minWidth: 95,
+            minWidth: 110,
             cellClass: 'cum-ag-center',
             headerClass: 'cum-ag-center',
-            valueFormatter: params => getMemberGbName(params.value),
+            valueFormatter: params => getMemberGbName(params.value, loginCompanySpecial),
         },
         {
             headerName: '회원 ID',
@@ -487,10 +620,12 @@ function CompanyUserManage() {
             headerClass: 'cum-ag-center',
             valueFormatter: params => formatDate(params.value),
         },
-    ], []);
+    ], [loginCompanySpecial]);
 
     const loadBranchOptions = async (selectedCompanyId) => {
         const loginInfo = getLoginInfo();
+        const loginMemberGb = getLoginMemberGb();
+
         const companyId = isCompanyAdmin()
             ? selectedCompanyId
             : loginInfo.COMPANY_ID;
@@ -507,12 +642,40 @@ function CompanyUserManage() {
 
             const list = response.data.list || response.data.data || [];
 
+            let nextList = list;
+
+            if (loginCompanySpecialRef.current && ['BA', 'SA'].includes(loginMemberGb)) {
+                nextList = list.filter(item =>
+                    String(getValue(item, 'CODE_CD', 'codeCd')) === String(loginInfo.BRANCH_ID)
+                );
+
+                setBranchOptions(nextList.length > 0 ? nextList : [
+                    {
+                        CODE_CD: loginInfo.BRANCH_ID,
+                        CODE_NM: loginInfo.BRANCH_ID,
+                    },
+                ]);
+
+                return;
+            }
+
             setBranchOptions([
                 { CODE_CD: '', CODE_NM: '전체' },
-                ...list,
+                ...nextList,
             ]);
         } catch (error) {
             console.error('지점 목록 조회 실패:', error);
+
+            if (loginCompanySpecialRef.current && ['BA', 'SA'].includes(loginMemberGb)) {
+                setBranchOptions([
+                    {
+                        CODE_CD: loginInfo.BRANCH_ID,
+                        CODE_NM: loginInfo.BRANCH_ID,
+                    },
+                ]);
+                return;
+            }
+
             setBranchOptions([{ CODE_CD: '', CODE_NM: '전체' }]);
         }
     };
@@ -520,6 +683,7 @@ function CompanyUserManage() {
     const loadCompanyOptions = async () => {
         const loginInfo = getLoginInfo();
         const isAdmin = isCompanyAdmin();
+        const loginMemberGb = getLoginMemberGb();
 
         if (!loginInfo.COMPANY_ID) {
             console.error('[CompanyUserManage] COMPANY_ID 없음:', {
@@ -530,6 +694,12 @@ function CompanyUserManage() {
             alert('로그인 회원사 정보를 확인할 수 없습니다.');
             return null;
         }
+
+        const defaultCompanyId = loginInfo.COMPANY_ID;
+
+        const defaultBranchId = loginCompanySpecialRef.current && ['BA', 'SA'].includes(loginMemberGb)
+            ? loginInfo.BRANCH_ID
+            : '';
 
         try {
             const param = isAdmin
@@ -577,11 +747,9 @@ function CompanyUserManage() {
                 }
             }
 
-            const defaultCompanyId = loginInfo.COMPANY_ID;
-
             const nextSearchForm = {
                 COMPANY_ID: defaultCompanyId,
-                BRANCH_ID: '',
+                BRANCH_ID: defaultBranchId,
                 MEMBER_NM: '',
                 ST_DATE: addDays(-3000),
                 ED_DATE: getToday(),
@@ -599,8 +767,8 @@ function CompanyUserManage() {
             console.error('회원사 목록 조회 실패:', error);
 
             const nextSearchForm = {
-                COMPANY_ID: loginInfo.COMPANY_ID,
-                BRANCH_ID: '',
+                COMPANY_ID: defaultCompanyId,
+                BRANCH_ID: defaultBranchId,
                 MEMBER_NM: '',
                 ST_DATE: addDays(-3000),
                 ED_DATE: getToday(),
@@ -625,15 +793,37 @@ function CompanyUserManage() {
     const makeSearchPayload = (override = {}) => {
         const loginInfo = getLoginInfo();
         const isAdmin = isCompanyAdmin();
+        const loginMemberGb = getLoginMemberGb();
 
         const merged = {
             ...searchForm,
             ...override,
         };
 
-        const companyId = isAdmin
+        let companyId = isAdmin
             ? merged.COMPANY_ID
             : loginInfo.COMPANY_ID;
+
+        let branchId = merged.BRANCH_ID || '';
+        let sangsaId = '';
+
+        if (isSpecialLoginUser()) {
+            companyId = loginInfo.COMPANY_ID;
+
+            if (loginMemberGb === 'CA') {
+                branchId = merged.BRANCH_ID || '';
+                sangsaId = '';
+            } else if (loginMemberGb === 'BA') {
+                branchId = loginInfo.BRANCH_ID;
+                sangsaId = '';
+            } else if (loginMemberGb === 'SA') {
+                branchId = loginInfo.BRANCH_ID;
+                sangsaId = loginInfo.SANGSA_ID;
+            } else if (loginMemberGb === 'SU') {
+                alert('팀 사용자는 기업사용자관리에 접근할 수 없습니다.');
+                return null;
+            }
+        }
 
         if (!companyId) {
             console.error('[CompanyUserManage] 조회 COMPANY_ID 없음:', {
@@ -649,7 +839,8 @@ function CompanyUserManage() {
 
         const payload = {
             COMPANY_ID: companyId,
-            BRANCH_ID: merged.BRANCH_ID,
+            BRANCH_ID: branchId,
+            SANGSA_ID: sangsaId,
             MEMBER_NM: String(merged.MEMBER_NM || '').trim(),
             USE_YN: merged.USE_YN,
             MEMBER_GB: merged.MEMBER_GB,
@@ -678,10 +869,13 @@ function CompanyUserManage() {
                 axios.post('/api/company/user/work', {
                     COMPANY_ID: targetUser.COMPANY_ID,
                     MEMBER_ID: targetUser.MEMBER_ID,
+                    BRANCH_ID: targetUser.BRANCH_ID,
+                    SANGSA_ID: targetUser.SANGSA_ID || '',
                 }),
                 axios.post('/api/company/user/branch-work', {
                     COMPANY_ID: targetUser.COMPANY_ID,
                     BRANCH_ID: targetUser.BRANCH_ID,
+                    SANGSA_ID: targetUser.SANGSA_ID || '',
                 }),
             ]);
 
@@ -783,6 +977,14 @@ function CompanyUserManage() {
                 return;
             }
 
+            await refreshLoginCompanySpecial();
+
+            if (isSpecialSu()) {
+                alert('팀 사용자는 기업사용자관리에 접근할 수 없습니다.');
+                navigate(-1);
+                return;
+            }
+
             setUserList([]);
             setSelectedIndex(-1);
             setDetail(createEmptyDetail());
@@ -806,6 +1008,10 @@ function CompanyUserManage() {
         const { name, value } = e.target;
 
         if (name === 'COMPANY_ID' && !isCompanyAdmin()) {
+            return;
+        }
+
+        if (name === 'BRANCH_ID' && isSpecialLoginUser() && !isSpecialCa()) {
             return;
         }
 
@@ -887,6 +1093,14 @@ function CompanyUserManage() {
         setWorkPerms(createDefaultWorkPerms());
         setBranchWorkInfo({});
 
+        await refreshLoginCompanySpecial();
+
+        if (isSpecialSu()) {
+            alert('팀 사용자는 기업사용자관리에 접근할 수 없습니다.');
+            navigate(-1);
+            return;
+        }
+
         const nextSearchForm = await loadCompanyOptions();
 
         if (nextSearchForm) {
@@ -918,8 +1132,23 @@ function CompanyUserManage() {
             registNo = `${birthNo}${sexNo}`;
         }
 
-        const memberPrefix = String(detail.MEMBER_GB || '').substring(0, 1);
-        const nextMemberGb = `${memberPrefix}${selectedMemberRole}`;
+        let nextMemberGb = '';
+
+        if (isSpecialLoginUser()) {
+            nextMemberGb = detail.MEMBER_GB;
+
+            const editableOptions = getDetailMemberGbOptions();
+            const canEditRole = editableOptions.some(item => item.code === nextMemberGb);
+
+            if (!canEditRole) {
+                alert('현재 로그인 권한으로 해당 업무권한을 저장할 수 없습니다.');
+                return null;
+            }
+        } else {
+            const memberPrefix = String(detail.MEMBER_GB || '').substring(0, 1);
+            nextMemberGb = `${memberPrefix}${selectedMemberRole}`;
+        }
+
         const loginId = getLoginId();
 
         return {
@@ -967,6 +1196,10 @@ function CompanyUserManage() {
             await axios.post('/api/company/user/password-reset', {
                 LOGIN_ID: detail.LOGIN_ID,
                 UPD_USER: loginId,
+                COMPANY_ID: detail.COMPANY_ID,
+                BRANCH_ID: detail.BRANCH_ID,
+                SANGSA_ID: detail.SANGSA_ID || '',
+                MEMBER_GB: detail.MEMBER_GB,
             });
 
             const savePayload = buildSavePayload('Y');
@@ -1071,7 +1304,7 @@ function CompanyUserManage() {
                                     value={searchForm.COMPANY_ID}
                                     onChange={handleSearchChange}
                                     disabled={!canSelectCompany}
-                                    title={!canSelectCompany ? '일반 회원사는 자기 회원사만 조회 가능합니다.' : ''}
+                                    title={!canSelectCompany ? '자기 회원사만 조회 가능합니다.' : ''}
                                 >
                                     {companyOptions.map(item => (
                                         <option key={item.COMPANY_ID} value={item.COMPANY_ID}>
@@ -1087,6 +1320,8 @@ function CompanyUserManage() {
                                     name="BRANCH_ID"
                                     value={searchForm.BRANCH_ID}
                                     onChange={handleSearchChange}
+                                    disabled={!canSelectBranch()}
+                                    title={!canSelectBranch() ? '현재 권한은 자기 지점만 조회 가능합니다.' : ''}
                                 >
                                     {(branchOptions.length > 0 ? branchOptions : [{ CODE_CD: '', CODE_NM: '전체' }]).map(item => (
                                         <option
@@ -1147,7 +1382,7 @@ function CompanyUserManage() {
                                 {renderRadioGroup({
                                     name: 'searchMemberGb',
                                     value: searchForm.MEMBER_GB,
-                                    options: MEMBER_GB_OPTIONS,
+                                    options: getSearchMemberGbOptions(),
                                     onChange: (e) => setSearchForm(prev => ({ ...prev, MEMBER_GB: e.target.value })),
                                 })}
                             </div>
@@ -1162,26 +1397,26 @@ function CompanyUserManage() {
                         </div>
 
                         <div className="cum-ag-grid-wrap ag-theme-alpine">
-						<AgGridReact
-						    ref={gridRef}
-						    rowData={userList}
-						    columnDefs={memberColumnDefs}
-						    defaultColDef={{
-						        sortable: true,
-						        resizable: true,
-						        suppressMovable: true,
-						    }}
-						    rowSelection="single"
-						    suppressRowClickSelection={true}
-						    onRowClicked={async (event) => {
-						        if (!event.data) {
-						            return;
-						        }
+                            <AgGridReact
+                                ref={gridRef}
+                                rowData={userList}
+                                columnDefs={memberColumnDefs}
+                                defaultColDef={{
+                                    sortable: true,
+                                    resizable: true,
+                                    suppressMovable: true,
+                                }}
+                                rowSelection="single"
+                                suppressRowClickSelection={true}
+                                onRowClicked={async (event) => {
+                                    if (!event.data) {
+                                        return;
+                                    }
 
-						        await selectUser(event.data, event.rowIndex);
-						    }}
-						    overlayNoRowsTemplate="<span class='cum-ag-empty'>조회된 회원이 없습니다.</span>"
-						/>
+                                    await selectUser(event.data, event.rowIndex);
+                                }}
+                                overlayNoRowsTemplate="<span class='cum-ag-empty'>조회된 회원이 없습니다.</span>"
+                            />
                         </div>
                     </section>
 
@@ -1200,19 +1435,34 @@ function CompanyUserManage() {
 
                                 <div className="cum-form-field">
                                     <label>업무 권한</label>
-                                    {renderRadioGroup({
-                                        name: 'detailMemberGb',
-                                        value: selectedMemberRole,
-                                        options: MEMBER_GB_OPTIONS.filter(item => item.code !== 'T'),
-                                        onChange: (e) => {
-                                            const prefix = String(detail.MEMBER_GB || '').substring(0, 1);
-                                            setDetail(prev => ({
-                                                ...prev,
-                                                MEMBER_GB: `${prefix}${e.target.value}`,
-                                            }));
-                                        },
-                                        disabled: !selectedUser || detail.MEMBER_GB === 'SU',
-                                    })}
+                                    {isSpecialLoginUser() ? (
+                                        renderRadioGroup({
+                                            name: 'detailMemberGb',
+                                            value: detail.MEMBER_GB,
+                                            options: getDetailMemberGbOptions(),
+                                            onChange: (e) => {
+                                                setDetail(prev => ({
+                                                    ...prev,
+                                                    MEMBER_GB: e.target.value,
+                                                }));
+                                            },
+                                            disabled: !selectedUser,
+                                        })
+                                    ) : (
+                                        renderRadioGroup({
+                                            name: 'detailMemberGb',
+                                            value: selectedMemberRole,
+                                            options: MEMBER_GB_OPTIONS.filter(item => item.code !== 'T'),
+                                            onChange: (e) => {
+                                                const prefix = String(detail.MEMBER_GB || '').substring(0, 1);
+                                                setDetail(prev => ({
+                                                    ...prev,
+                                                    MEMBER_GB: `${prefix}${e.target.value}`,
+                                                }));
+                                            },
+                                            disabled: !selectedUser,
+                                        })
+                                    )}
                                 </div>
 
                                 <div className="cum-form-field">

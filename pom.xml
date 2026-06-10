@@ -293,6 +293,36 @@
 		<defaultGoal>install</defaultGoal>
 		<directory>${basedir}/target</directory>
 		<finalName>${project.artifactId}-${project.version}</finalName>
+		<pluginManagement>
+			<plugins>
+				<!-- Eclipse m2e auto-build should not copy generated frontend assets.
+				     Maven CLI package/install still runs the executions below normally. -->
+				<plugin>
+					<groupId>org.eclipse.m2e</groupId>
+					<artifactId>lifecycle-mapping</artifactId>
+					<version>1.0.0</version>
+					<configuration>
+						<lifecycleMappingMetadata>
+							<pluginExecutions>
+								<pluginExecution>
+									<pluginExecutionFilter>
+										<groupId>org.apache.maven.plugins</groupId>
+										<artifactId>maven-resources-plugin</artifactId>
+										<versionRange>[3.3.1,)</versionRange>
+										<goals>
+											<goal>copy-resources</goal>
+										</goals>
+									</pluginExecutionFilter>
+									<action>
+										<ignore />
+									</action>
+								</pluginExecution>
+							</pluginExecutions>
+						</lifecycleMappingMetadata>
+					</configuration>
+				</plugin>
+			</plugins>
+		</pluginManagement>
 		<plugins>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
@@ -334,19 +364,16 @@
 					</includes>
 				</configuration>
 			</plugin>
-			<!--  JavaDoc -->
+			<!-- Source jar -->
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
-				<artifactId>maven-javadoc-plugin</artifactId>
-				<version>3.11.2</version>
-				<configuration>
-					<doclint>none</doclint>
-				</configuration>
+				<artifactId>maven-source-plugin</artifactId>
+				<version>3.3.1</version>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
 						<goals>
-							<goal>jar</goal>
+							<goal>jar-no-fork</goal>
 						</goals>
 					</execution>
 				</executions>

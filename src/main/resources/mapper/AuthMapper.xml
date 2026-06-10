@@ -234,5 +234,45 @@
 	        SYSDATE
 	    )
 	</insert>
+	
+	<insert id="mergeMemberEtc" parameterType="java.util.HashMap">
+	    MERGE INTO TM_MEMBER_ETC T
+	    USING (
+	        SELECT
+	            #{LOGIN_ID} AS LOGIN_ID,
+	            #{MEMBER_ID} AS MEMBER_ID,
+	            #{COMPANY_ID} AS COMPANY_ID
+	        FROM DUAL
+	    ) S
+	    ON (
+	        T.LOGIN_ID = S.LOGIN_ID
+	        AND T.MEMBER_ID = S.MEMBER_ID
+	        AND T.COMPANY_ID = S.COMPANY_ID
+	    )
+	    WHEN MATCHED THEN
+	        UPDATE SET
+	            T.MEMBER_MAIL = #{MEMBER_MAIL},
+	            T.UPD_USER = #{LOGIN_ID},
+	            T.UPD_DATE = SYSDATE
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+	            LOGIN_ID,
+	            MEMBER_ID,
+	            COMPANY_ID,
+	            FAV_MENU,
+	            MEMBER_MAIL,
+	            INS_USER,
+	            INS_DATE
+	        )
+	        VALUES (
+	            #{LOGIN_ID},
+	            #{MEMBER_ID},
+	            #{COMPANY_ID},
+	            '',
+	            #{MEMBER_MAIL},
+	            #{LOGIN_ID},
+	            SYSDATE
+	        )
+	</insert>
 
 </mapper>

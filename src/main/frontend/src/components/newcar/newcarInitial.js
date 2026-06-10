@@ -50,14 +50,12 @@ export const initialDsNewCar = {
 	ADDRESS: '',
 	ADDRESS_DT: '',
 	POST_NO: '',
-	BUBJUNG_CD: '',
-	RT_ACC_NM: '',
+	BUBJUNG_CD: '',	
 
 	BASE_ADDRESS: '',
 	BASE_ADDRESS_DT: '',
 	BASE_POST_NO: '',
-	BASE_BUBJUNG_CD: '',
-	RT_ACC_NO: '',
+	BASE_BUBJUNG_CD: '',	
 
 	ADDR_INFO: '',
 	ADDR_INFO2: '',
@@ -168,7 +166,7 @@ export const initialCarNoDetach = {
 	RENT_SEND_YN: '',
 	RENT_RECEIVE_YN: '',
 	HOLE_YN: '02',
-	SEAL_YN: '02'
+	SEAL_YN: '02',
 };
 
 export const initialDsPaymentList = [

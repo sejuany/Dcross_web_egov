@@ -40,5 +40,6 @@ public interface CodeMapper {
      */
     List<Map<String, Object>> findSangsaList(@Param("companyId") String companyId, @Param("branchId") String branchId, @Param("sangsaId") String sangsaId);
     
+    List<Map<String, Object>> getCodeDetailList(List<String> groupIds);
     
 }

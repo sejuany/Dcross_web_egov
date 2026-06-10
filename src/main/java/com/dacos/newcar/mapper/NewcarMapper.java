@@ -57,5 +57,5 @@ public interface NewcarMapper {
 	
 	void createSms(Map<String, Object> param);
 	
-	int updatePaymentProcSt(Map<String, Object> param);
+	int updateBpayYn(Map<String, Object> param);
 }

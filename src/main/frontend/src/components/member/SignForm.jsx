@@ -10,12 +10,45 @@ const REG_GB_MASTER = [
     { code: 'D', name: '배송업체' },
     { code: 'M', name: '멀티기업' },
     { code: 'R', name: '관계사' },
+    { code: 'W', name: '웹버전 사용기업' },
 ];
 
 const SIGNUP_FORM_TYPE = {
     NONE: 'NONE',
     DEFAULT: 'DEFAULT',
     SPECIAL: 'SPECIAL',
+};
+
+/*
+    특수기업 업무권한
+    CA = 기업 관리자
+    BA = 지점 관리자
+    SA = 팀 관리자
+    SU = 팀 사용자
+
+    조건:
+    CA: BRANCH_ID = '1' 고정, SANGSA_ID 없음
+    BA: BRANCH_ID 선택, SANGSA_ID 없음
+    SA: BRANCH_ID 선택, SANGSA_ID 선택
+    SU: BRANCH_ID 선택, SANGSA_ID 선택
+*/
+const SPECIAL_MEMBER_GB_OPTIONS = [
+    { code: 'CA', name: '기업 관리자' },
+    { code: 'BA', name: '지점 관리자' },
+    { code: 'SA', name: '팀 관리자' },
+    { code: 'SU', name: '팀 사용자' },
+];
+
+const isSpecialMemberGb = (memberGb) => {
+    return ['CA', 'BA', 'SA', 'SU'].includes(memberGb);
+};
+
+const needBranchByMemberGb = (memberGb) => {
+    return ['BA', 'SA', 'SU'].includes(memberGb);
+};
+
+const needSangsaByMemberGb = (memberGb) => {
+    return ['SA', 'SU'].includes(memberGb);
 };
 
 const getSignupFormTypeByCompanyId = async (companyId) => {
@@ -94,6 +127,31 @@ const validatePassword = (password) => {
     };
 };
 
+const validateEmail = (email) => {
+    const value = String(email || '').trim();
+
+    if (!value) {
+        return {
+            valid: false,
+            message: '이메일을 입력해주세요.'
+        };
+    }
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+    if (!emailRegex.test(value)) {
+        return {
+            valid: false,
+            message: '이메일 형식이 올바르지 않습니다.'
+        };
+    }
+
+    return {
+        valid: true,
+        message: ''
+    };
+};
+
 const SignForm = () => {
     const navigate = useNavigate();
 
@@ -110,6 +168,7 @@ const SignForm = () => {
         memberNm: '',
         telNo: '',
         mphoneNo: '',
+        memberMail: '',
         loginGb: 'P',
         registNo: '',
         registNoSecond: '',
@@ -139,9 +198,6 @@ const SignForm = () => {
     const [sangsaModalOpen, setSangsaModalOpen] = useState(false);
     const [sangsaSearchKeyword, setSangsaSearchKeyword] = useState('');
     const [sangsaSearchBranchId, setSangsaSearchBranchId] = useState('');
-    const [newSangsaName, setNewSangsaName] = useState('');
-    const [newSangsaBranchId, setNewSangsaBranchId] = useState('');
-    const [sangsaRegisterMode, setSangsaRegisterMode] = useState(false);
 
     const isSpecialForm = signupFormType === SIGNUP_FORM_TYPE.SPECIAL;
     const isDefaultForm = signupFormType === SIGNUP_FORM_TYPE.DEFAULT;
@@ -160,6 +216,14 @@ const SignForm = () => {
         );
 
         return found ? getCodeName(found) : branchId;
+    };
+
+    const resetSangsaState = () => {
+        setSelectedSangsaName('');
+        setSangsaOptions([]);
+        setSangsaModalOpen(false);
+        setSangsaSearchKeyword('');
+        setSangsaSearchBranchId('');
     };
 
     const handleChange = (e) => {
@@ -184,6 +248,31 @@ const SignForm = () => {
             return;
         }
 
+        if (name === 'memberGb') {
+            setFormData(prev => {
+                const next = {
+                    ...prev,
+                    memberGb: value,
+                };
+
+                if (value === 'CA') {
+                    next.branchId = '1';
+                    next.sangsaId = '';
+                } else if (value === 'BA') {
+                    next.branchId = '';
+                    next.sangsaId = '';
+                } else if (value === 'SA' || value === 'SU') {
+                    next.branchId = '';
+                    next.sangsaId = '';
+                }
+
+                return next;
+            });
+
+            resetSangsaState();
+            return;
+        }
+
         setFormData(prev => ({ ...prev, [name]: value }));
 
         if (name === 'loginId') {
@@ -199,14 +288,7 @@ const SignForm = () => {
         setRegGbOptions([]);
         setAssociationOptions([]);
         setBranchOptions([]);
-        setSangsaOptions([]);
-        setSangsaRegisterMode(false);
-        setSelectedSangsaName('');
-        setSangsaModalOpen(false);
-        setSangsaSearchKeyword('');
-        setSangsaSearchBranchId('');
-        setNewSangsaName('');
-        setNewSangsaBranchId('');
+        resetSangsaState();
 
         setCompanyInfo({
             companyNm: '',
@@ -231,6 +313,7 @@ const SignForm = () => {
             memberNm: '',
             telNo: '',
             mphoneNo: '',
+            memberMail: '',
             loginGb: 'P',
             registNo: '',
             registNoSecond: '',
@@ -327,7 +410,6 @@ const SignForm = () => {
         setSangsaOptions([]);
         setSangsaSearchKeyword('');
         setSangsaSearchBranchId('');
-        setNewSangsaBranchId(branchId || '');
     };
 
     const openSangsaModal = async () => {
@@ -337,14 +419,11 @@ const SignForm = () => {
         }
 
         setSangsaSearchKeyword('');
-        setSangsaSearchBranchId('');
-        setNewSangsaName('');
-        setNewSangsaBranchId(formData.branchId || '');
-        setSangsaRegisterMode(false);
+        setSangsaSearchBranchId(formData.branchId || '');
         setSangsaModalOpen(true);
 
         await fetchSangsaList({
-            branchId: '',
+            branchId: formData.branchId,
             keyword: ''
         });
     };
@@ -353,9 +432,6 @@ const SignForm = () => {
         setSangsaModalOpen(false);
         setSangsaSearchKeyword('');
         setSangsaSearchBranchId('');
-        setNewSangsaName('');
-        setNewSangsaBranchId('');
-        setSangsaRegisterMode(false);
     };
 
     const handleSearchSangsa = async () => {
@@ -389,87 +465,6 @@ const SignForm = () => {
         closeSangsaModal();
     };
 
-    const handleCreateSangsa = async () => {
-        const companyId = formData.searchCompanyId.trim().toUpperCase();
-        const branchId = newSangsaBranchId;
-
-        if (!companyId) {
-            alert('회원사 ID가 없습니다.');
-            return;
-        }
-
-        if (!branchId) {
-            alert('등록할 지점을 선택해주세요.');
-            return;
-        }
-
-        if (!newSangsaName.trim()) {
-            alert('등록할 영업팀명을 입력해주세요.');
-            return;
-        }
-
-        const confirmSave = window.confirm('입력한 영업팀을 등록하시겠습니까?');
-
-        if (!confirmSave) {
-            return;
-        }
-
-        try {
-            const response = await axios.post('/api/company/sangsa/save', {
-                COMPANY_ID: companyId,
-                BRANCH_ID: branchId,
-                SANGSA_NM: newSangsaName.trim()
-            });
-
-            if (!response.data.success) {
-                alert(response.data.message || '영업팀 등록에 실패했습니다.');
-                return;
-            }
-
-            alert('영업팀이 등록되었습니다.');
-
-            const savedSangsaId =
-                response.data.SANGSA_ID ||
-                response.data.sangsaId ||
-                response.data.sangsaInfo?.SANGSA_ID ||
-                response.data.sangsaInfo?.sangsaId ||
-                '';
-
-            const savedSangsaName =
-                response.data.SANGSA_NM ||
-                response.data.sangsaNm ||
-                response.data.sangsaInfo?.SANGSA_NM ||
-                response.data.sangsaInfo?.sangsaNm ||
-                newSangsaName.trim();
-
-            setNewSangsaName('');
-            setSangsaRegisterMode(false);
-
-            await fetchSangsaList({
-                branchId: sangsaSearchBranchId,
-                keyword: sangsaSearchKeyword.trim()
-            });
-
-            /*
-                회원가입 화면에서 선택한 지점과 동일한 지점에 등록한 경우만
-                바로 선택 처리한다.
-            */
-            if (savedSangsaId && String(branchId) === String(formData.branchId)) {
-                setFormData(prev => ({
-                    ...prev,
-                    sangsaId: String(savedSangsaId)
-                }));
-
-                setSelectedSangsaName(savedSangsaName);
-                closeSangsaModal();
-            }
-
-        } catch (error) {
-            console.error('영업팀 등록 실패:', error);
-            alert(error.response?.data?.message || '영업팀 등록 중 오류가 발생했습니다.');
-        }
-    };
-
     const handleSearchCompany = async () => {
         if (!formData.searchCompanyId.trim()) {
             alert('조회할 회원사 ID를 입력해주세요.');
@@ -501,8 +496,8 @@ const SignForm = () => {
                 return;
             }
 
-			const formType = await getSignupFormTypeByCompanyId(companyId);
-			const regOptions = getRegGbOptionsByCompanyId(companyId);
+            const formType = await getSignupFormTypeByCompanyId(companyId);
+            const regOptions = getRegGbOptionsByCompanyId(companyId);
 
             if (regOptions.length === 0) {
                 setCompanySearched(false);
@@ -548,7 +543,7 @@ const SignForm = () => {
                 associationId: associationExists ? associationId : '',
                 branchId: '',
                 sangsaId: '',
-                memberGb: 'U',
+                memberGb: formType === SIGNUP_FORM_TYPE.SPECIAL ? 'SU' : 'U',
                 loginGb: 'P',
                 registNo: '',
                 registNoSecond: '',
@@ -558,16 +553,12 @@ const SignForm = () => {
                 memberNm: '',
                 telNo: '',
                 mphoneNo: '',
+                memberMail: '',
             }));
 
             setIsIdChecked(false);
             setServiceAgreed(false);
-            setSangsaOptions([]);
-            setSelectedSangsaName('');
-            setSangsaSearchKeyword('');
-            setSangsaSearchBranchId('');
-            setNewSangsaName('');
-            setNewSangsaBranchId('');
+            resetSangsaState();
             setCompanySearched(true);
             setSignupFormType(formType);
 
@@ -591,14 +582,9 @@ const SignForm = () => {
             sangsaId: '',
         }));
 
-        setSelectedSangsaName('');
-        setSangsaOptions([]);
+        resetSangsaState();
         setAssociationOptions([]);
         setBranchOptions([]);
-        setSangsaSearchKeyword('');
-        setSangsaSearchBranchId('');
-        setNewSangsaName('');
-        setNewSangsaBranchId('');
 
         if (!value) {
             return;
@@ -690,14 +676,43 @@ const SignForm = () => {
             return false;
         }
 
-        if (!formData.branchId) {
-            alert('지점을 선택해주세요.');
+        if (!formData.memberGb || !isSpecialMemberGb(formData.memberGb)) {
+            alert('업무권한을 선택해주세요.');
             return false;
         }
 
-        if (!formData.sangsaId) {
-            alert('영업팀을 선택해주세요.');
+        const emailCheck = validateEmail(formData.memberMail);
+
+        if (!emailCheck.valid) {
+            alert(emailCheck.message);
             return false;
+        }
+
+        if (formData.memberGb === 'CA') {
+            return true;
+        }
+
+        if (formData.memberGb === 'BA') {
+            if (!formData.branchId) {
+                alert('지점을 선택해주세요.');
+                return false;
+            }
+
+            return true;
+        }
+
+        if (formData.memberGb === 'SA' || formData.memberGb === 'SU') {
+            if (!formData.branchId) {
+                alert('지점을 선택해주세요.');
+                return false;
+            }
+
+            if (!formData.sangsaId) {
+                alert('영업팀을 선택해주세요.');
+                return false;
+            }
+
+            return true;
         }
 
         return true;
@@ -823,9 +838,9 @@ const SignForm = () => {
             return;
         }
 
-		const companyId = formData.searchCompanyId.trim().toUpperCase();
-		const firstCompanyChar = companyId.substring(0, 1);
-		const isSpecialCompany = await gf.isSpecialCompany(companyId);
+        const companyId = formData.searchCompanyId.trim().toUpperCase();
+        const firstCompanyChar = companyId.substring(0, 1);
+        const isSpecialCompany = await gf.isSpecialCompany(companyId);
 
         let registNo = '';
 
@@ -834,15 +849,28 @@ const SignForm = () => {
         } else {
             registNo = companyInfo.bizNo;
         }
-		
 
         let memberGb = '';
 
-		if (isSpecialCompany) {
-		    memberGb = formData.memberGb === 'A' ? 'SA' : 'SC';
-		} else {
-		    memberGb = `${firstCompanyChar}${formData.memberGb}`;
-		}
+        if (isSpecialCompany) {
+            memberGb = formData.memberGb;
+        } else {
+            memberGb = `${firstCompanyChar}${formData.memberGb}`;
+        }
+
+        let branchId = formData.branchId;
+        let sangsaId = formData.sangsaId || '';
+
+        if (isSpecialCompany) {
+            if (memberGb === 'CA') {
+                branchId = '1';
+                sangsaId = '';
+            }
+
+            if (memberGb === 'BA') {
+                sangsaId = '';
+            }
+        }
 
         const payload = {
             LOGIN_ID: formData.loginId.trim(),
@@ -854,12 +882,13 @@ const SignForm = () => {
             REG_GB: formData.regGb,
             ASSOCIATION_ID: formData.associationId,
             COMPANY_ID: companyId,
-            BRANCH_ID: formData.branchId,
-            SANGSA_ID: formData.sangsaId || '',
+            BRANCH_ID: branchId,
+            SANGSA_ID: sangsaId,
             MEMBER_NM: formData.memberNm.trim(),
             MEMBER_GB: memberGb,
             TEL_NO: formData.telNo.trim(),
             MPHONE_NO: formData.mphoneNo.trim(),
+            MEMBER_MAIL: isSpecialCompany ? formData.memberMail.trim() : '',
 
             SIGNUP_FORM_TYPE: signupFormType
         };
@@ -1065,77 +1094,76 @@ const SignForm = () => {
                             </div>
                         </div>
 
-                        <div className="form-row split">
-                            <div className="field">
-                                <label>등록구분</label>
-                                <input
-                                    type="text"
-                                    readOnly
-                                    className="read-only"
-                                    value={
-                                        REG_GB_MASTER.find(item => item.code === formData.regGb)?.name || formData.regGb
-                                    }
-                                />
-                            </div>
-
-                            <div className="field">
-                                <label className="req">업무권한</label>
-                                <div className="radio-group">
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="memberGb"
-                                            value="A"
-                                            checked={formData.memberGb === 'A'}
-                                            onChange={handleChange}
-                                            disabled={!companySearched}
-                                        />
-                                        관리자
-                                    </label>
-                                    <label>
-                                        <input
-                                            type="radio"
-                                            name="memberGb"
-                                            value="U"
-                                            checked={formData.memberGb === 'U'}
-                                            onChange={handleChange}
-                                            disabled={!companySearched}
-                                        />
-                                        사용자
-                                    </label>
+                        <div className="form-row">
+                            <div className="field special-auth-only-field">
+                                <label className="req">권한</label>
+                                <div className="special-auth-only-group">
+                                    {SPECIAL_MEMBER_GB_OPTIONS.map(item => (
+                                        <label
+                                            key={item.code}
+                                            className={`special-auth-chip ${formData.memberGb === item.code ? 'active' : ''}`}
+                                        >
+                                            <input
+                                                type="radio"
+                                                name="memberGb"
+                                                value={item.code}
+                                                checked={formData.memberGb === item.code}
+                                                onChange={handleChange}
+                                                disabled={!companySearched}
+                                            />
+                                            <span>{item.name}</span>
+                                        </label>
+                                    ))}
                                 </div>
                             </div>
                         </div>
 
                         <div className="form-row">
-                            <div className="field">
-                                <label className="req">지점</label>
-                                <div className="inline-selects">
-                                    <input
-                                        type="text"
-                                        readOnly
-                                        className="read-only"
-                                        value={getAssociationName()}
-                                    />
-
-                                    <select
-                                        name="branchId"
-                                        value={formData.branchId}
-                                        onChange={handleBranchChange}
-                                        disabled={!companySearched || branchOptions.length === 0}
-                                    >
-                                        <option value="">지점 선택</option>
-                                        {branchOptions.map(item => (
-                                            <option key={getCodeValue(item)} value={getCodeValue(item)}>
-                                                {getCodeName(item)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
+                            <div className="field special-email-field">
+                                <label className="req">이메일</label>
+                                <input
+                                    type="text"
+                                    name="memberMail"
+                                    value={formData.memberMail}
+                                    onChange={handleChange}
+                                    className="special-email-input"
+                                    placeholder="이메일을 입력해주세요"
+                                    disabled={!companySearched}
+                                />
                             </div>
                         </div>
 
-                        {formData.branchId && (
+                        {needBranchByMemberGb(formData.memberGb) && (
+                            <div className="form-row">
+                                <div className="field">
+                                    <label className="req">지점</label>
+                                    <div className="inline-selects">
+                                        <input
+                                            type="text"
+                                            readOnly
+                                            className="read-only"
+                                            value={getAssociationName()}
+                                        />
+
+                                        <select
+                                            name="branchId"
+                                            value={formData.branchId}
+                                            onChange={handleBranchChange}
+                                            disabled={!companySearched || branchOptions.length === 0}
+                                        >
+                                            <option value="">지점 선택</option>
+                                            {branchOptions.map(item => (
+                                                <option key={getCodeValue(item)} value={getCodeValue(item)}>
+                                                    {getCodeName(item)}
+                                                </option>
+                                            ))}
+                                        </select>
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {needSangsaByMemberGb(formData.memberGb) && formData.branchId && (
                             <div className="form-row">
                                 <div className="field">
                                     <label className="req">영업팀</label>
@@ -1152,7 +1180,7 @@ const SignForm = () => {
                                             className="btn-inner"
                                             onClick={openSangsaModal}
                                         >
-                                            검색/등록
+                                            검색
                                         </button>
                                     </div>
                                 </div>
@@ -1320,6 +1348,7 @@ const SignForm = () => {
                                     name="registNo"
                                     value={formatBizNo(companyInfo.bizNo)}
                                     disabled={!companySearched}
+                                    readOnly
                                 />
                             ) : (
                                 <div className="reg-no-row">
@@ -1398,188 +1427,92 @@ const SignForm = () => {
             <div className="sangsa-modal-backdrop">
                 <div className="sangsa-modal">
                     <div className="sangsa-modal-header">
-                        <h4>영업팀 검색/등록</h4>
+                        <h4>영업팀 검색</h4>
                         <button type="button" onClick={closeSangsaModal}>×</button>
                     </div>
 
                     <div className="sangsa-modal-body">
-                        {!sangsaRegisterMode && (
-                            <>
-							<div className="sangsa-search-top-row">
-							    <select
-							        className="sangsa-branch-select"
-							        value={sangsaSearchBranchId}
-							        onChange={(e) => setSangsaSearchBranchId(e.target.value)}
-							    >
-							        <option value="">전체 지점</option>
-							        {branchOptions.map(item => (
-							            <option key={getCodeValue(item)} value={getCodeValue(item)}>
-							                {getCodeName(item)}
-							            </option>
-							        ))}
-							    </select>
+                        <div className="sangsa-search-top-row">
+                            <select
+                                className="sangsa-branch-select"
+                                value={sangsaSearchBranchId}
+                                onChange={(e) => setSangsaSearchBranchId(e.target.value)}
+                            >
+                                <option value="">전체 지점</option>
+                                {branchOptions.map(item => (
+                                    <option key={getCodeValue(item)} value={getCodeValue(item)}>
+                                        {getCodeName(item)}
+                                    </option>
+                                ))}
+                            </select>
 
-							    <input
-							        className="sangsa-search-input"
-							        type="text"
-							        value={sangsaSearchKeyword}
-							        onChange={(e) => setSangsaSearchKeyword(e.target.value)}
-							        onKeyDown={(e) => {
-							            if (e.key === 'Enter') {
-							                handleSearchSangsa();
-							            }
-							        }}
-							        placeholder="영업팀 ID 또는 영업팀명 검색"
-							    />
+                            <input
+                                className="sangsa-search-input"
+                                type="text"
+                                value={sangsaSearchKeyword}
+                                onChange={(e) => setSangsaSearchKeyword(e.target.value)}
+                                onKeyDown={(e) => {
+                                    if (e.key === 'Enter') {
+                                        handleSearchSangsa();
+                                    }
+                                }}
+                                placeholder="영업팀 ID 또는 영업팀명 검색"
+                            />
 
-							    <button
-							        type="button"
-							        className="btn-sangsa-search"
-							        onClick={handleSearchSangsa}
-							    >
-							        검색
-							    </button>
-							</div>
+                            <button
+                                type="button"
+                                className="btn-sangsa-search"
+                                onClick={handleSearchSangsa}
+                            >
+                                검색
+                            </button>
+                        </div>
 
-                                <div className="sangsa-list-box">
-                                    {sangsaOptions.length === 0 ? (
-                                        <div className="sangsa-empty">조회된 영업팀이 없습니다.</div>
-                                    ) : (
-                                        <table className="sangsa-table">
-											<thead>
-											    <tr>
-											        <th>지점</th>
-											        <th>영업팀명</th>
-											        <th>사업자번호</th>
-											        <th>선택</th>
-											    </tr>
-											</thead>
-											<tbody>
-											    {sangsaOptions.map((item, index) => {
-											        const branchId = item.BRANCH_ID || item.branchId || '';
-											        const sangsaId = item.SANGSA_ID || item.sangsaId || getCodeValue(item);
-											        const sangsaNm = item.SANGSA_NM || item.sangsaNm || getCodeName(item);
-											        const bizNo = item.BIZ_NO || item.bizNo || '';
-											        const branchName = getBranchName(branchId);
-											        const canSelect = String(branchId) === String(formData.branchId);
-	
-											        return (
-											            <tr key={`${branchId}-${sangsaId}-${index}`}>
-											                <td>{branchName}</td>
-											                <td className="sangsa-name-cell">{sangsaNm}</td>
-											                <td>{formatBizNo(bizNo)}</td>
-											                <td>
-											                    <button
-											                        type="button"
-											                        className="btn-sangsa-select"
-											                        onClick={() => handleSelectSangsa(item)}
-											                        disabled={!canSelect}
-											                        title={!canSelect ? '회원가입 화면에서 선택한 지점의 영업팀만 선택할 수 있습니다.' : ''}
-											                    >
-											                        선택
-											                    </button>
-											                </td>
-											            </tr>
-											        );
-											    })}
-											</tbody>
-                                        </table>
-                                    )}
-                                </div>
+                        <div className="sangsa-list-box">
+                            {sangsaOptions.length === 0 ? (
+                                <div className="sangsa-empty">조회된 영업팀이 없습니다.</div>
+                            ) : (
+                                <table className="sangsa-table">
+                                    <thead>
+                                        <tr>
+                                            <th>지점</th>
+                                            <th>영업팀명</th>
+                                            <th>사업자번호</th>
+                                            <th>선택</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {sangsaOptions.map((item, index) => {
+                                            const branchId = item.BRANCH_ID || item.branchId || '';
+                                            const sangsaId = item.SANGSA_ID || item.sangsaId || getCodeValue(item);
+                                            const sangsaNm = item.SANGSA_NM || item.sangsaNm || getCodeName(item);
+                                            const bizNo = item.BIZ_NO || item.bizNo || '';
+                                            const branchName = getBranchName(branchId);
+                                            const canSelect = String(branchId) === String(formData.branchId);
 
-                                <div className="sangsa-register-link-box">
-                                    <span>찾으시는 영업팀이 없으신가요?</span>
-                                    <button
-                                        type="button"
-                                        className="btn-sangsa-register-link"
-                                        onClick={() => {
-                                            setNewSangsaName('');
-                                            setNewSangsaBranchId(formData.branchId || '');
-                                            setSangsaRegisterMode(true);
-                                        }}
-                                    >
-                                        영업팀 신규등록
-                                    </button>
-                                </div>
-                            </>
-                        )}
-
-                        {sangsaRegisterMode && (
-                            <div className="sangsa-register-panel">
-                                <div className="sangsa-register-panel-header">
-                                    <div>
-                                        <div className="sangsa-register-title">영업팀 신규등록</div>
-                                        <div className="sangsa-register-desc">
-                                            선택한 지점 기준으로 SANGSA_ID가 자동 생성됩니다.
-                                        </div>
-                                    </div>
-
-                                    <button
-                                        type="button"
-                                        className="btn-sangsa-back"
-                                        onClick={() => {
-                                            setNewSangsaName('');
-                                            setNewSangsaBranchId(formData.branchId || '');
-                                            setSangsaRegisterMode(false);
-                                        }}
-                                    >
-                                        목록으로
-                                    </button>
-                                </div>
-
-                                <div className="sangsa-register-form">
-                                    <label>지점</label>
-                                    <select
-                                        value={newSangsaBranchId}
-                                        onChange={(e) => setNewSangsaBranchId(e.target.value)}
-                                    >
-                                        <option value="">지점 선택</option>
-                                        {branchOptions.map(item => (
-                                            <option key={getCodeValue(item)} value={getCodeValue(item)}>
-                                                {getCodeName(item)}
-                                            </option>
-                                        ))}
-                                    </select>
-                                </div>
-
-                                <div className="sangsa-register-form">
-                                    <label>영업팀명</label>
-                                    <input
-                                        type="text"
-                                        value={newSangsaName}
-                                        onChange={(e) => setNewSangsaName(e.target.value)}
-                                        onKeyDown={(e) => {
-                                            if (e.key === 'Enter') {
-                                                handleCreateSangsa();
-                                            }
-                                        }}
-                                        placeholder="등록할 영업팀명을 입력하세요"
-                                        autoFocus
-                                    />
-                                </div>
-
-                                <div className="sangsa-register-actions">
-                                    <button
-                                        type="button"
-                                        className="btn-sangsa-cancel"
-                                        onClick={() => {
-                                            setNewSangsaName('');
-                                            setNewSangsaBranchId(formData.branchId || '');
-                                            setSangsaRegisterMode(false);
-                                        }}
-                                    >
-                                        취소
-                                    </button>
-                                    <button
-                                        type="button"
-                                        className="btn-sangsa-create"
-                                        onClick={handleCreateSangsa}
-                                    >
-                                        등록
-                                    </button>
-                                </div>
-                            </div>
-                        )}
+                                            return (
+                                                <tr key={`${branchId}-${sangsaId}-${index}`}>
+                                                    <td>{branchName}</td>
+                                                    <td className="sangsa-name-cell">{sangsaNm}</td>
+                                                    <td>{formatBizNo(bizNo)}</td>
+                                                    <td>
+                                                        <button
+                                                            type="button"
+                                                            className="btn-sangsa-select"
+                                                            onClick={() => handleSelectSangsa(item)}
+                                                            disabled={!canSelect}
+                                                            title={!canSelect ? '회원가입 화면에서 선택한 지점의 영업팀만 선택할 수 있습니다.' : ''}
+                                                        >
+                                                            선택
+                                                        </button>
+                                                    </td>
+                                                </tr>
+                                            );
+                                        })}
+                                    </tbody>
+                                </table>
+                            )}
+                        </div>
                     </div>
 
                     <div className="sangsa-modal-footer">

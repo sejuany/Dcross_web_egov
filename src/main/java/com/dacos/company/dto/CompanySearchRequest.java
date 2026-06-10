@@ -32,4 +32,6 @@ public class CompanySearchRequest {
 
     private String INS_USER;
     private String USER_AUTH;
+    
+    private String TEL_NO;
 }

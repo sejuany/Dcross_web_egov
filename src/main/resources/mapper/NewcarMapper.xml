@@ -25,6 +25,8 @@
             TS.PROC_ST,
             TN.NUMPLATE_GB,
             TN.PAY_ST,
+            TO_CHAR(TN.PAY_DT, 'MM.DD HH24:MI')       AS PAY_DT,
+            TO_CHAR(TN.BPAY_DT, 'MM.DD HH24:MI')      AS BPAY_DT,
             TN.PROC_CD,
             TN.TASK_CD,
             TN.BOND_DC,
@@ -684,6 +686,19 @@
 	    WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
+	<update id="updateBpayYn">
+	    UPDATE TR_NEWCAR
+	    <set>
+               BPAY_YN = 'Y',
+	           <if test="UPD_USER != null and UPD_USER != ''">
+	              UPD_USER = #{UPD_USER},
+			   </if>
+	           UPD_DATE = SYSDATE,
+	           BPAY_DT = SYSDATE
+        </set>
+	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+	
 	<update id="updateProcSt">
 	    UPDATE TR_SERVICE
 		<set>

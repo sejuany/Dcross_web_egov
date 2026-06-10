@@ -313,7 +313,7 @@ public class CommonService {
 	    String govtId = jSendData.path("GOVT_ID").asText("HAMYA");
 	    
 		// 운영 서버 여부
-		boolean isProd = ip.getHostAddress().startsWith("10.109.111.140");
+		boolean isProd = ip.getHostAddress().startsWith("10.109.111.40");  // 웹이 동작할 서버는 10.109.111.40
 		// 부산 관청 여부
 		boolean isBusan = "BUSAN".equals(govtId);
 	     

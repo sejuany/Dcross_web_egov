@@ -411,6 +411,7 @@ public class NewcarService {
 	        param.put("UPD_USER", user.getLOGIN_ID());
 	        
 	        updateCount += common.update(param, "updateTrService");
+	        updateCount += common.update(param, "updateBpayYn");
 	    }
 
 	    return updateCount;
@@ -717,6 +718,351 @@ public class NewcarService {
 		    result.put("RESULT_CD", "-3");
 		    result.put("MESSAGE", "처리 중 오류가 발생하였습니다.");
 		
+		}
+		
+		return ApiResponse.withKey("data", result);
+	}
+	
+	@Transactional
+	public void requestProcess(List<Map<String, Object>> request, UserDto user) {
+		// 성공 반환
+	    Map<String, Object> result = new HashMap<>();
+	    
+		for (Map<String, Object> row : request) {
+			String serviceId = String.valueOf(row.get("SERVICE_ID"));
+			Map<String, Object> mNewCarDetail = getNewCarDetail(user, serviceId);
+			
+			logger.info("mNewCarDetail >>> " + mNewCarDetail);
+			
+			 // 데이터 파싱
+		    Map<String, Object> mService = commonUtil.getMap(mNewCarDetail, "dsService");
+		    Map<String, Object> mNewCar = commonUtil.getMap(mNewCarDetail, "dsNewCar");
+		    Map<String, Object> mCarNoDetach = commonUtil.getMap(mNewCarDetail, "dsCarNoDetach");
+		    
+		    List<Map<String, Object>> lPaymentList = commonUtil.getList(mNewCarDetail, "dsPaymentList");
+		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(mNewCarDetail, "dsOwnerInfo");
+		    List<Map<String, Object>> lOwnerInfoList1 = commonUtil.getList(mNewCarDetail, "dsOwnerInfo1");
+
+			// 공동동소유자 컬럼명 변환
+			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
+			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
+			
+		    // 데이터 병합
+		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
+		    
+		    logger.info("mNewCar >>> " + mNewCar);
+		    logger.info("input >>> " + input);
+		    
+		    // 로그인 사용자
+		    input.put("UPD_USER", user.getLOGIN_ID());
+		    
+		    // 서비스번호
+			
+			String payGb = Objects.toString(mNewCar.get("PAY_GB"), "");
+
+			if ("B".equals(payGb)) {
+				// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
+				// 선납건
+				// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
+ 	    		try {
+					logger.debug("프로시져 호출 전");
+ 	    			
+ 	    			input.put("pInput",  input.get("SERVICE_ID"));
+					input.put("pReturn",  "");
+ 	    			
+					common.call(input, "processVBank");
+					
+					// OUT 파라미터 확인
+					String pReturn = Objects.toString(input.get("pReturn"), "");
+					
+					logger.debug("프로시져 호출 후 pReturn >> " + pReturn);
+					
+			        if (pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
+			            throw new RuntimeException("가상계좌 발급 실패 : " + pReturn);
+			        }
+
+				} catch (Exception ex) {
+					logger.error("processVBank 호출 예외", ex);
+					// 예외를 던지면 @Transactional 메서드에서 롤백됩니다.
+					throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
+				}
+	    		
+	    		result.put("RESULT_CD", "0");
+	    		result.put("MESSAGE", "처리완료");
+	    		
+			}
+			
+			// 후납건은 바로 관청 서버 연계
+	        Map<String, Object> linkData = commonUtil.filterMap(input,
+	                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
+	                + " REQUEST_DT, COMPANY_ID, COMPANY_NM, COMPANY_NO,"
+	                + " ADDRESS, ADDRESS_DT, POST_NO, BASE_ADDRESS, BASE_ADDRESS_DT, BASE_POST_NO,"
+	                + " OWNER_NM, REG_GB, REG_NO, BIZ_NO, BUBJUNG_CD, BASE_BUBJUNG_CD,"
+	                + " REQ_CAR_NO, GOVT_ID, NTAX_TRGET_CD, NTAX_WHO, NTAX_TRGET_GR_CD, NTAX_APPLC_CD,"
+	                + " MEMBER_ID, PROC_ST, PAY_GB, PAY_ME, TEL_NO, MPHONE_NO,"
+	                + " BOND_DC, BOND_LINK_YN, BOND_BANK_CD, ADDR_INFO, ADDR_INFO2");
+	        
+	        logger.info("linkData >>" + linkData);
+	        
+	        // 공동소유자 정보
+	        StringBuilder ownerInfo = new StringBuilder();
+
+	        for (Map<String, Object> owner : lOwnerInfoList) {
+	            StringJoiner joiner = new StringJoiner("ß");
+	            
+	            joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
+	            joiner.add("SEQ»"         + getVal(owner, "SEQ"));
+	            joiner.add("DEBTOR_NM»"   + getVal(owner, "DEBTOR_NM"));
+	            joiner.add("DEBTOR_GB»"   + getVal(owner, "DEBTOR_GB"));
+	            joiner.add("REG_NO»"      + getVal(owner, "REG_NO"));
+	            joiner.add("DEBTOR_RATIO»"+ getVal(owner, "DEBTOR_RATIO"));
+	            joiner.add("DEBTOR_ADDR»" + (getVal(owner, "DEBTOR_ADDR") + " " 
+	            						  + getVal(owner, "DEBTOR_ADDR_DT")).trim());
+	            joiner.add("DSIGN_GB»"    + getVal(owner, "DSIGN_GB"));
+	            joiner.add("DSIGN_HP_NO»" + getVal(owner, "DSIGN_HP_NO"));
+	            joiner.add("DSIGN_TX»"    + getVal(owner, "DSIGN_TX"));
+	            joiner.add("CONFIRM_NO»"  + getVal(owner, "CONFIRM_NO"));
+	            joiner.add("DSIGN_ST»"    + getVal(owner, "DSIGN_ST"));
+	            joiner.add("IDEN_ST»"     + getVal(owner, "IDEN_ST"));
+
+	            // 관청별 마감 분기 처리
+	            if ("BUSAN".equals(input.get("GOVT_ID"))) {
+	                ownerInfo.append(joiner.toString()).append("þ");
+	            } else {
+	            	// date 타입 : 값이 없을 땐 null 
+					joiner.add("DSIGN_DT»" + (owner.get("DSIGN_DT") == null ? "null" : owner.get("DSIGN_DT")));
+					joiner.add("IDEN_DT»" + (owner.get("IDEN_DT") == null ? "null" : owner.get("IDEN_DT")));
+	                ownerInfo.append(joiner.toString()).append("þ");
+	            }
+	        }
+	        
+	        logger.info("ownerInfo 공동소유자 >>> " + ownerInfo);
+
+	        linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
+	        linkData.put("SID", "신규등록신청");
+
+	        // 원부 조회 처리
+	        JsonNode jsonResponse = commonService.linkServer(linkData);
+
+	        // errorCode = 0(성공), -1(실패)
+	        String sErrorCode = jsonResponse.path("errorCode").asText();
+
+	        // 통신 오류
+	        if ("-1".equals(sErrorCode)) {
+	            result.put("MESSAGE", "관청서버와 통신 중 오류가 발생하였습니다.");
+	            throw new RuntimeException("관청 서버 통신 오류");
+	            
+	        }
+
+            JsonNode returnMsg = jsonResponse.path("returnMSG");
+
+            List<Map<String, Object>> lResultList = commonService.setJsonObjectToList(returnMsg);
+            String sCode = commonService.getListData(lResultList, 0, "code");
+            String sMessage = commonService.getListData(lResultList, 0, "message");
+
+            // 관청 오류
+			if ("-1".equals(sCode)) {
+			
+			    result.put("RESULT_CD", "-1");
+			    result.put("MESSAGE", "관청오류");
+			
+			} else {
+			    result.put("RESULT_CD", "0");
+			    result.put("MESSAGE", "신청완료");
+			}
+			
+			mService.put("UPD_USER", user.getLOGIN_ID());
+
+		    //common.update(mService, "updateTrServiceProcSt");
+	    }
+	}
+	
+
+	/**
+	 * 신규등록 다건 신청(신청대기-> 신청, 납부요청)
+	 * - 선납건은 가상계좌 발급 프로시져 호출
+	 */
+	@Transactional
+	public Map<String, Object> processNewCars(Map<String, Object> request, UserDto user) {
+		// 성공 반환
+		Map<String, Object> result = new HashMap<>();
+		
+		try {
+			// 데이터 파싱
+			Map<String, Object> mService = commonUtil.getMap(request, "dsService");
+			Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
+			Map<String, Object> mCarNoDetach = commonUtil.getMap(request, "dsCarNoDetach");
+			
+			List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
+			List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
+			List<Map<String, Object>> lOwnerInfoList1 = commonUtil.getList(request, "dsOwnerInfo1");
+			
+			// 공동동소유자 컬럼명 변환
+			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
+			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
+			
+			// 처리상태
+			String procSt = String.valueOf(mService.get("PROC_ST"));
+			
+			// 데이터 병합
+			Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
+			
+			logger.info("mNewCar >>> " + mNewCar);
+			logger.info("input >>> " + input);
+			
+			// 로그인 사용자
+			input.put("UPD_USER", user.getLOGIN_ID());
+			
+			// 서비스번호
+			String serviceId = (String) input.get("SERVICE_ID");
+			
+			// insert
+			if (commonUtil.isEmpty(serviceId)) {
+				insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
+			} 
+			
+			// update
+			else {
+				updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
+			}
+			
+			result.put("SERVICE_ID", input.get("SERVICE_ID"));
+			result.put("MESSAGE", "저장완료");
+			result.put("RESULT_CD", "0");
+			
+			// 신청 여부 확인
+			// 신청 상태: REQ(신청), P_REQ(납부요청)
+			boolean isRequest = "REQ".equals(procSt)|| "P_REQ".equals(procSt);
+			logger.info("isRequest : {}",isRequest);
+			
+			if(isRequest) {
+				
+				logger.info("PAY_GB : {}", mNewCar.get("PAY_GB"));
+				// 선납건(폴스타 등)은 가상계좌 생성 후 입금 대기 처리
+				if("B".equals(mNewCar.get("PAY_GB"))) {
+					
+					// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
+					try {
+						logger.debug("프로시져 호출 전");
+						
+						input.put("pInput",  input.get("SERVICE_ID"));
+						input.put("pReturn",  "");
+						
+						common.call(input, "processVBank");
+						
+						// OUT 파라미터 확인
+						String pReturn = Objects.toString(input.get("pReturn"), "");
+						
+						logger.debug("프로시져 호출 후 pReturn >> " + pReturn);
+						
+						if (pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
+							throw new RuntimeException("가상계좌 발급 실패 : " + pReturn);
+						}
+						
+					} catch (Exception ex) {
+						logger.error("processVBank 호출 예외", ex);
+						// 예외를 던지면 @Transactional 메서드에서 롤백됩니다.
+						throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
+					}
+					
+					result.put("RESULT_CD", "0");
+					result.put("MESSAGE", "처리완료");
+					
+					// TODO: 관청 신청 시기 조정 필요 
+					return ApiResponse.withKey("data", result);
+				}
+				
+				
+				// 후납건은 바로 관청 서버 연계
+				Map<String, Object> linkData = commonUtil.filterMap(input,
+						"SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
+								+ " REQUEST_DT, COMPANY_ID, COMPANY_NM, COMPANY_NO,"
+								+ " ADDRESS, ADDRESS_DT, POST_NO, BASE_ADDRESS, BASE_ADDRESS_DT, BASE_POST_NO,"
+								+ " OWNER_NM, REG_GB, REG_NO, BIZ_NO, BUBJUNG_CD, BASE_BUBJUNG_CD,"
+								+ " REQ_CAR_NO, GOVT_ID, NTAX_TRGET_CD, NTAX_WHO, NTAX_TRGET_GR_CD, NTAX_APPLC_CD,"
+								+ " MEMBER_ID, PROC_ST, PAY_GB, PAY_ME, TEL_NO, MPHONE_NO,"
+								+ " BOND_DC, BOND_LINK_YN, BOND_BANK_CD, ADDR_INFO, ADDR_INFO2");
+				
+				logger.info("linkData >>" + linkData);
+				
+				// 공동소유자 정보
+				StringBuilder ownerInfo = new StringBuilder();
+				
+				for (Map<String, Object> owner : lOwnerInfoList) {
+					StringJoiner joiner = new StringJoiner("ß");
+					
+					joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
+					joiner.add("SEQ»"         + getVal(owner, "SEQ"));
+					joiner.add("DEBTOR_NM»"   + getVal(owner, "DEBTOR_NM"));
+					joiner.add("DEBTOR_GB»"   + getVal(owner, "DEBTOR_GB"));
+					joiner.add("REG_NO»"      + getVal(owner, "REG_NO"));
+					joiner.add("DEBTOR_RATIO»"+ getVal(owner, "DEBTOR_RATIO"));
+					joiner.add("DEBTOR_ADDR»" + (getVal(owner, "DEBTOR_ADDR") + " " 
+							+ getVal(owner, "DEBTOR_ADDR_DT")).trim());
+					joiner.add("DSIGN_GB»"    + getVal(owner, "DSIGN_GB"));
+					joiner.add("DSIGN_HP_NO»" + getVal(owner, "DSIGN_HP_NO"));
+					joiner.add("DSIGN_TX»"    + getVal(owner, "DSIGN_TX"));
+					joiner.add("CONFIRM_NO»"  + getVal(owner, "CONFIRM_NO"));
+					joiner.add("DSIGN_ST»"    + getVal(owner, "DSIGN_ST"));
+					joiner.add("IDEN_ST»"     + getVal(owner, "IDEN_ST"));
+					
+					// 관청별 마감 분기 처리
+					if ("BUSAN".equals(input.get("GOVT_ID"))) {
+						ownerInfo.append(joiner.toString()).append("þ");
+					} else {
+						// date 타입 : 값이 없을 땐 null 
+						joiner.add("DSIGN_DT»" + (owner.get("DSIGN_DT") == null ? "null" : owner.get("DSIGN_DT")));
+						joiner.add("IDEN_DT»" + (owner.get("IDEN_DT") == null ? "null" : owner.get("IDEN_DT")));
+						ownerInfo.append(joiner.toString()).append("þ");
+					}
+				}
+				
+				logger.info("ownerInfo 공동소유자 >>> " + ownerInfo);
+				
+				linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
+				linkData.put("SID", "신규등록신청");
+				
+				// 원부 조회 처리
+				JsonNode jsonResponse = commonService.linkServer(linkData);
+				
+				// errorCode = 0(성공), -1(실패)
+				String sErrorCode = jsonResponse.path("errorCode").asText();
+				
+				// 통신 오류
+				if ("-1".equals(sErrorCode)) {
+					result.put("MESSAGE", "관청서버와 통신 중 오류가 발생하였습니다.");
+					throw new RuntimeException("관청 서버 통신 오류");
+					
+				}
+				
+				JsonNode returnMsg = jsonResponse.path("returnMSG");
+				
+				List<Map<String, Object>> lResultList = commonService.setJsonObjectToList(returnMsg);
+				String sCode = commonService.getListData(lResultList, 0, "code");
+				String sMessage = commonService.getListData(lResultList, 0, "message");
+				
+				// 관청 오류
+				if ("-1".equals(sCode)) {
+					
+					result.put("RESULT_CD", "-1");
+					result.put("MESSAGE", "관청오류");
+					
+				} else {
+					result.put("RESULT_CD", "0");
+					result.put("MESSAGE", "신청완료");
+				}
+			}
+		} catch (RuntimeException e) {
+			
+			logger.error("신규등록 처리 오류", e);
+			result.put("RESULT_CD", "-2");
+			result.put("MESSAGE", e.getMessage());
+			
+		} catch (Exception e) {
+			logger.error("신규등록 처리 중 시스템 오류", e);
+			result.put("RESULT_CD", "-3");
+			result.put("MESSAGE", "처리 중 오류가 발생하였습니다.");
+			
 		}
 		
 		return ApiResponse.withKey("data", result);

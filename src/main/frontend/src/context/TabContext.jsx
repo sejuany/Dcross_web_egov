@@ -7,10 +7,12 @@ export const useTabs = () => useContext(TabContext);
 
 export const useTabPageState = (key, initialValue) => {
     const { activeTabId, getTabPageState, setTabPageState } = useTabs();
+    const tabIdRef = useRef(activeTabId);
+    const tabId = tabIdRef.current;
     const initialValueRef = useRef(initialValue);
 
     const getInitialValue = useCallback(() => {
-        const savedValue = getTabPageState(activeTabId, key);
+        const savedValue = getTabPageState(tabId, key);
 
         if (savedValue !== undefined) {
             return savedValue;
@@ -20,7 +22,7 @@ export const useTabPageState = (key, initialValue) => {
         return typeof initialValueFactory === 'function'
             ? initialValueFactory()
             : initialValueFactory;
-    }, [activeTabId, getTabPageState, key]);
+    }, [getTabPageState, key, tabId]);
 
     const [value, setValue] = useState(getInitialValue);
 
@@ -28,16 +30,13 @@ export const useTabPageState = (key, initialValue) => {
         setValue(getInitialValue());
     }, [getInitialValue]);
 
-    const setPersistedValue = useCallback((updater) => {
-        setValue(prevValue => {
-            const nextValue = typeof updater === 'function'
-                ? updater(prevValue)
-                : updater;
+    useEffect(() => {
+        setTabPageState(tabId, key, value);
+    }, [key, setTabPageState, tabId, value]);
 
-            setTabPageState(activeTabId, key, nextValue);
-            return nextValue;
-        });
-    }, [activeTabId, key, setTabPageState]);
+    const setPersistedValue = useCallback((updater) => {
+        setValue(updater);
+    }, []);
 
     return [value, setPersistedValue];
 };

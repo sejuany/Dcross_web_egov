@@ -5,7 +5,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
+
 import java.util.Map;
+import java.util.List;
+import java.util.HashMap;
+
 import com.dacos.auth.dto.LoginRequest;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.auth.mapper.AuthMapper;
@@ -13,8 +17,7 @@ import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
 import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.util.CryptoUtils;
-import java.util.List;
-import java.util.HashMap;
+
 import org.springframework.transaction.annotation.Transactional;
 
 /**
@@ -29,8 +32,10 @@ public class AuthService {
 
     @Autowired
     private AuthMapper authMapper;
+
     @Autowired
     private MortgageMapper mortMapper;
+
     @Autowired
     private CommonRepository common;
 
@@ -48,6 +53,7 @@ public class AuthService {
 
         // 1. 사용자 조회
         UserDto user = authMapper.findByUserId(request.getUserId());
+
         if (user == null) {
             logger.warn("[AuthService] 사용자 없음 - userId: {}", request.getUserId());
             throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
@@ -62,15 +68,18 @@ public class AuthService {
                 logger.warn("[AuthService] BCrypt 비밀번호 불일치 - userId: {}", request.getUserId());
                 throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
             }
+
             logger.info("[AuthService] BCrypt 인증 성공 - userId: {}", request.getUserId());
         }
         // 3. SHA-256 비밀번호 검증 (기존 방식)
         else {
             String hashedInput = CryptoUtils.encryptSHA256(inputPassword);
+
             if (!hashedInput.equals(storedPassword)) {
                 logger.warn("[AuthService] SHA-256 비밀번호 불일치 - userId: {}", request.getUserId());
                 throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
             }
+
             logger.info("[AuthService] SHA-256 인증 성공 - userId: {}", request.getUserId());
 
             /* =====================================================================
@@ -85,12 +94,14 @@ public class AuthService {
 
         // 보안상 비밀번호 필드 제거 후 반환
         user.setPASS_WD(null);
+
         return user;
     }
-    
+
     public Map<String, Object> selectCompanyInfo(Map<String, Object> request) {
         return authMapper.selectCompanyInfo(request);
     }
+
     public List<Map<String, Object>> selectAssociation(Map<String, Object> request) {
         return authMapper.selectAssociation(request);
     }
@@ -98,15 +109,21 @@ public class AuthService {
     public List<Map<String, Object>> selectBranchID(Map<String, Object> request) {
         return authMapper.selectBranchID(request);
     }
-    
+
     public Map<String, Object> selectMBCount(Map<String, Object> request) {
         return authMapper.selectMBCount(request);
     }
-    
+
     @Transactional
     public void setMember(Map<String, Object> member) throws Exception {
         Map<String, Object> memberMT = new HashMap<>();
         Map<String, Object> memberDT = new HashMap<>();
+
+        logger.info("[AuthService] 회원가입 요청 - LOGIN_ID: {}, COMPANY_ID: {}, MEMBER_MAIL: {}",
+                member.get("LOGIN_ID"),
+                member.get("COMPANY_ID"),
+                member.get("MEMBER_MAIL")
+        );
 
         // 1. TM_MEMBER_MT
         memberMT.put("LOGIN_ID", member.get("LOGIN_ID"));
@@ -138,14 +155,50 @@ public class AuthService {
         memberDT.put("TEL_NO", member.get("TEL_NO"));
         memberDT.put("MPHONE_NO", member.get("MPHONE_NO"));
 
+        // 기존 회원가입 프로세스 유지
         authMapper.insertMemberMaster(memberMT);
         authMapper.insertMemberDetail(memberDT);
+
+        /*
+         * 3. TM_MEMBER_ETC
+         * - 화면에서 MEMBER_MAIL이 넘어온 경우에만 저장
+         * - 일반 회원가입에는 영향 없음
+         * - TM_MEMBER_ETC 기존 row가 없어도 MERGE로 INSERT 됨
+         * - getString() 같은 별도 helper 없이 여기서만 처리
+         */
+        Object memberMailObj = member.get("MEMBER_MAIL");
+        String memberMail = memberMailObj == null ? "" : String.valueOf(memberMailObj).trim();
+
+        if (!memberMail.isEmpty()) {
+            Map<String, Object> memberETC = new HashMap<>();
+
+            memberETC.put("LOGIN_ID", memberDT.get("LOGIN_ID"));
+            memberETC.put("MEMBER_ID", memberDT.get("MEMBER_ID"));
+            memberETC.put("COMPANY_ID", memberDT.get("COMPANY_ID"));
+            memberETC.put("MEMBER_MAIL", memberMail);
+
+            logger.info(
+                    "[AuthService] TM_MEMBER_ETC 저장 - LOGIN_ID: {}, MEMBER_ID: {}, COMPANY_ID: {}, MEMBER_MAIL: {}",
+                    memberETC.get("LOGIN_ID"),
+                    memberETC.get("MEMBER_ID"),
+                    memberETC.get("COMPANY_ID"),
+                    memberETC.get("MEMBER_MAIL")
+            );
+
+            authMapper.mergeMemberEtc(memberETC);
+        } else {
+            logger.info(
+                    "[AuthService] MEMBER_MAIL 값이 없어 TM_MEMBER_ETC 저장 생략 - LOGIN_ID: {}",
+                    member.get("LOGIN_ID")
+            );
+        }
     }
-    
+
     public boolean verifyPassword(String loginId, String inputPassword) {
         logger.info("[AuthService] 회원정보수정 비밀번호 확인 - loginId: {}", loginId);
 
         UserDto user = authMapper.findByUserId(loginId);
+
         if (user == null) {
             logger.warn("[AuthService] 사용자 없음 - loginId: {}", loginId);
             return false;
@@ -155,25 +208,30 @@ public class AuthService {
 
         if (storedPassword != null && storedPassword.startsWith("$2a$")) {
             boolean matched = bcryptEncoder.matches(inputPassword, storedPassword);
+
             if (!matched) {
                 logger.warn("[AuthService] BCrypt 비밀번호 불일치 - loginId: {}", loginId);
             }
+
             return matched;
         } else {
             String hashedInput = CryptoUtils.encryptSHA256(inputPassword);
             boolean matched = hashedInput.equals(storedPassword);
+
             if (!matched) {
                 logger.warn("[AuthService] SHA-256 비밀번호 불일치 - loginId: {}", loginId);
             }
+
             return matched;
         }
     }
-    
+
     @Transactional
     public boolean changePassword(String loginId, String currentPassword, String newPassword) throws Exception {
         logger.info("[AuthService] 비밀번호 변경 시도 - loginId: {}", loginId);
 
         UserDto user = authMapper.findByUserId(loginId);
+
         if (user == null) {
             logger.warn("[AuthService] 사용자 없음 - loginId: {}", loginId);
             return false;
@@ -207,13 +265,14 @@ public class AuthService {
         authMapper.updatePasswordDate(param);
 
         logger.info("[AuthService] 비밀번호 변경 완료 - loginId: {}", loginId);
+
         return true;
     }
 
     public Map<String, Object> selectMemberInfo(String loginId) {
         return authMapper.selectMemberInfo(loginId);
     }
-    
+
     public Map<String, Object> selectMemberInfo2(String loginId) {
         return authMapper.selectMemberInfo2(loginId);
     }
@@ -223,62 +282,61 @@ public class AuthService {
         authMapper.updateMemberMaster(request);
         authMapper.updateMemberDetail(request);
     }
-    
+
     // 모든 화면에서 공통으로 필요한 dsService 데이터 조회
     // 초기화의 경우 toMap()를 던져주고, 상세 조회 페이지의 경우 dsService를 넣어준다.
-    public Map<String, Object> getCommonServiceData(Map<String, Object> param) { 
-		// 반환값
-	    Map<String, Object> result = new HashMap<>();
-	    
-	    logger.info("[AuthService] user: {}", param);
-	    
-	    // 공통 사용자 정보
-	    Map<String, Object> mServiceInfo = new HashMap<>();
-	    mServiceInfo.putAll(param);
-	    
-	    // 공통 조회
-	    List<Map<String, Object>> lBranchList =
-	        common.selectList(mServiceInfo, "getBranchList");
+    public Map<String, Object> getCommonServiceData(Map<String, Object> param) {
+        // 반환값
+        Map<String, Object> result = new HashMap<>();
 
-	    Map<String, Object> mCompanyInfo =
-	        common.select(mServiceInfo, "getCompanyInfo");
-	    
-	    logger.info("mCompanyInfo : {}", mCompanyInfo);
-	    
-	    List<Map<String, Object>> lBaseList =
-	        common.selectList(mServiceInfo, "getBaseList");
+        logger.info("[AuthService] user: {}", param);
 
-	    Map<String, Object> mWorkCp =
-	        common.select(mServiceInfo, "getWorkCp");
-	    
-	    
-	    // 관청 기본값
-	    if (mWorkCp != null) {
-	        mServiceInfo.put("GOVT_ID", mWorkCp.get("GOVT_ID"));
-	    }
-	    
-	    // 결과 세팅
-	    result.put("dsService", mServiceInfo);
-	    result.put("dsCompanyInfo", mCompanyInfo);
-	    result.put("dsBranchList", lBranchList);
-	    result.put("dsBaseList", lBaseList);
-	    result.put("dsWorkCp", mWorkCp);
-	    
-	    return result;
-	}
-    
-	public Map<String, Object> toMap(UserDto user, String workCd) {
-	    Map<String, Object> map = new HashMap<>();
-	
-	    map.put("LOGIN_ID", user.getLOGIN_ID());
-	    map.put("COMPANY_ID", user.getCOMPANY_ID());
-	    map.put("MEMBER_ID", user.getLOGIN_ID());
-	    map.put("UPD_USER", user.getLOGIN_ID());
-	    map.put("ASSOCIATION_ID", user.getASSOCIATION_ID());
-	    map.put("BRANCH_ID", user.getBRANCH_ID());
-	    map.put("SANGSA_ID", user.getSANGSA_ID());
-	    map.put("WORK_CD", workCd);
-	
-	    return map;
-	}
+        // 공통 사용자 정보
+        Map<String, Object> mServiceInfo = new HashMap<>();
+        mServiceInfo.putAll(param);
+
+        // 공통 조회
+        List<Map<String, Object>> lBranchList =
+                common.selectList(mServiceInfo, "getBranchList");
+
+        Map<String, Object> mCompanyInfo =
+                common.select(mServiceInfo, "getCompanyInfo");
+
+        logger.info("mCompanyInfo : {}", mCompanyInfo);
+
+        List<Map<String, Object>> lBaseList =
+                common.selectList(mServiceInfo, "getBaseList");
+
+        Map<String, Object> mWorkCp =
+                common.select(mServiceInfo, "getWorkCp");
+
+        // 관청 기본값
+        if (mWorkCp != null) {
+            mServiceInfo.put("GOVT_ID", mWorkCp.get("GOVT_ID"));
+        }
+
+        // 결과 세팅
+        result.put("dsService", mServiceInfo);
+        result.put("dsCompanyInfo", mCompanyInfo);
+        result.put("dsBranchList", lBranchList);
+        result.put("dsBaseList", lBaseList);
+        result.put("dsWorkCp", mWorkCp);
+
+        return result;
+    }
+
+    public Map<String, Object> toMap(UserDto user, String workCd) {
+        Map<String, Object> map = new HashMap<>();
+
+        map.put("LOGIN_ID", user.getLOGIN_ID());
+        map.put("COMPANY_ID", user.getCOMPANY_ID());
+        map.put("MEMBER_ID", user.getLOGIN_ID());
+        map.put("UPD_USER", user.getLOGIN_ID());
+        map.put("ASSOCIATION_ID", user.getASSOCIATION_ID());
+        map.put("BRANCH_ID", user.getBRANCH_ID());
+        map.put("SANGSA_ID", user.getSANGSA_ID());
+        map.put("WORK_CD", workCd);
+
+        return map;
+    }
 }

@@ -72,8 +72,6 @@
 	            UPD_USER = #{MEMBER_ID},
 	        </if>
 	
-	        UPD_DATE = SYSDATE,
-	
 	        <if test="DELIVERY_GB != null and DELIVERY_GB != ''">
 	            DELIVERY_GB = #{DELIVERY_GB},
 	        </if>
@@ -158,37 +156,37 @@
 	            RENT_RECEIVE_YN = #{RENT_RECEIVE_YN},
 	        </if>
 	
-	        <if test='RENT_SEND_YN_DT == null and RENT_SEND_YN == "Y"'>
+	        <if test="RENT_SEND_YN_DT == null and RENT_SEND_YN == 'Y'">
 	            RENT_SEND_YN_DT = SYSDATE,
 	        </if>
 	
-	        <if test='RENT_RECEIVE_YN_DT == null and RENT_RECEIVE_YN == "Y"'>
+	        <if test="RENT_RECEIVE_YN_DT == null and RENT_RECEIVE_YN == 'Y'">
 	            RENT_RECEIVE_YN_DT = SYSDATE,
 	        </if>
+				        
+			<if test="SEND_YN_DT == null and SEND_YN == 'Y'">
+			    SEND_YN_DT = SYSDATE,
+			</if>
+			
+			<if test="RENT_SEND_YN_DT != null and RENT_SEND_YN == 'N'">
+			    RENT_SEND_YN_DT = NULL,
+			</if>
+			
+			<if test="RENT_RECEIVE_YN_DT != null and RENT_RECEIVE_YN == 'N'">
+			    RENT_RECEIVE_YN_DT = NULL,
+			</if>
 	
-	        <if test='SEND_YN_DT == null and SEND_YN == "Y"'>
-	            SEND_YN_DT = SYSDATE,
-	        </if>
-	
-	        <if test='RECEIVE_YN_DT == null and RECEIVE_YN == "Y"'>
-	            RECEIVE_YN_DT = SYSDATE,
-	        </if>
-	
-	        <if test='RENT_SEND_YN_DT != null and RENT_SEND_YN == "N"'>
-	            RENT_SEND_YN_DT = NULL,
-	        </if>
-	
-	        <if test='RENT_RECEIVE_YN_DT != null and RENT_RECEIVE_YN == "N"'>
-	            RENT_RECEIVE_YN_DT = NULL,
-	        </if>
-	
-	        <if test='SEND_YN_DT != null and SEND_YN == "N"'>
-	            SEND_YN_DT = NULL,
-	        </if>
-	
-	        <if test='RECEIVE_YN_DT != null and RECEIVE_YN == "N"'>
-	            RECEIVE_YN_DT = NULL,
-	        </if>
+	        <if test="SEND_YN_DT != null and SEND_YN == 'N'">
+			    SEND_YN_DT = NULL,
+			</if>
+			
+			<if test="RECEIVE_YN_DT == null and RECEIVE_YN == 'Y'">
+			    RECEIVE_YN_DT = SYSDATE,
+			</if>
+			
+			<if test="RECEIVE_YN_DT != null and RECEIVE_YN == 'N'">
+			    RECEIVE_YN_DT = NULL,
+			</if>
 	
 	        <if test="HOLE_YN != null and HOLE_YN != ''">
 	            HOLE_YN = #{HOLE_YN},
@@ -209,7 +207,11 @@
 	        <if test="SONGJANG_NO != null and SONGJANG_NO != ''">
 	            SONGJANG_NO = #{SONGJANG_NO},
 	        </if>
-	
+	        
+	        <if test="CUSTOMER_NM != null and CUSTOMER_NM != ''">
+	            CUSTOMER_NM = #{CUSTOMER_NM},
+	        </if>
+			UPD_DATE = SYSDATE
 	    </set>
 	
 	    WHERE SERVICE_ID = #{SERVICE_ID}

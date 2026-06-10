@@ -582,142 +582,100 @@ select:disabled {
     font-weight: 600;
 }
 
-/* Sangsa Register Link Mode */
-.sangsa-register-link-box {
-    border: 1px dashed #cbd5e0;
-    background: #f8fafc;
-    padding: 14px 16px;
-    border-radius: 4px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 10px;
-    color: #4a5568;
-    font-size: 0.92rem;
-    margin-bottom: 6px;
-}
-
-.btn-sangsa-register-link {
-    background: transparent;
-    border: none;
-    color: var(--primary-blue);
-    font-weight: 800;
-    cursor: pointer;
-    padding: 0;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-}
-
-.btn-sangsa-register-link:hover {
-    filter: brightness(0.9);
-}
-
-/* Sangsa Register Panel Mode */
-.sangsa-register-panel {
-    border: 1px solid #e2e8f0;
-    background: #f8fafc;
-    border-radius: 6px;
-    padding: 18px;
-}
-
-.sangsa-register-panel-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: flex-start;
-    gap: 16px;
-    margin-bottom: 18px;
-}
-
-.sangsa-register-title {
-    font-weight: 800;
-    color: var(--primary-blue);
-    margin-bottom: 6px;
-}
-
-.sangsa-register-desc {
-    font-size: 0.84rem;
-    color: #718096;
-}
-
-.btn-sangsa-back {
-    background: #718096;
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 8px 13px;
-    font-weight: 700;
-    cursor: pointer;
-    white-space: nowrap;
-}
-
-.btn-sangsa-back:hover {
-    background: #5f6b7a;
-}
-
-.sangsa-register-form {
-    display: flex;
-    align-items: center;
-    gap: 10px;
-    margin-bottom: 18px;
-}
-
-.sangsa-register-form label {
-    width: 90px;
-    min-width: 90px;
-    font-weight: 700;
-    color: #2d3748;
-}
-
-.sangsa-register-form input,
-.sangsa-register-form select {
-    flex: 1;
-    border: 1px solid #cbd5e0;
-    border-radius: 4px;
-    padding: 11px 12px;
-    outline: none;
-    background: #fff;
-}
-
-.sangsa-register-form input:focus,
-.sangsa-register-form select:focus {
-    border-color: var(--primary-blue);
-    box-shadow: 0 0 0 3px rgba(44, 82, 130, 0.08);
-}
-
-.sangsa-register-actions {
-    display: flex;
-    justify-content: center;
-    gap: 10px;
-}
-
-.btn-sangsa-cancel {
-    background: #fff;
-    color: #4a5568;
-    border: 1px solid #cbd5e0;
-    border-radius: 4px;
-    padding: 10px 28px;
-    font-weight: 700;
-    cursor: pointer;
-}
-
-.btn-sangsa-create {
-    background: var(--primary-blue);
-    color: #fff;
-    border: none;
-    border-radius: 4px;
-    padding: 10px 34px;
-    font-weight: 800;
-    cursor: pointer;
-}
-
-.btn-sangsa-cancel:hover,
-.btn-sangsa-create:hover {
-    filter: brightness(0.96);
-}
-
 .sangsa-modal-footer {
     padding: 14px 20px;
     background: #f8fafc;
     border-top: 1px solid #e2e8f0;
     text-align: right;
+}
+
+/* Special company auth chips */
+.special-auth-only-field {
+    width: 100%;
+    border-right: none;
+}
+
+/* 바깥쪽 '권한' 라벨 */
+.special-auth-only-field > label {
+    width: 130px;
+    min-width: 130px;
+    background: #f8fafc;
+    padding: 12px 15px;
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: #4a5568;
+    border-right: 1px solid #eef2f7;
+    display: flex;
+    align-items: center;
+    box-sizing: border-box;
+}
+
+/* 권한 버튼들을 담는 영역 */
+.special-auth-only-group {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    gap: 12px;
+    flex-wrap: nowrap;
+    width: 100%;
+    padding: 10px 15px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+/* 안쪽 권한 버튼 label */
+.special-auth-only-group .special-auth-chip {
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    gap: 6px;
+    min-width: 130px !important;
+    width: auto !important;
+    height: 34px;
+    padding: 0 18px !important;
+    border: 1px solid #cfd7e2 !important;
+    border-radius: 18px;
+    background: #fff !important;
+    color: #333 !important;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    box-sizing: border-box;
+    white-space: nowrap;
+}
+
+.special-auth-only-group .special-auth-chip input {
+    margin: 0;
+    flex: 0 0 auto;
+}
+
+.special-auth-only-group .special-auth-chip span {
+    display: inline-block;
+}
+
+.special-auth-only-group .special-auth-chip.active {
+    border-color: #2f80ed !important;
+    background: #edf4ff !important;
+    color: #1f5ebd !important;
+    font-weight: 800;
+}
+
+.special-auth-only-group .special-auth-chip:has(input:disabled) {
+    cursor: not-allowed;
+    opacity: 0.65;
+}
+
+/* Special company email */
+.special-email-field {
+    width: 100%;
+    border-right: none;
+}
+
+.special-email-field input {
+    max-width: 420px;
+}
+
+.special-email-input::placeholder {
+    color: #a0aec0;
 }

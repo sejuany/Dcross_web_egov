@@ -9,13 +9,41 @@ import com.dacos.company.dto.CompanySearchRequest;
 
 @Mapper
 public interface CompanyMapper {
-
+	
     List<Map<String, Object>> getCompanyList(CompanySearchRequest request);
 
     Map<String, Object> getCompanyDetail(String companyId);
 
     List<Map<String, Object>> getBranchSelectList(CompanySearchRequest request);
 
+    /*
+     * =====================================================
+     * CompanyManage 기업관리
+     * =====================================================
+     */
+    List<Map<String, Object>> getCompanyManageOptions(CompanySearchRequest request);
+
+    Map<String, Object> getCompanyManageDetail(CompanySearchRequest request);
+
+    List<Map<String, Object>> getCompanyManageBaseAddrList(CompanySearchRequest request);
+
+    List<Map<String, Object>> getCompanyManageServiceList(CompanySearchRequest request);
+
+    int updateCompanyManageInfo(Map<String, Object> param);
+
+    int deleteCompanyManageBaseAddr(Map<String, Object> param);
+
+    int insertCompanyManageBaseAddr(Map<String, Object> param);
+
+    int deleteCompanyManageService(Map<String, Object> param);
+
+    int insertCompanyManageService(Map<String, Object> param);
+
+    /*
+     * =====================================================
+     * CompanyUserManage 기업사용자관리
+     * =====================================================
+     */
     List<Map<String, Object>> getCompanyUserList(CompanySearchRequest request);
 
     List<Map<String, Object>> getCompanyUserWork(CompanySearchRequest request);
@@ -44,6 +72,11 @@ public interface CompanyMapper {
 
     int updatePasswordDate(Map<String, Object> param);
 
+    /*
+     * =====================================================
+     * 기타 기업관리
+     * =====================================================
+     */
     List<Map<String, Object>> getNumplateDeliveryList(CompanySearchRequest request);
 
     List<Map<String, Object>> getNumplateAssignList(CompanySearchRequest request);
@@ -57,5 +90,16 @@ public interface CompanyMapper {
     Map<String, Object> getSangsaDetail(CompanySearchRequest request);
 
     int countSangsaName(CompanySearchRequest request);
+
+    List<Map<String, Object>> selectCompanyConfigList(Map<String, Object> param);
     
+    List<Map<String, Object>> getCompanyManageBranchList(Map<String, Object> param);
+
+    String getNextBranchId(Map<String, Object> param);
+
+    int insertCompanyManageBranch(Map<String, Object> param);
+
+    int updateCompanyManageBranch(Map<String, Object> param);
+
+    int updateSangsa(Map<String, Object> param);
 }
