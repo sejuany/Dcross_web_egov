@@ -1,5 +1,6 @@
 package com.dacos.newcar;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -44,9 +45,10 @@ public class NewcarController {
      * POST /api/newcar/list
      */
     @PostMapping("/list")
-    public ResponseEntity<Map<String, Object>> getNewCarList(@RequestBody NewcarSearchRequest request) {
+    public ResponseEntity<Map<String, Object>> getNewCarList(@RequestBody NewcarSearchRequest request, HttpSession session) {
         logger.info("[NewcarController] 신차 목록 조회 요청");
-        List<Map<String, Object>> list = newcarService.getNewCarList(request);
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = newcarService.getNewCarList(request, user);
         // 프론트엔드 호환: { "success": true, "list": [...] }
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
@@ -86,28 +88,35 @@ public class NewcarController {
      * POST /api/newcar/excel-upload
      */
     @PostMapping("/excel-upload")
-    public ResponseEntity<?> uploadExcel(@RequestParam("file") MultipartFile file, HttpSession session) {
-
+    public ResponseEntity<Map<String, Object>> uploadExcel(@RequestParam("file") MultipartFile file, HttpSession session) {
         try {
-        	 // 세션 체크
-    	    UserDto user = AuthUtil.getLoginUser(session);
-    	    
-            int insertCount = newcarService.uploadExcel(file, user);
-
-            return ResponseEntity.ok(Map.of(
-                    "success", true,
-                    "insertCount", insertCount
-            ));
-
+            UserDto user = AuthUtil.getLoginUser(session);
+            Map<String, Object> result = newcarService.uploadExcel(file, user);
+            return ResponseEntity.ok(ApiResponse.withKey("data", result));
         } catch (Exception e) {
-
-            e.printStackTrace();
-
             return ResponseEntity.ok(Map.of(
                     "success", false,
                     "message", e.getMessage()
             ));
         }
+    }
+    
+    /**
+     * 차량비용 납부
+     * POST /api/newcar/payment-process
+     */
+    @PostMapping("/payment-process")
+    public ResponseEntity<Map<String, Object>> paymentProcess(
+            @RequestBody List<Map<String, Object>> request,
+            HttpSession session) {
+
+        UserDto user = AuthUtil.getLoginUser(session);
+
+        int result = newcarService.paymentProcess(request, user);
+
+        return ResponseEntity.ok(
+                ApiResponse.withKey("result", result)
+        );
     }
     
     /**

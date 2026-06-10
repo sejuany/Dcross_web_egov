@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useTabs } from '../../context/TabContext'; // 전역 탭 
+import { useLocation } from 'react-router-dom';
+import { useTabs, useTabPageState } from '../../context/TabContext'; // 전역 탭
 import axios from 'axios';
 import './NewcarList.css';
 import { AgGridReact } from 'ag-grid-react';
@@ -35,7 +36,26 @@ const timeOptions = [
     { label: '17시', value: '17' },
 ];
 
+const getInitialSearchFilters = () => ({
+    workCode: '010',
+    companyID: '',
+    govtId: '',
+    userNM: '',
+    customerNM: '',
+    carNo: '',
+    startDate: getFormattedDateOffset(-14),
+    endDate: getFormattedDateOffset(0),
+    dateCd: 'REQUEST_DT',
+    nullOpt: '',
+    processStatus: '전체',
+    deliveryType: '',
+    deliveryStatus: '전체',
+    selectedTimes: [],
+    selectedDeliveryGb: []
+});
+
 const NewcarList = () => {
+    const location = useLocation();
 	const { tabs, activeTabId, addTab, removeTab } = useTabs(); // 탭 관리
     const gridRef = useRef(null);
 	const waitGridRef = useRef(null);
@@ -49,23 +69,7 @@ const NewcarList = () => {
     const [totalCount, setTotalCount] = useState(0);
 	const [waitRowData, setWaitRowData] = useState([]);
 	const [showWaitPopup, setShowWaitPopup] = useState(false);
-    const [searchFilters, setSearchFilters] = useState({
-        workCode: '010',
-        companyID: '',
-        govtId: '',
-        userNM: '',
-        customerNM: '',
-        carNo: '',
-        startDate: getFormattedDateOffset(-14),
-        endDate: getFormattedDateOffset(0),
-        dateCd: 'REQUEST_DT',
-        nullOpt: '',
-        processStatus: '전체',
-        deliveryType: '',
-        deliveryStatus: '전체',
-		selectedTimes: [],
-		selectedDeliveryGb: []
-    });
+    const [searchFilters, setSearchFilters] = useTabPageState('searchFilters', getInitialSearchFilters);
 	
 	const dlvOptions =
 	  (codeListMap['DLVGB'] || []).map(code => ({
@@ -99,12 +103,17 @@ const NewcarList = () => {
                 setRowData(response.data.list);
                 setTotalCount(response.data.list.length);
             }
-        } catch (error) {
-            console.error('신규신청현황 조회 실패:', error);
-            setToastMessage('데이터 조회에 실패했습니다.');
-            setTimeout(() => setToastMessage(''), 2500);
-        }
-    };
+			    } catch (error) {
+			        console.error('신규신청현황 조회 실패:', error);
+					if (error.response?.status === 401 || error.response?.status === 403) {
+			            setToastMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+						setTimeout(() => {window.location.href = '/login';}, 2000); // 2초 후 이동
+						return;
+			        }
+			        setToastMessage('데이터 조회에 실패했습니다.');
+			        setTimeout(() => setToastMessage(''), 2500);
+			    }
+			};
 	
 	const fetchWaitList = async () => {
 
@@ -261,12 +270,60 @@ const NewcarList = () => {
         { headerName: '회사명', field: 'COMPANY_NM', width: 120 },
         { headerName: '신청인', field: 'MEMBER_NM', width: 90 },
     ];
+	
+	// SA 사용자 전용 항목 (21개)
+	const saColumnDefs = [
+	    { headerCheckboxSelection: true, checkboxSelection: true, width: 40 },
+	    { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
+	    { headerName: '처리상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
+	    { headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120 },
+	    { headerName: '주문번호', field: 'LINK_ID', width: 145 },
+	    { headerName: '차대번호', field: 'CARID_NO', width: 160 },
+	    { headerName: '차량번호', field: 'CAR_NO', width: 110 },
+	    { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
+	    { headerName: '공급가액', field: 'BUY_AMT', width: 100 },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 145 },
+	    { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
+	    { headerName: '신청일자', field: 'REQUEST_DT', width: 120 },
+	    { headerName: '심사일자', field: 'JUDGE_DT', width: 100 },
+		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 90, valueFormatter: params => {
+		    const value = params.value;
+	        if (value === 'null' || value == null) {
+	            return '';
+	        }
+	        return formatCode('DLVGB', value);
+	    }},
+	    { headerName: '신청SP명', field: 'MEMBER_NM', width: 90 },
+	    { headerName: '접수번호', field: 'SERVICE_ID', width: 90 },
+	];
+
+	// SC 사용자 전용 항목 (21개)
+	const suColumnDefs = [
+	    { headerCheckboxSelection: true, checkboxSelection: true, width: 20 },
+	    { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
+		{ headerName: '주문번호', field: 'LINK_ID', width: 145 },
+	    { headerName: '차대번호', field: 'CARID_NO', width: 160 },
+		{ headerName: '고객명', field: 'OWNER_NM', width: 120 },
+	    { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
+		{ headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120 },
+		{ headerName: '공급가액', field: 'BUY_AMT', width: 100 },
+		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 150, valueFormatter: params => {
+		    const value = params.value;
+	        if (value === 'null' || value == null) {
+	            return '';
+	        }
+	        return formatCode('DLVGB', value);
+	    }},        
+	    { headerName: '접수번호', field: 'SERVICE_ID', flex: 1 },
+	];
 
     // user ID에 따라 컬럼 속성 분기
     const columnDefs = React.useMemo(() => {
-        if (user && user.userId === 'number03') {
-            return number03ColumnDefs;
-        }
+		if (user.member_GB === 'SA') {
+		            return saColumnDefs;
+		        } else if (user.member_GB === 'SU') {
+		            return suColumnDefs;
+				}
         // 기본적으로 defaultColumnDefs 반환
         return defaultColumnDefs;
     }, [user, codeMap]);
@@ -274,7 +331,10 @@ const NewcarList = () => {
     const handleRowDoubleClicked = (event) => {
         if (event.data && event.data.SERVICE_ID) {
             addTab('newcar-request', '신규등록', '/newcar/newcar-request', {
-                state: { receiptNo: event.data.SERVICE_ID }
+                state: {
+                    receiptNo: event.data.SERVICE_ID,
+                    detailOpenKey: Date.now()
+                }
             });
         }
     };
@@ -402,23 +462,7 @@ const NewcarList = () => {
 	};
 
     const handleResetClick = () => {
-        setSearchFilters({
-            workCode: '010',
-            companyID: '',
-            govtId: '',
-            userNM: '',
-            customerNM: '',
-            carNo: '',
-            startDate: getFormattedDateOffset(-14),
-            endDate: getFormattedDateOffset(0),
-            dateCd: 'REQUEST_DT',
-            nullOpt: '',
-            processStatus: '전체',
-            deliveryType: '',
-            deliveryStatus: '전체',
-			selectedTimes: [],
-			selectedDeliveryGb: []
-        });
+        setSearchFilters(getInitialSearchFilters());
     };
 
     const handleExportExcel = () => {
@@ -452,6 +496,8 @@ const NewcarList = () => {
 
     useEffect(() => {
         const handleKeyDown = (e) => {
+            if (location.pathname !== '/newcar/newcar-list') return;
+
             switch (e.key) {
                 case 'F2':
                     e.preventDefault();
@@ -480,7 +526,7 @@ const NewcarList = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [searchFilters]);
+    }, [location.pathname, searchFilters]);
 
     return (
         <div className="status-container">

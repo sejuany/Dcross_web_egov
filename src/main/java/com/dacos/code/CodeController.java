@@ -73,7 +73,7 @@ public class CodeController {
     }
 
     /**
-     * 대리점 목록 조회
+     * 회원사 목록 조회
      * GET /api/companies
      * 응답: { "success": true, "list": [{ COMPANY_ID, COMPANY_NM, GOVT_ID }, ...] }
      */
@@ -87,19 +87,34 @@ public class CodeController {
         return ResponseEntity.ok(ApiResponse.withKey("list", companies));
     }
     
-    @PostMapping("/codes/detail-list")
-    public ResponseEntity<Map<String, Object>> getCodeDetailList(@RequestBody Map<String, Object> param) {
-        @SuppressWarnings("unchecked")
-        List<String> groupIds = (List<String>) param.get("groupIds");
-
-        logger.info("[CodeController] 코드 다건 상세 조회 요청 - {}", groupIds);
-
-        Map<String, List<Map<String, Object>>> codes = codeService.getCodeDetailList(groupIds);
-
-        Map<String, Object> result = new java.util.HashMap<>();
-        result.put("success", true);
-        result.put("codes", codes);
-
-        return ResponseEntity.ok(result);
-    }
+    /**
+     * 지점 목록 조회
+     * GET /api/companies
+     * 응답: { "success": true, "list": [{ COMPANY_ID, COMPANY_NM, GOVT_ID }, ...] }
+     */
+    @GetMapping("/branch/list")
+    public ResponseEntity<Map<String, Object>> getBranchList(
+            @RequestParam(value = "companyId", required = false) String companyId,
+            @RequestParam(value = "branchId", required = false) String branchId
+    		) {
+        logger.info("[CodeController] 지점 목록 조회 요청");
+        List<Map<String, Object>> branchList = codeService.getBranchList(companyId, branchId);
+        return ResponseEntity.ok(ApiResponse.withKey("list", branchList));
+    }    
+    
+    /**
+     * 팀 목록 조회
+     * GET /api/companies
+     * 응답: { "success": true, "list": [{ COMPANY_ID, COMPANY_NM, GOVT_ID }, ...] }
+     */
+    @GetMapping("/sangsa/list")
+    public ResponseEntity<Map<String, Object>> getSangsaList(
+            @RequestParam(value = "companyId", required = false) String companyId,
+            @RequestParam(value = "branchId", required = false) String branchId,
+            @RequestParam(value = "sangsaId", required = false) String sangsaId
+    		) {
+        logger.info("[CodeController] 팀 목록 조회 요청");
+        List<Map<String, Object>> sangsaList = codeService.getSangsaList(companyId, branchId, sangsaId);
+        return ResponseEntity.ok(ApiResponse.withKey("list", sangsaList));
+    }        
 }

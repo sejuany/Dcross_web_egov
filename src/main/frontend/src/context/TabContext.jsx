@@ -1,13 +1,51 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 
 const TabContext = createContext();
 
 export const useTabs = () => useContext(TabContext);
 
+export const useTabPageState = (key, initialValue) => {
+    const { activeTabId, getTabPageState, setTabPageState } = useTabs();
+    const initialValueRef = useRef(initialValue);
+
+    const getInitialValue = useCallback(() => {
+        const savedValue = getTabPageState(activeTabId, key);
+
+        if (savedValue !== undefined) {
+            return savedValue;
+        }
+
+        const initialValueFactory = initialValueRef.current;
+        return typeof initialValueFactory === 'function'
+            ? initialValueFactory()
+            : initialValueFactory;
+    }, [activeTabId, getTabPageState, key]);
+
+    const [value, setValue] = useState(getInitialValue);
+
+    useEffect(() => {
+        setValue(getInitialValue());
+    }, [getInitialValue]);
+
+    const setPersistedValue = useCallback((updater) => {
+        setValue(prevValue => {
+            const nextValue = typeof updater === 'function'
+                ? updater(prevValue)
+                : updater;
+
+            setTabPageState(activeTabId, key, nextValue);
+            return nextValue;
+        });
+    }, [activeTabId, key, setTabPageState]);
+
+    return [value, setPersistedValue];
+};
+
 export const TabProvider = ({ children }) => {
     const [tabs, setTabs] = useState([{ id: 'home', title: '홈', path: '/home', closable: false }]);
     const [activeTabId, setActiveTabId] = useState('home');
+    const [tabPageStates, setTabPageStates] = useState({});
     const navigate = useNavigate();
     const location = useLocation();
 
@@ -31,6 +69,12 @@ export const TabProvider = ({ children }) => {
 
     const removeTab = (id, e) => {
         if (e) e.stopPropagation();
+
+        setTabPageStates(prevStates => {
+            const nextStates = { ...prevStates };
+            delete nextStates[id];
+            return nextStates;
+        });
 
         setTabs((prevTabs) => {
             const tabIndex = prevTabs.findIndex((tab) => tab.id === id);
@@ -66,6 +110,20 @@ export const TabProvider = ({ children }) => {
         }
     };
 
+    const getTabPageState = useCallback((tabId, key) => {
+        return tabPageStates?.[tabId]?.[key];
+    }, [tabPageStates]);
+
+    const setTabPageState = useCallback((tabId, key, value) => {
+        setTabPageStates(prevStates => ({
+            ...prevStates,
+            [tabId]: {
+                ...(prevStates[tabId] || {}),
+                [key]: value,
+            },
+        }));
+    }, []);
+
     // Synchronize activeTabId with URL when navigating (e.g., via browser back button)
     useEffect(() => {
         const currentTab = tabs.find(t => t.path === location.pathname);
@@ -75,7 +133,7 @@ export const TabProvider = ({ children }) => {
     }, [location.pathname, tabs, activeTabId]);
 
     return (
-        <TabContext.Provider value={{ tabs, activeTabId, addTab, removeTab, switchTab }}>
+        <TabContext.Provider value={{ tabs, activeTabId, addTab, removeTab, switchTab, getTabPageState, setTabPageState }}>
             {children}
         </TabContext.Provider>
     );

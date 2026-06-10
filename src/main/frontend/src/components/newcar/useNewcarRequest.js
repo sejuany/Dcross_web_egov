@@ -1,5 +1,8 @@
 import { useState } from 'react';
 
+// TODO 나중에 옮김
+// 지금은 NewcarRequest에 두고 사용한다
+
 import {
     initialDsService,
     initialDsNewCar,
@@ -39,12 +42,14 @@ export const useNewcarRequest = () => {
 	const [dsNewCar, setDsNewCar] = useState(initialDsNewCar);             // 신규등록 정보
 	const [dsOwnerInfo, setDsOwnerInfo] = useState(initialOwnerInfo);      // 공동소유자1 정보
 	const [dsOwnerInfo1, setDsOwnerInfo1] = useState(initialOwnerInfo1);   // 공동소유자2 정보
+	const [showOwnerPanel, setShowOwnerPanel] = useState(false); 			// 공동소유자 open 여부
 	const [dsCarNoDetach, setDsCarNoDetach] = useState(initialDsCarNoDetach); // 번호판 배송 정보
 	const [dsBranchList, setDsBranchList] = useState(initialDsBranchList); // 지점 목록
 	const [dsBaseList, setDsBaseList] = useState(initialDsBaseList);       // 관청 목록
 	const [dsCompanyInfo, setDsCompanyInfo] = useState({});
 	const [dsWorkCp, setDsWorkCp] = useState({});
 	const [isReceiptModalOpen, setIsReceiptModalOpen] = useState(false); 	// 영수증 모달창
+	
 	
 
 	return {

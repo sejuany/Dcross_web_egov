@@ -1,10 +1,11 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { LogOut, Settings, Bell, ChevronRight, X, ClipboardList } from 'lucide-react';
 
 import { useTabs } from '../../context/TabContext';
 import { useAuth } from '../../context/AuthContext';
+import { protectedRouteComponents } from '../../routes/AppRouteRegistry';
 import './Layout.css';
 const getValue = (row, key) => {
     if (!row) return '';
@@ -320,16 +321,33 @@ const TabBar = () => {
 };
 
 const Layout = ({ children }) => {
-    const { activeTabId, tabs } = useTabs();
+    const location = useLocation();
+    const { activeTabId, tabs, addTab } = useTabs();
 
     const [layoutWidth] = useState('100%');
     const [menuConfig, setMenuConfig] = useState({});
     const [activeCategory, setActiveCategory] = useState('');
     const [menuLoading, setMenuLoading] = useState(true);
+    const [cachedPanes, setCachedPanes] = useState([]);
 
     const currentTab = tabs.find(t => t.id === activeTabId);
+    const currentRouteComponent = protectedRouteComponents[location.pathname];
+    const currentRouteTab = tabs.find(tab => tab.path === location.pathname);
 
     const categories = useMemo(() => Object.keys(menuConfig || {}), [menuConfig]);
+
+    const getTitleByPath = (path) => {
+        if (path === '/home') return '홈';
+
+        const menuItems = Object.values(menuConfig || {}).flat();
+        const menu = menuItems.find(item => item.path === path);
+
+        if (menu?.title) {
+            return menu.title;
+        }
+
+        return path.split('/').filter(Boolean).pop() || '홈';
+    };
 
     useEffect(() => {
         let mounted = true;
@@ -391,6 +409,54 @@ const Layout = ({ children }) => {
         }
     }, [activeCategory, categories]);
 
+    useEffect(() => {
+        if (!currentRouteComponent) {
+            return;
+        }
+
+        if (!currentRouteTab) {
+            addTab(location.pathname, getTitleByPath(location.pathname), location.pathname, {
+                state: location.state
+            });
+        }
+
+        setCachedPanes(prevPanes => {
+            const paneId = currentRouteTab?.id || location.pathname;
+            const existingPane = prevPanes.find(pane => pane.path === location.pathname);
+
+            if (existingPane) {
+                if (existingPane.id === paneId) {
+                    return prevPanes;
+                }
+
+                return prevPanes.map(pane =>
+                    pane.path === location.pathname
+                        ? { ...pane, id: paneId }
+                        : pane
+                );
+            }
+
+            return [
+                ...prevPanes,
+                {
+                    id: paneId,
+                    path: location.pathname,
+                    Component: currentRouteComponent,
+                },
+            ];
+        });
+    }, [addTab, currentRouteComponent, currentRouteTab, location.pathname, location.state]);
+
+    useEffect(() => {
+        const openTabPaths = new Set(tabs.map(tab => tab.path));
+
+        setCachedPanes(prevPanes =>
+            prevPanes.filter(pane =>
+                openTabPaths.has(pane.path) || pane.path === location.pathname
+            )
+        );
+    }, [location.pathname, tabs]);
+
     return (
         <div className="app-container">
             <div className="app-layout" style={{ maxWidth: layoutWidth }}>
@@ -422,7 +488,28 @@ const Layout = ({ children }) => {
 
                         <main className="main-content">
                             <div className="content-inner">
-                                {children}
+                                {children || (
+                                    <>
+                                        {cachedPanes.map(({ id, path, Component }) => (
+                                            <div
+                                                key={id}
+                                                className="keep-alive-pane"
+                                                style={{
+                                                    display: path === location.pathname ? 'block' : 'none',
+                                                    height: '100%',
+                                                }}
+                                            >
+                                                <Component />
+                                            </div>
+                                        ))}
+
+                                        {!currentRouteComponent && (
+                                            <div className="keep-alive-pane">
+                                                요청한 화면을 찾을 수 없습니다.
+                                            </div>
+                                        )}
+                                    </>
+                                )}
                             </div>
                         </main>
                     </div>

@@ -1,6 +1,6 @@
 ﻿import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { useTabs } from '../../context/TabContext'; // 전역 탭 
+import { useLocation, useNavigate } from 'react-router-dom';
+import { useTabs, useTabPageState } from '../../context/TabContext'; // 전역 탭 
 import axios from 'axios';
 import './NumberPlateList.css';
 import { AgGridReact } from 'ag-grid-react';
@@ -38,8 +38,31 @@ const timeOptions = [
     { label: '17시', value: '17' },
 ];
 
+const getInitialSearchFilters = (user) => ({
+    workCode: '',
+    companyID: user.company_ID === 'dacos' ? '' : user.company_ID,
+    govtId: '',
+    useYn: '전체',
+    numGb: '전체',
+    holeYn: '전체',
+    sealYn: '전체',
+    specialYn: '전체',
+    carNo: '',
+    endCarNo: '',
+    assignCd: user.company_ID === 'dacos' ? '' : user.company_ID + '1',
+    area: '전체',
+    startDate: getFormattedDateOffset(0),
+    endDate: getFormattedDateOffset(0),
+    processStatus: '전체',
+    deliveryType: '',
+    deliveryStatus: '전체',
+    dateCd: 'USE_DT',
+    selectedTimes: []
+});
+
 const NumberPlateList = () => {
     const navigate = useNavigate();
+    const location = useLocation();
 	const { tabs, activeTabId, removeTab } = useTabs(); // 탭 관리
     const gridRef = useRef(null);
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기
@@ -52,27 +75,7 @@ const NumberPlateList = () => {
     const [totalCount, setTotalCount] = useState(0);
     const [dsSpecial, setDsSpecial] = useState([]);
     const [dsYn, setDsYn] = useState([]);
-    const [searchFilters, setSearchFilters] = useState({
-        workCode: '',
-        companyID: user.company_ID === 'dacos' ? '' : user.company_ID,
-        govtId: '',
-        useYn: '전체',
-        numGb: '전체',
-        holeYn: '전체',
-        sealYn: '전체',
-        specialYn: '전체',
-        carNo: '',
-        endCarNo: '',
-		assignCd: user.company_ID === 'dacos' ? '' : user.company_ID + '1',
-		area: '전체',
-        startDate: getFormattedDateOffset(0),
-        endDate: getFormattedDateOffset(0),
-        processStatus: '전체',
-        deliveryType: '',
-        deliveryStatus: '전체',
-		dateCd: 'USE_DT',
-		selectedTimes: []
-    });
+    const [searchFilters, setSearchFilters] = useTabPageState('searchFilters', () => getInitialSearchFilters(user));
 
     const fetchNumberPlateList = async () => {
         try {
@@ -321,27 +324,7 @@ const NumberPlateList = () => {
     };
 
     const handleResetClick = () => {
-        setSearchFilters({
-            workCode: '',
-            companyID: user.company_ID === 'dacos' ? '' : user.company_ID,
-            govtId: '',
-            useYn: '전체',
-            numGb: '전체',
-            holeYn: '전체',
-            sealYn: '전체',
-            specialYn: '전체',
-            carNo: '',
-            endCarNo: '',
-            assignCd: user.company_ID === 'dacos' ? '' : user.company_ID + '1',
-            area: '전체',
-            startDate: getFormattedDateOffset(0),
-            endDate: getFormattedDateOffset(0),
-            processStatus: '전체',
-            deliveryType: '',
-            deliveryStatus: '전체',
-			dateCd: 'USE_DT',
-			selectedTimes: []
-        });
+        setSearchFilters(getInitialSearchFilters(user));
     };
 
     const handleExportExcel = () => {
@@ -375,6 +358,8 @@ const NumberPlateList = () => {
 
     useEffect(() => {
         const handleKeyDown = (e) => {
+            if (location.pathname !== '/numplate/number-plate-list') return;
+
             switch (e.key) {
                 case 'F2':
                     e.preventDefault();
@@ -399,7 +384,7 @@ const NumberPlateList = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [searchFilters]);
+    }, [location.pathname, searchFilters]);
 
     return (
         <div className="status-container">

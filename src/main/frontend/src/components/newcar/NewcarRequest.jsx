@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNewcarRequest } from './useNewcarRequest';
 
 import { useLocation, useNavigate } from 'react-router-dom'; // 페이지 이동
@@ -38,6 +38,55 @@ import {
 	ownerMap
 } from './newcarInitial';
 
+
+// 화면 강조용 필수 입력 항목
+const HIGHLIGHT_FIELDS = [
+    'TASK_CD',
+    'REG_GB',
+    'REG_NO',
+    'OWNER_NM',
+    'RATIO_NO',
+    'TEL_NO',
+    'MPHONE_NO',
+    'ADDRESS',
+    'ADDRESS_DT',
+    'RT_ACC_NM',
+    'BASE_ADDRESS',
+    'BASE_ADDRESS_DT',
+    'RT_ACC_NO',
+    'NTAX_TRGET_CD',
+    'NTAX_WHO',
+    'BOND_DC',
+    'RT_BANK_CD',
+    'RETURN_NO',
+    'RETURN_NM'
+];
+
+// 실제 신청 검증용 필수 입력 항목
+const REQUIRED_FIELDS = [
+    { name: 'TASK_CD', label: '업무구분', tab: 'owner' },
+    { name: 'CARID_NO', label: '차대번호', tab: 'owner' },
+    { name: 'REG_GB', label: '등록구분', tab: 'owner' },
+    { name: 'REG_NO', label: '등록번호', tab: 'owner' },
+    { name: 'OWNER_NM', label: '성명(상호)', tab: 'owner' },
+    { name: 'RATIO_NO', label: '소유비율', tab: 'owner' },
+    { name: 'TEL_NO', label: '전화번호', tab: 'owner' },
+    { name: 'MPHONE_NO', label: '핸드폰번호', tab: 'owner' },
+    { name: 'ADDRESS', label: '소유자 주소', tab: 'owner' },
+    { name: 'ADDRESS_DT', label: '소유자 상세주소', tab: 'owner' },
+    { name: 'RT_ACC_NM', label: '소유자 성명', tab: 'owner' },
+    { name: 'BASE_ADDRESS', label: '사용본거지 주소', tab: 'owner' },
+    { name: 'BASE_ADDRESS_DT', label: '사용본거지 상세주소', tab: 'owner' },
+    { name: 'RT_ACC_NO', label: '사용본거지 연락처', tab: 'owner' },
+    { name: 'NUMPLATE_GB', label: '번호판종류', tab: 'owner' },
+    { name: 'PAY_GB', label: '결제구분', tab: 'owner' },
+    { name: 'BUY_AMT', label: '구입가액', tab: 'owner' },
+    { name: 'NTAX_TRGET_CD', label: '비과세대상', tab: 'owner' },
+    { name: 'BOND_DC', label: '채권할인여부', tab: 'owner' },
+    { name: 'RT_BANK_CD', label: '환급계좌 은행', tab: 'owner' },
+    { name: 'RETURN_NO', label: '환급계좌번호', tab: 'owner' },
+    { name: 'RETURN_NM', label: '환급예금주', tab: 'owner' }
+];
 
 // 주민등록번호 / 법인등록번호 포맷팅 (123456-1234567)
 const formatRegNo = (value) => {
@@ -98,6 +147,11 @@ const NewcarRequest = () => {
 	
 	// Param
 	const receiptNo = location.state?.receiptNo ?? '';
+	const detailOpenKey = location.state?.detailOpenKey ?? '';
+	const hasInitializedRef = useRef(false);
+	const loadedReceiptNoRef = useRef('');
+	const loadedDetailOpenKeyRef = useRef('');
+	const hasLoadedCodesRef = useRef(false);
 	
 	// 결제관리 코드명 변환
 	const payKdMap = { ACQ: '취득세', BFEE: '채권취급수수료', BOND: '채권', FEE: '등록수수료', INJI: '인지세', SPARE: '예비비', STAMP: '증지대', TNUM: '번호판대', UNUM: '번호판대행', UREG: '등록면허세' };
@@ -208,7 +262,7 @@ const NewcarRequest = () => {
 		
 		// SC 사용자는 INPUT 상태에서 조회만 가능
 		if (
-		    procSt === 'INPUT' && dsUserInfo.MEMBER_GB === 'SC'
+		    procSt === 'INPUT' && dsUserInfo.MEMBER_GB === 'SU'
 		) {
 		    return false;
 		}
@@ -240,32 +294,59 @@ const NewcarRequest = () => {
 	};
 
 	useEffect(() => {
+		if (hasLoadedCodesRef.current) {
+			return;
+		}
 
-		// 공통 코드 조회
 		const loadCodes = async () => {
-
 			const codeData = await gf.getCodes(['SGB', 'PR_ST', 'JG_ST', 'NEWGB', 'DELIV', 'TASK', 'BOND', 'NTTCD', 'NTTGR', 'NTACD', 'NTWHO', 'STAGB', 'DLVGB',
 				'REGGB', 'NUMGB', 'CARM', 'FRTAX', 'GOVT', 'PAYME', 'PAYGB', 'INSUR', 'NUMST', 'IMPST',
 				'PAYKD', 'PAYME', 'PAYOP', 'PAYST', 'PAYTP', 'BANK', 'FUEL', 'CARUS', 'NHOLE', 'NSEAL'
 			]);
 
+			hasLoadedCodesRef.current = true;
 			setCodes(codeData);
 		};
 
 		loadCodes();
+	}, [setCodes]);
+
+	useEffect(() => {
+		if (location.pathname !== '/newcar/newcar-request') {
+			return;
+		}
 
 		// 접수번호 있는 경우
 		if (receiptNo) {
+			const shouldReloadDetail =
+				detailOpenKey &&
+				loadedDetailOpenKeyRef.current !== detailOpenKey;
+
+			if (loadedReceiptNoRef.current === receiptNo && !shouldReloadDetail) {
+				hasInitializedRef.current = true;
+				return;
+			}
+
+			hasInitializedRef.current = true;
+			loadedReceiptNoRef.current = receiptNo;
+			loadedDetailOpenKeyRef.current = detailOpenKey;
+
 			// 상세 조회 공통
 			loadDetail(receiptNo);
+			return;
 		}
+
+		if (hasInitializedRef.current) {
+			return;
+		}
+
+		hasInitializedRef.current = true;
+		loadedReceiptNoRef.current = '';
 
 		// 신규 초기화
-		else {
-			initProcess();
-		}
+		initProcess();
 
-	}, [receiptNo]);
+	}, [detailOpenKey, location.pathname, receiptNo]);
 
 	// 신청 버튼 클릭 시 (예상금액 모달창 오픈)
 	const requestProcess = () => {
@@ -291,6 +372,14 @@ const NewcarRequest = () => {
 	// SC가 요청 눌렀을 때 신청대기로 변경
 	const requestWaitProcess = () => {
 
+		// 필수 입력값 체크
+		const validMsg = validateRequest();
+
+		if (validMsg) {
+			alert(validMsg);
+			return;
+		}
+
 	    const newDataSet = {
 	        dsService: {
 	            ...dsService,
@@ -309,6 +398,36 @@ const NewcarRequest = () => {
 	    }));
 
 	    processService(newDataSet, "REQ");
+	};
+
+	// 필수 입력값 강조 (SU)
+	const setRequiredHighlight = () => {
+		const memberGb = dsUserInfo?.MEMBER_GB;
+		const procSt = dsService?.PROC_ST ?? '';
+
+		if(memberGb !== 'SU' && !['SAV', 'C_REQ'].includes(procSt)) {
+			return;
+		}
+
+		// 변수로 지정해둔 필수 입력값 읽어서 강조
+		HIGHLIGHT_FIELDS.forEach(name => {
+
+			if (name === 'TASK_CD') {
+
+				document.querySelectorAll('[name="TASK_CD"]')[1]
+					?.classList.add('required-highlight');
+
+				return;
+			}
+
+			const elements = document.querySelectorAll(
+				`[name="${name}"]`
+			);
+
+			elements.forEach(el => {
+				el.classList.add('required-highlight');
+			});
+		});
 	};
 
 	// 모달창에서 신청 클릭 시 실제 신청 처리
@@ -399,7 +518,7 @@ const NewcarRequest = () => {
 			}
 		} 
 		
-		else if (dsUserInfo.MEMBER_GB === 'SC') {
+		else if (dsUserInfo.MEMBER_GB === 'SU') {
 			alert('신청 권한이 없습니다.');
 			return;
 		}
@@ -419,39 +538,34 @@ const NewcarRequest = () => {
 		return;
 	};
 
+	// 필수 입력 정보 체크 
+	const validateRequiredFields = () => {
+
+		const emptyField = REQUIRED_FIELDS.find(
+			field => !dsNewCar[field.name]
+		);
+
+		if (emptyField) {
+			focusField(emptyField.name, emptyField.tab);
+			return `${emptyField.label}을(를) 입력해주세요.`;
+		}
+
+		return '';
+	}; 
 
 	// TODO 일단 이건 나중에 더 추가한다.
 	// 신청 전 유효성 체크
 	const validateRequest = () => {
 
-		if (!dsNewCar.TASK_CD) {
-			focusField('TASK_CD', 'owner');
-			return '업무구분을 선택해주세요.';
+		const requiredMsg = validateRequiredFields();
+
+		if (requiredMsg) {
+			return requiredMsg;
 		}
 
 		if (gf.Check(dsNewCar.CARID_NO, '차대번호', 17)) {
 			focusField('CARID_NO');
 			return '차대번호를 확인해주세요.';
-		}
-
-		if (!dsNewCar.REG_GB) {
-			focusField('REG_GB', 'owner');
-			return '등록번호 구분을 입력해주세요';
-		}
-
-		if (!dsNewCar.REG_NO) {
-			focusField('REG_NO', 'owner');
-			return '등록번호를 입력해주세요';
-		}
-
-		if (!dsNewCar.OWNER_NM) {
-			focusField('OWNER_NM', 'owner');
-			return '성명(상호)을 입력해주세요.';
-		}
-
-		if (!dsNewCar.RATIO_NO) {
-			focusField('RATIO_NO', 'owner');
-			return '소유비율을 입력해주세요.';
 		}
 
 		if (dsNewCar.RATIO_NO < 100) {
@@ -486,30 +600,10 @@ const NewcarRequest = () => {
 				return '대표소유자 비율이 100%인 경우 공동소유자 정보는 입력할 수 없습니다.';
 			}
 		}
-
-		if (!dsNewCar.NUMPLATE_GB) {
-			focusField('NUMPLATE_GB');
-			return '번호판종류를 선택해주세요.';
-		}
-
-		if (!dsNewCar.PAY_GB) {
-			focusField('PAY_GB', 'owner');
-			return '결제구분이 없습니다.';
-		}
-
-		if (!dsNewCar.BUY_AMT) {
-			focusField('BUY_AMT', 'owner');
-			return '구입가액을 입력해주세요.';
-		}
 		
-		if (dsNewCar.NTAX_TRGET_CD === '') {
-			focusField('NTAX_TRGET_CD', 'owner');
-			return '비과세대상을 선택해주세요. 없다면 "해당없음"을 선택해주세요.';
-		}else {
-			if (dsNewCar.NTAX_TRGET_CD === 'Y' && dsNewCar.NTAX_WHO === '') {
-				focusField('NTAX_WHO', 'owner');
-				return '비과세대상자 정보를 입력해주세요.';
-			}
+		if (dsNewCar.NTAX_TRGET_CD === 'Y' && dsNewCar.NTAX_WHO === '') {
+			focusField('NTAX_WHO', 'owner');
+			return '비과세대상자 정보를 입력해주세요.';
 		}
 		return '';
 	};
@@ -549,8 +643,8 @@ const NewcarRequest = () => {
 		// 입력, 등록요청, 신청대기, 저장일 때 저장 가능 
 	    if (["INPUT", "C_REQ", "W_REQ", "SAV"].includes(PROC_ST)) {
 			
-			// 최초 저장(INPUT) 또는 AD가 등록요청(C_REQ) 상태에서 저장할 때는 상태 유지, SC가 저장할 때는 저장으로 변경
-			if (PROC_ST === "INPUT" || PROC_ST === "C_REQ" && userGb === "SC") {
+			// 최초 저장(INPUT) 또는 AD가 등록요청(C_REQ) 상태에서 저장할 때는 상태 유지, SU가 저장할 때는 저장으로 변경
+			if (PROC_ST === "INPUT" || PROC_ST === "C_REQ" && userGb === "SU") {
 				newDataSet.dsService.PROC_ST = "SAV";
 				
 			    setDsService(prev => ({
@@ -610,6 +704,9 @@ const NewcarRequest = () => {
 
 				// URL 상태 유지
 				if (serviceId) {
+					hasInitializedRef.current = true;
+					loadedReceiptNoRef.current = serviceId;
+					loadedDetailOpenKeyRef.current = '';
 
 				    navigate(location.pathname, {
 				        replace: true,
@@ -679,16 +776,28 @@ const NewcarRequest = () => {
 				setDsCompanyInfo(dbData.dsCompanyInfo || {});
 				setDsWorkCp(dbData.dsWorkCp || {});
 				setDsUserInfo(dbData.dsUserInfo || {});
-				log(dbData.dsUserInfo);
+				hasInitializedRef.current = true;
+				loadedReceiptNoRef.current = receiptNo;
+				loadedDetailOpenKeyRef.current = detailOpenKey;
 	        }
 
 	    } catch (err) {
+			loadedReceiptNoRef.current = '';
+			loadedDetailOpenKeyRef.current = '';
 	        console.error(err);
 	    }
 	};
+
+	// 상세조회 후 필수 입력값 강조
+	useEffect(() => {
+		setRequiredHighlight();
+	}, [dsUserInfo.MEMBER_GB, dsService.PROC_ST]);
 	
 	// 초기화
 	const initProcess = async () => {
+		hasInitializedRef.current = true;
+		loadedReceiptNoRef.current = '';
+		loadedDetailOpenKeyRef.current = '';
 
 	    // receiptNo 제거 (핵심)
 	    navigate(location.pathname, { replace: true, state: {} });
@@ -996,7 +1105,7 @@ const NewcarRequest = () => {
 			document.body.removeChild(textarea);
 		}
 	};
-
+	
 	const chekBaseAddr = () => {
 		setDsNewCar(prev => ({
 		    ...prev,
@@ -1042,8 +1151,8 @@ const NewcarRequest = () => {
 					
 					{/* 신청 버튼 */}
 					<button className="btn-erp" disabled={isDisabled()}
-					  onClick={dsUserInfo.MEMBER_GB === 'SC' ? requestWaitProcess : requestProcess}>
-					    {dsUserInfo.MEMBER_GB === 'SC' ? '요청' : '신청'}
+					  onClick={dsUserInfo.MEMBER_GB === 'SU' ? requestWaitProcess : requestProcess}>
+					    {dsUserInfo.MEMBER_GB === 'SU' ? '요청' : '신청'}
 					</button>
 					
 					<button className="btn-erp" onClick={() => saveProcess()} disabled={isDisabled()}>저장</button>
@@ -1110,7 +1219,7 @@ const NewcarRequest = () => {
 						<CommonSelect groupId="IMPST" codes={codes} name="IMSINUM_YN" value={dsNewCar.IMSINUM_YN ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 					</ErpField>
 					<ErpField label="사용연료" span={2} htmlFor="FUEL_CD">
-						<CommonSelect groupId="FUEL" codes={codes} name="FUEL_CD" value={dsNewCar.FUEL_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled(true)} />
+						<CommonSelect groupId="FUEL" codes={codes} name="FUEL_CD" value={dsNewCar.FUEL_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 					</ErpField>
 				</div>
 
@@ -1138,16 +1247,19 @@ const NewcarRequest = () => {
 					<ErpField label="등록 차량번호" span={3} labelWidth="120px">
 						<span className="value-red">{dsNewCar.CAR_NO}</span>
 					</ErpField>
-					<ErpField label="최초등록일" span={2}>
-						<span className="value-black">{dsNewCar.MADE_DT}</span>
+					<ErpField label="등록예정일자" span={2}>
+						<span className="value-black">
+							{/* {dsNewCar.MADE_DT} */}
+							<input type="date" className="erp-input" id="MADE_DT" name="MADE_DT" data-type="newcar" value={dsNewCar.MADE_DT} onChange={handleChange} readOnly={isReadOnly()} />
+						</span>
 					</ErpField>
 					<ErpField label="차종/용도구분" span={2}>
 						<span className="value-black">{dsNewCar.CAR_KD}</span>
 					</ErpField>
-					<div className="field-group col-1">
-						<CommonSelect groupId="CARUS" codes={codes} name="CAR_US" value={dsNewCar.CAR_US ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled(true)} />
+					<div className="field-group col-1" span={2}>
+						<CommonSelect groupId="CARUS" codes={codes} name="CAR_US" value={dsNewCar.CAR_US ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 					</div>
-					<ErpField label="차명" span={4}>
+					<ErpField label="차명" span={3}>
 						<span className="value-black">{dsNewCar.CAR_NM}</span>
 					</ErpField>
 				</div>
@@ -1210,7 +1322,7 @@ const NewcarRequest = () => {
 								</div>
 								<div className="erp-row">
 									<ErpField label="* 등록번호" span={5} htmlFor="REG_NO">
-										<CommonSelect groupId="REGGB" codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} style={{ width: '80%' }} />
+										<CommonSelect groupId="REGGB" codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()}/>
 										<input type="text" className="erp-input" id="REG_NO" name="REG_NO" data-type="newcar" value={formatRegNo(dsNewCar.REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 									<ErpField label="* 성명(상호)" span={4} htmlFor="OWNER_NM">
@@ -1390,7 +1502,7 @@ const NewcarRequest = () => {
 								</div>
 
 								<div className="erp-row">
-									<ErpField label="비과세대상" span={4}>
+									<ErpField label="비과세대상" span={4} required={true} >
 										<CommonSelect groupId="NTTCD" codes={codes} name="NTAX_TRGET_CD" value={dsNewCar.NTAX_TRGET_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 										<CommonSelect groupId="NTWHO" codes={codes} name="NTAX_WHO" value={dsNewCar.NTAX_WHO ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 									</ErpField>
@@ -1399,13 +1511,40 @@ const NewcarRequest = () => {
 										<CommonSelect groupId="NTTGR" codes={codes} name="NTAX_TRGET_GR_CD" value={dsNewCar.NTAX_TRGET_GR_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 									</ErpField>
 
-									<ErpField label="비과세적용구분" span={4}>
-										<CommonSelect groupId="NTACD" codes={codes} name="NTAX_APPLC_CD" value={dsNewCar.NTAX_APPLC_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled(true)} />
+									<ErpField label="취득세 카드납부" span={4}>
+												<label style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', marginLeft: '10px', fontSize: '13px', cursor: 'pointer' }}>
+												<input
+													type="checkbox"
+													name="CARD_YN"
+													checked={dsNewCar.CARD_YN === 'Y'}
+													onChange={e => {
+														const checked = e.target.checked;
+														const cardYn = checked ? 'Y' : 'N';
+														setDsNewCar(prev => {
+															const next = { ...prev, CARD_YN: cardYn };
+															const total = dsPaymentList.reduce((sum, v) => {
+																if (cardYn === 'Y' && v.PAY_KD === 'ACQ') {
+																	return sum;
+																}
+																return sum + Number(v.PAY_AMT || 0);
+															}, 0);
+															next.TOTAL_AMT = total;
+															return next;
+														});
+													}}
+													disabled={isDisabled()}
+												/>
+												카드납부
+											</label>
+										{/* <CommonSelect groupId="NTACD" codes={codes} name="NTAX_APPLC_CD" value={dsNewCar.NTAX_APPLC_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled(true)} /> */}
+										{/* 파일럿 이후에 추가 */}
+										<input type="text" className="erp-input" name="" data-type="newcar" value='' onChange={handleChange} readOnly={isReadOnly(true)} />
+										<input type="text" className="erp-input" name="" data-type="newcar" value='' onChange={handleChange} readOnly={isReadOnly(true)} />
 									</ErpField>
 								</div>
 
 								<div className="erp-row">
-									<ErpField label="채권할인여부" span={3}>
+									<ErpField label="채권할인여부" span={3} required={true} >
 										<CommonSelect groupId="BOND" codes={codes} name="BOND_DC" value={dsNewCar.BOND_DC ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 									</ErpField>
 
@@ -1457,13 +1596,13 @@ const NewcarRequest = () => {
 								</div>
 
 								<div className="erp-row">
-									<ErpField label="환급계좌" span={5}>
+									<ErpField label="환급계좌" span={5} required={true} >
 										<CommonSelect groupId="BANK" codes={codes} name="RT_BANK_CD" value={dsNewCar.RT_BANK_CD ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
-										<input type="text" className="erp-input" name="RT_ACC_NO" data-type="newcar" value={dsNewCar.RT_ACC_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
+										<input type="text" className="erp-input" name="RETURN_NO" data-type="newcar" value={dsNewCar.RETURN_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 
-									<ErpField label="환급계좌 예금주" span={4}>
-										<input type="text" className="erp-input" name="RT_ACC_NM" data-type="newcar" value={dsNewCar.RT_ACC_NM ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
+									<ErpField label="환급계좌 예금주" span={4} required={true} >
+										<input type="text" className="erp-input" name="RETURN_NM" data-type="newcar" value={dsNewCar.RETURN_NM ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 
 									<ErpField label="환급금액" span={3}>
@@ -1507,30 +1646,6 @@ const NewcarRequest = () => {
 									<ErpField label="납부방법" span={4} htmlFor="PAY_ME">
 										<div className="flex-row" style={{ width: '100%', justifyContent: 'space-between', paddingRight: '5px' }}>
 											<CommonSelect groupId="PAYME" codes={codes} name="PAY_ME" value={dsNewCar.PAY_ME ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
-											<label style={{ display: 'flex', alignItems: 'center', gap: '4px', whiteSpace: 'nowrap', marginLeft: '10px', fontSize: '13px', cursor: 'pointer' }}>
-												<input
-													type="checkbox"
-													name="CARD_YN"
-													checked={dsNewCar.CARD_YN === 'Y'}
-													onChange={e => {
-														const checked = e.target.checked;
-														const cardYn = checked ? 'Y' : 'N';
-														setDsNewCar(prev => {
-															const next = { ...prev, CARD_YN: cardYn };
-															const total = dsPaymentList.reduce((sum, v) => {
-																if (cardYn === 'Y' && v.PAY_KD === 'ACQ') {
-																	return sum;
-																}
-																return sum + Number(v.PAY_AMT || 0);
-															}, 0);
-															next.TOTAL_AMT = total;
-															return next;
-														});
-													}}
-													disabled={isDisabled()}
-												/>
-												카드납부
-											</label>
 										</div>
 									</ErpField>
 									<ErpField label="가상계좌" span={4} htmlFor="VBANK_CD">

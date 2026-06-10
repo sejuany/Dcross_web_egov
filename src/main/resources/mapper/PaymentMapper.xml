@@ -178,6 +178,8 @@
 		<sql id="commonWhereSql">
 		    <if test="WORK_CD != null and WORK_CD != ''"> AND TS.WORK_CD = #{WORK_CD} </if>
 		    <if test="COMPANY_ID != null and COMPANY_ID != ''"> AND TS.COMPANY_ID = #{COMPANY_ID} </if>
+		    <if test="BRANCH_ID != null and BRANCH_ID != ''"> AND TS.BRANCH_ID = #{BRANCH_ID} </if>
+		    <if test="SANGSA_ID != null and SANGSA_ID != ''"> AND TS.SANGSA_ID = #{SANGSA_ID} </if>
 		    <if test="CAR_NO != null and CAR_NO != ''"> AND TS.CAR_NO LIKE '%' || #{CAR_NO} || '%' </if>
 		    <if test="USER_NM != null and USER_NM != ''"> AND TMD.MEMBER_NM LIKE '%' || #{USER_NM} || '%' </if>
 		    <if test="GOVT_ID != null and GOVT_ID != ''"> AND TS.GOVT_ID = #{GOVT_ID} </if>		    

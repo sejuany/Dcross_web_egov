@@ -28,5 +28,17 @@ public interface CodeMapper {
      */
     List<Map<String, Object>> findCompanyList(@Param("workCd") String workCd, @Param("govtId") String govtId, @Param("companyId") String companyId);
     
-    List<Map<String, Object>> getCodeDetailList(List<String> groupIds);
+    /**
+     * 지점 목록 조회 (조건 선택)
+     * @return { COMPANY_ID }
+     */
+    List<Map<String, Object>> findBranchList(@Param("companyId") String companyId, @Param("branchId") String branchId);
+
+    /**
+     * 팀 목록 조회 (조건 선택)
+     * @return { COMPANY_ID }
+     */
+    List<Map<String, Object>> findSangsaList(@Param("companyId") String companyId, @Param("branchId") String branchId, @Param("sangsaId") String sangsaId);
+    
+    
 }

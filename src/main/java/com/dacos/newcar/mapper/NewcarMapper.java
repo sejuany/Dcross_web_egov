@@ -56,4 +56,6 @@ public interface NewcarMapper {
 	void updateNumplate(Map<String, Object> param);
 	
 	void createSms(Map<String, Object> param);
+	
+	int updatePaymentProcSt(Map<String, Object> param);
 }

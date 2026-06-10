@@ -53,4 +53,8 @@ public class NewcarSearchRequest {
     private String ETC_GB_GU;
     /** 열람 여부 */
     private String READ_YN;
+    /** 회원 구분 */
+    private String MEMBER_GB;
+    /** 회원 아이디 */
+    private String MEMBER_ID;
 }

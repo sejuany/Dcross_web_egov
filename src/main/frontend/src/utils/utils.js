@@ -61,6 +61,8 @@ export const commonPopup = {
 const SPECIAL_COMPANY_CACHE_KEY = 'SPECIAL_COMPANY_IDS';
 
 let specialCompanyIdsCache = null;
+const codeGroupCache = {};
+const codeGroupPending = {};
 
 const parsePipeCompanyIds = (value) => {
     return String(value || '')
@@ -187,20 +189,56 @@ export const gf = {
 	
 	// 공통 코드 조회
 	async getCodes(groupIds = []) {
+	    const uniqueGroupIds = [...new Set((groupIds || []).filter(Boolean))];
+	    const result = {};
+	    const missingGroupIds = [];
 
-	    const res = await fetch('/api/codes/list', {
-	        method: 'POST',
-	        headers: {
-	            'Content-Type': 'application/json'
-	        },
-	        body: JSON.stringify({ groupIds })
+	    uniqueGroupIds.forEach(groupId => {
+	        if (Object.prototype.hasOwnProperty.call(codeGroupCache, groupId)) {
+	            result[groupId] = codeGroupCache[groupId];
+	        } else {
+	            missingGroupIds.push(groupId);
+	        }
 	    });
 
-	    const data = await res.json();
-
-	    if (!data.success) {
-	        return {};
+	    if (missingGroupIds.length === 0) {
+	        return result;
 	    }
+
+	    const pendingKey = missingGroupIds.slice().sort().join('|');
+
+	    if (!codeGroupPending[pendingKey]) {
+	        codeGroupPending[pendingKey] = fetch('/api/codes/list', {
+	            method: 'POST',
+	            headers: {
+	                'Content-Type': 'application/json'
+	            },
+	            body: JSON.stringify({ groupIds: missingGroupIds })
+	        })
+	            .then(res => res.json())
+	            .then(data => {
+	                if (!data.success) {
+	                    return {};
+	                }
+
+	                const codes = data.codes || {};
+
+	                missingGroupIds.forEach(groupId => {
+	                    codeGroupCache[groupId] = codes[groupId] || [];
+	                });
+
+	                return codes;
+	            })
+	            .finally(() => {
+	                delete codeGroupPending[pendingKey];
+	            });
+	    }
+
+	    const fetchedCodes = await codeGroupPending[pendingKey];
+
+	    missingGroupIds.forEach(groupId => {
+	        result[groupId] = codeGroupCache[groupId] || fetchedCodes[groupId] || [];
+	    });
 		
 		// 그룹별 코드 데이터 반환
 		// ex)
@@ -210,7 +248,7 @@ export const gf = {
 		//   PAYGB: [...]
 		// }
 		
-	    return data.codes || {};
+	    return result;
 	},
 	
 	// 공통 코드 상세 조회 - DETAIL_NM 포함

@@ -11,6 +11,7 @@
         SELECT
             TS.SERVICE_ID,
             TS.WORK_CD,
+            TS.LINK_ID,
             TN.CARID_NO,
             TS.CAR_NO,
             TS.COMPANY_ID,
@@ -56,6 +57,7 @@
             PM.VBANK_NO                                   AS TAX_VBANK_NO,
             TN.T_VBANK_ID,
             TN.TOTAL_AMT,
+            TO_CHAR(TN.REGIST_DATE, 'YYYYMMDD') 		  AS REGIST_DATE,
             (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TN.SERVICE_ID AND PAY_KD = 'INJI')  AS INJI_AMT,
             (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TN.SERVICE_ID AND PAY_KD = 'STAMP') AS STAMP_AMT,
             (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TN.SERVICE_ID AND PAY_KD = 'TNUM')  AS TNUM_AMT,
@@ -137,6 +139,13 @@
 		<!-- 영업사원 -->
 		<if test="SANGSA_ID != null and SANGSA_ID != ''">
             AND TS.SANGSA_ID = #{SANGSA_ID}
+		</if>
+
+		<!-- SU인경우 본인 건만 보이게 -->
+		<if test="MEMBER_GB != null and MEMBER_GB != ''">
+            <if test="MEMBER_GB == 'SU'">
+                AND TS.MEMBER_ID = #{MEMBER_ID}
+			</if>
 		</if>
 
 		<!-- 처리 상태 -->
@@ -248,14 +257,13 @@
             SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, BOND_YN, BOND_DC, CARID_NO, REG_GB,
             PKG_COMMON.FN_DECRYPT(REG_NO)               AS REG_NO,
             BIZ_NO, OWNER_NM, OWNER_BRANCH_ID,
-            POST_NO, BUBJUNG_CD,
+            POST_NO, BUBJUNG_CD, RETURN_NO, RETURN_NM,
             PKG_COMMON.FN_DECRYPT(ADDRESS)              AS ADDRESS,
             PKG_COMMON.FN_DECRYPT(ADDRESS_DT)           AS ADDRESS_DT,
             BASE_BRANCH_ID, BASE_POST_NO, BASE_BUBJUNG_CD,
             PKG_COMMON.FN_DECRYPT(BASE_ADDRESS)         AS BASE_ADDRESS,
             PKG_COMMON.FN_DECRYPT(BASE_ADDRESS_DT)      AS BASE_ADDRESS_DT,
-			RT_ACC_NM,
-			RT_ACC_NO,
+			RT_ACC_NM, RT_ACC_NO,
             PKG_COMMON.FN_DECRYPT(TEL_NO)               AS TEL_NO,
             PKG_COMMON.FN_DECRYPT(MPHONE_NO)            AS MPHONE_NO,
             PRDTC_CD, REQ_CAR_YN, REQ_CAR_NO, CAR_NO,
@@ -450,7 +458,8 @@
 		    BOND_BANK_CD, BOND_BANK_NO, BOND_LINK_YN, STANDARD_AMT, MEMO_TX,
 		    RT_BANK_CD, RT_ACC_NO, RT_ACC_NM, RT_AMT, CARP_ADDRESS, GOVT_TX,
 		    CARP_ADDRESS_DT, CARP_POST_NO, VH_TY_CD, INSURER_CD, INSURER_SDT, INSURER_EDT,
-		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT, CARD_YN, REGIST_DATE
+		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT, CARD_YN, REGIST_DATE,
+			RETURN_NO, RETURN_NM
 		)
 		VALUES (
 		    #{SERVICE_ID}, #{WORK_CD}, #{PROC_CD}, #{TASK_CD}, #{BOND_YN},
@@ -470,7 +479,8 @@
 		    #{BOND_BANK_CD}, #{BOND_BANK_NO}, #{BOND_LINK_YN}, #{STANDARD_AMT}, #{MEMO_TX},
 		    #{RT_BANK_CD}, #{RT_ACC_NO}, #{RT_ACC_NM}, #{RT_AMT}, PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}), #{GOVT_TX},
 		    PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}), #{CARP_POST_NO}, #{VH_TY_CD}, #{INSURER_CD}, #{INSURER_SDT}, #{INSURER_EDT},
-		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}, #{CARD_YN}, #{REGIST_DATE}
+		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}, #{CARD_YN}, #{REGIST_DATE},
+			#{RETURN_NO}, #{RETURN_NM}
 		)
 	</insert>
 
@@ -659,7 +669,15 @@
 			<if test="REGIST_DATE != null and REGIST_DATE != ''">
 	            REGIST_DATE = #{REGIST_DATE},
 			</if>
-	
+			<if test="RT_BANK_CD != null and RT_BANK_CD != ''">
+	            RT_BANK_CD = #{RT_BANK_CD},
+			</if>
+			<if test="RETURN_NO != null and RETURN_NO != ''">
+	            RETURN_NO = #{RETURN_NO},
+			</if>
+			<if test="RETURN_NM != null and RETURN_NM != ''">
+	            RETURN_NM = #{RETURN_NM},
+			</if>
 	        UPD_DATE = SYSDATE
 		</set>
 	

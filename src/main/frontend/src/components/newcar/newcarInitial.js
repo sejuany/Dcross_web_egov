@@ -12,13 +12,14 @@ export const initialDsService = {
 	JUDGE_ST: '',
 	RETURN_TX: '',
 	COMPANY_ID: '',
+	LINK_ID: '',
 	GOVT_ID: '',
 	UPD_USER: ''
 };
 
 export const initialDsNewCar = {
 	// 기본
-	PROC_CD: 'K',
+	PROC_CD: 'I',
 	TASK_CD: 'NORML',
 	CARID_NO: '',
 	CAR_NO: '',
@@ -33,9 +34,9 @@ export const initialDsNewCar = {
 	CAR_NM: '',
 	FM_NM: '',
 	SPMNNO: '',
-	FUEL_CD: '',
+	FUEL_CD: 'e',
 	COLOR_GB: '',
-	CAR_US: '',
+	CAR_US: '2',
 	LAST_DT: '',
 	GOVT_TX: '',
 	REGIST_DATE: '',
@@ -89,7 +90,7 @@ export const initialDsNewCar = {
 	// 결제
 	PAY_NM: '',
 	PAY_HP_NO: '',
-	PAY_GB: 'A',
+	PAY_GB: 'B', // 선납 (B), 후납(A)
 	PAY_ME: '',
 	PAY_ST: 'N',
 	VBANK_CD: '',
@@ -266,7 +267,8 @@ export const serviceMap = {
 	JUDGE_ST: 'JUDGE_ST',
 	RETURN_TX: 'RETURN_TX',
 	COMPANY_ID: 'COMPANY_ID',
-	GOVT_ID: 'GOVT_ID'
+	GOVT_ID: 'GOVT_ID',
+	LINK_ID: 'LINK_ID',
 };
 
 export const newCarMap = {
@@ -292,7 +294,6 @@ export const newCarMap = {
 	LAST_DT: 'LAST_DT',
 	GOVT_TX: 'GOVT_TX',
 	REGIST_DATE: 'REGIST_DATE',
-
 	// 번호판
 	NUMPLATE_GB: 'NUMPLATE_GB',
 	IMSINUM_YN: 'IMSINUM_YN',
@@ -303,7 +304,7 @@ export const newCarMap = {
 	ADDRESS_DT: 'ADDRESS_DT',
 	POST_NO: 'POST_NO',
 	BUBJUNG_CD: 'BUBJUNG_CD',
-	RT_ACC_NM: 'RT_ACC_NM',
+	RT_ACC_NM: 'RT_ACC_NM', // 소유자 도로명코드
 	
 	BASE_ADDRESS: 'BASE_ADDRESS',
 	BASE_ADDRESS_DT: 'BASE_ADDRESS_DT',
@@ -347,11 +348,11 @@ export const newCarMap = {
 	VBANK_NO: 'VBANK_NO',
 	CARD_YN: 'CARD_YN',
 
-	// 환급
+	// 환급·환불
 	RT_BANK_CD: 'RT_BANK_CD',
-	RT_ACC_NO: 'RT_ACC_NO',
-	RT_ACC_NM: 'RT_ACC_NM',
-
+	RETURN_NO: 'RETURN_NO',
+	RETURN_NM: 'RETURN_NM',
+	
 	// 기타
 	MEMO_TX: 'MEMO_TX',
 	NEWCAR_REG_DT: 'NEWCAR_REG_DT',

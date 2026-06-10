@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './MortRegList.css';
 import { AgGridReact } from 'ag-grid-react';
@@ -23,6 +23,7 @@ const getFormattedDateOffset = (offsetDays) => {
 
 const MortRegList = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const gridRef = useRef(null);
     const { user } = useAuth();
 
@@ -170,6 +171,8 @@ const MortRegList = () => {
 
     useEffect(() => {
         const handleKeyDown = (e) => {
+            if (location.pathname !== '/mortgage/mort-reg-list') return;
+
             if (e.key === 'F2') { e.preventDefault(); handleSearchClick(); }
             if (e.key === 'F7') { e.preventDefault(); handleExportExcel(); }
             if (e.key === 'F8') { e.preventDefault(); handleResetClick(); }
@@ -177,7 +180,7 @@ const MortRegList = () => {
         };
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [searchFilters]);
+    }, [location.pathname, searchFilters]);
 
     return (
         <div className="status-container">

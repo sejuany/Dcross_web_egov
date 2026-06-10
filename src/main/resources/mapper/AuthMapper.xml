@@ -123,6 +123,13 @@
 		    ON MT.LOGIN_ID = DT.LOGIN_ID
 		WHERE MT.LOGIN_ID = #{loginId}
 	</select>	
+
+	<select id="selectMemberSuInfo" parameterType="string" resultType="java.util.Map">
+		SELECT COMPANY_ID, MEMBER_NM, LOGIN_ID
+		FROM TM_MEMBER_DT
+		WHERE MEMBER_GB = 'SU'
+		  AND COMPANY_ID = #{companyId}
+	</select>	
 	
     <!-- BCrypt 비밀번호로 업데이트 (단계적 전환용) -->
     <update id="updatePasswordToBcrypt">

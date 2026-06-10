@@ -8,29 +8,18 @@
  * 예) NewcarList → /newcar/newcar-list
  */
 import React from 'react';
-import axios from 'axios';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import LoginPage from './components/member/LoginPage';
 import Layout from './components/layout/Layout';
-import Dashboard from './components/dashboard/Dashboard';
-import HomePage from './pages/HomePage';
 import { TabProvider } from './context/TabContext';
 import { AuthProvider } from './context/AuthContext';
 import ProtectedRoute from './components/common/ProtectedRoute';
-import CompanyRoutes from './routes/CompanyRoutes';
+import SignupTerm from './components/member/SignupTerm';
+import SignForm from './components/member/SignForm';
 import './App.css';
 import CommonPopupProvider from './components/common/CommonPopupProvider';
 
 // ===== 모듈별 라우트 임포트 =====
-import MortgageRoutes from './routes/MortgageRoutes';
-import EraseAndEquipRoutes from './routes/EraseAndEquipRoutes';
-import NewcarRoutes from './routes/NewcarRoutes';
-import TrnsnameRoutes from './routes/TrnsnameRoutes';
-import ServiceRoutes from './routes/ServiceRoutes';
-import ManagementRoutes from './routes/ManagementRoutes';
-import AdminRoutes from './routes/AdminRoutes';
-import NumberPlateRoutes from './routes/NumberPlateRoutes';
-import MemberRoutes from './routes/MemberRoutes';
 
 function App() {
   return (
@@ -42,22 +31,13 @@ function App() {
 		  	<Route path="/" element={<Navigate replace to="/login" />} />
             {/* ===== 공통 (인증 불필요) ===== */}
             <Route path="/login" element={<LoginPage />} />
+            <Route path="/signup" element={<SignupTerm />} />
+            <Route path="/signup-form" element={<SignForm />} />
 
             {/* ===== 홈 / 대시보드 ===== */}
-            <Route path="/home" element={<ProtectedRoute><Layout><HomePage /></Layout></ProtectedRoute>} />
-            <Route path="/registration" element={<ProtectedRoute><Layout><Dashboard /></Layout></ProtectedRoute>} />
+            <Route path="/*" element={<ProtectedRoute><Layout /></ProtectedRoute>} />
 
             {/* ===== 모듈별 라우트 그룹 ===== */}
-            {MortgageRoutes}
-            {EraseAndEquipRoutes}
-            {NewcarRoutes}
-            {TrnsnameRoutes}
-            {ServiceRoutes}
-            {ManagementRoutes}
-            {AdminRoutes}
-            {NumberPlateRoutes}
-			{MemberRoutes}
-			{CompanyRoutes}
           </Routes>
 		  </CommonPopupProvider>
         </TabProvider>

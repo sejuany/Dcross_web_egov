@@ -4,13 +4,16 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.Date;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.StringJoiner;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.CellType;
+import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -46,6 +49,7 @@ import com.dacos.numplate.mapper.NumPlateMapper;
 import com.dacos.payment.mapper.PaymentMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.ibm.icu.text.SimpleDateFormat;
+import com.dacos.code.mapper.CodeMapper;
 
 import lombok.RequiredArgsConstructor;
 
@@ -83,13 +87,19 @@ public class NewcarService {
     private CommonUtil commonUtil; // 자주 쓰는 메소드
     @Autowired
     private CommonRepository common; // DB 접근 역할
+    @Autowired
+    private CodeMapper codeMapper;
+    @Autowired
+    private AuthMapper authMapper;
     
     /**
      * 신차 등록 목록 조회
      * - resultType을 Map으로 사용하여 MyBatis 컬럼 별칭이 JSON 키로 그대로 사용됨
      */
-    public List<Map<String, Object>> getNewCarList(NewcarSearchRequest request) {
+    public List<Map<String, Object>> getNewCarList(NewcarSearchRequest request, UserDto user) {
         logger.info("[NewcarService] 신차 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());
+        request.setMEMBER_GB(user.getMEMBER_GB());
+        request.setMEMBER_ID(user.getLOGIN_ID());
         return newcarMapper.getNewCarList(request);
     }
 
@@ -167,115 +177,244 @@ public class NewcarService {
     }
     
     /**
+     * 엑셀 검증 - 필수값, 형식, 중복 등
+     */
+	private List<String> validateExcelRow(Map<String, Object> row, Set<String> excelCarIds, Map<String, String> dlvMap, Map<String, String> suMap) {
+		List<String> errors = new ArrayList<>();
+		if (isEmpty(row.get("REGIST_DATE"))) {
+			errors.add("등록 일자 없음");
+		}
+		String carIdNo = Objects.toString(row.get("CARID_NO"), "").trim();
+		if (isEmpty(carIdNo)) {
+			errors.add("차대번호 없음");
+		}
+		// 엑셀 내 중복
+	    if (!carIdNo.isBlank()) {
+	        if (!excelCarIds.add(carIdNo)) {
+	            errors.add("엑셀 내 중복된 차대번호");
+	        }
+	        // DB 중복
+	        Map<String, Object> param = new HashMap<>();
+	        param.put("CARID_NO", carIdNo);
+
+	        if (isDuplicateCar(param)) {
+	            errors.add("이미 등록된 차대번호");
+	        }
+	    }
+		
+		if (!isEmpty(row.get("CARID_NO")) && row.get("CARID_NO").toString().length() != 17) {
+			errors.add("차대번호 확인 필요");
+		}
+		if (isEmpty(row.get("BUY_AMT"))) {
+			errors.add("차량 세금 계산서 금액 없음");
+		}
+		if (isEmpty(row.get("OWNER_NM"))) {
+			errors.add("고객명 없음");
+		}
+		if (isEmpty(row.get("LINK_ID"))) {
+			errors.add("주문번호 없음");
+		}
+		
+		String spaceGb = Objects.toString(row.get("SPACE_GB"), "").trim();
+		if (isEmpty(spaceGb)) {
+			errors.add("Space 없음");
+		} else {
+			// 배송지 확인
+			String codeId = dlvMap.get(spaceGb);
+
+		    if (codeId == null) {
+		        errors.add("존재하지 않는 Space : " + spaceGb);
+		    } else {
+		        // INSERT 전에 CODE_ID로 치환
+		        row.put("SPACE_GB", codeId);
+		    }
+		}
+		
+		String spaceNm = Objects.toString(row.get("SPACE_NM"), "").trim();
+		if (isEmpty(spaceNm)) {
+			errors.add("담당 Specialist 없음");
+		} else {
+			// 담당 SP확인
+			String suId = suMap.get(spaceNm);
+
+		    if (suId == null) {
+		        errors.add("존재하지 않는 Specialist : " + spaceNm);
+		    } else {
+		        // 해당 SU login_id 넣어주기
+		        row.put("SPACE_ID", suId);
+		    }
+		}
+		
+		return errors;
+	}
+    
+    private boolean isEmpty(Object value) {
+        return value == null || value.toString().trim().isEmpty();
+    }
+    
+    private List<Map<String, Object>> parseExcel(MultipartFile file) {
+		List<Map<String, Object>> result = new ArrayList<>();
+		try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+			Sheet sheet = workbook.getSheetAt(0);
+			DataFormatter formatter = new DataFormatter();
+			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+				Row excelRow = sheet.getRow(i);
+				if (excelRow == null) {
+					continue;
+				}
+				Map<String, Object> row = new HashMap<>();
+				row.put("SPACE_GB", getCellValue(excelRow.getCell(2), formatter)); 						//Space명(배송지)
+				row.put("SPACE_NM", getCellValue(excelRow.getCell(3), formatter));						//담당 Specialist명
+				row.put("LINK_ID", getCellValue(excelRow.getCell(5), formatter));						//주문번호
+				row.put("OWNER_NM", getCellValue(excelRow.getCell(6), formatter));						//소유자명
+				row.put("CARID_NO", getCellValue(excelRow.getCell(11), formatter));						//차대번호
+				row.put("BUY_AMT", getCellValue(excelRow.getCell(28), formatter).replace(",", ""));		//공급가액
+				row.put("REGIST_DATE", getCellValue(excelRow.getCell(41), formatter).replace("-", ""));	//등록일자
+				result.add(row);
+			}
+		} catch (Exception e) {
+			throw new RuntimeException("엑셀 읽기 실패", e);
+		}
+		return result;
+    }
+    
+	private String getCellValue(Cell cell, DataFormatter formatter) {
+		if (cell == null) {
+			return "";
+		}
+		return formatter.formatCellValue(cell).trim();
+	}
+    
+    /**
      * 엑셀 업로드
      */
-    @Transactional
-    public int uploadExcel(MultipartFile file, UserDto user) throws Exception {
+	@Transactional
+	public Map<String, Object> uploadExcel(MultipartFile file, UserDto user) throws Exception {
+		List<Map<String, Object>> rows = parseExcel(file);
+		List<Map<String, Object>> errorList = new ArrayList<>();
+		Set<String> excelCarIds = new HashSet<>();
+		
+		List<Map<String, Object>> dlvCodes = codeMapper.findCodesByGroupId("DLVGB");
+		List<Map<String, Object>> suInfo = authMapper.selectMemberSuInfo(user.getCOMPANY_ID());
 
-        int insertCount = 0;
+		Map<String, String> dlvMap = new HashMap<>();
+		Map<String, String> suMap = new HashMap<>();
 
-        try (Workbook workbook =
-                 WorkbookFactory.create(file.getInputStream())) {
+		for (Map<String, Object> code : dlvCodes) {
+			dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
+		}
+		for (Map<String, Object> code : suInfo) {
+			suMap.put(Objects.toString(code.get("MEMBER_NM"), "").trim(), Objects.toString(code.get("LOGIN_ID"), ""));
+		}
+		// =========================
+		// 1. 검증 단계
+		// =========================
+		for (int i = 0; i < rows.size(); i++) {
+			Map<String, Object> row = rows.get(i);
+			List<String> errors = validateExcelRow(row, excelCarIds, dlvMap, suMap);
+			if (!errors.isEmpty()) {
+				errorList.add(Map.of("row", i + 2, "carIdNo", row.get("CARID_NO"), "errors", errors));
+			}
+		}
 
-            Sheet sheet = workbook.getSheetAt(0);
+		// =========================
+		// 2. 에러 있으면 INSERT 중단
+		// =========================
+		if (!errorList.isEmpty()) {
+			return Map.of("success", false, "insertCount", 0, "errors", errorList);
+		}
 
-            for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+		// =========================
+		// 3. INSERT 단계
+		// =========================
+		int insertCount = 0;
 
-                Row row = sheet.getRow(i);
+		for (Map<String, Object> row : rows) {
+			insertExcelRow(row, user);
+			insertCount++;
+		}
 
-                if (row == null) continue;
+		return Map.of("success", true, "insertCount", insertCount, "errors", List.of());
+	}
+	
+	private void insertExcelRow(Map<String, Object> row, UserDto user) {
 
-                String carIdNo =
-                        getCellValue(row.getCell(0)).trim();
+	    Map<String, Object> request = new HashMap<>();
+	    Map<String, Object> dsService = new HashMap<>();
+	    Map<String, Object> dsNewCar = new HashMap<>();
+	    Map<String, Object> dsCarNoDetach = new HashMap<>();
+	    Map<String, Object> dsOwnerInfo = new HashMap<>();
+	    Map<String, Object> dsOwnerInfo1 = new HashMap<>();
+	    
+	    // =========================
+	    // SERVICE
+	    // =========================
+	    Map<String, Object> result = initNewCar(user);
+	    dsService = (Map<String, Object>) result.get("dsService");
+	    dsService.put("WORK_CD", "010");
+	    dsService.put("PROC_ST", "C_REQ");
+	    dsService.put("LINK_ID", row.get("LINK_ID")); 		// 주문번호
+	    dsService.put("MEMBER_ID", row.get("SPACE_ID"));	    // SU 담당자 login_id
 
-                String ownerNm =
-                        getCellValue(row.getCell(1)).trim();
+	    // =========================
+	    // NEWCAR
+	    // =========================
+	    dsNewCar.put("CARID_NO", row.get("CARID_NO"));
+	    dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));
+	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
+	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); // 등록일자
 
-                String regNo =
-                        getCellValue(row.getCell(2)).replace("-", "").trim();
+	    // =========================
+	    // 기타
+	    // =========================
+	    dsCarNoDetach.put("DELIVERY_GB", row.get("SPACE_GB"));
+	    
+	    
+	    
+	    // =========================
+	    // PAYMENT
+	    // =========================
+	    List<Map<String, Object>> dsPaymentList = getPaymentList(user);
 
-                String scUserNm =
-                        getCellValue(row.getCell(3)).trim();
+	    // =========================
+	    // REQUEST 조립
+	    // =========================
+	    request.put("dsService", dsService);
+	    request.put("dsNewCar", dsNewCar);
+	    request.put("dsCarNoDetach", dsCarNoDetach);
+	    request.put("dsOwnerInfo", dsOwnerInfo);
+	    request.put("dsOwnerInfo1", dsOwnerInfo1);
+	    request.put("dsPaymentList", dsPaymentList);
 
-                // 빈 차대번호 skip
-                if (carIdNo.isEmpty()) continue;
-                
-                // 등록번호 구분 지정해서 넣어주기
-                String regGb = "";
-                
-                // 사업자번호
-                if (regNo.length() == 10) {
-                	regGb = "C";
-                } else if (regNo.length() == 13) {
-                	String birth = regNo.substring(0, 6);
-                    char genderCode = regNo.charAt(6);
-                    boolean validDate = isValidDateYYMMDD(birth);
+	    // =========================
+	    // 실제 저장
+	    // =========================
+	    processNewCar(request, user);
+	}
+	
+	@Transactional
+	public int paymentProcess(List<Map<String, Object>> request, UserDto user) {
+	    int updateCount = 0;
+	    for (Map<String, Object> row : request) {
 
-                    // 주민등록번호
-                    if (validDate &&
-                            (genderCode == '1' ||
-                             genderCode == '2' ||
-                             genderCode == '3' ||
-                             genderCode == '4')) {
+	        String serviceId = String.valueOf(row.get("SERVICE_ID"));
+	        String procSt = String.valueOf(row.get("PROC_ST"));
 
-                    	regGb = "R";
-                    }
+	        // 상태값 검증
+	        if (!"PBEND".equals(procSt) && !"P_END".equals(procSt)) {
+	            throw new BusinessException("잘못된 상태값입니다.");
+	        }
 
-                    // 외국인등록번호
-                    if (validDate &&
-                            (genderCode == '5' ||
-                             genderCode == '6' ||
-                             genderCode == '7' ||
-                             genderCode == '8')) {
+	        Map<String, Object> param = new HashMap<>();
+	        param.put("SERVICE_ID", serviceId);
+	        param.put("PROC_ST", procSt);
+	        param.put("UPD_USER", user.getLOGIN_ID());
+	        
+	        updateCount += common.update(param, "updateTrService");
+	    }
 
-                    	regGb = "F";
-                    }
-
-                    // 그 외는 법인번호로 판단
-                    regGb = "B";
-                } else {
-                	continue;
-                }
-                
-                Map<String, Object> request = new HashMap<>();
-
-                Map<String, Object> dsService = new HashMap<>();
-
-                Map<String, Object> dsNewCar = new HashMap<>();
-
-                Map<String, Object> dsCarNoDetach = new HashMap<>();
-                
-                dsService.put("COMPANY_ID", user.getCOMPANY_ID());
-                dsService.put("ASSOCIATION_ID", user.getASSOCIATION_ID());
-                dsService.put("WORK_CD", "010");
-                dsService.put("PROC_ST", "C_REQ");
-                dsService.put("MEMBER_ID", user.getLOGIN_ID());
-                dsService.put("BRANCH_ID", user.getBRANCH_ID());
-                
-                dsNewCar.put("CARID_NO", carIdNo);
-                dsNewCar.put("OWNER_NM", ownerNm);
-                dsNewCar.put("REG_GB", regGb);
-                dsNewCar.put("REG_NO", regNo);
-                
-                request.put("dsService", dsService);
-                request.put("dsNewCar", dsNewCar);
-                request.put("dsCarNoDetach", dsCarNoDetach);
-                
-                request.put("dsOwnerInfo", new ArrayList<>());
-
-                // 결제정보
-                List<Map<String, Object>> dsPaymentList = getPaymentList(user);
-                request.put("dsPaymentList", dsPaymentList);
-                
-                processNewCar(request, user);
-                insertCount++;
-
-            }
-
-        }
-
-        return insertCount;
-    }
+	    return updateCount;
+	}
     
     
     /**

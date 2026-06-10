@@ -11,6 +11,7 @@ public class PaymentSearchRequest {
     private String END_DT;
     private String COMPANY_ID;
     private String BRANCH_ID;
+    private String SANGSA_ID;
     private String PAY_ST;
     private String WORK_CD;
     private String TASK_CD;

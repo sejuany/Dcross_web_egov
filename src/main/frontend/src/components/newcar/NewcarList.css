@@ -104,6 +104,12 @@
     border-color: #ae3642;
 }
 
+.btn-status.yellow {
+    background-color: rgb(255, 255, 0);
+    color: black;
+    border-color: #3b6eb0;
+}
+
 .btn-status.grey {
     background-color: #ccd1d9;
     color: #434a54;
@@ -430,6 +436,40 @@
 .wait-popup-grid {
     flex: 1;
     min-height: 0;
+}
+
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,.3);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.modal-box {
+    width: 340px;
+    background: #fff;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.modal-title {
+    font-size: 15px;
+    font-weight: bold;
+    margin-bottom: 15px;
+}
+
+.modal-content {
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
 }
 
 /* 태블릿 */

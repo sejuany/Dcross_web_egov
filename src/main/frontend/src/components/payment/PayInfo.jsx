@@ -1,5 +1,6 @@
 ﻿﻿import React, { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useTabs, useTabPageState } from '../../context/TabContext'; // 전역 탭
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
@@ -23,32 +24,41 @@ const getFormattedDateOffset = (offsetDays) => {
 
 // 관청을 보여줄지 말지 선택
 let bGovtVisible = false;
+let bBranchVisible = true;
+let bSangsaVisible = true;
+
+const getInitialSearchFilters = () => ({
+    workCD: '',
+    companyID: '',
+    govtId: '',
+    userNM: '',
+    carNo: '',
+    baseGubun: 'PROC_DT',
+    startDate: getFormattedDateOffset(0),
+    endDate: getFormattedDateOffset(0),
+    processStatus: 'END',
+    PAY_ST: '',
+    PAY_TP: '',
+    branchID: '',
+    sangsaID: ''
+});
 
 const PayInfo = () => {
     const navigate = useNavigate();
+    const location = useLocation();
     const gridRef = useRef(null);	
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기 use_YN	'Y', regist_NO	'UA', member_NM	'다코스관리자', branch_ID	'dacos', login_GB	'UA', sangsa_ID	'dacos', login_ID	'dacos', member_GB	'UA', company_ID	'dacos', pass_WD	null
-		
+	const { tabs, activeTabId, removeTab } = useTabs(); // 탭 관리	
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
     const [companyList, setCompanyList] = useState([]);
+	const [branchList, setBranchList] = useState([]);
+	const [sangsaList, setSangsaList] = useState([]);
     const [toastMessage, setToastMessage] = useState('');
     const [rowData, setRowData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
 
-    const [searchFilters, setSearchFilters] = useState({
-        workCD: '',
-        companyID: '',
-        govtId: '',
-        userNM: '',
-        carNo: '',
-		baseGubun: 'PROC_DT',
-        startDate: getFormattedDateOffset(0),
-        endDate: getFormattedDateOffset(0),
-        processStatus: 'END',
-        PAY_ST: '',
-		PAY_TP: ''
-    });
+    const [searchFilters, setSearchFilters] = useTabPageState('searchFilters', getInitialSearchFilters);
 
 	const SGB_DATA = [
 	    { CODE_ID: '000', CODE_NM: '저당설정' },
@@ -61,17 +71,31 @@ const PayInfo = () => {
 	    { CODE_ID: '003', CODE_NM: '저당권이전' },
 	    { CODE_ID: '031', CODE_NM: '등록증재발급' }
 	];
+
+	if (user.member_GB.substring(0, 1) === 'U' || user.company_ID === 'HAMYA' || user.company_ID === 'HAMAN') {
+		SGB_DATA.push({ CODE_ID: '040', CODE_NM: '설정(건기)' });
+		SGB_DATA.push({ CODE_ID: '041', CODE_NM: '말소(건기)' });
+		SGB_DATA.push({ CODE_ID: '004', CODE_NM: '설정(공동)' });
+	} else if (user.member_GB === 'CA' || user.member_GB === 'CU' || user.member_GB === 'MA') {		
+		if (user.company_ID === 'CE025' || user.company_ID === 'CE008') {
+			SGB_DATA.push({ CODE_ID: '040', CODE_NM: '설정(건기)' });
+			SGB_DATA.push({ CODE_ID: '041', CODE_NM: '말소(건기)' });
+		}
+		if (user.company_ID === 'CC002' || user.company_ID === 'CT999') {
+			SGB_DATA.push({ CODE_ID: '004', CODE_NM: '설정(공동)' });
+		}
+	}  	
 	
 	// codeListMap에 적용 시
-	codeListMap['WORK_CD'] = SGB_DATA;	
-
+	//codeListMap['WORK_CD'] = SGB_DATA;	
+		
 	const BASE_GUBUN = [
 	    { CODE_ID: 'PROC_DT', CODE_NM: '처리일' },
 	    { CODE_ID: 'REQUEST_DT', CODE_NM: '신청일' }
 	];
 
 	// codeListMap에 적용 시
-	codeListMap['BASE_GUBUN'] = BASE_GUBUN;
+	//codeListMap['BASE_GUBUN'] = BASE_GUBUN;
 
 	// 일부 지자체의 경우에 대해 처리
 	const LOCAL = [
@@ -93,6 +117,68 @@ const PayInfo = () => {
 		}
 			
 	}, []); 
+	
+
+	useEffect(() => {
+	    const handleKeyDown = (e) => {
+            if (location.pathname !== '/payment/pay-info') return;
+
+	        switch (e.key) {
+	            case 'F2':
+	                e.preventDefault();
+	                handleSearchClick();
+	                break;
+	            case 'F7':
+	                e.preventDefault();
+	                handleExportExcel();
+	                break;
+	            case 'F8':
+	                e.preventDefault();
+	                handleResetClick();
+	                break;
+	            case 'F9':
+	                e.preventDefault();
+	                handleCloseClick();
+	                break;
+	            default:
+	                break;
+	        }
+	    };
+
+	    window.addEventListener('keydown', handleKeyDown);
+	    return () => window.removeEventListener('keydown', handleKeyDown);
+	}, [location.pathname, searchFilters]);
+
+	// 회사 리스트가 변경될 때마다 감시
+	useEffect(() => {
+	    if (companyList && companyList.length === 1) {
+	        setSearchFilters(prev => ({
+	            ...prev,
+	            companyID: companyList[0].COMPANY_ID
+	        }));
+	    }
+	}, [companyList]); 	
+	
+	// 지점 리스트(branchList)가 변경될 때마다 감시
+	useEffect(() => {
+	    if (branchList && branchList.length === 1) {
+	        setSearchFilters(prev => ({
+	            ...prev,
+	            branchID: branchList[0].BRANCH_ID
+	        }));
+	    }
+	}, [branchList]); // branchList가 갱신될 때만 실행
+
+	// 상사 리스트가 변경될 때마다 감시
+	useEffect(() => {
+	    if (sangsaList && sangsaList.length === 1) {
+	        setSearchFilters(prev => ({
+	            ...prev,
+	            sangsaID: sangsaList[0].SANGSA_ID
+	        }));
+	    }
+	}, [sangsaList]); // branchList가 갱신될 때만 실행
+	
 	
 	// 화면에 사용할 코드값 가져오기.
 	const fetchCodes = async () => {
@@ -149,37 +235,179 @@ const PayInfo = () => {
 	    }
 	};
 	
+	const handleWorkCdChange = (e) => {
+	    const selectedWorkCd = e.target.value;
+	    		
+	    // 상태 업데이트 (화면 표시용)
+		
+		setSearchFilters(prev => ({
+		        ...prev,
+				workCD: selectedWorkCd,
+				companyID: '',
+		        branchID: '',
+		        sangsaID: '' 
+		    }));
+			
+	    
+		if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+			// 일반 회사인 경우엔 하면 안되므로.
+			return;	
+		}
+		
+	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
+	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
+	    fetchCompanies(selectedWorkCd); 
+	};
+
+	const handleCompanyIdChange = (e) => {
+	    const selectedCompanyId = e.target.value;
+	    		
+	    // 상태 업데이트 (화면 표시용)
+		setSearchFilters(prev => ({
+		        ...prev,
+				companyID: selectedCompanyId,
+		        branchID: '',
+		        sangsaID: '' // (선택) 지점이 바뀌면 하위인 팀(상사) 콤보는 보통 초기화시킴
+		    }));
+	    
+		if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R'  || user.member_GB.substring(0, 1) === 'W') {
+			// 일반 회사인 경우엔 하면 안되므로.
+			return;	
+		}
+		
+	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
+	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
+	    fetchBranch(selectedCompanyId); 
+	};	
+	
+	const handleBranchIdChange = (e) => {
+	    const selectedBranchID = e.target.value;
+	    		
+		setSearchFilters(prev => ({
+		        ...prev,
+		        branchID: selectedBranchID,
+		        sangsaID: '' // (선택) 지점이 바뀌면 하위인 팀(상사) 콤보는 보통 초기화시킴
+		    }));
+		
+	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
+	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
+	    fetchSangsa(searchFilters.companyID, selectedBranchID);
+	};		
+			
+	const handleSangsaIdChange = (e) => {
+	    const selectedSangsaId = e.target.value;
+	    		
+	    // 상태 업데이트 (화면 표시용)
+	    setSearchFilters(prev => ({ ...prev, sangsaID: selectedSangsaId }));
+		
+	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
+	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
+	    //fetchSangsa(searchFilters.companyId, searchFilters.branchId, selectedSangsaId);
+	};		
+	
 	// 각 업무별 회원사 정보 가져오기. 처음엔 설정 기준
 	const fetchCompanies = async (workCd) => {
 	    try {
 	        // 사용자의 요청에 따라 관청(govtId) 조건 없이 WORK_CD='010'에 해당하는 
 	        // 전체 회사 목록을 한 번만 불러와서 리스트에 넣어줍니다.
-			console.log('member_GB : ' + user.member_GB)
 			const requestParams = {
 				workCd: workCd
 			};
 			
-			if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+			if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R' || user.member_GB.substring(0, 1) === 'S') {
 				// 일반 회사인경우
 				requestParams.companyId = user.company_ID
+				requestParams.workCd = '010'
 			}
 			if (user.member_GB.substring(0, 1) === 'G') {
 				// 관청인 경우
 				requestParams.govtId = user.company_ID
 			}
 			
-			console.table(requestParams);
+			//console.table(requestParams);
+			//console.table(user);
 	        const response = await axios.get('/api/companies', {
 	            params: requestParams
 	        });
 	        if (response.data.success) {
-	            setCompanyList(response.data.list);
+				const rawList = response.data.list;
+				const uniqueCompanyList = rawList.filter((item, index, self) =>
+		            index === self.findIndex((t) => t.COMPANY_ID === item.COMPANY_ID)
+		        );
+				
+	            setCompanyList(uniqueCompanyList);
+				
+				// 폴스타의 경우엔 지점도 찾아오고 팀도 찾아오고 해야 함.				
+				if (user.member_GB.substring(1, 2) === 'A') {
+					if (user.member_GB === 'UA' || user.member_GB === 'CA') {
+						fetchBranch(user.company_ID);
+					} else if (user.member_GB === 'BA' || user.member_GB === 'SA') {
+						fetchBranch(user.company_ID, user.branch_ID);
+					} 
+										
+				}
+				
 	        }
 	    } catch (error) {
 	        console.error('회사 목록 갱신 실패:', error);
 	    }
 	};	
+	
+	const fetchBranch = async(companyId, branchId) => {
+		
+		try {
+	        // 특정회사의 지점 정보를 알아온다.
+			//console.log('branchId : ' + user.branch_ID)
+			const requestParams = {
+				companyId: companyId,
+				branchId: branchId
+			};
 
+			//console.table(requestParams);
+	        const response = await axios.get('/api/branch/list', {
+	            params: requestParams
+	        });
+	        if (response.data.success) {
+	            setBranchList(response.data.list);				
+				// 			
+				if (user.member_GB === 'CA' || user.member_GB === 'BA'  || user.member_GB === 'SA') {				
+					fetchSangsa(user.company_ID, user.branch_ID, user.sangsa_ID);
+				}	
+				
+	        }
+	    } catch (error) {
+	        console.error('회사 목록 갱신 실패:', error);
+	    }
+
+	}
+
+	const fetchSangsa = async(companyId, branchId, sangsaId) => {
+		
+		try {
+	        // 특정회사의 상사 정보를 알아온다.
+			//console.log('sangsaId : ' + user.sangsa_ID)
+			const requestParams = {
+				companyId: companyId,
+				branchId: branchId,
+				sangsaId: sangsaId
+			};
+
+			//console.table(requestParams);
+	        const response = await axios.get('/api/sangsa/list', {
+	            params: requestParams
+	        });
+	        if (response.data.success) {
+	            setSangsaList(response.data.list);				
+				
+				
+	        }
+	    } catch (error) {
+	        console.error('회사 목록 갱신 실패:', error);
+	    }
+
+	}	
+	
+	
 	// 조회 버튼 눌렀을때
     const fetchPaymentList = async () => {
         try {
@@ -206,13 +434,15 @@ const PayInfo = () => {
 			//alert(finalGovtId);
 				
 			// 회원사가 로그인 했을때 1개만 있는 경우
-			if (companyList && companyList.length === 1) {
-		        searchFilters.companyID = companyList[0].COMPANY_ID;
-		    }
+			let finalCompanyId = cleanParam(searchFilters.companyID);
+	        if (companyList && companyList.length === 1) {
+	            finalCompanyId = companyList[0].COMPANY_ID;
+	        }
 
+			//console.table(searchFilters);
 		    const params = {
                 WORK_CD: searchFilters.workCD,
-				COMPANY_ID: cleanParam(searchFilters.companyID),
+				COMPANY_ID: finalCompanyId,
 				GOVT_ID: finalGovtId,
 				USER_NM: searchFilters.userNM,
 				CAR_NO: searchFilters.carNo,
@@ -222,9 +452,12 @@ const PayInfo = () => {
 				PROC_ST: cleanParam(searchFilters.processStatus),
 				PAY_ST: searchFilters.PAY_ST,
 				PAY_TP: searchFilters.PAY_TP,
-				LOCAL_ID : sLocalID
+				LOCAL_ID : sLocalID, 
+				BRANCH_ID :searchFilters.branchID,
+				SANGSA_ID : searchFilters.sangsaID
             };
 
+			//console.table(params);
             const response = await axios.post('/api/payment/list', params);
             if (response.data.success) {
                 setRowData(response.data.list);
@@ -244,22 +477,7 @@ const PayInfo = () => {
         return codeMap[groupId] && codeMap[groupId][value] ? codeMap[groupId][value] : value;
     };
 
-	const handleWorkCdChange = (e) => {
-	    const selectedWorkCd = e.target.value;
-	    		
-	    // 상태 업데이트 (화면 표시용)
-	    setSearchFilters(prev => ({ ...prev, workCD: selectedWorkCd }));
-	    
-		if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
-			// 일반 회사인 경우엔 하면 안되므로.
-			return;	
-		}
-		
-	    // 2. 바뀐 값을 파라미터로 넘겨서 즉시 재조회
-	    // fetchCompanies 함수가 인자를 받도록 설계되어 있어야 합니다.
-	    fetchCompanies(selectedWorkCd); 
-	};
-	
+
     // UA 권한 컬럼정의
 	const UA_ColumnDefs = [
 		{ headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 33, cellClass: 'ag-right-aligned-cell', 
@@ -739,20 +957,7 @@ const PayInfo = () => {
 
     const handleResetClick = () => {
 		// 1. 기본적으로 초기화할 값들을 세팅합니다.
-	    const resetValues = {
-	        workCD: '',
-	        companyID: '',
-	        govtId: '',
-	        userNM: '',
-	        clientName: '',
-	        carNo: '',
-	        baseGubun: 'PROC_DT',
-	        startDate: getFormattedDateOffset(0),
-	        endDate: getFormattedDateOffset(0),
-	        PAY_ST: '',
-	        PAY_TP: '',
-	        processStatus: 'END'
-	    };
+	    const resetValues = getInitialSearchFilters();
 
 	    // 2. 회사(Company) 목록이 1개뿐이라면 초기화 시에도 해당 값을 유지
 	    if (companyList && companyList.length === 1) {
@@ -793,38 +998,11 @@ const PayInfo = () => {
         }
     };
 
-    const handleCloseClick = () => {
-        navigate('/home');
-    };
+	const handleCloseClick = () => {
+		if (!activeTabId) return;
+	    removeTab(activeTabId);
+	};
 
-    useEffect(() => {
-        const handleKeyDown = (e) => {
-            switch (e.key) {
-                case 'F2':
-                    e.preventDefault();
-                    handleSearchClick();
-                    break;
-                case 'F7':
-                    e.preventDefault();
-                    handleExportExcel();
-                    break;
-                case 'F8':
-                    e.preventDefault();
-                    handleResetClick();
-                    break;
-                case 'F9':
-                    e.preventDefault();
-                    handleCloseClick();
-                    break;
-                default:
-                    break;
-            }
-        };
-
-        window.addEventListener('keydown', handleKeyDown);
-        return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [searchFilters]);
-	
 	const [pinnedBottomRowData, setPinnedBottomRowData] = useState([
 	    { NO: '합계', ACQ_AMT: 0, REGIS_AMT: 0, TOTAL_AMT: 0 } // 초기값
 	]);
@@ -883,25 +1061,47 @@ const PayInfo = () => {
                 <div className="erp-row">
                     <ErpField label="신청구분" span={5}>
 						<select className="erp-input" value={searchFilters.workCD} onChange={handleWorkCdChange}>
-                            <option value="">전체</option>
-                            {codeListMap['WORK_CD'] && codeListMap['WORK_CD'].map(code => (
-                                <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
-                            ))}
-                        </select>
-                        <select className="erp-input" value={searchFilters.companyID} onChange={e => setSearchFilters({ ...searchFilters, companyID: e.target.value })}>
-							{/* 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
-						    {companyList.length !== 1 && <option value="">전체 (회사)</option>}
-						    {companyList.map(comp => (
-						        <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
+						    <option value="">전체</option>
+						    {SGB_DATA.map(code => (
+						        <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
 						    ))}
-                        </select>
+						</select>
+						{/* 💡 수정된 코드: key에 index를 붙여 절대 중복되지 않게 만듭니다 */}
+						<select className="erp-input" value={searchFilters.companyID} onChange={handleCompanyIdChange}>
+						    {companyList.length !== 1 && <option value="">전체 (회사)</option>}
+						    {companyList.map((comp, index) => (
+						        <option key={`${comp.COMPANY_ID}_${index}`} value={comp.COMPANY_ID}>
+						            {comp.COMPANY_NM}
+						        </option>
+						    ))}
+						</select>
+						{bBranchVisible && (
+						<select className="erp-input" style={{ visibility: bBranchVisible ? 'visible' : 'hidden' }} value={searchFilters.branchID} onChange={handleBranchIdChange}>
+							{/* 지점 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
+							{branchList.length !== 1 && <option value="">전체(지점)</option>}
+						    {branchList.map(comp => (
+						        <option key={comp.BRANCH_ID} value={comp.BRANCH_ID}>{comp.BRANCH_NM}</option>
+						    ))}						
+						</select>
+						)}
+						{bSangsaVisible && (	
+						<select className="erp-input" style={{ visibility: bSangsaVisible ? 'visible' : 'hidden' }} value={searchFilters.sangsaID} onChange={handleSangsaIdChange}>
+							{/* 상사 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
+							{sangsaList.length !== 1 && <option value="">전체(팀)</option>}
+							{sangsaList.map(comp => (
+							    <option key={comp.SANGSA_ID} value={comp.SANGSA_ID}>{comp.SANGSA_NM}</option>
+							))}						
+						</select>
+						)}	
+						{bGovtVisible && (
                         <select style={{ visibility: bGovtVisible ? 'visible' : 'hidden' }} className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
 							{/* 관청 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
 						    {codeListMap['GOVT']?.length !== 1 && <option value="">전체 (관청)</option>}
 						    {codeListMap['GOVT']?.map(code => (
 						        <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
 						    ))}						
-                        </select>						
+                        </select>			
+						)}			
                     </ErpField>
                     <ErpField label="신청자명" span={3}>
                         <input type="text" className="erp-input" value={searchFilters.userNM} onChange={e => setSearchFilters({ ...searchFilters, userNM: e.target.value })} />
@@ -912,10 +1112,10 @@ const PayInfo = () => {
                 </div>
                 <div className="erp-row">					
 					<select className="erp-input" value={searchFilters.baseGubun} onChange={e => setSearchFilters({ ...searchFilters, baseGubun: e.target.value })}>
-				        {codeListMap['BASE_GUBUN'] && codeListMap['BASE_GUBUN'].map(code => (
-				        	<option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
-				        ))}
-				    </select>
+					    {BASE_GUBUN.map(code => (
+					        <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
+					    ))}
+					</select>
                     <input type="date" className="erp-input" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} />
                     <span>~</span>
                     <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })} />                    

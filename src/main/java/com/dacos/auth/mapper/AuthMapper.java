@@ -37,6 +37,8 @@ public interface AuthMapper {
     
     Map<String, Object> selectMBCount(Map<String, Object> request);
     
+    List<Map<String, Object>> selectMemberSuInfo(@Param("companyId") String companyId);
+    
     void insertMemberMaster(Map<String, Object> memberMT);
 
     void insertMemberDetail(Map<String, Object> memberDT);
