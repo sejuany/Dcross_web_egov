@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import './PasswordChangeModal.css';
+import { gf } from '../../utils/utils'; // 공통 유틸 함수
 
 const emptyForm = {
   currentPassword: '',
@@ -129,7 +130,10 @@ const PasswordChangeModal = ({ open, onClose }) => {
     e.preventDefault();
 
     if (!validatePassword()) return;
-    if (!window.confirm('비밀번호를 변경하시겠습니까?')) return;
+    const pwchgok = await gf.confirm('비밀번호를 변경하시겠습니까?');
+    if (!pwchgok) {
+        return;
+    }
 
     try {
       setSaving(true);

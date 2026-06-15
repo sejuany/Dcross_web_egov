@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -27,8 +26,11 @@ public class CodeController {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeController.class);
 
-    @Autowired
-    private CodeService codeService;
+    private final CodeService codeService;
+
+    public CodeController(CodeService codeService) {
+        this.codeService = codeService;
+    }
 
     /**
      * 그룹 ID에 해당하는 공통 코드 조회
@@ -119,8 +121,7 @@ public class CodeController {
     }    
     
     @PostMapping("/codes/detail-list")
-    public ResponseEntity<Map<String, Object>> getCodeDetailList(@RequestBody Map<String, Object> param) {
-        @SuppressWarnings("unchecked")
+    public ResponseEntity<Map<String, Object>> getCodeDetailList(@RequestBody Map<String, Object> param) {        
         List<String> groupIds = (List<String>) param.get("groupIds");
 
         logger.info("[CodeController] 코드 다건 상세 조회 요청 - {}", groupIds);

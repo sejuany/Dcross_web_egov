@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -30,8 +29,11 @@ public class CommonMenuController {
 
     private static final Logger logger = LoggerFactory.getLogger(CommonMenuController.class);
 
-    @Autowired
-    private CommonMenuService commonMenuService;
+    private final CommonMenuService commonMenuService;
+
+    public CommonMenuController(CommonMenuService commonMenuService) {
+        this.commonMenuService = commonMenuService;
+    }
 
     /** 코드 목록 조회 - POST /api/admin/code/list */
     @PostMapping("/admin/code/list")

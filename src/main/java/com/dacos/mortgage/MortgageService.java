@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.common.BusinessException;
@@ -21,8 +20,11 @@ public class MortgageService {
 
     private static final Logger logger = LoggerFactory.getLogger(MortgageService.class);
 
-    @Autowired
-    private MortgageMapper mortgageMapper;
+    private final MortgageMapper mortgageMapper;
+
+    public MortgageService(MortgageMapper mortgageMapper) {
+        this.mortgageMapper = mortgageMapper;
+    }
 
     /**
      * 저당설정 목록 조회

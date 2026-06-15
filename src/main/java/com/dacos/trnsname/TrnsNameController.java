@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -29,8 +28,11 @@ public class TrnsNameController {
 
     private static final Logger logger = LoggerFactory.getLogger(TrnsNameController.class);
 
-    @Autowired
-    private TrnsNameService trnsNameService;
+    private final TrnsNameService trnsNameService;
+
+    public TrnsNameController(TrnsNameService trnsNameService) {
+        this.trnsNameService = trnsNameService;
+    }
 
     /**
      * 이전등록 목록 조회

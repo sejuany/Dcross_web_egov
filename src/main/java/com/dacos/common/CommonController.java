@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -23,10 +22,13 @@ public class CommonController {
 
     private static final Logger logger = LoggerFactory.getLogger(CompanyController.class);
 
-    @Autowired
-    private CommonService commonService;
-    @Autowired
-    private CommonRepository comm;
+    private final CommonService commonService;
+    private final CommonRepository comm;
+
+    public CommonController(CommonService commonService, CommonRepository comm) {
+        this.commonService = commonService;
+        this.comm = comm;
+    }
     
     /**
      * 주소 조회

@@ -42,9 +42,7 @@ const SignupTerm = () => {
             const agreeValue = agreed.optional ? 'YY' : 'YN';
             navigate('/signup-form', { state: { agreeValue } });
         } else {
-			await gf.confirm(
-			    "개인정보의 수집∙이용 필수 항목을 체크해주세요.\n동의하시지 않는 경우 회원가입이 제한됩니다."
-			);
+			await gf.alert("개인정보의 수집∙이용 필수 항목을 체크해주세요.\n동의하시지 않는 경우 회원가입이 제한됩니다.");
         }
     };
 

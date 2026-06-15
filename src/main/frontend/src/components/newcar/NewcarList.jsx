@@ -70,6 +70,7 @@ const NewcarList = () => {
 	const [showErrorModal, setShowErrorModal] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const [selectedRows, setSelectedRows] = useState([]);
+	const [loading, setLoading] = useState(false);
     const [searchFilters, setSearchFilters] = useTabPageState('searchFilters', () => getInitialSearchFilters(user));
 
     const fetchNewCarList = async () => {
@@ -319,6 +320,7 @@ const NewcarList = () => {
 	};
 
 	const handleReqConfirm = async () => {
+		setLoading(true);
 	    try {
 			const payload = selectedRows.map(row => ({SERVICE_ID: row.SERVICE_ID}));
 			const res = await axios.post('/api/newcar/request-process', payload);
@@ -337,6 +339,7 @@ const NewcarList = () => {
 	    } catch (err) {
 	        setToastMessage('신청 중 오류가 발생했습니다.');
 	    } finally {
+			setLoading(false);
 	        setShowReqModal(false);
 	    }
 	};
@@ -813,6 +816,17 @@ const NewcarList = () => {
 						</div>
 					</div>
 				</div>
+			)}
+			
+			{loading && (
+			    <div className="loading-overlay">
+			        <div className="loading-box">
+			            <div className="spinner"></div>
+			            <div className="loading-text">
+			                신청 처리중입니다...
+			            </div>
+			        </div>
+			    </div>
 			)}
         </div>
     );

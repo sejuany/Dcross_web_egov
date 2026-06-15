@@ -1,13 +1,15 @@
 package com.dacos.common;
 
 import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
+import java.net.URI;
 import java.net.SocketTimeoutException;
-import java.net.URL;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -28,7 +30,6 @@ import javax.net.ssl.SSLSocketFactory;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.common.mapper.CommonMapper;
@@ -43,12 +44,15 @@ public class CommonService {
 
     private static final Logger logger = LoggerFactory.getLogger(CommonService.class);
 
-    @Autowired
-    private CommonRepository common;
-    @Autowired
-    private CommonMapper commonMapper;
-	@Autowired
-	private ObjectMapper objectMapper;
+    private final CommonRepository common;
+    private final CommonMapper commonMapper;
+	private final ObjectMapper objectMapper;
+
+    public CommonService(CommonRepository common, CommonMapper commonMapper, ObjectMapper objectMapper) {
+        this.common = common;
+        this.commonMapper = commonMapper;
+        this.objectMapper = objectMapper;
+    }
 	
     boolean gbED = true;
     boolean gbCarLog = true;
@@ -318,6 +322,7 @@ public class CommonService {
 	    
 		// 운영 서버 여부
 		boolean isProd = ip.getHostAddress().startsWith("10.109.111.40");  // 웹이 동작할 서버는 10.109.111.40
+
 		// 부산 관청 여부
 		boolean isBusan = "BUSAN".equals(govtId);
 	     
@@ -393,8 +398,6 @@ public class CommonService {
                 if (isBusan) {
                 	
                     logger.info("[LINK] 부산 HTTPS 연계 시작");
-                    HttpsURLConnection conn = null;
-                    
                     // SSL Keystore 설정
                     if (isProd) {
                         System.setProperty("javax.net.ssl.trustStore", "/app/resources/ssl/busankeystore.jks");
@@ -408,14 +411,6 @@ public class CommonService {
                     sslContext.init(null, null, null);
                     SSLSocketFactory socketFactory = sslContext.getSocketFactory();
 
-                    conn = (HttpsURLConnection) new URL(sGLinkUrl).openConnection();
-                    
-                    conn.setDoOutput(true);
-                    conn.setRequestMethod(sBusan[2]); // DB에서 받아온 Method 사용 (POST/GET 등)
-                    conn.setSSLSocketFactory(socketFactory);
-                    conn.setReadTimeout(iTimeout);
-                    conn.setConnectTimeout(iTimeout);
-                    
                     String sSendData = objectMapper.writeValueAsString(jSendData);
                     
                     logger.info("[LINK] 요청 데이터 생성 완료");
@@ -436,36 +431,54 @@ public class CommonService {
                         	throw new RuntimeException("10번 이상 시도해서 강제 예외 발생시킴"); 
                         }
                         
-                        // 요청 데이터 전송
-                        try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8))) 
-                        {
-	                        pw.write("reqData=" + sSendData);
-	                        pw.flush();
-	                        
-	                        logger.info("[LINK] 관청 서버 전송 완료");
-                        }
-                        
-                        logger.info("[LINK] 응답 수신 시작");
-                        
-                        // 응답 데이터 수신
-                        try (BufferedReader reader = new BufferedReader(new InputStreamReader(conn.getInputStream(), StandardCharsets.UTF_8))) 
-                        {
-                        	StringBuilder buffer = new StringBuilder();
-                        	
-                            String line = null;
-                            
-                            // 응답 데이터 한 줄씩 읽기
-                            while ((line = reader.readLine()) != null) {
-                                buffer.append(line).append("\r\n");
+                        HttpsURLConnection conn = null;
+                        try {
+                            conn = openBusanHttpsConnection(sGLinkUrl, sBusan[2], socketFactory, iTimeout);
+
+                            // 요청 데이터 전송
+                            try (PrintWriter pw = new PrintWriter(new OutputStreamWriter(conn.getOutputStream(), StandardCharsets.UTF_8))) 
+                            {
+                                pw.write("reqData=" + sSendData);
+                                pw.flush();
+                                
+                                logger.info("[LINK] 관청 서버 전송 완료");
                             }
                             
-                            logger.info("[LINK] 응답 수신 완료");
+                            logger.info("[LINK] 응답 수신 시작");
                             
-                            // 통신 성공
-                            sReturnCode = "0";
-                            sReturnMsg = buffer.toString();
-                            
-                            conn.disconnect();
+                            int responseCode = conn.getResponseCode();
+                            // 응답 데이터 수신
+                            try (BufferedReader reader = new BufferedReader(new InputStreamReader(getResponseStream(conn), StandardCharsets.UTF_8))) 
+                            {
+                                StringBuilder buffer = new StringBuilder();
+                                
+                                String line = null;
+                                
+                                // 응답 데이터 한 줄씩 읽기
+                                while ((line = reader.readLine()) != null) {
+                                    buffer.append(line).append("\r\n");
+                                }
+                                
+                                logger.info("[LINK] 응답 수신 완료, responseCode: {}", responseCode);
+                                
+                                if (responseCode < HttpURLConnection.HTTP_OK || responseCode >= HttpURLConnection.HTTP_MULT_CHOICE) {
+                                    throw new IOException("Busan link server returned HTTP " + responseCode + ": " + buffer);
+                                }
+                                
+                                // 통신 성공
+                                sReturnCode = "0";
+                                sReturnMsg = buffer.toString();
+                            }
+                        } catch (IOException e) {
+                            logger.warn("[LINK] Busan HTTPS request failed. attempt: {}/10, url: {}, message: {}", iCnt, sGLinkUrl, e.getMessage());
+                            if (iCnt >= 10) {
+                                throw e;
+                            }
+                            continue;
+                        } finally {
+                            if (conn != null) {
+                                conn.disconnect();
+                            }
                         }
                         // 성공 시 반복 종료
                         break;
@@ -478,7 +491,7 @@ public class CommonService {
                 	
                 	logger.info("[LINK] 일반 HTTP 연계 시작");
                 	
-                	HttpURLConnection httpCon = (HttpURLConnection) new URL(sGLinkUrl).openConnection();
+                	HttpURLConnection httpCon = (HttpURLConnection) URI.create(sGLinkUrl).toURL().openConnection();
                 	httpCon.setDoOutput(true);
                 	httpCon.setRequestMethod("POST");
                 	httpCon.setReadTimeout(iTimeout);
@@ -605,6 +618,34 @@ public class CommonService {
 	
 	    return result;
 	}
+	
+    private HttpsURLConnection openBusanHttpsConnection(
+        String linkUrl,
+        String method,
+        SSLSocketFactory socketFactory,
+        int timeout
+    ) throws IOException {
+        URI uri = URI.create(linkUrl);
+        if (!"https".equalsIgnoreCase(uri.getScheme())) {
+            throw new IOException("Busan link URL must use HTTPS: " + linkUrl);
+        }
+
+        HttpsURLConnection conn = (HttpsURLConnection) uri.toURL().openConnection();
+        conn.setDoOutput(true);
+        conn.setRequestMethod(method);
+        conn.setSSLSocketFactory(socketFactory);
+        conn.setReadTimeout(timeout);
+        conn.setConnectTimeout(timeout);
+        return conn;
+    }
+
+    private InputStream getResponseStream(HttpURLConnection conn) throws IOException {
+        InputStream errorStream = conn.getErrorStream();
+        if (conn.getResponseCode() >= HttpURLConnection.HTTP_BAD_REQUEST && errorStream != null) {
+            return errorStream;
+        }
+        return conn.getInputStream();
+    }
 	
 
 }

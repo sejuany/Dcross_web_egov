@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.common.BusinessException;
@@ -20,8 +19,11 @@ public class MortgageEraseService {
 
     private static final Logger logger = LoggerFactory.getLogger(MortgageEraseService.class);
 
-    @Autowired
-    private MortgageEraseMapper mortgageEraseMapper;
+    private final MortgageEraseMapper mortgageEraseMapper;
+
+    public MortgageEraseService(MortgageEraseMapper mortgageEraseMapper) {
+        this.mortgageEraseMapper = mortgageEraseMapper;
+    }
 
     public List<Map<String, Object>> getMortgageEraseList(MortgageEraseSearchRequest request) {
         logger.info("[MortgageEraseService] 저당말소 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());

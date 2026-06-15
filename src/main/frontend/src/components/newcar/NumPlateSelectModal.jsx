@@ -2,7 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import './NumPlateSelectModal.css';
 import axios from 'axios';
-
+import { gf } from '../../utils/utils'; // 공통 유틸 함수
 
 const NumberPlateModal = ({ 
 	isOpen, onClose, carIdNo, taskCd, onSelect,
@@ -173,8 +173,8 @@ const NumberPlateModal = ({
 	        alert('핸드폰 번호를 확인해주세요.');
 	        return;
 	    } 
-
-		if (!window.confirm('차량번호를 전송하시겠습니까?')) {
+		const ok = await gf.confirm('차량번호를 전송하시겠습니까?');
+		if (!ok) {
 		    return;
 		}
 		

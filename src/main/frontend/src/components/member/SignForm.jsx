@@ -720,41 +720,41 @@ const SignForm = () => {
 
     const validateCommonMemberForm = () => {
         if (!formData.loginId.trim()) {
-            alert('사용자 아이디를 입력해주세요.');
+            gf.alert('사용자 아이디를 입력해주세요.');
             return false;
         }
 
         if (!isIdChecked) {
-            alert('사용자 아이디 중복확인을 해주세요.');
+            gf.alert('사용자 아이디 중복확인을 해주세요.');
             return false;
         }
 
         const password = formData.passWd;
 
         if (!password.trim()) {
-            alert('비밀번호를 입력해주세요.');
+            gf.alert('비밀번호를 입력해주세요.');
             return false;
         }
 
         const passwordCheck = validatePassword(password);
 
         if (!passwordCheck.valid) {
-            alert(passwordCheck.message);
+            gf.alert(passwordCheck.message);
             return false;
         }
 
         if (!formData.passWdConfirm.trim()) {
-            alert('비밀번호 확인을 입력해주세요.');
+            gf.alert('비밀번호 확인을 입력해주세요.');
             return false;
         }
 
         if (formData.passWd !== formData.passWdConfirm) {
-            alert('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
+            gf.alert('비밀번호와 비밀번호 확인이 일치하지 않습니다.');
             return false;
         }
 
         if (!formData.memberNm.trim()) {
-            alert('성명을 입력해주세요.');
+            gf.alert('성명을 입력해주세요.');
             return false;
         }
 
@@ -762,43 +762,43 @@ const SignForm = () => {
         const telNo = formData.telNo.trim();
 
         if (!mphoneNo) {
-            alert('휴대폰번호를 입력해주세요.');
+            gf.alert('휴대폰번호를 입력해주세요.');
             return false;
         }
 
         if (!/^\d+$/.test(mphoneNo)) {
-            alert('휴대폰번호는 숫자만 입력해주세요.');
+            gf.alert('휴대폰번호는 숫자만 입력해주세요.');
             return false;
         }
 
         if (!telNo) {
-            alert('전화번호를 입력해주세요.');
+            gf.alert('전화번호를 입력해주세요.');
             return false;
         }
 
         if (!/^\d+$/.test(telNo)) {
-            alert('전화번호는 숫자만 입력해주세요.');
+            gf.alert('전화번호는 숫자만 입력해주세요.');
             return false;
         }
 
         if (formData.loginGb !== 'C') {
             if (!formData.registNo.trim()) {
-                alert('등록번호 앞자리를 입력해주세요.');
+                gf.alert('등록번호 앞자리를 입력해주세요.');
                 return false;
             }
 
             if (!formData.registNoSecond.trim()) {
-                alert('등록번호 뒷자리 첫 번째 숫자를 입력해주세요.');
+                gf.alert('등록번호 뒷자리 첫 번째 숫자를 입력해주세요.');
                 return false;
             }
 
             if (!/^\d{6}$/.test(formData.registNo.trim())) {
-                alert('등록번호 앞자리는 숫자 6자리로 입력해주세요.');
+                gf.alert('등록번호 앞자리는 숫자 6자리로 입력해주세요.');
                 return false;
             }
 
             if (!/^\d{1}$/.test(formData.registNoSecond.trim())) {
-                alert('등록번호 뒷자리는 첫 번째 숫자 1자리만 입력해주세요.');
+                gf.alert('등록번호 뒷자리는 첫 번째 숫자 1자리만 입력해주세요.');
                 return false;
             }
         }
@@ -825,16 +825,14 @@ const SignForm = () => {
         }
 
         if (!serviceAgreed) {
-            alert('서비스 이용 신청에 동의해주세요.');
+            gf.alert('서비스 이용 신청에 동의해주세요.');
             return;
         }
-
-        const confirmSave = window.confirm(
-            '입력된 내용으로 회원등록을 신청합니다.\n\n계속하시겠습니까?'
-        );
+        
+        const confirmSave = await gf.confirm('입력된 내용으로 회원등록을 신청합니다.\n\n계속하시겠습니까?');
 
         if (!confirmSave) {
-            alert('회원신청을 취소하였습니다.');
+            gf.alert('회원신청을 취소하였습니다.');
             return;
         }
 

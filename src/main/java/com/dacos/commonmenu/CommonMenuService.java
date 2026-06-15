@@ -8,7 +8,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.auth.dto.UserDto;
@@ -23,8 +22,11 @@ public class CommonMenuService {
 
     private static final Logger logger = LoggerFactory.getLogger(CommonMenuService.class);
 
-    @Autowired
-    private CommonMenuMapper commonMenuMapper;
+    private final CommonMenuMapper commonMenuMapper;
+
+    public CommonMenuService(CommonMenuMapper commonMenuMapper) {
+        this.commonMenuMapper = commonMenuMapper;
+    }
 
     public List<Map<String, Object>> getCodeList(CommonMenuSearchRequest request) {
         logger.info("[CommonMenuService] 코드 목록 조회");

@@ -9,7 +9,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -29,8 +28,11 @@ public class CompanyService {
     private static final String ROLE_SA = "SA";
     private static final String ROLE_SU = "SU";
 
-    @Autowired
-    private CompanyMapper companyMapper;
+    private final CompanyMapper companyMapper;
+
+    public CompanyService(CompanyMapper companyMapper) {
+        this.companyMapper = companyMapper;
+    }
 
     public List<Map<String, Object>> getCompanyList(CompanySearchRequest request) {
         logger.info("[CompanyService] 기업 목록 조회");
@@ -164,7 +166,6 @@ public class CompanyService {
         return companyMapper.getCompanyManageServiceList(request);
     }
 
-    @SuppressWarnings("unchecked")
     @Transactional
     public Map<String, Object> saveCompanyManage(Map<String, Object> request) {
         logger.info("[CompanyService] 기업관리 저장");
@@ -419,7 +420,6 @@ public class CompanyService {
      * 기존 호출용.
      * 기존 일반회원사 동작을 깨지 않기 위해 유지.
      */
-    @SuppressWarnings("unchecked")
     @Transactional
     public Map<String, Object> updateCompanyUserWork(Map<String, Object> request) {
         logger.info("[CompanyService] 사용자 권한정보 저장");
@@ -501,7 +501,6 @@ public class CompanyService {
     /**
      * 세션 로그인 사용자 기준 권한 스코프 적용 버전.
      */
-    @SuppressWarnings("unchecked")
     @Transactional
     public Map<String, Object> updateCompanyUserWork(Map<String, Object> request, Object loginUser) {
         logger.info("[CompanyService] 사용자 권한정보 저장 - 권한 적용");
@@ -968,7 +967,6 @@ public class CompanyService {
         );
     }
 
-    @SuppressWarnings("unchecked")
     private String readLoginValue(Object loginUser, String... keys) {
         if (loginUser == null) {
             return "";

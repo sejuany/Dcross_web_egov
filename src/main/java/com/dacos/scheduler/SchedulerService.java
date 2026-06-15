@@ -7,7 +7,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,10 +14,8 @@ import com.dacos.common.CommonService;
 import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
 
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class SchedulerService {
 
     private static final Logger logger = LoggerFactory.getLogger(SchedulerService.class);
@@ -26,8 +23,12 @@ public class SchedulerService {
     
     
     private final SchedulerMapper schedulerMapper;
-    @Autowired
-    private CommonService commonService;
+    private final CommonService commonService;
+
+    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService) {
+        this.schedulerMapper = schedulerMapper;
+        this.commonService = commonService;
+    }
     
     @Transactional
     public int processTodayNewcarWaitingServices() {

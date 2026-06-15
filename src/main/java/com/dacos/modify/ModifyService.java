@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.common.BusinessException;
@@ -20,8 +19,11 @@ public class ModifyService {
 
     private static final Logger logger = LoggerFactory.getLogger(ModifyService.class);
 
-    @Autowired
-    private ModifyMapper modifyMapper;
+    private final ModifyMapper modifyMapper;
+
+    public ModifyService(ModifyMapper modifyMapper) {
+        this.modifyMapper = modifyMapper;
+    }
 
     public List<Map<String, Object>> getModifyList(ModifySearchRequest request) {
         logger.info("[ModifyService] 변경등록 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());

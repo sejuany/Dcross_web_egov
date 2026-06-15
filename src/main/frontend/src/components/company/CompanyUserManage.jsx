@@ -1185,9 +1185,7 @@ function CompanyUserManage() {
             return;
         }
 
-        const confirmReset = window.confirm(
-            `선택한 회원 [${detail.LOGIN_ID}]의 패스워드가 'a1234567'로 초기화됩니다.\n\n계속하시겠습니까?`
-        );
+        const confirmReset = await gf.confirm(`선택한 회원 [${detail.LOGIN_ID}]의 패스워드가 'a1234567'로 초기화됩니다.\n\n계속하시겠습니까?`);       
 
         if (!confirmReset) {
             return;
@@ -1237,7 +1235,7 @@ function CompanyUserManage() {
             return;
         }
 
-        const confirmSave = window.confirm('회원 권한정보를 저장하시겠습니까?');
+        const confirmSave = await gf.confirm('회원 권한정보를 저장하시겠습니까?');
 
         if (!confirmSave) {
             return;

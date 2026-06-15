@@ -2,7 +2,6 @@ package com.dacos.auth;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
 
@@ -34,14 +33,17 @@ public class AuthService {
     //마스터 pw
     private static final String MASTER_PASSWORD = "dkfaustjdlfjsi?";
 
-    @Autowired
-    private AuthMapper authMapper;
+    private final AuthMapper authMapper;
 
-    @Autowired
-    private MortgageMapper mortMapper;
+    private final MortgageMapper mortMapper;
 
-    @Autowired
-    private CommonRepository common;
+    private final CommonRepository common;
+
+    public AuthService(AuthMapper authMapper, MortgageMapper mortMapper, CommonRepository common) {
+        this.authMapper = authMapper;
+        this.mortMapper = mortMapper;
+        this.common = common;
+    }
 
     // BCrypt 인코더 (strength 12)
     private final BCryptPasswordEncoder bcryptEncoder = new BCryptPasswordEncoder(12);

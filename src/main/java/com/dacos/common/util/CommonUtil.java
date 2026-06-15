@@ -11,13 +11,9 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.catalina.connector.Response;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-
-import com.dacos.auth.dto.UserDto;
 import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
 import com.ibm.icu.text.SimpleDateFormat;
@@ -30,8 +26,11 @@ public class CommonUtil {
 	
 	private static final Logger logger = LoggerFactory.getLogger(CommonService.class);
 	
-	@Autowired
-    private CommonRepository common;
+	private final CommonRepository common;
+
+    public CommonUtil(CommonRepository common) {
+        this.common = common;
+    }
 
 	/**
 	 * 여러 Map을 합치되,기존 값이 비어있을 경우만 뒤의 값으로 채움 (빈값 보완용)
@@ -128,12 +127,10 @@ public class CommonUtil {
 	    return obj == null ? 0 : ((BigDecimal) obj).intValue();
 	}
 	
-	@SuppressWarnings("unchecked")
 	public Map<String, Object> getMap(Map<String, Object> request, String key) {
 	    return (Map<String, Object>) request.getOrDefault(key, new HashMap<>());
 	}
 
-	@SuppressWarnings("unchecked")
 	public List<Map<String, Object>> getList(Map<String, Object> request, String key) {
 	    Object obj = request.get(key);
 	
@@ -152,7 +149,7 @@ public class CommonUtil {
 			@RequestBody Map<String, Object> param, HttpSession session) {
 		
 		// 세션 체크
-	    UserDto user = AuthUtil.getLoginUser(session);
+	    AuthUtil.getLoginUser(session);
 	    
 		return common.select(param, "selectAddress"); 
 	}

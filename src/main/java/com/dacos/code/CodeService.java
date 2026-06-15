@@ -6,7 +6,6 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.code.mapper.CodeMapper;
@@ -20,8 +19,11 @@ public class CodeService {
 
     private static final Logger logger = LoggerFactory.getLogger(CodeService.class);
 
-    @Autowired
-    private CodeMapper codeMapper;
+    private final CodeMapper codeMapper;
+
+    public CodeService(CodeMapper codeMapper) {
+        this.codeMapper = codeMapper;
+    }
 
     /**
      * 그룹 ID로 공통 코드 목록 조회

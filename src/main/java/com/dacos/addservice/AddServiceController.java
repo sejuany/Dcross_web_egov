@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,8 +26,11 @@ public class AddServiceController {
 
     private static final Logger logger = LoggerFactory.getLogger(AddServiceController.class);
 
-    @Autowired
-    private AddServiceService addServiceService;
+    private final AddServiceService addServiceService;
+
+    AddServiceController(AddServiceService addServiceService) {
+        this.addServiceService = addServiceService;
+    }
 
     /** 원부스크래핑(차량주행거리) 목록 조회 - POST /api/addservice/mileage/list */
     @PostMapping("/addservice/mileage/list")

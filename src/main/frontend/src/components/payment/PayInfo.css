@@ -401,9 +401,9 @@
 
 .status-container .erp-input {
     /* 1. 기본 스타일 제거 (가장 중요) */
-    appearance: none;
-    -webkit-appearance: none;
     -moz-appearance: none;
+    -webkit-appearance: none;
+    appearance: none;
 
     /* 2. 현대적인 형태와 여백 */
     height: 28px; /* 버튼 높이와 조화 */

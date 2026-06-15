@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.addservice.dto.AddServiceSearchRequest;
@@ -19,8 +18,11 @@ public class AddServiceService {
 
     private static final Logger logger = LoggerFactory.getLogger(AddServiceService.class);
 
-    @Autowired
-    private AddServiceMapper addServiceMapper;
+    private final AddServiceMapper addServiceMapper;
+
+    AddServiceService(AddServiceMapper addServiceMapper) {
+        this.addServiceMapper = addServiceMapper;
+    }
 
     public List<Map<String, Object>> getCarMileageList(AddServiceSearchRequest request) {
         logger.info("[AddServiceService] 원부스크래핑 목록 조회");

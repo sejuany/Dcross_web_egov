@@ -569,7 +569,7 @@ const NewcarRequest = () => {
 
 		// CA는 신청대기 상태만 신청 가능
 		if (dsUserInfo.MEMBER_GB === 'CA' && dsService.PROC_ST !== 'W_REQ') {
-		    alert('신청대기 상태만 신청 가능합니다.');
+		    gf.alert('신청대기 상태만 신청 가능합니다.');
 		    return;
 		}
 
@@ -709,7 +709,7 @@ const NewcarRequest = () => {
 
 		if (emptyField) {
 			focusField(emptyField.name, emptyField.tab);
-			return `${emptyField.label}을(를) 입력해주세요.`;
+			return `${emptyField.label}를(을) 입력해주세요.`;
 		}
 
 		return '';
@@ -1030,20 +1030,20 @@ const NewcarRequest = () => {
 	    ];
 
 	    if (!deleteableStates.includes(procSt)) {
-	        alert('삭제 처리가 불가능한 상태입니다.');
+	        gf.alert('삭제 처리가 불가능한 상태입니다.');
 	        return;
 	    }
 
 	    // 저장 여부 체크
 	    if (!dsService.SERVICE_ID) {
-	        alert('아직 저장되지 않은 데이터 입니다.');
+	        gf.alert('아직 저장되지 않은 데이터 입니다.');
 	        return;
 	    }
 
-	    // 삭제 여부 확인
-	    if (!window.confirm('삭제하시겠습니까?')) {
-	        return;
-	    }
+		const ok = await gf.confirm('삭제하시겠습니까?');
+		if (!ok) {
+			return;
+		}
 
 	    const newDataSet = {
 	        dsService: {
@@ -1063,10 +1063,8 @@ const NewcarRequest = () => {
 
 	        const reqCarNo = newDataSet.dsNewCar.REQ_CAR_NO;
 
-	        const confirmRelease = window.confirm(
-	            `선택하신 번호판 ${reqCarNo} 을(를) 미사용 처리 하시겠습니까?`
-	        );
-
+	        const confirmRelease = await gf.confirm(`선택하신 번호판 ${reqCarNo} 을(를) 미사용 처리 하시겠습니까?`);
+			
 	        if (confirmRelease) {
 
 	            try {
@@ -1082,7 +1080,7 @@ const NewcarRequest = () => {
 
 	            } catch (err) {
 	                console.error(err);
-	                alert('번호판 미사용 처리 중 오류가 발생했습니다.');
+	                gf.alert('번호판 미사용 처리 중 오류가 발생했습니다.');
 	                return;
 	            }
 	        }
@@ -1428,11 +1426,10 @@ const NewcarRequest = () => {
 	};
 	
 	// 닫기
-	const closeFrame = () => {
+	const closeFrame = async () => {
 
-		if (!window.confirm('작성 중인 내용은 저장되지 않습니다. 닫으시겠습니까?')) {
-		    return;
-		}
+		const ok = await gf.confirm('작성 중인 내용은 저장되지 않습니다. 닫으시겠습니까?');
+		if (!ok) return;
 
 		// 상태 초기화
 		setDsService(initialDsService);
@@ -1457,15 +1454,16 @@ const NewcarRequest = () => {
 		
 		// 차대번호 체크
 		if (!dsNewCar.CARID_NO || dsNewCar.CARID_NO.length !== 17) {
-		    alert('차대번호 확인 필요');
+		    gf.alert('차대번호 확인 필요');
 		    return;
 		}
 		
 	    // SERVICE_ID 체크
 	    if (!dsService.SERVICE_ID) {
-	        if (window.confirm('저장 후 사용 가능합니다. 저장하시겠습니까?')) {
+	        const ok = await gf.confirm('저장 후 사용 가능합니다. 저장하시겠습니까?');
+	        if (ok) {
 				await saveProcess();
-	        }
+	        }			
 	        return;
 	    }
 		
@@ -1473,9 +1471,7 @@ const NewcarRequest = () => {
 	    let reqCarNo = dsNewCar.REQ_CAR_NO;
 
 	    if (reqCarNo) {
-	        const confirmChange = window.confirm(
-	            `이미 차량번호 ${reqCarNo} 선택됨. 변경하시겠습니까?`
-	        );
+	        const confirmChange = await gf.confirm(`이미 차량번호 ${reqCarNo} 선택됨. 변경하시겠습니까?`);
 
 	        if (!confirmChange) return;
 
@@ -2018,7 +2014,7 @@ const NewcarRequest = () => {
 										{/* 소유자명 = 계약자명 체크 */}
 										<input type="text" className="erp-input" id="OWNER_NM" name="OWNER_NM" data-type="newcar" value={dsNewCar.OWNER_NM} onChange={handleChange} readOnly={isReadOnly()} onBlur={handleBlur} />
 									</ErpField>
-									<ErpField label="공동소유 비율(%)" span={3} htmlFor="RATIO_NO" className="ratio-field" >
+									<ErpField label="대표소유자 비율(%)" span={3} htmlFor="RATIO_NO" className="ratio-field" >
 										<input type="text" className="erp-input" id="RATIO_NO" name="RATIO_NO" data-type="newcar" value={dsNewCar.RATIO_NO} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 								</div>

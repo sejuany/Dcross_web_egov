@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
 import './MemberEdit.css';
 import PasswordChangeModal from './PasswordChangeModal';
+import { gf } from '../../utils/utils'; // 공통 유틸 함수
 
 const emptyForm = {
 	LOGIN_ID: '',
@@ -195,7 +196,11 @@ const MemberEdit = () => {
 
   const handleSave = async () => {
     if (!validateForm()) return;
-    if (!window.confirm('회원 기본정보를 수정하시겠습니까?')) return;
+
+    const ok = await gf.confirm('회원 기본정보를 수정하시겠습니까?');
+    if (!ok) {
+        return;
+    }
 
     try {
       setSaving(true);

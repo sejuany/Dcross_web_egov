@@ -1,5 +1,6 @@
 package com.dacos.config;
 
+import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.support.AbstractAnnotationConfigDispatcherServletInitializer;
 
 public class AppInitializer extends AbstractAnnotationConfigDispatcherServletInitializer {
@@ -15,7 +16,7 @@ public class AppInitializer extends AbstractAnnotationConfigDispatcherServletIni
     }
 
     @Override
-    protected String[] getServletMappings() {
+    protected @NonNull String[] getServletMappings() {
         return new String[] { "/" };
     }
 }

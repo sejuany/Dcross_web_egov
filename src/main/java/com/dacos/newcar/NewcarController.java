@@ -1,12 +1,11 @@
 package com.dacos.newcar;
 
-import java.util.HashMap;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -19,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
+import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
 import com.dacos.common.util.AuthUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
@@ -35,10 +35,13 @@ public class NewcarController {
 
     private static final Logger logger = LoggerFactory.getLogger(NewcarController.class);
 
-    @Autowired
-    private NewcarService newcarService;
-    @Autowired
-    private CommonService commonService;
+    private final NewcarService newcarService;
+    private final CommonService commonService;
+
+    public NewcarController(NewcarService newcarService, CommonService commonService) {
+        this.newcarService = newcarService;
+        this.commonService = commonService;
+    }
     
     /**
      * 신차 목록 조회
@@ -77,8 +80,8 @@ public class NewcarController {
     public ResponseEntity<Map<String, Object>> changeProcSt(
             @RequestBody Map<String, Object> request) {
         logger.info("[NewcarController] 상태 변경 요청");
-        List<String> serviceIds = (List<String>) request.get("SERVICE_IDS");
-        String procSt = (String) request.get("PROC_ST");
+        List<String> serviceIds = toStringList(request.get("SERVICE_IDS"), "SERVICE_IDS");
+        String procSt = String.valueOf(request.getOrDefault("PROC_ST", "")).trim();
         int result = newcarService.changeProcSt(serviceIds, procSt);
         return ResponseEntity.ok(ApiResponse.withKey("result", result));
     }
@@ -206,7 +209,7 @@ public class NewcarController {
 	        HttpSession session) {
 	
 	    // 세션 체크
- 		UserDto user = AuthUtil.getLoginUser(session);
+ 		AuthUtil.getLoginUser(session);
 	
 	    int result = commonService.sendSms(param);
 	
@@ -257,4 +260,25 @@ public class NewcarController {
 	            newcarService.selectBondInfo(serviceId)
 	    );
 	}
+
+    private List<String> toStringList(Object value, String fieldName) {
+        if (!(value instanceof List<?>)) {
+            throw new BusinessException(fieldName + " 값이 올바르지 않습니다.", 400);
+        }
+
+        List<?> rawList = (List<?>) value;
+        List<String> result = new ArrayList<>();
+        for (Object item : rawList) {
+            if (item == null || String.valueOf(item).isBlank()) {
+                throw new BusinessException(fieldName + "에 빈 값이 포함되어 있습니다.", 400);
+            }
+            result.add(String.valueOf(item).trim());
+        }
+
+        if (result.isEmpty()) {
+            throw new BusinessException(fieldName + " 값이 없습니다.", 400);
+        }
+
+        return result;
+    }
 }

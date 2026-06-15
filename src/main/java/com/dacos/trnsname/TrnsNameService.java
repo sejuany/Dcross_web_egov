@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.common.BusinessException;
@@ -20,8 +19,11 @@ public class TrnsNameService {
 
     private static final Logger logger = LoggerFactory.getLogger(TrnsNameService.class);
 
-    @Autowired
-    private TrnsNameMapper trnsNameMapper;
+    private final TrnsNameMapper trnsNameMapper;
+
+    public TrnsNameService(TrnsNameMapper trnsNameMapper) {
+        this.trnsNameMapper = trnsNameMapper;
+    }
 
     public List<Map<String, Object>> getTrnsNameList(TrnsNameSearchRequest request) {
         logger.info("[TrnsNameService] 이전등록 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());

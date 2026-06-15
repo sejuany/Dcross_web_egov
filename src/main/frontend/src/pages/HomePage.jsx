@@ -1,6 +1,6 @@
 ﻿import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { Check, ChevronLeft, ChevronRight, FilePenLine, FileSearch, FileText, Globe, Grid, PenIcon, Search, User, X } from 'lucide-react';
+import { Check, FilePenLine, FileSearch, FileText, Globe, PenIcon, Search, User, X } from 'lucide-react';
 import { useTabs } from '../context/TabContext';
 import { useAuth } from '../context/AuthContext';
 import './HomePage.css';

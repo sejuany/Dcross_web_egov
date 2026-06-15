@@ -6,7 +6,6 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -16,7 +15,6 @@ import java.util.Set;
 import java.util.StringJoiner;
 
 import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
@@ -24,10 +22,7 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.TransactionStatus;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -39,23 +34,16 @@ import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
-import com.dacos.common.mapper.CommonMapper;
 import com.dacos.common.util.CommonUtil;
 import com.dacos.common.util.FieldMapper;
 import com.dacos.common.util.FieldMaps;
-import com.dacos.commonmenu.dto.CommonMenuSearchRequest;
-import com.dacos.commonmenu.mapper.CommonMenuMapper;
-import com.dacos.company.mapper.CompanyMapper;
 import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 import com.dacos.newcar.mapper.NewcarMapper;
-import com.dacos.numplate.mapper.NumPlateMapper;
 import com.dacos.payment.mapper.PaymentMapper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.ibm.icu.text.SimpleDateFormat;
 import com.dacos.code.mapper.CodeMapper;
 
-import lombok.RequiredArgsConstructor;
 
 /**
  * 신차 등록 서비스
@@ -71,30 +59,27 @@ public class NewcarService {
 	public static final String FILM   = "F";
 	public static final String ETC    = "X";
 
-    @Autowired
-    private NewcarMapper newcarMapper;
-    @Autowired
-    private MortgageMapper mortgageMapper;
-    @Autowired
-    private PaymentMapper paymentMapper;
-    @Autowired
-    private NumPlateMapper numplateMapper;
-    @Autowired
-    private CommonMapper commonMapper;
-    @Autowired
-    private CompanyMapper companyMapper;
-    @Autowired
-    private CommonService commonService;
-    @Autowired
-    private AuthService authService;
-    @Autowired
-    private CommonUtil commonUtil; // 자주 쓰는 메소드
-    @Autowired
-    private CommonRepository common; // DB 접근 역할
-    @Autowired
-    private CodeMapper codeMapper;
-    @Autowired
-    private AuthMapper authMapper;
+    private final NewcarMapper newcarMapper;
+    private final MortgageMapper mortgageMapper;
+    private final PaymentMapper paymentMapper;
+    private final CommonService commonService;
+    private final AuthService authService;
+    private final CommonUtil commonUtil; // 자주 쓰는 메소드
+    private final CommonRepository common; // DB 접근 역할
+    private final CodeMapper codeMapper;
+    private final AuthMapper authMapper;
+
+    public NewcarService(NewcarMapper newcarMapper, MortgageMapper mortgageMapper, PaymentMapper paymentMapper, CommonService commonService, AuthService authService, CommonUtil commonUtil, CommonRepository common, CodeMapper codeMapper, AuthMapper authMapper) {
+        this.newcarMapper = newcarMapper;
+        this.mortgageMapper = mortgageMapper;
+        this.paymentMapper = paymentMapper;
+        this.commonService = commonService;
+        this.authService = authService;
+        this.commonUtil = commonUtil;
+        this.common = common;
+        this.codeMapper = codeMapper;
+        this.authMapper = authMapper;
+    }
     
     /**
      * 신차 등록 목록 조회
@@ -598,9 +583,9 @@ public class NewcarService {
 	    Map<String, Object> dsOwnerInfo1 = new HashMap<>();
 	    Map<String, Object> dsCarNoDetach = new HashMap<>();
 	    
-	    // 공통 dsService 가져오기
-	    Map<String, Object> dsService =
-	        (Map<String, Object>) result.get("dsService");
+	    // // 공통 dsService 가져오기
+	    // Map<String, Object> dsService =
+	    //     (Map<String, Object>) result.get("dsService");
 	    
 	    // 결제정보
 	    List<Map<String, Object>> dsPaymentList =
@@ -794,7 +779,7 @@ public class NewcarService {
 
 	            List<Map<String, Object>> lResultList = commonService.setJsonObjectToList(returnMsg);
 	            String sCode = commonService.getListData(lResultList, 0, "code");
-	            String sMessage = commonService.getListData(lResultList, 0, "message");
+	            //String sMessage = commonService.getListData(lResultList, 0, "message");
 
 	            // 관청 오류
 				if ("-1".equals(sCode)) {
@@ -1062,7 +1047,7 @@ public class NewcarService {
 
             List<Map<String, Object>> lResultList = commonService.setJsonObjectToList(returnMsg);
             String sCode = commonService.getListData(lResultList, 0, "code");
-            String sMessage = commonService.getListData(lResultList, 0, "message");
+            //String sMessage = commonService.getListData(lResultList, 0, "message");
 
             // 관청 오류
 			if ("-1".equals(sCode)) {
@@ -1172,7 +1157,6 @@ public class NewcarService {
 					result.put("RESULT_CD", "0");
 					result.put("MESSAGE", "처리완료");
 					
-					// TODO: 관청 신청 시기 조정 필요 
 					return ApiResponse.withKey("data", result);
 				}
 				
@@ -1243,7 +1227,7 @@ public class NewcarService {
 				
 				List<Map<String, Object>> lResultList = commonService.setJsonObjectToList(returnMsg);
 				String sCode = commonService.getListData(lResultList, 0, "code");
-				String sMessage = commonService.getListData(lResultList, 0, "message");
+				//String sMessage = commonService.getListData(lResultList, 0, "message");
 				
 				// 관청 오류
 				if ("-1".equals(sCode)) {
@@ -1452,47 +1436,4 @@ public class NewcarService {
 	    }
 	    
 	}
-	
-	private String getCellValue(Cell cell) {
-
-	    if (cell == null) return "";
-
-	    cell.setCellType(CellType.STRING);
-
-	    return cell.getStringCellValue().trim();
-	}
-	
-	/**
-     * YYMMDD 날짜 검증
-     */
-    private static boolean isValidDateYYMMDD(String yymmdd) {
-
-        if (yymmdd == null || yymmdd.length() != 6) {
-            return false;
-        }
-
-        try {
-
-            int month =
-                    Integer.parseInt(yymmdd.substring(2, 4));
-
-            int day =
-                    Integer.parseInt(yymmdd.substring(4, 6));
-
-            if (month < 1 || month > 12) {
-                return false;
-            }
-
-            if (day < 1 || day > 31) {
-                return false;
-            }
-
-            return true;
-
-        } catch (Exception e) {
-
-            return false;
-        }
-    }
-
 }

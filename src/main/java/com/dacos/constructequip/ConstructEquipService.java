@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import com.dacos.common.BusinessException;
@@ -20,8 +19,11 @@ public class ConstructEquipService {
 
     private static final Logger logger = LoggerFactory.getLogger(ConstructEquipService.class);
 
-    @Autowired
-    private ConstructEquipMapper constructEquipMapper;
+    private final ConstructEquipMapper constructEquipMapper;
+
+    public ConstructEquipService(ConstructEquipMapper constructEquipMapper) {
+        this.constructEquipMapper = constructEquipMapper;
+    }
 
     public List<Map<String, Object>> getCeMortRegList(ConstructEquipSearchRequest request) {
         logger.info("[ConstructEquipService] 건설기계설정 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());

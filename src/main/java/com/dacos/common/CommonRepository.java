@@ -5,14 +5,16 @@ import java.util.List;
 import java.util.Map;
 
 import org.apache.ibatis.session.SqlSession;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 // 자주 쓰는 메소드용
 @Component
 public class CommonRepository {
-    @Autowired
-    private SqlSession sqlSession;
+    private final SqlSession sqlSession;
+
+    public CommonRepository(SqlSession sqlSession) {
+        this.sqlSession = sqlSession;
+    }
 
     /**
      * 단건 insert (Map)

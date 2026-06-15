@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -27,8 +26,11 @@ public class NumPlateController {
 
     private static final Logger logger = LoggerFactory.getLogger(NumPlateController.class);
 
-    @Autowired
-    private NumPlateService numPlateService;
+    private final NumPlateService numPlateService;
+
+    public NumPlateController(NumPlateService numPlateService) {
+        this.numPlateService = numPlateService;
+    }
 
     /** 번호판 목록 조회 - POST /api/numplate/list */
     @PostMapping("/numplate/list")
