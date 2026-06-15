@@ -314,7 +314,7 @@ const HomePage = () => {
                             </div>
                             <div className="info-row">
                                 <span className="label">현재버전</span>
-                                <span className="value">v1.2.0</span>
+                                <span className="value">v1.0.0</span>
                             </div>
                         </div>
                     </div>

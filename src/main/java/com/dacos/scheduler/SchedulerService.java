@@ -11,12 +11,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.dacos.addservice.dto.AddServiceDto;
-import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
 import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
-import com.fasterxml.jackson.databind.JsonNode;
 
 import lombok.RequiredArgsConstructor;
 
@@ -31,8 +28,6 @@ public class SchedulerService {
     private final SchedulerMapper schedulerMapper;
     @Autowired
     private CommonService commonService;
-    @Autowired
-    private CommonRepository common; // DB 접근 역할
     
     @Transactional
     public int processTodayNewcarWaitingServices() {
@@ -45,31 +40,42 @@ public class SchedulerService {
 
         int updateCount = 0;
 
-        for (SchedulerDto target : targetList) {            
-            // SP담당 연락처 추가
- 			SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
-                
- 			
-            String SMS_TEXT = "안녕하세요. 폴스타코리아 온라인 대행업체입니다.\n" + target.getCAR_NO() +"차량의 신규등록이 접수되었습니다.\n\n" +
-                              "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다. \n" +
-                              "연락처 : "+specialistInfo.getSPECIALIST_HP_NO();
-            
+        for (SchedulerDto target : targetList) {
             String serviceId = target.getSERVICE_ID();
-            String smsText = SMS_TEXT;
-            
-            // 심사요청 문자 발송
-            Map<String, Object> param = new HashMap<>();
-            param.put("PAY_HP_NO", specialistInfo.getSPECIALIST_HP_NO());  // 고객 연락처
-            param.put("TEXT", smsText);                     // 문자 내용    
-            param.put("MSG_TYPE", "3");               // 문자메세지 유형 1:SMS, 3: LMS
-            int result = commonService.sendSms(param);
-            logger.info("[SchedulerService] SMS문자 발송완료 - serviceId: {}, 문자내용: {}", serviceId, smsText);
 
-            // 심사요청으로 상태 변경
-            updateCount += schedulerMapper.updateServiceToJudgeRequest(serviceId);
+            try {
+                if (isBlank(target.getMPHONE_NO())) {
+                    logger.warn("[SchedulerService] SMS 발송 제외 - 고객 연락처 없음, serviceId: {}", serviceId);
+                    continue;
+                }
 
-            //JsonNode jsonResponse = commonService.linkServer(linkData);
-            
+                SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
+                String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
+
+                String smsText = "안녕하세요. 폴스타코리아 온라인 대행업체입니다.\n"
+                    + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                    + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다."
+                    + (isBlank(specialistPhone) ? "" : "\n연락처 : " + specialistPhone);
+
+                // 심사요청 문자 발송
+                Map<String, Object> param = new HashMap<>();
+                param.put("PAY_HP_NO", target.getMPHONE_NO()); // 고객 연락처
+                param.put("TEXT", smsText);                    // 문자 내용
+                param.put("MSG_TYPE", "3");                   // 문자메세지 유형 1:SMS, 3:LMS
+
+                commonService.sendSms(param);
+                logger.info("[SchedulerService] SMS문자 발송완료 - serviceId: {}, 문자내용: {}", serviceId, smsText);
+
+                // 심사요청으로 상태 변경
+                int updated = schedulerMapper.updateServiceToJudgeRequest(serviceId);
+                updateCount += updated;
+
+                if (updated == 0) {
+                    logger.warn("[SchedulerService] 상태 변경 대상 없음 - serviceId: {}, currentProcSt: {}", serviceId, target.getPROC_ST());
+                }
+            } catch (Exception e) {
+                logger.error("[SchedulerService] 처리 실패 - serviceId: {}, message: {}", serviceId, e.getMessage(), e);
+            }
         }
 
         return updateCount;
@@ -99,34 +105,59 @@ public class SchedulerService {
 
             for (List<SchedulerDto> targets : memberGroupedTargets.values()) {
                 // 같은 MEMBER_ID를 가진 건들에 대해 한 번에 문자 발송
-                String SMS_TEXT = "[폴스타코리아 미입금 확인] ";
-                for (SchedulerDto target : targets) {
-                    SMS_TEXT += target.getCUSTOMER_NM() + ", ";
+                if (targets == null || targets.isEmpty()) {
+                    continue;
                 }
-                SMS_TEXT = SMS_TEXT + " 고객의 등록비용이 아직 입금되지 않았습니다. 고객에게 입금 요청 부탁드립니다.";
-                logger.info("SMS_TEXT: {}", SMS_TEXT);
 
-                // 심사요청 문자 발송
-                Map<String, Object> param = new HashMap<>();
+                try {
+                    StringBuilder smsTextBuilder = new StringBuilder("[폴스타코리아 미입금 확인] ");
+                    for (SchedulerDto target : targets) {
+                        smsTextBuilder.append(safeValue(target.getCUSTOMER_NM())).append(", ");
+                    }
+                    smsTextBuilder.append("고객의 등록비용이 아직 입금되지 않았습니다. 고객에게 입금 요청 부탁드립니다.");
+                    String smsText = smsTextBuilder.toString();
+                    logger.info("SMS_TEXT: {}", smsText);
 
-                // 담당자의 연락처로 문자 발송 
-                // 담당자 연락처 조회
-                SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(targets.get(0).getMEMBER_ID());
-                param.put("PAY_HP_NO", specialistInfo.getSPECIALIST_HP_NO());
-                param.put("TEXT", SMS_TEXT);
-                param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
-                int result = commonService.sendSms(param);
-                logger.info("[SchedulerService] 문자 발송 완료~! - getSPECIALIST_HP_NO: {}, SMS_TEXT: {}", specialistInfo.getSPECIALIST_HP_NO(), SMS_TEXT);
-                updateCount += result;
+                    // 담당자의 연락처로 문자 발송
+                    SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(targets.get(0).getMEMBER_ID());
+                    String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
+
+                    if (isBlank(specialistPhone)) {
+                        logger.warn("[SchedulerService] 미입금 알림 발송 제외 - 담당자 연락처 없음, memberId: {}", targets.get(0).getMEMBER_ID());
+                        continue;
+                    }
+
+                    Map<String, Object> param = new HashMap<>();
+                    param.put("PAY_HP_NO", specialistPhone);
+                    param.put("TEXT", smsText);
+                    param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
+                    int result = commonService.sendSms(param);
+                    logger.info("[SchedulerService] 문자 발송 완료 - getSPECIALIST_HP_NO: {}, SMS_TEXT: {}", specialistPhone, smsText);
+                    updateCount += result;
+                } catch (Exception e) {
+                    logger.error(
+                        "[SchedulerService] 미입금 알림 처리 실패 - memberId: {}, message: {}",
+                        targets.get(0).getMEMBER_ID(),
+                        e.getMessage(),
+                        e
+                    );
+                }
             }
             
             return updateCount;
         } catch (Exception e) {
-            e.printStackTrace();
-            logger.error("[SchedulerService] 등록예정-1일 15:30분 이후 미입금건 알림 문자 발송 중 오류 발생: {}", e.getMessage());
+            logger.error("[SchedulerService] 등록예정-1일 15:30분 이후 미입금건 알림 문자 발송 중 오류 발생: {}", e.getMessage(), e);
             return 0;
         }
         
         
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String safeValue(String value) {
+        return value == null ? "" : value;
     }
 }
