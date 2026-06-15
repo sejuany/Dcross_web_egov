@@ -1,3 +1,9 @@
+.erp-input-text {
+    background-image: none !important;
+    appearance: textfield;
+    cursor: text !important;
+}
+
 .status-container {
     background-color: #fff;
     font-family: 'Malgun Gothic', 'Dotum', sans-serif;

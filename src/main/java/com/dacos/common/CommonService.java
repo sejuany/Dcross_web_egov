@@ -89,7 +89,7 @@ public class CommonService {
         if (!"10.109.111.40".equals(getServerAddress("IP"))) {
         	// 개발에선 문자가 안나가니 운영에 넣어보기
         	return common.insert(smsParam, "insertSmsSendReal");        	
-        } 
+        }         
         return common.insert(smsParam, "insertSmsSend");
     }
 

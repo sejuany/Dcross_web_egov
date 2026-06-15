@@ -51,6 +51,7 @@ const HIGHLIGHT_FIELDS = [
 const REQUIRED_FIELDS = [
     { name: 'TASK_CD', label: '업무구분', tab: 'owner' },
     { name: 'CARID_NO', label: '차대번호', tab: 'owner' },
+	{ name: 'REQ_CAR_NO', label: '차량번호', tab: 'owner' },
     { name: 'REG_GB', label: '등록구분', tab: 'owner' },
     { name: 'REG_NO', label: '등록번호', tab: 'owner' },
     { name: 'OWNER_NM', label: '성명(상호)', tab: 'owner' },
@@ -62,7 +63,7 @@ const REQUIRED_FIELDS = [
     { name: 'RT_ACC_NO', label: '사용본거지 연락처', tab: 'owner' },
     { name: 'NUMPLATE_GB', label: '번호판종류', tab: 'owner' },
     { name: 'PAY_GB', label: '결제구분', tab: 'owner' },
-    { name: 'BUY_AMT', label: '구입가액', tab: 'owner' },
+    { name: 'BUY_AMT', label: '공급가액', tab: 'owner' },
     { name: 'NTAX_TRGET_CD', label: '비과세대상', tab: 'owner' },
     { name: 'BOND_DC', label: '채권할인여부', tab: 'owner' },
     { name: 'RT_BANK_CD', label: '환급계좌 은행', tab: 'owner' },
@@ -79,7 +80,7 @@ const COMPANY_CODE_FILTER = {
 	// 폴스타
 	WA001: {
         TASK: ['NORML', 'LEASE'],
-        DLVGB: ['ILSAN', 'INPUT', 'SGLO', 'RCCO', 'NAMM', 'BUSAN', 'DAEGU', 'DAEJE', 'GIANG', 'SEOUL', 'SUWON', 'JEJU']
+        DLVGB: ['INPUT', 'HANAM', 'JEJU', 'SUWON', 'SEOUL', 'DAEGU', 'BUSAN', 'DAEJE', 'GWANG', 'ILSAN']
     }
 };
 
@@ -612,11 +613,6 @@ const NewcarRequest = () => {
 	        dsPaymentList: [...dsPaymentList]
 	    };
 
-	    setDsService(prev => ({
-	        ...prev,
-	        PROC_ST: 'W_REQ'
-	    }));
-
 		await processService(newDataSet, "REQ");
 	};
 
@@ -697,12 +693,6 @@ const NewcarRequest = () => {
 		    newDataSet.dsService.JUDGE_ST = "";
 		}
 		
-		setDsService(prev => ({
-		    ...prev,
-		    PROC_ST: newDataSet.dsService.PROC_ST,
-		    JUDGE_ST: newDataSet.dsService.JUDGE_ST
-		}));
-		
 		// 숫자 데이터 하이픈(-), 쉼표(,) 등 제거
 		newDataSet = formatNumberData(newDataSet); 
 		await processService(newDataSet, "REQ");
@@ -743,7 +733,7 @@ const NewcarRequest = () => {
 		if (dsNewCar.RATIO_NO < 100) {
 			// TODO 대표소유자 비율이 100% 이하인경우에는 공동소유자가 존재해야한다.
 			// 대표소유자 비율 + 공동소유자 비율의 합이 100%가 되어야 한다.	(공동소유자 비율 0이상, 대표소유자 비율 100 이하 둘의 합이 100이 아닐경우)
-			if (dsOwnerInfo.DEBTOR_RATIO > 0 && dsOwnerInfo.DEBTOR_RATIO <= 100 && dsNewCar.RATIO_NO + dsOwnerInfo.DEBTOR_RATIO !== 100) {
+			if (dsOwnerInfo.DEBTOR_RATIO > 0 && dsOwnerInfo.DEBTOR_RATIO <= 100 && Number(dsNewCar.RATIO_NO) + Number(dsOwnerInfo.DEBTOR_RATIO) !== 100) {
 				focusField('DEBTOR_RATIO', 'owner');
 				return '대표소유자 + 공동소유자 비율을 확인해주세요 둘의 합은 100%이어야 합니다.';				
 			}
@@ -751,7 +741,7 @@ const NewcarRequest = () => {
 				// 공동소유자2명인 경우 총합이 100이 안되는지 확인
 				if (dsOwnerInfo.DEBTOR_RATIO > 0 && dsOwnerInfo.DEBTOR_RATIO <= 100 
 				 && dsOwnerInfo1.DEBTOR_RATIO > 0 && dsOwnerInfo1.DEBTOR_RATIO <= 100 
-				 && dsNewCar.RATIO_NO + dsOwnerInfo.DEBTOR_RATIO + dsOwnerInfo1.DEBTOR_RATIO !== 100) {
+				 && Number(dsNewCar.RATIO_NO) + Number(dsOwnerInfo.DEBTOR_RATIO) + Number(dsOwnerInfo1.DEBTOR_RATIO) !== 100) {
 					focusField('DEBTOR_RATIO', 'owner');
 					return '대표소유자 + 공동소유자1 + 공동소유자2 비율을 확인해주세요 둘의 합은 100%이어야 합니다.';
 				}
@@ -863,13 +853,15 @@ const NewcarRequest = () => {
 	    proc = "SAV",
 	    newDsPaymentList = null // 사전조회 계산 결과 저장용
 	) => {
-	
-		// 저장은 차대번호만 체크
-		if (gf.Check(dsNewCar.CARID_NO, '차대번호', 17)) {
-			gf.alert('차대번호를 확인해주세요.');
-			return;
-		}
+		
+		const targetNewCar = newDsNewCar || dsNewCar;
 
+		// 저장은 차대번호만 체크
+		if (gf.Check(targetNewCar.CARID_NO, '차대번호', 17)) {
+		    gf.alert('차대번호를 확인해주세요.');
+		    return;
+		}
+		
 		// 저장 시 사용할 요청 데이터 생성
 		// 파라미터가 있으면 계산된 최신 데이터 사용
 		let newDataSet = {
@@ -902,11 +894,6 @@ const NewcarRequest = () => {
 			// 최초 저장(INPUT) 또는 AD가 등록요청(C_REQ) 상태에서 저장할 때는 상태 유지, SU가 저장할 때는 저장으로 변경
 			if ( PROC_ST === "INPUT" || (PROC_ST === "C_REQ" && userGb === "SU")) {
 				newDataSet.dsService.PROC_ST = "SAV";
-				
-			    setDsService(prev => ({
-			        ...prev,
-			        PROC_ST: "SAV"
-			    }));
 			}
 	    }
 
@@ -975,7 +962,7 @@ const NewcarRequest = () => {
 					});
 
 					// 처리 후 화면 재조회
-					await reloadProcess();
+					await reloadProcess(serviceId);
 					return true;
 				}
 
@@ -996,33 +983,34 @@ const NewcarRequest = () => {
 
 	
 	// 새로고침: 탭은 유지하고 현재 화면 데이터만 다시 조회
-	const reloadProcess = async () => {
+	const reloadProcess = async (targetServiceId = '') => {
+
 		try {
 			// 로딩 시작
 			setIsLoading(true);
 			
-			console.log(codes['DLADD']);
-			
-			const start = Date.now();
-
 			const serviceId = String(
-				receiptNo || dsService.SERVICE_ID || ''
+			    targetServiceId ||
+			    receiptNo ||
+			    dsService.SERVICE_ID ||
+			    ''
 			).trim();
+			
+			// 이벤트 객체 넘어온 경우 제거
+			if (
+			    targetServiceId &&
+			    typeof targetServiceId === 'object'
+			) {
+			    targetServiceId = '';
+			}
+			
+			console.log('reload serviceId =', serviceId);
 
 			// 저장 건이면 상세조회, 아니면 초기화
 			if (serviceId) {
-				await loadDetail(serviceId);
+			    await loadDetail(serviceId);
 			} else {
-				await initProcess();
-			}
-
-			// 로딩창 최소 0.5초 유지
-			const elapsed = Date.now() - start;
-
-			if (elapsed < 500) {
-				await new Promise(resolve =>
-					setTimeout(resolve, 500 - elapsed)
-				);
+			    await initProcess();
 			}
 		}
 		finally {
@@ -1089,12 +1077,6 @@ const NewcarRequest = () => {
 	                    carNo: reqCarNo
 	                });
 
-	                // 화면 상태 초기화
-	                setDsNewCar(prev => ({
-	                    ...prev,
-	                    REQ_CAR_NO: ''
-	                }));
-
 	                // 삭제 데이터에도 반영
 	                newDataSet.dsNewCar.REQ_CAR_NO = '';
 
@@ -1116,7 +1098,9 @@ const NewcarRequest = () => {
 	// 상세 조회 공통
 	const loadDetail = async (receiptNo) => {
 		console.log('loadDetail 진입');
-		log(codes['DLVGB']);
+
+		console.log('owner1', dsOwnerInfo);
+		console.log('owner2', dsOwnerInfo1);
 		
 	    try {
 
@@ -1126,6 +1110,8 @@ const NewcarRequest = () => {
 	        if (data.success && data.data) {
 
 				const dbData = gf.formatDateFields(data.data);
+				
+				console.log('DB PROC_ST =', dbData.dsService?.PROC_ST);
 
 				// 신규등록 데이터 매핑
 				const mappedNewCar = mapData(
@@ -1148,18 +1134,18 @@ const NewcarRequest = () => {
 				
 				setDsPaymentList(result.dsPaymentList);
 
-				setDsService(prev =>
-				    mapData(prev, dbData.dsService, serviceMap)
+				setDsService(
+				    mapData(initialDsService, dbData.dsService, serviceMap)
 				);
 
 				setDsNewCar(result.dsNewCar);
 
-				setDsOwnerInfo(prev =>
-				    mapData(prev, dbData.dsOwnerInfo || {}, ownerMap)
+				setDsOwnerInfo(
+				    mapData(initialOwnerInfo, dbData.dsOwnerInfo || {}, ownerMap)
 				);
 
-				setDsOwnerInfo1(prev =>
-				    mapData(prev, dbData.dsOwnerInfo1 || {}, ownerMap)
+				setDsOwnerInfo1(
+				    mapData(initialOwnerInfo1, dbData.dsOwnerInfo1 || {}, ownerMap)
 				);
 				
 	            setDsBranchList(dbData.dsBranchList || []);
@@ -1171,6 +1157,8 @@ const NewcarRequest = () => {
 				hasInitializedRef.current = true;
 				loadedReceiptNoRef.current = receiptNo;
 				loadedDetailOpenKeyRef.current = detailOpenKey;
+				
+				console.log('DB PROC_ST', dbData.dsService.PROC_ST);
 	        }
 
 	    } catch (err) {
@@ -1857,7 +1845,7 @@ const NewcarRequest = () => {
 					</button>
 					
 					<button className="btn-erp" onClick={() => saveProcess()} disabled={isDisabled()}>저장</button>
-					<button className="btn-erp" onClick={reloadProcess} >새로고침</button>
+					<button className="btn-erp" onClick={() => reloadProcess(dsService.SERVICE_ID)}>새로고침</button>
 					<button className="btn-erp" onClick={deleteProcess} disabled={!['I_REQ', 'I_SAV', 'INPUT', 'SAV', 'B_REQ', 'C_SAV', 'C_REQ', 'RET'].includes((dsService.PROC_ST || '').trim())}>삭제</button>
 					<button className="btn-erp" onClick={initProcess} >초기화</button>
 					<button className="btn-erp" onClick={closeFrame} >닫기</button>
@@ -2035,7 +2023,7 @@ const NewcarRequest = () => {
 									</ErpField>
 								</div>
 								<div className="erp-row">
-									<ErpField label="휴대폰번호" span={4} htmlFor="MPHONE_NO">
+									<ErpField label="휴대폰번호" span={4} required={true} htmlFor="MPHONE_NO">
 										<input type="text" className="erp-input" id="MPHONE_NO" name="MPHONE_NO" data-type="newcar" value={gf.formatPhoneNo(dsNewCar.MPHONE_NO)} onChange={handleChange} readOnly={isReadOnly()} onBlur={handleBlur} />
 									</ErpField>
 									<ErpField label="보험사 정보" span={8}>

@@ -45,22 +45,21 @@ public class SchedulerService {
 
         int updateCount = 0;
 
-        for (SchedulerDto target : targetList) {
-            Map<String, Object> targetList2 = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
-            
+        for (SchedulerDto target : targetList) {            
             // SP담당 연락처 추가
- 			Map<String, Object> mSpInfo = common.select(target.getMEMBER_ID(), "selectMemberInfo2");
+ 			SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
+                
  			
             String SMS_TEXT = "안녕하세요. 폴스타코리아 온라인 대행업체입니다.\n" + target.getCAR_NO() +"차량의 신규등록이 접수되었습니다.\n\n" +
                               "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다. \n" +
-                              "연락처 : "+mSpInfo.get("MPHONE_NO").toString();
+                              "연락처 : "+specialistInfo.getSPECIALIST_HP_NO();
             
             String serviceId = target.getSERVICE_ID();
             String smsText = SMS_TEXT;
             
             // 심사요청 문자 발송
             Map<String, Object> param = new HashMap<>();
-            param.put("PAY_HP_NO", target.getMPHONE_NO());  // 고객 연락처
+            param.put("PAY_HP_NO", specialistInfo.getSPECIALIST_HP_NO());  // 고객 연락처
             param.put("TEXT", smsText);                     // 문자 내용    
             param.put("MSG_TYPE", "3");               // 문자메세지 유형 1:SMS, 3: LMS
             int result = commonService.sendSms(param);
@@ -109,11 +108,15 @@ public class SchedulerService {
 
                 // 심사요청 문자 발송
                 Map<String, Object> param = new HashMap<>();
-                param.put("PAY_HP_NO", targets.get(0).getMPHONE_NO());
+
+                // 담당자의 연락처로 문자 발송 
+                // 담당자 연락처 조회
+                SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(targets.get(0).getMEMBER_ID());
+                param.put("PAY_HP_NO", specialistInfo.getSPECIALIST_HP_NO());
                 param.put("TEXT", SMS_TEXT);
                 param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
                 int result = commonService.sendSms(param);
-                logger.info("[SchedulerService] 문자 발송 완료~! - getMPHONE_NO: {}, SMS_TEXT: {}", targets.get(0).getMPHONE_NO(), SMS_TEXT);
+                logger.info("[SchedulerService] 문자 발송 완료~! - getSPECIALIST_HP_NO: {}, SMS_TEXT: {}", specialistInfo.getSPECIALIST_HP_NO(), SMS_TEXT);
                 updateCount += result;
             }
             

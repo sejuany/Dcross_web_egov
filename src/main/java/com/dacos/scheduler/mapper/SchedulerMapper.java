@@ -17,5 +17,5 @@ public interface SchedulerMapper {
 
     List<SchedulerDto> selectNewcarNonPayedServices();
 
-    Map<String, Object> selectNewcarSpecialistInfo(String member_ID);
+    SchedulerDto selectNewcarSpecialistInfo(@Param("MEMBER_ID") String memberId);
 }

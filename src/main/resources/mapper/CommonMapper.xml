@@ -167,7 +167,7 @@
 	</select>
 	<!-- 문자 전송 -->
 	<insert id="insertSmsSendReal" parameterType="map">
-	    INSERT INTO MSG_QUEUE@RDB_LINK (
+	    INSERT INTO MSG_QUEUE (
 	        MSEQ,
 	        MSG_TYPE,
 	        DSTADDR,
@@ -185,7 +185,7 @@
 	        #{TEXT},
 	        SYSDATE
 	    )
-	</insert>`
+	</insert>
 	
 	<insert id="insertSmsSend" parameterType="map">
 	    INSERT INTO MSG_QUEUE (

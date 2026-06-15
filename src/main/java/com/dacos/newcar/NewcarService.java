@@ -334,15 +334,20 @@ public class NewcarService {
 		
 		List<Map<String, Object>> dlvCodes = codeMapper.findCodesByGroupId("DLVGB");
 		List<Map<String, Object>> suInfo = authMapper.selectMemberSuInfo(user.getCOMPANY_ID());
+		List<Map<String, Object>> dlaCodes = codeMapper.findCodesByGroupId("DLADD");
 
 		Map<String, String> dlvMap = new HashMap<>();
 		Map<String, String> suMap = new HashMap<>();
+		Map<String, String> dlaMap = new HashMap<>();
 
 		for (Map<String, Object> code : dlvCodes) {
 			dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
 		}
 		for (Map<String, Object> code : suInfo) {
 			suMap.put(Objects.toString(code.get("MEMBER_NM"), "").trim(), Objects.toString(code.get("LOGIN_ID"), ""));
+		}
+		for (Map<String, Object> code : dlaCodes) {
+			dlaMap.put(Objects.toString(code.get("CODE_ID"), "").trim(), Objects.toString(code.get("CODE_NM"), ""));
 		}
 		// =========================
 		// 1. 검증 단계
@@ -368,14 +373,14 @@ public class NewcarService {
 		int insertCount = 0;
 
 		for (Map<String, Object> row : rows) {
-			insertExcelRow(row, user);
+			insertExcelRow(row, user, dlaMap);
 			insertCount++;
 		}
 
 		return Map.of("success", true, "insertCount", insertCount, "errors", List.of());
 	}
 	
-	private void insertExcelRow(Map<String, Object> row, UserDto user) {
+	private void insertExcelRow(Map<String, Object> row, UserDto user, Map<String, String> dlaMap) {
 
 	    Map<String, Object> request = new HashMap<>();
 	    Map<String, Object> dsService = new HashMap<>();
@@ -407,6 +412,47 @@ public class NewcarService {
 	    // =========================
 	    dsCarNoDetach.put("DELIVERY_GB", row.get("SPACE_GB"));
 	    dsCarNoDetach.put("CUSTOMER_NM", row.get("OWNER_NM")); // 고객명
+	    
+	    // 배송지주소 코드값 가져와서 넣어주기
+		String codeNm = dlaMap.get(row.get("SPACE_GB"));
+		
+		String address = "";
+		String detailAddress = "";
+		String manager = "";
+		String phone = "";
+
+		// "/" 기준 전체 분리 (빈 값 유지 중요)
+		String[] parts = codeNm.split("/", -1);
+
+		// 공통 trim 처리
+		for (int i = 0; i < parts.length; i++) {
+		    parts[i] = parts[i].trim();
+		}
+
+		// 0: 주소
+		if (parts.length > 0) {
+		    address = parts[0];
+		} 
+
+		// 1: 상세주소
+		if (parts.length > 1) {
+		    detailAddress = parts[1];
+		}
+
+		// 2: 담당자
+		if (parts.length > 2) {
+		    manager = parts[2];
+		}
+
+		// 3: 전화번호
+		if (parts.length > 3) {
+		    phone = parts[3];
+		}
+		
+    	dsCarNoDetach.put("DELIVERY_ADDR", address);
+    	dsCarNoDetach.put("DELIVERY_ADDR_DT", detailAddress);
+    	dsCarNoDetach.put("RECEIVE_NM", manager);
+    	dsCarNoDetach.put("RECEIVE_TEL_NO", phone);
 	    
 	    // =========================
 	    // OWNERINFO 2Row 넣어줘야함
@@ -674,10 +720,11 @@ public class NewcarService {
 						throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
 					}
 		    		
-		    		result.put("RESULT_CD", "0");
-		    		result.put("MESSAGE", "처리완료");
+					/*
+					 * result.put("RESULT_CD", "0"); result.put("MESSAGE", "처리완료");
+					 */
 		    		
-		    		return ApiResponse.withKey("data", result);
+		    		//return ApiResponse.withKey("data", result);
 		    	}
 		    	
 		    	

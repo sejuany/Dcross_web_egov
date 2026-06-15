@@ -540,17 +540,17 @@ const NewcarList = () => {
 	    SA: {
 	        govts: ['CHANG'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
-	        deliveryGbs: ['HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
+	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    },
 	    CA: {
 	        govts: ['CHANG'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
-	        deliveryGbs: ['HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
+	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    },
 	    SU: {
 	        govts: ['CHANG'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
-	        deliveryGbs: ['HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
+	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    }
 	};
 	
@@ -670,20 +670,20 @@ const NewcarList = () => {
 						</select>
                     </ErpField>
                     <ErpField label="신청자명" span={2}>
-                        <input type="text" className="erp-input" value={searchFilters.userNM} onChange={e => setSearchFilters({ ...searchFilters, userNM: e.target.value })} />
+                        <input type="text" className="erp-input erp-input-text" value={searchFilters.userNM} onChange={e => setSearchFilters({ ...searchFilters, userNM: e.target.value })} />
                     </ErpField>
                     <ErpField label="고객명" span={2}>
-                        <input type="text" className="erp-input" value={searchFilters.customerNM} onChange={e => setSearchFilters({ ...searchFilters, customerNM: e.target.value })} />
+                        <input type="text" className="erp-input erp-input-text" value={searchFilters.customerNM} onChange={e => setSearchFilters({ ...searchFilters, customerNM: e.target.value })} />
                     </ErpField>
                     <ErpField label="차량/차대번호" span={3} fontSize="11px">
-                        <input type="text" className="erp-input" value={searchFilters.carNo} onChange={e => setSearchFilters({ ...searchFilters, carNo: e.target.value })} />
+                        <input type="text" className="erp-input erp-input-text" value={searchFilters.carNo} onChange={e => setSearchFilters({ ...searchFilters, carNo: e.target.value })} />
                     </ErpField>
                 </div>
                 <div className="erp-row">
                     <ErpField label="신청일자" span={5}>
-                        <input type="date" className="erp-input" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} style={{ width: '40%', display: 'flex'}}/>
+                        <input type="date" className="erp-input erp-input-text" value={searchFilters.startDate} onChange={e => setSearchFilters({ ...searchFilters, startDate: e.target.value })} style={{ width: '40%', display: 'flex'}}/>
                         <span>~</span>
-                        <input type="date" className="erp-input" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })}  style={{ width: '40%', display: 'flex'}}/>
+                        <input type="date" className="erp-input erp-input-text" value={searchFilters.endDate} onChange={e => setSearchFilters({ ...searchFilters, endDate: e.target.value })}  style={{ width: '40%', display: 'flex'}}/>
 						<CommonMultiSelect
 						    options={timeOptions}
 						    selectedValues={searchFilters.selectedTimes || []}

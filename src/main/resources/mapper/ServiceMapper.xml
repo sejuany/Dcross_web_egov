@@ -73,6 +73,9 @@
 	        <if test="UPD_USER == null or UPD_USER == ''">
 	            UPD_USER = #{MEMBER_ID},
 	        </if>
+	        <if test="LINK_ID != null">
+	        	LINK_ID = #{LINK_ID},
+	        </if>
 	        UPD_DATE = SYSDATE
 	    </set>
 	    WHERE SERVICE_ID = #{SERVICE_ID}
