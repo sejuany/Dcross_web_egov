@@ -360,7 +360,7 @@ const NewcarRequest = () => {
 	    console.log(datasetMap[name]);
 	};
 
-	// 소유자명 → 계약자명 복사 체크
+	// 계약자명 -> 소유자명 복사 체크
 	const handleSameOwnerChange = (e) => {
 		const checked = e.target.checked;
 
@@ -368,9 +368,10 @@ const NewcarRequest = () => {
 
 		// 체크 시 계약자명 자동 입력
 		if (checked) {
-			setDsCarNoDetach(prev => ({
+			setDsNewCar(prev => ({
 				...prev,
-				CUSTOMER_NM: dsNewCar.OWNER_NM || ''
+				OWNER_NM: dsCarNoDetach.CUSTOMER_NM || '',
+				PAY_NM: dsCarNoDetach.CUSTOMER_NM || ''
 			}));
 		}
 	};
@@ -1960,7 +1961,7 @@ const NewcarRequest = () => {
 					<ErpField label="차령만료일" span={2}>
 						<span className="value-black">{dsNewCar.LAST_DT ?? ''}</span>
 					</ErpField>
-					<ErpField label="취득가액" span={3}>
+					<ErpField label="공급가액(VAT별도)" span={3}>
 						<span className="value-red text-right flex-grow" style={{ overflow: 'hidden', marginRight: '5px' }}>{Number(dsNewCar.BUY_AMT || 0).toLocaleString()}</span>
 					</ErpField>
 				</div>
@@ -2006,10 +2007,10 @@ const NewcarRequest = () => {
 								</div>
 								<div className="erp-row">
 									<ErpField label="등록번호" required={true} span={5} htmlFor="REG_NO">
-										<CommonSelect groupId="REGGB" codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
+										<CommonSelect groupId="REGGB" style={{ width: '100px', flex: '0 0 100px' }} codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 										<input type="text" className="erp-input" id="REG_NO" name="REG_NO" data-type="newcar" value={formatRegNo(dsNewCar.REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="소유자명" span={4} required={true} htmlFor="OWNER_NM" 
+									<ErpField label="대표소유자명" span={4} required={true} htmlFor="OWNER_NM" className="ownerNm-field"
 									  labelExtra={<input type="checkbox" className="erp-label-extra" checked={sameOwnerYn} onChange={handleSameOwnerChange} disabled={isDisabled()} />}>
 										{/* 소유자명 = 계약자명 체크 */}
 										<input type="text" className="erp-input" id="OWNER_NM" name="OWNER_NM" data-type="newcar" value={dsNewCar.OWNER_NM} onChange={handleChange} readOnly={isReadOnly()} onBlur={handleBlur} />
@@ -2218,7 +2219,7 @@ const NewcarRequest = () => {
 								</div>
 								<div className="erp-row">
 									<ErpField label="결제자명" span={3}>
-										<input type="text" className="erp-input" name="PAY_NM" data-type="newcar" value={dsNewCar.PAY_NM ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
+										<input type="text" className="erp-input" name="PAY_NM" data-type="newcar" maxLength={30} value={dsNewCar.PAY_NM ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 
 									<ErpField label="휴대폰번호" span={3}>
@@ -2340,6 +2341,7 @@ const NewcarRequest = () => {
 				dsService={dsService}
 				dsNewCar={dsNewCar}
 				dsCarNoDetach={dsCarNoDetach}
+				dsUserInfo={dsUserInfo}
 				onClose={() => setIsNumplateModalOpen(false)}
 				onSelect={(isSucces, carNo) => {
 
@@ -2357,6 +2359,7 @@ const NewcarRequest = () => {
 						saveProcess(newDsNewCar, "NUM_SAV");
 					}
 				}}
+
 			/>
 
 			{/* 주소검색 모달창 */}

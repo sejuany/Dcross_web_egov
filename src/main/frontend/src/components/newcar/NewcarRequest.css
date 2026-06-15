@@ -973,8 +973,12 @@ button.btn-erp.sm.light.mL-25 {
     height: 24px;
 }
 
+.ownerNm-field > .erp-label {
+	min-width: 110px;
+}
+
 .ratio-field > .erp-label {
-	width: 110px !important;
+	min-width: 120px;
 }
 
 /* 로딩중 효과 */

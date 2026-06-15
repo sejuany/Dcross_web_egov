@@ -32,4 +32,6 @@ public interface CommonMenuMapper {
 
     int mergeFavoriteMenu(CommonMenuSearchRequest request);
 
+    List<Map<String, Object>> selectUserWorkAuthAvailable(CommonMenuSearchRequest request);
+
 }

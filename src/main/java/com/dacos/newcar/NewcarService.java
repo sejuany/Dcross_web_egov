@@ -382,13 +382,13 @@ public class NewcarService {
 	    dsService.put("WORK_CD", "010");
 	    dsService.put("PROC_ST", "C_REQ");
 	    dsService.put("LINK_ID", row.get("LINK_ID")); 		// 주문번호
-	    dsService.put("MEMBER_ID", row.get("SPACE_ID"));	    // SU 담당자 login_id
+	    dsService.put("MEMBER_ID", row.get("SPACE_ID"));	// SU 담당자 login_id
 
 	    // =========================
 	    // NEWCAR
 	    // =========================
 	    dsNewCar.put("CARID_NO", row.get("CARID_NO"));
-	    dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));
+	    //dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));	// 대표소유자명 공란
 	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
 	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); // 등록일자
 
@@ -396,7 +396,7 @@ public class NewcarService {
 	    // 스페이스(배송지)
 	    // =========================
 	    dsCarNoDetach.put("DELIVERY_GB", row.get("SPACE_GB"));
-	    dsCarNoDetach.put("CUSTOMER_NM", row.get("OWNER_NM")); // 고객명
+	    dsCarNoDetach.put("CUSTOMER_NM", row.get("OWNER_NM")); // 계약자명
 	    
 	    // 배송지주소 코드값 가져와서 넣어주기
 		String codeNm = dlaMap.get(row.get("SPACE_GB"));
@@ -438,6 +438,8 @@ public class NewcarService {
     	dsCarNoDetach.put("DELIVERY_ADDR_DT", detailAddress);
     	dsCarNoDetach.put("RECEIVE_NM", manager);
     	dsCarNoDetach.put("RECEIVE_TEL_NO", phone);
+    	dsCarNoDetach.put("HOLE_YN", "02");  // 비천공
+	    dsCarNoDetach.put("SEAL_YN", "02");  // 비봉인
 	    
 	    // =========================
 	    // OWNERINFO 2Row 넣어줘야함
@@ -635,7 +637,6 @@ public class NewcarService {
 		    // 데이터 병합
 		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
 		    
-
 		    // 주민번호 정리 (하이픈, 공백, 줄바꿈, 쉼표 제거)
 		    normalizeNumberFields(input, "REG_NO", "BIZ_NO");
 
@@ -646,9 +647,6 @@ public class NewcarService {
 		    lOwnerInfoList1.forEach(owner ->
 		        normalizeNumberFields(owner, "REG_NO", "BIZ_NO")
 		    );
-		    
-		    logger.info("mNewCar >>> " + mNewCar);
-		    logger.info("input >>> " + input);
 		    
 		    // 로그인 사용자
 		    input.put("UPD_USER", user.getLOGIN_ID());

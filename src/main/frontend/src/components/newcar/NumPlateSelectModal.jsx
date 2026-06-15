@@ -6,7 +6,7 @@ import { gf } from '../../utils/utils'; // 공통 유틸 함수
 
 const NumberPlateModal = ({ 
 	isOpen, onClose, carIdNo, taskCd, onSelect,
-	dsService, dsNewCar, dsCarNoDetach
+	dsService, dsNewCar, dsCarNoDetach, dsUserInfo
  }) => {
 	
     const [carType, setCarType] = useState('SEDAN');
@@ -25,6 +25,12 @@ const NumberPlateModal = ({
 	// 선택 가능한 번호판 조회
 	const fetchList = async() => {
 		
+
+		let assignCd =
+		    `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
+			
+		console.log("assignCd : " + assignCd);
+		
 		const dsWhere = {
 			SERVICE_ID: dsService.SERVICE_ID,
 			PRE_CAR_NO: preCarNoRef.current,
@@ -35,6 +41,7 @@ const NumberPlateModal = ({
 			GOVT_ID: dsService.GOVT_ID,
 			CONDITION: condition,
 			WANT_CAR_NO: keyword,
+			ASSIGN_CD: assignCd,
 			TASK_CD: taskCd,
 			HOLE_YN: dsCarNoDetach.HOLE_YN,
 			SEAL_YN: dsCarNoDetach.SEAL_YN

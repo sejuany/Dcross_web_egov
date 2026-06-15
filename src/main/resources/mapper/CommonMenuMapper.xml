@@ -137,6 +137,21 @@
 	      AND COMPANY_ID = #{COMPANY_ID}
 	</select>
 
+    	<!-- 기존 MiPlatform gdsUserAuth 조회 -->
+	<select id="selectUserWorkAuthAvailable"
+	        parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
+	        resultType="java.util.Map">
+	    SELECT
+	        WORK_CD,
+	        GOVT_ID,
+	        PERM_GB,
+	        USE_YN
+	    FROM TM_WORK_MB
+	    WHERE MEMBER_ID = #{MEMBER_ID}
+	      AND COMPANY_ID = #{COMPANY_ID}
+          AND USE_YN = 'Y'
+	</select>
+
 	<select id="selectFavoriteMenu"
 	        parameterType="com.dacos.commonmenu.dto.CommonMenuSearchRequest"
 	        resultType="java.lang.String">

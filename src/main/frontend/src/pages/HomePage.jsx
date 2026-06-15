@@ -234,7 +234,7 @@ const HomePage = () => {
 
     return (
         <div className="home-dashboard">
-            <h1 className="dashboard-title">Dashboard Overview</h1>
+            <h1 className="dashboard-title">자동차온라인등록 업무</h1>
 
             <div className="dashboard-grid">
                 <div className="widget menu-widget favorite-service-widget full-width">

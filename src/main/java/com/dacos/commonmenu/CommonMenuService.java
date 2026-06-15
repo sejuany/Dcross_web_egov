@@ -78,7 +78,7 @@ public class CommonMenuService {
         request.setMEMBER_ID(user.getLOGIN_ID());
         request.setCOMPANY_ID(user.getCOMPANY_ID());
 
-        List<Map<String, Object>> userWorkAuthList = commonMenuMapper.selectUserWorkAuth(request);
+        List<Map<String, Object>> userWorkAuthList = commonMenuMapper.selectUserWorkAuthAvailable(request);
 
         String userAuth = nvl(user.getMEMBER_GB());
         String companyId = nvl(user.getCOMPANY_ID());
