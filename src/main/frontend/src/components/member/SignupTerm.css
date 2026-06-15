@@ -1,17 +1,35 @@
 :root {
-    /* Login.css의 변수 활용 */
     --primary-blue: #1c3553;
     --accent-blue: #2c4a6e;
 }
 
-/* 전체 컨테이너: 화면 중앙에 꽉 차는 느낌으로 확장 */
+/* 화면 전체 스크롤 담당 */
+.term-page-container {
+    position: fixed;
+    inset: 0;
+
+    background-color: #f4f7f9;
+
+    padding: 20px 16px;
+    box-sizing: border-box;
+
+    overflow: auto;
+}
+
+/* 실제 약관 카드 */
 .term-wrapper {
-    width: 900px; 
-    height: 90vh; /* 브라우저 높이에 맞춰 확장 */
-    margin: 20px auto;
+    width: 900px;
+    min-width: 900px;
+
+    height: calc(100vh - 40px);
+    min-height: 620px;
+
+    margin: 0 auto;
     background: #ffffff;
     border: 1px solid #cbd5e0;
     padding: 30px;
+    box-sizing: border-box;
+
     display: flex;
     flex-direction: column;
     font-family: 'Malgun Gothic', sans-serif;
@@ -53,7 +71,7 @@
     border-radius: 2px;
 }
 
-/* 본문 스크롤 영역: flex-1로 남는 공간을 모두 채움 */
+/* 본문 스크롤 영역 */
 .term-content {
     flex: 1;
     overflow-y: auto;
@@ -76,7 +94,6 @@
     color: #2d3748;
 }
 
-/* 텍스트 박스: 가독성 높인 줄간격 */
 .term-box {
     background: #ffffff;
     border: 1px solid #e2e8f0;
@@ -86,15 +103,14 @@
     color: #4a5568;
     margin-bottom: 15px;
     min-height: 80px;
-    word-break: keep-all; /* 한글 줄바꿈을 단어 단위로 깔끔하게 */
+    word-break: keep-all;
 }
 
-/* 그리드(테이블): 컨테이너에 꽉 차도록 설정 */
 .term-table {
     width: 100%;
     border-collapse: collapse;
     margin-bottom: 15px;
-    table-layout: fixed; /* 열 너비 고정 */
+    table-layout: fixed;
 }
 
 .term-table th {
@@ -103,8 +119,8 @@
     padding: 12px 8px;
     font-size: 0.85rem;
     font-weight: bold;
-    text-align: center; /* 가로 중앙 정렬 */
-    vertical-align: middle; /* 세로 중앙 정렬 */
+    text-align: center;
+    vertical-align: middle;
     color: var(--primary-blue);
 }
 
@@ -112,16 +128,22 @@
     border: 1px solid #cbd5e0;
     padding: 12px 8px;
     font-size: 0.85rem;
-    text-align: center; /* 데이터 가로 중앙 정렬 */
-    vertical-align: middle; /* 데이터 세로 중앙 정렬 */
+    text-align: center;
+    vertical-align: middle;
     background: white;
     line-height: 1.5;
-    word-break: keep-all; /* 줄바꿈 시 단어가 잘리지 않게 함 */
+    word-break: keep-all;
 }
 
-/* 강조 텍스트 */
-.text-red { color: #e53e3e; font-weight: bold; }
-.text-blue { color: #3182ce; font-weight: bold; }
+.text-red {
+    color: #e53e3e;
+    font-weight: bold;
+}
+
+.text-blue {
+    color: #3182ce;
+    font-weight: bold;
+}
 
 .check-label {
     font-size: 0.9rem;
@@ -159,7 +181,6 @@
     gap: 10px;
 }
 
-/* 다음 버튼: Login.css 스타일 계승 */
 .btn-next {
     padding: 12px 50px;
     background-color: var(--primary-blue);
@@ -177,14 +198,16 @@
     transform: translateY(-1px);
 }
 
-/* 스크롤바 디자인 (크롬/사파리) */
+/* 스크롤바 디자인 */
 .term-content::-webkit-scrollbar {
     width: 8px;
 }
+
 .term-content::-webkit-scrollbar-thumb {
     background: #cbd5e0;
     border-radius: 4px;
 }
+
 .term-content::-webkit-scrollbar-track {
     background: #f7fafc;
 }

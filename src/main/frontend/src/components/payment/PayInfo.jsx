@@ -48,6 +48,7 @@ const PayInfo = () => {
     const location = useLocation();
     const gridRef = useRef(null);	
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기 use_YN	'Y', regist_NO	'UA', member_NM	'다코스관리자', branch_ID	'dacos', login_GB	'UA', sangsa_ID	'dacos', login_ID	'dacos', member_GB	'UA', company_ID	'dacos', pass_WD	null
+    const memberGb = user?.member_GB || '';
 	const { tabs, activeTabId, removeTab } = useTabs(); // 탭 관리	
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
@@ -473,9 +474,9 @@ const PayInfo = () => {
 
 
 	
-    const formatCode = (groupId, value) => {
+    const formatCode = React.useCallback((groupId, value) => {
         return codeMap[groupId] && codeMap[groupId][value] ? codeMap[groupId][value] : value;
-    };
+    }, [codeMap]);
 
 
     // UA 권한 컬럼정의
@@ -931,7 +932,7 @@ const PayInfo = () => {
 	
     // user ID에 따라 컬럼 속성 분기
     const columnDefs = React.useMemo(() => {
-		if (user.member_GB.substring(0, 1) === 'U' || user.member_GB === 'GU') {
+		if (memberGb.substring(0, 1) === 'U' || memberGb === 'GU') {
 			return UA_ColumnDefs;					
 		}
 			
@@ -943,7 +944,7 @@ const PayInfo = () => {
         }
         // 기본적으로 defaultColumnDefs 반환
         return UA_ColumnDefs;
-    }, [user, codeMap]);
+    }, [memberGb, codeMap]);
 
     const handleRowDoubleClicked = (event) => {
         if (event.data && event.data.SERVICE_ID) {
@@ -1007,7 +1008,7 @@ const PayInfo = () => {
 	    { NO: '합계', ACQ_AMT: 0, REGIS_AMT: 0, TOTAL_AMT: 0 } // 초기값
 	]);
 	
-	const updateSummary = (params) => {
+	const updateSummary = React.useCallback((params) => {
 	    let totalAcq = 0;
 	    let totalRegis = 0;
 	    let totalAmt = 0;
@@ -1023,16 +1024,38 @@ const PayInfo = () => {
 	        }
 	    });
 
-	    setPinnedBottomRowData([
-	        {
-	            NO: '합계',
-	            WORK_CD: `${rowCount}건`, // 마이플랫폼의 CaseCount 유사 구현
-	            ACQ_AMT: totalAcq,
-	            REGIS_AMT: totalRegis,
-	            TOTAL_AMT: totalAmt,
-	        }
-	    ]);
-	};
+        const nextPinnedRow = {
+            NO: '합계',
+            WORK_CD: `${rowCount}건`, // 마이플랫폼의 CaseCount 유사 구현
+            ACQ_AMT: totalAcq,
+            REGIS_AMT: totalRegis,
+            TOTAL_AMT: totalAmt,
+        };
+
+	    setPinnedBottomRowData(prevRows => {
+            const prevRow = prevRows?.[0];
+
+            if (
+                prevRow?.NO === nextPinnedRow.NO &&
+                prevRow?.WORK_CD === nextPinnedRow.WORK_CD &&
+                Number(prevRow?.ACQ_AMT || 0) === nextPinnedRow.ACQ_AMT &&
+                Number(prevRow?.REGIS_AMT || 0) === nextPinnedRow.REGIS_AMT &&
+                Number(prevRow?.TOTAL_AMT || 0) === nextPinnedRow.TOTAL_AMT
+            ) {
+                return prevRows;
+            }
+
+            return [nextPinnedRow];
+        });
+	}, []);
+
+    const defaultColDef = React.useMemo(() => ({ sortable: true, resizable: true }), []);
+
+    const pinnedBottomRowStyle = React.useCallback((params) => {
+        if (params.node.rowPinned === 'bottom') {
+            return { fontWeight: 'bold', backgroundColor: '#f8f9fa' };
+        }
+    }, []);
 
     return (
         <div className="status-container">
@@ -1153,20 +1176,16 @@ const PayInfo = () => {
                         rowData={rowData}
                         columnDefs={columnDefs}
                         // 기본적으로 모든 컬럼에 적용될 공통 속성: 정렬 가능, 열 너비 조절 가능
-                        defaultColDef={{ sortable: true, resizable: true }}
+                        defaultColDef={defaultColDef}
                         rowSelection="multiple"
                         onRowDoubleClicked={handleRowDoubleClicked}
                         onCellClicked={handleCellClicked}
 						pinnedBottomRowData={pinnedBottomRowData} // 하단 고정 행 연결
-					    onGridReady={(params) => updateSummary(params)}
-					    onFilterChanged={(params) => updateSummary(params)}
-					    onRowDataUpdated={(params) => updateSummary(params)}
+					    onGridReady={updateSummary}
+					    onFilterChanged={updateSummary}
+					    onRowDataUpdated={updateSummary}
 						// 합계 행 스타일 지정 (선택)
-					    getRowStyle={params => {
-					        if (params.node.rowPinned === 'bottom') {
-					            return { fontWeight: 'bold', backgroundColor: '#f8f9fa' };
-					        }
-					    }}
+					    getRowStyle={pinnedBottomRowStyle}
                     />
                 </div>
             </div>

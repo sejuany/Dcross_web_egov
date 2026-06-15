@@ -39,14 +39,14 @@ const timeOptions = [
 const getInitialSearchFilters = (user) => ({
     workCode: '010',
     companyID: user.company_ID === 'dacos' ? '' : user.company_ID,
-    govtId: '',
+	govtId: user.member_GB === 'CA' || user.member_GB === 'SA' || user.member_GB === 'SU' ? 'CHANG' : '',
     userNM: '',
     customerNM: '',
     carNo: '',
     startDate: getFormattedDateOffset(-14),
     endDate: getFormattedDateOffset(0),
     nullOpt: '',
-    processStatus: '전체',
+    processStatus: user.member_GB === 'SU' ? 'C_REQ' : '전체',
     deliveryType: '',
     deliveryStatus: '전체',
 	selectedTimes: [],
@@ -59,6 +59,7 @@ const NewcarList = () => {
     const gridRef = useRef(null);
 	const fileInputRef = useRef(null);
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기
+    const memberGb = user?.member_GB || '';
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
     const [companyList, setCompanyList] = useState([]);
@@ -66,14 +67,10 @@ const NewcarList = () => {
     const [rowData, setRowData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
 	const [showReqModal, setShowReqModal] = useState(false);
+	const [showErrorModal, setShowErrorModal] = useState(false);
+	const [errorMessage, setErrorMessage] = useState('');
 	const [selectedRows, setSelectedRows] = useState([]);
     const [searchFilters, setSearchFilters] = useTabPageState('searchFilters', () => getInitialSearchFilters(user));
-
-	const dlvOptions =
-	  (codeListMap['DLVGB'] || []).map(code => ({
-	    label: code.CODE_NM,
-	    value: code.CODE_ID,
-    }));
 
     const fetchNewCarList = async () => {
         try {
@@ -140,9 +137,9 @@ const NewcarList = () => {
         }
     };
 
-    const formatCode = (groupId, value) => {
+    const formatCode = React.useCallback((groupId, value) => {
         return codeMap[groupId] && codeMap[groupId][value] ? codeMap[groupId][value] : value;
-    };
+    }, [codeMap]);
 
     useEffect(() => {
         fetchCodes();
@@ -175,7 +172,7 @@ const NewcarList = () => {
         { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
         { headerName: '접수번호', field: 'SERVICE_ID', width: 145 },
         { headerName: '차대번호', field: 'CARID_NO', width: 160 },
-        { headerName: '차량번호', field: 'CAR_NO', width: 110 },
+        { headerName: '차량번호', field: 'REQ_CAR_NO', width: 110 },
         { headerName: '업무구분', field: 'WORK_CD', width: 90, valueFormatter: params => formatCode('SGB', params.value) },
         { headerName: '신청상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
         { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
@@ -212,15 +209,14 @@ const NewcarList = () => {
         { headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120 },
         { headerName: '주문번호', field: 'LINK_ID', width: 145 },
         { headerName: '차대번호', field: 'CARID_NO', width: 160 },
-        { headerName: '차량번호', field: 'CAR_NO', width: 110 },
+        { headerName: '차량번호', field: 'REQ_CAR_NO', width: 110 },
         { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
-        { headerName: '공급가액', field: 'BUY_AMT', width: 100 },
-        { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
-        { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
-        { headerName: '차량비용 납부일자', field: 'BPAY_DT', width: 120 },
-        { headerName: '등록비용 납부일자', field: 'PAY_DT', width: 120 },
-        { headerName: '등록일자', field: 'JUDGE_DT', width: 100 },
 		{ headerName: '공급가액', field: 'BUY_AMT', width: 100 },
+        { headerName: '납부상태', field: 'ALL_PAY_YN', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
+        { headerName: '차량대금 납부일자', field: 'BPAY_DT', width: 120 },
+        { headerName: '등록비용 납부일자', field: 'PAY_DT', width: 120 },
+        { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
+        { headerName: '등록일자', field: 'JUDGE_DT', width: 100 },
 		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 90, valueFormatter: params => {
 		    const value = params.value;
 	        if (value === 'null' || value == null) {
@@ -236,42 +232,53 @@ const NewcarList = () => {
 	const suColumnDefs = [
         { headerCheckboxSelection: true, checkboxSelection: true, width: 20 },
         { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
-		{ headerName: '주문번호', field: 'LINK_ID', width: 145 },
-        { headerName: '차대번호', field: 'CARID_NO', width: 160 },
-		{ headerName: '고객명', field: 'OWNER_NM', width: 120 },
+		{ headerName: '처리상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
+		{ headerName: '주문번호', field: 'LINK_ID', width: 170 },
+        { headerName: '차대번호', field: 'CARID_NO', width: 180 },
+		{ headerName: '계약자명', field: 'CUSTOMER_NM', width: 130 },
         { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
-		{ headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120 },
-		{ headerName: '공급가액', field: 'BUY_AMT', width: 100 },
-		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 150, valueFormatter: params => {
+		{ headerName: '등록 예정일자', field: 'REGIST_DATE', width: 130 },
+		{ headerName: '공급가액', field: 'BUY_AMT', width: 120 },
+		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 180, valueFormatter: params => {
 		    const value = params.value;
 	        if (value === 'null' || value == null) {
 	            return '';
 	        }
 	        return formatCode('DLVGB', value);
 	    }},
-        { headerName: '접수번호', field: 'SERVICE_ID', flex: 1 },
+        { headerName: '접수번호', field: 'SERVICE_ID',  flex: 1},
     ];
 
     // user ID에 따라 컬럼 속성 분기
     const columnDefs = React.useMemo(() => {
-        if (user.member_GB === 'SA') {
+        if (memberGb === 'SA' || memberGb === 'CA') {
             return saColumnDefs;
-        } else if (user.member_GB === 'SU') {
+        } else if (memberGb === 'SU') {
             return suColumnDefs;
 		}
         // 기본적으로 defaultColumnDefs 반환
         return defaultColumnDefs;
-    }, [user, codeMap]);
+    }, [memberGb, codeMap]);
+
+    const openRequestDetail = (row) => {
+        const serviceId = String(row?.SERVICE_ID ?? '').trim();
+
+        if (!serviceId) {
+            setToastMessage('접수번호가 없어 상세 화면으로 이동할 수 없습니다.');
+            setTimeout(() => setToastMessage(''), 2500);
+            return;
+        }
+
+        addTab('newcar-request', '신규등록', '/newcar/newcar-request', {
+            state: {
+                receiptNo: serviceId,
+                detailOpenKey: `${serviceId}-${Date.now()}`
+            }
+        });
+    };
 
     const handleRowDoubleClicked = (event) => {
-        if (event.data && event.data.SERVICE_ID) {
-            addTab('newcar-request', '신규등록', '/newcar/newcar-request', {
-                state: {
-                    receiptNo: event.data.SERVICE_ID,
-                    detailOpenKey: Date.now()
-                }
-            });
-        }
+        openRequestDetail(event.data);
     };
 
     const handleRegistClick = () => {
@@ -360,9 +367,20 @@ const NewcarList = () => {
 	            let nextStatus = '';
 
 	            if (row.PROC_ST === 'P_REQ') {
-	                nextStatus = 'PBEND'; // 차량비용 납부
+	                nextStatus = 'PBEND'; // 차량대금 납부
 	            } else if (row.PROC_ST === 'PREND') {
-	                nextStatus = 'P_END'; // 납부완료
+					// 오늘 날짜를 yyyymmdd 형식으로 생성
+			        const today = new Date();
+			        const todayStr =
+			            today.getFullYear().toString() +
+			            String(today.getMonth() + 1).padStart(2, '0') +
+			            String(today.getDate()).padStart(2, '0');
+			        // 등록예정일이 오늘 이하이면 심사요청
+			        if (row.REGIST_DATE <= todayStr) {
+			            nextStatus = 'S_REQ'; // 심사요청
+			        } else {
+			            nextStatus = 'P_END'; // 납부완료
+			        }
 	            }
 
 	            return {
@@ -374,7 +392,7 @@ const NewcarList = () => {
 	        const res = await axios.post('/api/newcar/payment-process', payload);
 
 	        if (res.data.success) {
-	            setToastMessage('차량비용 납부 처리가 완료되었습니다.');
+	            setToastMessage('차량대금 납부 처리가 완료되었습니다.');
 	            setTimeout(() => setToastMessage(''), 2500);
 
 	            gridRef.current?.api?.deselectAll();
@@ -424,7 +442,8 @@ const NewcarList = () => {
 				}
 
 				const msg =	res.data?.message || res.data?.data?.message || (res.data?.data?.errors?.length ? res.data.data.errors.map(e => `${e.row}행: ${e.errors.join(', ')}`).join('\n') : '');
-				setToastMessage(msg || '등록 실패');
+				setErrorMessage(msg || '등록 실패');
+				setShowErrorModal(true);
 	        }
 	    } catch (err) {
 			if (err.response?.status === 401 || err.response?.status === 403) {
@@ -473,6 +492,12 @@ const NewcarList = () => {
 	    removeTab(activeTabId);
     };
 
+    const defaultColDef = React.useMemo(() => ({ sortable: true, resizable: true }), []);
+
+    const handleGridRowDataUpdated = React.useCallback(() => {
+        gridRef.current?.api?.deselectAll();
+    }, []);
+
     useEffect(() => {
         const handleKeyDown = (e) => {
             if (location.pathname !== '/newcar/newcar-list') return;
@@ -510,6 +535,65 @@ const NewcarList = () => {
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [location.pathname, searchFilters]);
+	
+	const memberGbConfig = {
+	    SA: {
+	        govts: ['CHANG'],
+	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
+	        deliveryGbs: ['HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
+	    },
+	    CA: {
+	        govts: ['CHANG'],
+	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
+	        deliveryGbs: ['HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
+	    },
+	    SU: {
+	        govts: ['CHANG'],
+	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
+	        deliveryGbs: ['HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
+	    }
+	};
+	
+	const config = memberGbConfig[memberGb] || {};
+	
+	const govtOptions = React.useMemo(() => {
+	    const allGovts = codeListMap['GOVT'] || [];
+
+	    if (!config.govts) {
+	        return allGovts;
+	    }
+
+	    return allGovts.filter(code =>
+	        config.govts.includes(code.CODE_ID)
+	    );
+	}, [codeListMap, config.govts]);
+	
+	const processStatusOptions = React.useMemo(() => {
+	    const allStatuses = codeListMap['PR_ST'] || [];
+
+	    if (!config.processStatuses) {
+	        return allStatuses;
+	    }
+
+	    return allStatuses.filter(code =>
+	        config.processStatuses.includes(code.CODE_ID)
+	    );
+	}, [codeListMap, config.processStatuses]);
+	
+	const dlvOptions = React.useMemo(() => {
+	    const allOptions = (codeListMap['DLVGB'] || []).map(code => ({
+	        label: code.CODE_NM,
+	        value: code.CODE_ID
+	    }));
+
+	    if (!config.deliveryGbs) {
+	        return allOptions;
+	    }
+
+	    return allOptions.filter(option =>
+	        config.deliveryGbs.includes(option.value)
+	    );
+	}, [codeListMap, config.deliveryGbs]);
 
     return (
         <div className="status-container">
@@ -530,14 +614,14 @@ const NewcarList = () => {
                 <div className="toolbar-left">
                     {/*<button className="btn-status" onClick={handleRegistClick}>등록[F10]</button>*/}
 					{/* SA만 보이게 */}
-					{user.member_GB === 'SA' && (
+					{(memberGb === 'SA' || memberGb === 'CA') && (
 						<>
 							<button className="btn-status blue" onClick={handleReqClick} style={{ marginLeft: '10px' }}>신청[F3]</button>
 						</>
 					)}
                     <span className="title-count">{totalCount}</span> 건
 					{/* SA만 보이게 */}
-					{user.member_GB === 'SA' && (
+					{(memberGb === 'SA' || memberGb === 'CA') && (
 						<>
 							<button className="btn-status red" onClick={handleExcelClick} style={{ marginLeft: '10px' }}>Excel 업로드</button>
 							<input
@@ -547,7 +631,7 @@ const NewcarList = () => {
 							    accept=".xlsx,.xls"
 							    onChange={handleExcelUpload}
 							/>
-							<button className="btn-status yellow" onClick={handlePbEndClick} style={{ marginLeft: '10px' }}>차량비용 납부</button>
+							<button className="btn-status yellow" onClick={handlePbEndClick} style={{ marginLeft: '10px' }}>차량대금 납부</button>
 						</>
 					)}
                 </div>
@@ -576,12 +660,14 @@ const NewcarList = () => {
                                 <option key={comp.COMPANY_ID} value={comp.COMPANY_ID}>{comp.COMPANY_NM}</option>
                             ))}
                         </select>
-                        <select className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
-                            <option value="">전체</option>
-                            {codeListMap['GOVT'] && codeListMap['GOVT'].map(code => (
-                                <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
-                            ))}
-                        </select>
+						<select className="erp-input" value={searchFilters.govtId} onChange={e => setSearchFilters({ ...searchFilters, govtId: e.target.value })}>
+						    <option value="">전체</option>
+						    {govtOptions.map(code => (
+						        <option key={code.CODE_ID} value={code.CODE_ID}>
+						            {code.CODE_NM}
+						        </option>
+						    ))}
+						</select>
                     </ErpField>
                     <ErpField label="신청자명" span={2}>
                         <input type="text" className="erp-input" value={searchFilters.userNM} onChange={e => setSearchFilters({ ...searchFilters, userNM: e.target.value })} />
@@ -611,12 +697,14 @@ const NewcarList = () => {
 						/>
                     </ErpField>
                     <ErpField label="처리상태" span={2}>
-                        <select className="erp-input" value={searchFilters.processStatus} onChange={e => setSearchFilters({ ...searchFilters, processStatus: e.target.value })}>
-                            <option value="전체">전체</option>
-                            {codeListMap['PR_ST'] && codeListMap['PR_ST'].map(code => (
-                                <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>
-                            ))}
-                        </select>
+						<select className="erp-input" value={searchFilters.processStatus} onChange={e => setSearchFilters({ ...searchFilters, processStatus: e.target.value })}>
+						    <option value="전체">전체</option>
+						    {processStatusOptions.map(code => (
+						        <option key={code.CODE_ID} value={code.CODE_ID}>
+						            {code.CODE_NM}
+						        </option>
+						    ))}
+						</select>
                     </ErpField>
                     <ErpField label="배송구분" span={2}>
 						<CommonMultiSelect
@@ -651,14 +739,13 @@ const NewcarList = () => {
                         rowData={rowData}
                         columnDefs={columnDefs}
                         // 기본적으로 모든 컬럼에 적용될 공통 속성: 정렬 가능, 열 너비 조절 가능
-                        defaultColDef={{ sortable: true, resizable: true }}
+                        defaultColDef={defaultColDef}
                         rowSelection="multiple"
                         onRowDoubleClicked={handleRowDoubleClicked}
+                        onCellDoubleClicked={handleRowDoubleClicked}
                         onCellClicked={handleCellClicked}
 						suppressRowClickSelection={false}
-					    onRowDataUpdated={() => {
-					        gridRef.current?.api?.deselectAll();
-					    }}
+					    onRowDataUpdated={handleGridRowDataUpdated}
                     />
                 </div>
             </div>
@@ -690,6 +777,42 @@ const NewcarList = () => {
 			            </div>
 			        </div>
 			    </div>
+			)}
+			
+			{showErrorModal && (
+				<div className="modal-overlay">
+					<div
+						className="modal-box"
+						style={{
+							width: '400px',
+							maxHeight: '500px'
+						}}
+					>
+						<div className="modal-title">
+						</div>
+
+						<div
+							className="modal-content"
+							style={{
+								whiteSpace: 'pre-wrap',
+								maxHeight: '350px',
+								overflowY: 'auto',
+								textAlign: 'center'
+							}}
+						>
+							{errorMessage}
+						</div>
+
+						<div className="modal-footer">
+							<button
+								className="btn-status blue"
+								onClick={() => setShowErrorModal(false)}
+							>
+								확인
+							</button>
+						</div>
+					</div>
+				</div>
 			)}
         </div>
     );

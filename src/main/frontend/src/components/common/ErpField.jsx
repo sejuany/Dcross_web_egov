@@ -42,23 +42,35 @@
  */
 import React from 'react';
 
-const ErpField = ({ label, required = false, span = 1, children, labelWidth = '95px', fontSize }) => {
-    return (
-        // col-{span}: 그리드에서 몇 칸을 차지할지 결정
-        <div className={`field-group col-${span}`}>
-            {/* erp-label: 왼쪽 라벨 / req 클래스: 필수 표시(*) 추가 */}
-            <label
-                className={`erp-label ${required ? 'req' : ''}`}
-                style={{ width: labelWidth, fontSize: fontSize }}
-            >
-                {label}
-            </label>
-            {/* flex-row: 내부 입력 요소들을 가로로 나열 */}
-            <div className="flex-row">
-                {children}
-            </div>
-        </div>
-    );
+const ErpField = ({ 
+	label, required = false, span = 1, children, labelWidth = '95px',
+	fontSize, className = '',
+	labelExtra // 라벨 우측 추가 영역(체크박스 등)
+}) => {
+	return (
+		// col-{span}: 그리드에서 몇 칸을 차지할지 결정
+		<div className={`field-group col-${span} ${className}`}>
+			{/* erp-label: 왼쪽 라벨 / req 클래스: 필수 표시(*) 추가 */}
+			<label
+				className={`erp-label ${required ? 'req' : ''}`}
+				style={{
+					width: labelWidth,
+					fontSize
+				}}
+			>
+				{/* 라벨 텍스트 */}
+				{label}
+
+				{/* 라벨 우측 추가 컴포넌트 */}
+				{labelExtra}
+			</label>
+
+			{/* flex-row: 내부 입력 요소들을 가로로 나열 */}
+			<div className="flex-row">
+				{children}
+			</div>
+		</div>
+	);
 };
 
 export default ErpField;

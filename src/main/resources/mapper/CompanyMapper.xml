@@ -67,13 +67,15 @@
             PKG_COMMON.FN_DECRYPT(A.TEL_NO) AS TEL_NO,
             PKG_COMMON.FN_DECRYPT(A.MPHONE_NO) AS MPHONE_NO,
             A.USE_YN,
+            ME.MEMBER_MAIL AS MEMBER_MAIL,
             TO_CHAR(A.INS_DATE, 'YYYYMMDD') AS INS_DATE,
             TO_CHAR(A.CONFIRM_DT, 'YYYYMMDD') AS CONFIRM_DT
         FROM TM_MEMBER_DT A,
              TM_BRANCH B,
              TM_SANGSA C,
              TM_MEMBER_MT D,
-             TM_COMPANY E
+             TM_COMPANY E,
+     		TM_MEMBER_ETC ME
         WHERE A.COMPANY_ID = B.COMPANY_ID
           AND A.COMPANY_ID = E.COMPANY_ID
           AND A.ASSOCIATION_ID = E.ASSOCIATION_ID
@@ -82,6 +84,9 @@
           AND A.COMPANY_ID = C.COMPANY_ID(+)
           AND A.BRANCH_ID = C.BRANCH_ID(+)
           AND A.SANGSA_ID = C.SANGSA_ID(+)
+          AND A.LOGIN_ID = ME.LOGIN_ID(+)
+		  AND A.MEMBER_ID = ME.MEMBER_ID(+)
+		  AND A.COMPANY_ID = ME.COMPANY_ID(+)
         <if test="COMPANY_ID != null and COMPANY_ID != ''">
           AND A.COMPANY_ID = #{COMPANY_ID}
         </if>
@@ -803,6 +808,46 @@
             SYSDATE
         )
     </insert>
+    
+    <insert id="mergeCompanyUserEtc" parameterType="java.util.Map">
+	    MERGE INTO TM_MEMBER_ETC T
+	    USING (
+	        SELECT
+	            #{LOGIN_ID} AS LOGIN_ID,
+	            #{MEMBER_ID} AS MEMBER_ID,
+	            #{COMPANY_ID} AS COMPANY_ID
+	        FROM DUAL
+	    ) S
+	    ON (
+	        T.LOGIN_ID = S.LOGIN_ID
+	        AND T.MEMBER_ID = S.MEMBER_ID
+	        AND T.COMPANY_ID = S.COMPANY_ID
+	    )
+	    WHEN MATCHED THEN
+	        UPDATE SET
+	            T.MEMBER_MAIL = #{MEMBER_MAIL},
+	            T.UPD_USER = #{UPD_USER},
+	            T.UPD_DATE = SYSDATE
+	    WHEN NOT MATCHED THEN
+	        INSERT (
+	            LOGIN_ID,
+	            MEMBER_ID,
+	            COMPANY_ID,
+	            FAV_MENU,
+	            MEMBER_MAIL,
+	            INS_USER,
+	            INS_DATE
+	        )
+	        VALUES (
+	            #{LOGIN_ID},
+	            #{MEMBER_ID},
+	            #{COMPANY_ID},
+	            ' ',
+	            #{MEMBER_MAIL},
+	            #{UPD_USER},
+	            SYSDATE
+	        )
+	</insert>
     
     <insert id="insertCompanyManageBranch"
         parameterType="java.util.Map">

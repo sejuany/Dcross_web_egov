@@ -4,13 +4,14 @@ import './MemberEdit.css';
 import PasswordChangeModal from './PasswordChangeModal';
 
 const emptyForm = {
-  LOGIN_ID: '',
-  MEMBER_NM: '',
-  TEL_NO: '',
-  MPHONE_NO: '',
-  LOGIN_GB: 'P',
-  REGIST_NO: '',
-  USE_YN: ''
+	LOGIN_ID: '',
+	MEMBER_NM: '',
+	TEL_NO: '',
+	MPHONE_NO: '',
+	MEMBER_MAIL: '',
+	LOGIN_GB: 'P',
+	REGIST_NO: '',
+	USE_YN: ''
 };
 
 const MemberEdit = () => {
@@ -40,6 +41,7 @@ const MemberEdit = () => {
         MEMBER_NM: info.MEMBER_NM || '',
         TEL_NO: info.TEL_NO || '',
         MPHONE_NO: info.MPHONE_NO || '',
+		MEMBER_MAIL: info.MEMBER_MAIL || '',
         LOGIN_GB: info.LOGIN_GB || 'P',
         REGIST_NO: info.REGIST_NO || '',
         USE_YN: info.USE_YN || ''
@@ -198,13 +200,14 @@ const MemberEdit = () => {
     try {
       setSaving(true);
 
-      const payload = {
-        MEMBER_NM: form.MEMBER_NM,
-        TEL_NO: form.TEL_NO,
-        MPHONE_NO: form.MPHONE_NO,
-        LOGIN_GB: form.LOGIN_GB,
-        REGIST_NO: form.REGIST_NO
-      };
+	  const payload = {
+	    MEMBER_NM: form.MEMBER_NM,
+	    TEL_NO: form.TEL_NO,
+	    MPHONE_NO: form.MPHONE_NO,
+	    MEMBER_MAIL: form.MEMBER_MAIL,
+	    LOGIN_GB: form.LOGIN_GB,
+	    REGIST_NO: form.REGIST_NO
+	  };
 
       const res = await axios.post('/api/member/update-basic', payload);
 
@@ -287,6 +290,18 @@ const MemberEdit = () => {
               />
             </div>
           </div>
+		  <div className="profile-row">
+		    <div className="profile-label">이메일</div>
+		    <div className="profile-value">
+		      <input
+		        name="MEMBER_MAIL"
+		        value={form.MEMBER_MAIL}
+		        onChange={handleChange}
+		        className="profile-input"
+		        placeholder="이메일을 입력하세요"
+		      />
+		    </div>
+		  </div>
           <div className="profile-row align-start">
             <div className="profile-label">인증구분</div>
             <div className="profile-value">

@@ -42,8 +42,14 @@ const NumberPlateModal = ({
 		
 		const res = await axios.post('/api/newcar/numplateList', dsWhere);
 		
+		console.log(res.data);
+		console.log(typeof res.data);
+		
 		// 차량번호
-		const lData = res.data || [];
+		const lData = (res.data || []).filter(
+		    no => String(no).toLowerCase() !== 'null'
+		);
+		
 		// 세팅
 		setList(lData);
 		// 조회된 차량번호
@@ -245,18 +251,6 @@ const NumberPlateModal = ({
 	                        >
 	                            <option value="SEDAN">승용</option>
 	                            <option value="VAN">승합</option>
-	                        </select>
-	                    </div>
-
-	                    <div className="search-row">
-	                        <label>조건</label>
-
-	                        <select
-	                            value={condition}
-	                            onChange={e => setCondition(e.target.value)}
-	                        >
-	                            <option value="NOT">전체</option>
-	                            <option value="ONLY">조건</option>
 	                        </select>
 	                    </div>
 

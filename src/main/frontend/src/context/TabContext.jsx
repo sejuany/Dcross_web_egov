@@ -1,5 +1,13 @@
-import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import React, {
+    createContext,
+    useCallback,
+    useContext,
+    useEffect,
+    useMemo,
+    useRef,
+    useState
+} from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 
 const TabContext = createContext();
 
@@ -27,10 +35,6 @@ export const useTabPageState = (key, initialValue) => {
     const [value, setValue] = useState(getInitialValue);
 
     useEffect(() => {
-        setValue(getInitialValue());
-    }, [getInitialValue]);
-
-    useEffect(() => {
         setTabPageState(tabId, key, value);
     }, [key, setTabPageState, tabId, value]);
 
@@ -42,32 +46,67 @@ export const useTabPageState = (key, initialValue) => {
 };
 
 export const TabProvider = ({ children }) => {
-    const [tabs, setTabs] = useState([{ id: 'home', title: '홈', path: '/home', closable: false }]);
+    const [tabs, setTabs] = useState([
+        { id: 'home', title: '홈', path: '/home', closable: false }
+    ]);
     const [activeTabId, setActiveTabId] = useState('home');
     const [tabPageStates, setTabPageStates] = useState({});
+    const [recentlyClosedPath, setRecentlyClosedPath] = useState('');
+    const pendingNavigationPathRef = useRef('');
     const navigate = useNavigate();
     const location = useLocation();
 
-    const addTab = (id, title, path, navigateOptions = {}) => {
-        setTabs((prevTabs) => {
-            const existingTab = prevTabs.find((tab) => tab.id === id || tab.path === path);
-            if (existingTab) {
-                setActiveTabId(existingTab.id);
-                return prevTabs.map((tab) =>
-                    tab.id === existingTab.id
-                        ? { ...tab, title, path, state: navigateOptions.state }
-                        : tab
-                );
-            }
-            const newTabs = [...prevTabs, { id, title, path, state: navigateOptions.state, closable: true }];
-            setActiveTabId(id);
-            return newTabs;
-        });
-        navigate(path, navigateOptions);
-    };
+    const addTab = useCallback((id, title, path, navigateOptions = {}) => {
+        setRecentlyClosedPath('');
+        pendingNavigationPathRef.current = path;
 
-    const removeTab = (id, e) => {
+        const existingTab = tabs.find((tab) => tab.id === id || tab.path === path);
+        const previousTabId = existingTab?.id;
+        const nextActiveTabId = id;
+        const nextTabs = existingTab
+            ? tabs.map((tab) =>
+                tab.id === existingTab.id
+                    ? { ...tab, id, title, path, state: navigateOptions.state }
+                    : tab
+            )
+            : [
+                ...tabs,
+                { id, title, path, state: navigateOptions.state, closable: true }
+            ];
+
+        setTabs(nextTabs);
+        setActiveTabId(nextActiveTabId);
+
+        if (previousTabId && previousTabId !== id) {
+            setTabPageStates(prevStates => {
+                if (!prevStates[previousTabId] || prevStates[id]) {
+                    return prevStates;
+                }
+
+                const nextStates = { ...prevStates };
+                nextStates[id] = nextStates[previousTabId];
+                delete nextStates[previousTabId];
+                return nextStates;
+            });
+        }
+
+        navigate(path, navigateOptions);
+    }, [navigate, tabs]);
+
+    const removeTab = useCallback((id, e) => {
         if (e) e.stopPropagation();
+
+        const tabIndex = tabs.findIndex((tab) => tab.id === id);
+        if (tabIndex === -1) return;
+
+        const targetTab = tabs[tabIndex];
+        if (!targetTab.closable) return;
+
+        const nextTabs = tabs.filter((tab) => tab.id !== id);
+        const nextTab = nextTabs[tabIndex - 1] || nextTabs[0];
+
+        setRecentlyClosedPath(targetTab.path);
+        setTabs(nextTabs);
 
         setTabPageStates(prevStates => {
             const nextStates = { ...prevStates };
@@ -75,64 +114,96 @@ export const TabProvider = ({ children }) => {
             return nextStates;
         });
 
-        setTabs((prevTabs) => {
-            const tabIndex = prevTabs.findIndex((tab) => tab.id === id);
-            if (tabIndex === -1) return prevTabs;
-
-            const newTabs = prevTabs.filter((tab) => tab.id !== id);
-
-            if (activeTabId === id) {
-
-                const nextTab = newTabs[tabIndex - 1] || newTabs[0];
-
-                if (nextTab) {
-                    // 이동할 탭이 있으면 해당 탭으로 전환
-                    setActiveTabId(nextTab.id);
-                    navigate(nextTab.path);
-                } else {
-                    // 모든 탭이 닫힌 경우 홈으로 이동
-                    // (nextTab.id 호출 시 발생하는 오류 방지)
-                    setActiveTabId('home');
-                    navigate('/home');
-                }
+        if (activeTabId === id) {
+            if (nextTab) {
+                pendingNavigationPathRef.current = nextTab.path;
+                setActiveTabId(nextTab.id);
+                navigate(nextTab.path, { state: nextTab.state });
+            } else {
+                pendingNavigationPathRef.current = '/home';
+                setActiveTabId('home');
+                navigate('/home');
             }
-
-            return newTabs;
-        });
-    };
-
-    const switchTab = (id) => {
-        const tab = tabs.find((t) => t.id === id);
-        if (tab) {
-            setActiveTabId(id);
-            navigate(tab.path, { state: tab.state });
         }
-    };
+    }, [activeTabId, navigate, tabs]);
+
+    const switchTab = useCallback((id) => {
+        const tab = tabs.find((item) => item.id === id);
+        if (!tab) return;
+
+        setRecentlyClosedPath('');
+        pendingNavigationPathRef.current = tab.path;
+        setActiveTabId(id);
+        navigate(tab.path, { state: tab.state });
+    }, [navigate, tabs]);
 
     const getTabPageState = useCallback((tabId, key) => {
         return tabPageStates?.[tabId]?.[key];
     }, [tabPageStates]);
 
     const setTabPageState = useCallback((tabId, key, value) => {
-        setTabPageStates(prevStates => ({
-            ...prevStates,
-            [tabId]: {
-                ...(prevStates[tabId] || {}),
-                [key]: value,
-            },
-        }));
+        setTabPageStates(prevStates => {
+            if (Object.is(prevStates?.[tabId]?.[key], value)) {
+                return prevStates;
+            }
+
+            return {
+                ...prevStates,
+                [tabId]: {
+                    ...(prevStates[tabId] || {}),
+                    [key]: value,
+                },
+            };
+        });
     }, []);
 
-    // Synchronize activeTabId with URL when navigating (e.g., via browser back button)
     useEffect(() => {
-        const currentTab = tabs.find(t => t.path === location.pathname);
+        if (recentlyClosedPath && location.pathname !== recentlyClosedPath) {
+            setRecentlyClosedPath('');
+        }
+    }, [location.pathname, recentlyClosedPath]);
+
+    useEffect(() => {
+        if (
+            pendingNavigationPathRef.current &&
+            pendingNavigationPathRef.current !== location.pathname
+        ) {
+            return;
+        }
+
+        if (pendingNavigationPathRef.current === location.pathname) {
+            pendingNavigationPathRef.current = '';
+        }
+
+        const currentTab = tabs.find(tab => tab.path === location.pathname);
+
         if (currentTab && currentTab.id !== activeTabId) {
             setActiveTabId(currentTab.id);
         }
-    }, [location.pathname, tabs, activeTabId]);
+    }, [activeTabId, location.pathname, tabs]);
+
+    const value = useMemo(() => ({
+        tabs,
+        activeTabId,
+        recentlyClosedPath,
+        addTab,
+        removeTab,
+        switchTab,
+        getTabPageState,
+        setTabPageState
+    }), [
+        tabs,
+        activeTabId,
+        recentlyClosedPath,
+        addTab,
+        removeTab,
+        switchTab,
+        getTabPageState,
+        setTabPageState
+    ]);
 
     return (
-        <TabContext.Provider value={{ tabs, activeTabId, addTab, removeTab, switchTab, getTabPageState, setTabPageState }}>
+        <TabContext.Provider value={value}>
             {children}
         </TabContext.Provider>
     );

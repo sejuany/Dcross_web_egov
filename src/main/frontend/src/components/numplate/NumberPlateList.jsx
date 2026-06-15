@@ -143,9 +143,9 @@ const NumberPlateList = () => {
         }
     };
 
-    const formatCode = (groupId, value) => {
+    const formatCode = React.useCallback((groupId, value) => {
         return codeMap[groupId] && codeMap[groupId][value] ? codeMap[groupId][value] : value;
-    };
+    }, [codeMap]);
 
     useEffect(() => {
         fetchCodes();
@@ -311,7 +311,7 @@ const NumberPlateList = () => {
 		*/
         // 기본적으로 defaultColumnDefs 반환
         return defaultColumnDefs;
-    }, [user, codeMap]);
+    }, [formatCode, dsYn, dsSpecial, numplateAssignList]);
 
     const handleRowDoubleClicked = (event) => {
         if (event.data && event.data.SERVICE_ID) {
@@ -355,6 +355,8 @@ const NumberPlateList = () => {
 		if (!activeTabId) return;
 	    removeTab(activeTabId);
     };
+
+    const defaultColDef = React.useMemo(() => ({ sortable: true, resizable: true }), []);
 
     useEffect(() => {
         const handleKeyDown = (e) => {
@@ -531,7 +533,7 @@ const NumberPlateList = () => {
                         rowData={rowData}
                         columnDefs={columnDefs}
                         // 기본적으로 모든 컬럼에 적용될 공통 속성: 정렬 가능, 열 너비 조절 가능
-                        defaultColDef={{ sortable: true, resizable: true }}
+                        defaultColDef={defaultColDef}
                         rowSelection="multiple"
                         onRowDoubleClicked={handleRowDoubleClicked}
                         onCellClicked={handleCellClicked}

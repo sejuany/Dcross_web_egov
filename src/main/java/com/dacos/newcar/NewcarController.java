@@ -245,4 +245,16 @@ public class NewcarController {
 	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
 	}
 	
+	/**
+	 * 채권 및 영수증 조회
+	 * GET /api/newcar/bond-info/{serviceId}
+	 */
+	@GetMapping("/bond-info/{serviceId}")
+	public ResponseEntity<Map<String, Object>> selectBondInfo(
+	        @PathVariable("serviceId") String serviceId) {
+
+	    return ResponseEntity.ok(
+	            newcarService.selectBondInfo(serviceId)
+	    );
+	}
 }

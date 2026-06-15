@@ -311,6 +311,29 @@ export const gf = {
 	    return newObj;
 	},
 	
+	// 등록번호 하이픈
+	formatRegNo(regNo) {
+	    if (!regNo) return '';
+
+	    const value = String(regNo).replaceAll('-', '');
+
+	    return value.length > 6
+	        ? `${value.slice(0, 6)}-${value.slice(6)}`
+	        : value;
+	},
+	
+	// 핸드폰번호 하이픈 추가
+	formatPhoneNo(phoneNo) {
+	    if (!phoneNo) return '';
+
+	    const value = String(phoneNo).replaceAll('-', '');
+
+	    if (value.length === 11) {
+	        return `${value.slice(0, 3)}-${value.slice(3, 7)}-${value.slice(7)}`;
+	    }
+
+	    return value;
+	},
 
 	// 전체 주소 넣고 조회하기 
 	createAddrParam(address) {

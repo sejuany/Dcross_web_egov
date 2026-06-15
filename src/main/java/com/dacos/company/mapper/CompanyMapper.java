@@ -71,6 +71,8 @@ public interface CompanyMapper {
     int resetCompanyUserPassword(Map<String, Object> param);
 
     int updatePasswordDate(Map<String, Object> param);
+    
+    int mergeCompanyUserEtc(Map<String, Object> param);
 
     /*
      * =====================================================

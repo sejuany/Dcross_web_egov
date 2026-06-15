@@ -9,10 +9,12 @@ const CommonSelect = ({
     className = 'erp-input',
     valueField = 'CODE_ID',
     labelField = 'CODE_NM',
+    width, // select 너비
+    options,
     ...rest
 }) => {
 
-    const options = codes?.[groupId] || [];
+    const optionList = options || codes?.[groupId] || [];
 
     return (
         <select
@@ -20,11 +22,12 @@ const CommonSelect = ({
             name={name}
             value={value ?? ''}
             onChange={onChange}
+            style={width ? { width } : undefined}
             {...rest}
         >
             <option value="">선택</option>
 
-            {options.map(item => (
+            {optionList.map(item => (
                 <option
                     key={item[valueField]}
                     value={item[valueField]}
@@ -36,4 +39,4 @@ const CommonSelect = ({
     );
 };
 
-export default CommonSelect; 
+export default CommonSelect;

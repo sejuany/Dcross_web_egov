@@ -237,48 +237,49 @@
 	    UPDATE TR_PAYMENT
 	    <set>
 	        SERVICE_ID = #{SERVICE_ID},
+	
 	        <if test="PAY_KD != null and PAY_KD != ''">
 	            PAY_KD = #{PAY_KD},
 	        </if>
-	        <if test="PAY_AMT != null and PAY_AMT != ''">
-	            PAY_AMT = #{PAY_AMT},
-	            <if test="PRE_PAY_AMT == null or PRE_PAY_AMT == ''">
-	                PRE_PAY_AMT = #{PAY_AMT},
-	            </if>
-	        </if>
+	
+	        PAY_AMT = NVL(#{PAY_AMT}, 0),
+	        PRE_PAY_AMT = NVL(#{PRE_PAY_AMT}, 0),
+	
 	        <if test="PAY_OP != null and PAY_OP != ''">
 	            PAY_OP = #{PAY_OP},
 	        </if>
+	
 	        <if test="PAY_ST != null and PAY_ST != ''">
 	            PAY_ST = #{PAY_ST},
 	        </if>
+	
 	        <if test="VBANK_CD != null and VBANK_CD != ''">
 	            VBANK_CD = #{VBANK_CD},
 	        </if>
+	
 	        <if test="VBANK_NO != null and VBANK_NO != ''">
 	            VBANK_NO = #{VBANK_NO},
 	        </if>
+	
 	        <if test="PAY_DT != null and PAY_DT != ''">
 	            <!-- PAY_DT 유지 -->
 	        </if>
+	
 	        <if test="T_VBANK_GB != null and T_VBANK_GB != ''">
 	            T_VBANK_GB = #{T_VBANK_GB},
 	        </if>
+	
 	        <if test="T_VBANK_ID != null and T_VBANK_ID != ''">
 	            T_VBANK_ID = #{T_VBANK_ID},
 	        </if>
-	        <if test="REAL_ALOAN != null and REAL_ALOAN != ''">
-	            REAL_ALOAN = #{REAL_ALOAN},
-	        </if>
-	        <if test="REAL_RLOAN != null and REAL_RLOAN != ''">
-	            REAL_RLOAN = #{REAL_RLOAN},
-	        </if>
-	        <if test="REAL_TAX_ACQ != null and REAL_TAX_ACQ != ''">
-	            REAL_TAX_ACQ = #{REAL_TAX_ACQ},
-	        </if>
+	
+	        REAL_ALOAN = NVL(#{REAL_ALOAN}, 0),
+	        REAL_RLOAN = NVL(#{REAL_RLOAN}, 0),
+	        REAL_TAX_ACQ = NVL(#{REAL_TAX_ACQ}, 0),
 	        UPD_USER = #{MEMBER_ID},
 	        UPD_DATE = SYSDATE
 	    </set>
+	
 	    WHERE SERVICE_ID = #{SERVICE_ID}
 	      AND PAY_KD = #{PAY_KD}
 	</update>

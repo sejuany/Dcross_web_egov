@@ -212,6 +212,7 @@ const createEmptyDetail = () => ({
     ASSOCIATION_ID: '',
     BRANCH_ID: '',
     SANGSA_ID: '',
+	MEMBER_MAIL: '',
 });
 
 const createDefaultWorkPerms = () => ({
@@ -926,6 +927,7 @@ function CompanyUserManage() {
             ASSOCIATION_ID: getValue(userRow, 'ASSOCIATION_ID', 'associationId'),
             BRANCH_ID: getValue(userRow, 'BRANCH_ID', 'branchId'),
             SANGSA_ID: getValue(userRow, 'SANGSA_ID', 'sangsaId'),
+			MEMBER_MAIL: getValue(userRow, 'MEMBER_MAIL', 'memberMail', 'member_mail'),
         };
 
         setSelectedIndex(index);
@@ -1165,9 +1167,10 @@ function CompanyUserManage() {
                 MEMBER_GB: nextMemberGb,
                 MEMBER_NM: detail.MEMBER_NM,
                 TEL_NO: detail.TEL_NO,
-                MPHONE_NO: detail.MPHONE_NO,
-                USE_YN: detail.USE_YN,
-                INS_USER: loginId,
+				MPHONE_NO: detail.MPHONE_NO,
+				MEMBER_MAIL: detail.MEMBER_MAIL || '',
+				USE_YN: detail.USE_YN,
+				INS_USER: loginId,
                 PWD_RESET_YN: pwdResetYn,
             },
             workInfo: {
@@ -1493,6 +1496,19 @@ function CompanyUserManage() {
                                     <input value={detail.MPHONE_NO} readOnly />
                                 </div>
                             </div>
+							
+							<div className="cum-form-row">
+							    <div className="cum-form-field cum-email-field">
+							        <label>이메일</label>
+							        <input
+							            name="MEMBER_MAIL"
+							            value={detail.MEMBER_MAIL || ''}
+							            onChange={handleDetailChange}
+							            disabled={!selectedUser}
+							            placeholder="이메일을 입력해주세요"
+							        />
+							    </div>
+							</div>
 
                             <div className="cum-form-row">
                                 <div className="cum-form-field login-gb-field">

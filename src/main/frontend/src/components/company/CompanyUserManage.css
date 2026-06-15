@@ -624,3 +624,8 @@
         flex-wrap: wrap;
     }
 }
+
+/* 회원 기본정보 이메일 */
+.cum-email-field {
+    grid-column: 1 / -1;
+}

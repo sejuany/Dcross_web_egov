@@ -24,7 +24,7 @@ export const initialDsNewCar = {
 	CARID_NO: '',
 	CAR_NO: '',
 	REG_NO: '',
-	REG_GB: 'R',
+	REG_GB: 'B',
 	OWNER_NM: '',
 
 	// 차량정보
@@ -42,7 +42,7 @@ export const initialDsNewCar = {
 	REGIST_DATE: '',
 
 	// 번호판
-	NUMPLATE_GB: 'F',
+	NUMPLATE_GB: '7',
 	IMSINUM_YN: 'N',
 	REQ_CAR_NO: '',
 
@@ -67,6 +67,9 @@ export const initialDsNewCar = {
 	// 연락처
 	TEL_NO: '',
 	MPHONE_NO: '',
+	
+	RETURN_NO: '',
+	RETURN_NM: '',
 
 	// 보험
 	INSURER_CD: '',
@@ -80,16 +83,17 @@ export const initialDsNewCar = {
 
 	// 채권
 	BOND_YN: 'N',
-	BOND_DC: 'SELL',
+	BOND_DC: '',
 	BOND_AMT: 0,
 	BOND_BANK_CD: '',
 	BOND_BANK_NO: '',
+	BOND_LINK_YN: '',
 
 	// 결제
 	PAY_NM: '',
 	PAY_HP_NO: '',
 	PAY_GB: 'B', // 선납 (B), 후납(A)
-	PAY_ME: '',
+	PAY_ME: 'B',
 	PAY_ST: 'N',
 	VBANK_CD: '',
 	VBANK_NO: '',
@@ -103,7 +107,7 @@ export const initialDsNewCar = {
 	// 기타
 	MEMO_TX: '',
 	NEWCAR_REG_DT: '',
-	NTAX_TRGET_CD: '00',
+	NTAX_TRGET_CD: '',
 	NTAX_TRGET_GR_CD: '0',
 	NTAX_APPLC_CD: '0',
 	NTAX_WHO: 'REPRE',
@@ -335,6 +339,7 @@ export const newCarMap = {
 	BOND_AMT: 'BOND_AMT',
 	BOND_BANK_CD: 'BOND_BANK_CD',
 	BOND_BANK_NO: 'BOND_BANK_NO',
+	BOND_LINK_YN: 'BOND_LINK_YN',
 
 	// 결제
 	PAY_NM: 'PAY_NM',

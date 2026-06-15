@@ -1469,7 +1469,7 @@ function CompanyManage() {
                         <div className="company-manage-address-box">
                             <input type="text" name="ADDRESS" value={company.ADDRESS} onChange={handleCompanyChange} readOnly disabled={disabled} />
                             <input type="text" name="ADDRESS_DT" value={company.ADDRESS_DT} onChange={handleCompanyChange} placeholder="상세주소" disabled={disabled} />
-                            <input type="text" name="POST_NO" value={company.POST_NO} onChange={handleCompanyChange} readOnly disabled={disabled} className="post-no" />
+                            <input type="text" name="POST_NO" value={company.POST_NO} onChange={handleCompanyChange} readOnly disabled={disabled} className="company-manage-post-no" />
                             <button type="button" onClick={handleCompanyAddressSearch} disabled={disabled}>주소검색</button>
                         </div>
                     </ErpField>
@@ -1480,7 +1480,7 @@ function CompanyManage() {
 
     const renderRefundSection = ({ readOnly = false } = {}) => (
         <ErpSection title="환불계좌 정보">
-            <div className="company-manage-form-grid refund-grid">
+            <div className="company-manage-form-grid company-manage-refund-grid">
                 <ErpField label="환불 은행명">
                     <select name="RT_BANK_CD" value={company.RT_BANK_CD} onChange={handleCompanyChange} disabled={loading || saving || readOnly}>
                         {bankOptions.map((item, index) => (
@@ -1526,7 +1526,7 @@ function CompanyManage() {
                         <tbody>
                             {baseAddrList.length === 0 ? (
                                 <tr>
-                                    <td colSpan="4" className="empty-cell">등록된 사용본거지가 없습니다.</td>
+                                    <td colSpan="4" className="company-manage-empty-cell">등록된 사용본거지가 없습니다.</td>
                                 </tr>
                             ) : (
                                 baseAddrList.map((item, index) => (
@@ -1537,8 +1537,8 @@ function CompanyManage() {
                                     >
                                         <td>{index + 1}</td>
                                         <td>{item.BASE_NM}</td>
-                                        <td className="text-left">{item.ADDRESS}</td>
-                                        <td className="text-left">{item.ADDRESS_DT}</td>
+                                        <td className="company-manage-text-left">{item.ADDRESS}</td>
+                                        <td className="company-manage-text-left">{item.ADDRESS_DT}</td>
                                     </tr>
                                 ))
                             )}
@@ -1547,14 +1547,14 @@ function CompanyManage() {
                 </div>
 
                 <div className="company-manage-base-input">
-                    <div className="base-input-row">
+                    <div className="company-manage-base-input-row">
                         <label>본거지명</label>
                         <input ref={baseNameRef} type="text" name="BASE_NM" value={baseAddrInput.BASE_NM} onChange={handleBaseAddrChange} disabled={loading || saving || readOnly} />
                     </div>
 
-					<div className="base-input-row">
+					<div className="company-manage-base-input-row">
 					    <label>주소</label>
-					    <div className="popup-address-row">
+					    <div className="company-manage-popup-address-row">
 					        <input
 					            type="text"
 					            name="ADDRESS"
@@ -1575,12 +1575,12 @@ function CompanyManage() {
 					    </div>
 					</div>
 
-                    <div className="base-input-row">
+                    <div className="company-manage-base-input-row">
                         <label>상세주소</label>
                         <input type="text" name="ADDRESS_DT" value={baseAddrInput.ADDRESS_DT} onChange={handleBaseAddrChange} disabled={loading || saving || readOnly} />
                     </div>
 
-                    <div className="base-input-row">
+                    <div className="company-manage-base-input-row">
                         <label>우편번호</label>
                         <input type="text" name="POST_NO" value={baseAddrInput.POST_NO} onChange={handleBaseAddrChange} readOnly disabled={loading || saving || readOnly} />
                     </div>
@@ -1597,7 +1597,7 @@ function CompanyManage() {
         return (
             <ErpSection title="서비스 설정">
                 <div className="company-manage-table-wrap">
-                    <table className="company-manage-table service-table">
+                    <table className="company-manage-table company-manage-service-table">
                         <thead>
                             <tr>
                                 <th style={{ width: '110px' }}>업무</th>
@@ -1697,9 +1697,9 @@ function CompanyManage() {
         }
 
         return (
-            <div className="company-popup-backdrop">
-                <div className="company-manage-popup large">
-                    <div className="company-popup-header">
+            <div className="company-manage-popup-backdrop">
+                <div className="company-manage-popup company-manage-popup-large">
+                    <div className="company-manage-popup-header">
                         <div>
                             <h3>지점관리</h3>
                             <p>
@@ -1711,20 +1711,19 @@ function CompanyManage() {
                         <button type="button" onClick={() => setBranchPopupOpen(false)}>×</button>
                     </div>
 
-                    <div className="company-popup-body">
-                        <div className="company-popup-left">
-                            <div className="popup-list-header">
+                    <div className="company-manage-popup-body">
+                        <div className="company-manage-popup-left">
+                            <div className="company-manage-popup-list-header">
                                 <strong>지점 목록</strong>
                                 {isSpecialCompanyAdmin && (
                                     <button type="button" onClick={handleAddBranch}>+ 지점 추가</button>
                                 )}
                             </div>
 
-                            <div className="company-manage-table-wrap popup-table-wrap">
+                            <div className="company-manage-table-wrap company-manage-popup-table-wrap">
                                 <table className="company-manage-table">
                                     <thead>
                                         <tr>
-                                            <th style={{ width: '80px' }}>지점ID</th>
                                             <th style={{ width: '180px' }}>지점명</th>
                                             <th>주소</th>
                                             <th style={{ width: '90px' }}>사용</th>
@@ -1733,7 +1732,7 @@ function CompanyManage() {
                                     <tbody>
                                         {branchList.length === 0 ? (
                                             <tr>
-                                                <td colSpan="4" className="empty-cell">조회된 지점이 없습니다.</td>
+                                                <td colSpan="3" className="company-manage-empty-cell">조회된 지점이 없습니다.</td>
                                             </tr>
                                         ) : (
                                             branchList.map((item, index) => (
@@ -1742,9 +1741,8 @@ function CompanyManage() {
                                                     className={selectedBranchIndex === index ? 'selected' : ''}
                                                     onClick={() => handleBranchSelect(index)}
                                                 >
-                                                    <td>{item.BRANCH_ID}</td>
                                                     <td>{item.BRANCH_NM}</td>
-                                                    <td className="text-left">{item.ADDRESS} {item.ADDRESS_DT}</td>
+                                                    <td className="company-manage-text-left">{item.ADDRESS} {item.ADDRESS_DT}</td>
                                                     <td>{item.USE_YN === 'Y' ? '사용' : '미사용'}</td>
                                                 </tr>
                                             ))
@@ -1754,19 +1752,10 @@ function CompanyManage() {
                             </div>
                         </div>
 
-                        <div className="company-popup-right">
-                            <div className="popup-form-title">지점 상세정보</div>
+                        <div className="company-manage-popup-right">
+                            <div className="company-manage-popup-form-title">지점 상세정보</div>
 
-                            <div className="popup-form-grid">
-                                <label>지점ID</label>
-                                <input
-                                    name="BRANCH_ID"
-                                    value={branchInput.BRANCH_ID}
-                                    onChange={handleBranchChange}
-                                    disabled={loading || saving || isSpecialBranchAdmin || selectedBranchIndex >= 0}
-                                    placeholder="신규는 비워두면 자동채번"
-                                />
-
+                            <div className="company-manage-popup-form-grid">
                                 <label>지점명</label>
                                 <input name="BRANCH_NM" value={branchInput.BRANCH_NM} onChange={handleBranchChange} disabled={loading || saving || !canEditBranchInfo} />
 
@@ -1777,7 +1766,7 @@ function CompanyManage() {
                                 <input name="TEL_NO" value={branchInput.TEL_NO} onChange={handleBranchChange} disabled={loading || saving || !canEditBranchInfo} />
 
                                 <label>주소</label>
-                                <div className="popup-address-row">
+                                <div className="company-manage-popup-address-row">
                                     <input
                                         name="ADDRESS"
                                         value={branchInput.ADDRESS}
@@ -1852,15 +1841,15 @@ function CompanyManage() {
                                 </select>
                             </div>
 
-                            <div className="popup-form-title branch-work-title">서비스사용선택</div>
-                            <div className="branch-work-grid">
+                            <div className="company-manage-popup-form-title company-manage-branch-work-title">서비스사용선택</div>
+                            <div className="company-manage-branch-work-grid">
                                 {getAllowedBranchWorks().length === 0 ? (
-                                    <div className="branch-work-empty">
+                                    <div className="company-manage-branch-work-empty">
                                         이 회원사에 사용 가능한 서비스가 없습니다.
                                     </div>
                                 ) : (
                                     getAllowedBranchWorks().map(work => (
-                                        <div className="branch-work-item" key={work.workCd}>
+                                        <div className="company-manage-branch-work-item" key={work.workCd}>
                                             <span>{work.label}</span>
                                             <select
                                                 value={branchInput[work.field] || 'N'}
@@ -1884,8 +1873,8 @@ function CompanyManage() {
                         </div>
                     </div>
 
-                    <div className="company-popup-footer">
-                        <button type="button" className="btn-popup-main" onClick={handleSaveBranch} disabled={!canEditBranchInfo || saving}>저장</button>
+                    <div className="company-manage-popup-footer">
+                        <button type="button" className="company-manage-btn-popup-main" onClick={handleSaveBranch} disabled={!canEditBranchInfo || saving}>저장</button>
                         <button type="button" onClick={() => setBranchPopupOpen(false)}>닫기</button>
                     </div>
                 </div>
@@ -1899,9 +1888,9 @@ function CompanyManage() {
 	    }
 
 	    return (
-	        <div className="company-popup-backdrop">
-	            <div className="company-manage-popup large sangsa-simple-popup">
-	                <div className="company-popup-header">
+	        <div className="company-manage-popup-backdrop">
+	            <div className="company-manage-popup company-manage-popup-large company-manage-sangsa-simple-popup">
+	                <div className="company-manage-popup-header">
 	                    <div>
 	                        <h3>영업팀관리</h3>
 	                        <p>
@@ -1913,10 +1902,10 @@ function CompanyManage() {
 	                    <button type="button" onClick={() => setSangsaPopupOpen(false)}>×</button>
 	                </div>
 
-	                <div className="company-popup-body sangsa-simple-body">
-	                    <div className="company-popup-left">
+	                <div className="company-manage-popup-body company-manage-sangsa-simple-body">
+	                    <div className="company-manage-popup-left">
 	                        {isSpecialCompanyAdmin && (
-	                            <div className="popup-branch-filter">
+	                            <div className="company-manage-popup-branch-filter">
 	                                <label>지점 선택</label>
 	                                <select
 	                                    value={branchInput.BRANCH_ID}
@@ -1943,14 +1932,14 @@ function CompanyManage() {
 	                            </div>
 	                        )}
 
-	                        <div className="popup-list-header">
+	                        <div className="company-manage-popup-list-header">
 	                            <strong>영업팀 목록</strong>
 	                            <button type="button" onClick={handleAddSangsa}>
 	                                + 팀 추가
 	                            </button>
 	                        </div>
 
-	                        <div className="company-manage-table-wrap popup-table-wrap">
+	                        <div className="company-manage-table-wrap company-manage-popup-table-wrap">
 	                            <table className="company-manage-table">
 	                                <thead>
 	                                    <tr>
@@ -1962,7 +1951,7 @@ function CompanyManage() {
 	                                <tbody>
 	                                    {sangsaList.length === 0 ? (
 	                                        <tr>
-	                                            <td colSpan="3" className="empty-cell">
+	                                            <td colSpan="3" className="company-manage-empty-cell">
 	                                                조회된 영업팀이 없습니다.
 	                                            </td>
 	                                        </tr>
@@ -1984,10 +1973,10 @@ function CompanyManage() {
 	                        </div>
 	                    </div>
 
-	                    <div className="company-popup-right sangsa-simple-detail">
-	                        <div className="popup-form-title">영업팀 상세정보</div>
+	                    <div className="company-manage-popup-right company-manage-sangsa-simple-detail">
+	                        <div className="company-manage-popup-form-title">영업팀 상세정보</div>
 
-	                        <div className="popup-form-grid sangsa-simple-form-grid">
+	                        <div className="company-manage-popup-form-grid company-manage-sangsa-simple-form-grid">
 	                            <label>팀명</label>
 	                            <input
 	                                name="SANGSA_NM"
@@ -2023,10 +2012,10 @@ function CompanyManage() {
 	                    </div>
 	                </div>
 
-	                <div className="company-popup-footer">
+	                <div className="company-manage-popup-footer">
 	                    <button
 	                        type="button"
-	                        className="btn-popup-main"
+	                        className="company-manage-btn-popup-main"
 	                        onClick={handleSaveSangsa}
 	                        disabled={!canEditSangsaInfo || saving}
 	                    >
@@ -2044,10 +2033,10 @@ function CompanyManage() {
     return (
         <div className="company-manage-page">
             <div className="company-manage-toolbar">
-                <div className="toolbar-left">
-                    <span className="toolbar-title">기업관리</span>
+                <div className="company-manage-toolbar-left">
+                    <span className="company-manage-toolbar-title">기업관리</span>
 
-                    <div className="company-select-box">
+                    <div className="company-manage-select-box">
                         <label>회원사</label>
 
                         {isAdmin ? (
@@ -2065,7 +2054,7 @@ function CompanyManage() {
                     </div>
                 </div>
 
-                <div className="toolbar-right">
+                <div className="company-manage-toolbar-right">
                     <button type="button" onClick={handleCompanyHistory} disabled={loading || saving}>
                         회원사 이력
                     </button>

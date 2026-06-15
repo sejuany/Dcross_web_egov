@@ -26,6 +26,13 @@
             TN.NUMPLATE_GB,
             TN.PAY_ST,
             TO_CHAR(TN.PAY_DT, 'MM.DD HH24:MI')       AS PAY_DT,
+            TN.BPAY_YN,
+            CASE
+			    WHEN TN.PAY_ST = 'Y'
+			     AND TN.BPAY_YN = 'Y'
+			    THEN 'Y'
+			    ELSE 'N'
+			END AS ALL_PAY_YN,
             TO_CHAR(TN.BPAY_DT, 'MM.DD HH24:MI')      AS BPAY_DT,
             TN.PROC_CD,
             TN.TASK_CD,
@@ -300,11 +307,24 @@
 	         JOIN TR_NEWCAR NC ON SV.SERVICE_ID = NC.SERVICE_ID
 	    WHERE NC.CARID_NO = #{CARID_NO}
 	      AND SV.PROC_ST IN (
-	          'REQ', 'S_END', 'S_REQ', 'P_REQ',
-	          'D_REQ', 'D_ING', 'D_END', 'D_CON',
+	          'REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END',
+	          'PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON',
 	          'J_REQ', 'J_ING', 'J_END', 'END'
 	      )
 	      AND SV.REQUEST_DT 		<![CDATA[<=]]> SYSDATE
+	</select>
+
+	<!-- 신청건 중 주문번호 조회 -->
+	<select id="selectDuplicateLinkIdNO" parameterType="map" resultType="java.util.Map">
+	    SELECT SERVICE_ID
+	    FROM TR_SERVICE 
+	    WHERE LINK_ID = #{LINK_ID}
+	      AND PROC_ST IN (
+	          'REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END',
+	          'PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON',
+	          'J_REQ', 'J_ING', 'J_END', 'END'
+	      )
+	      AND REQUEST_DT 		<![CDATA[<=]]> SYSDATE
 	</select>
 
 	<select id="getTrOwnerInfo" parameterType="map" resultType="map">
@@ -536,64 +556,69 @@
 			<if test="REG_GB != null and REG_GB != ''">
 	            REG_GB = #{REG_GB},
 			</if>
-			<if test="REG_NO != null and REG_NO != ''">
-	            REG_NO = PKG_COMMON.FN_ENCRYPT(#{REG_NO}),
+			<if test="REG_NO != null">
+			    REG_NO = PKG_COMMON.FN_ENCRYPT(
+			        REPLACE(REPLACE(REPLACE(REPLACE(
+			            #{REG_NO},
+			            '-', ''
+			        ), CHR(13), ''), CHR(10), ''), ' ', '')
+			    ),
 			</if>
-			<if test="BIZ_NO != null and BIZ_NO != ''">
+			<if test="BIZ_NO != null">
 	            BIZ_NO = #{BIZ_NO},
 			</if>
-			<if test="OWNER_NM != null and OWNER_NM != ''">
+			<if test="OWNER_NM != null">
 	            OWNER_NM = #{OWNER_NM},
 			</if>
 			<if test="RATIO_NO != null and RATIO_NO != ''">
 			    RATIO_NO = #{RATIO_NO},
 			</if>
-			<if test="OWNER_BRANCH_ID != null and OWNER_BRANCH_ID != ''">
+			<if test="OWNER_BRANCH_ID != null">
 	            OWNER_BRANCH_ID = #{OWNER_BRANCH_ID},
 			</if>
-			<if test="POST_NO != null and POST_NO != ''">
+			<if test="POST_NO != null">
 	            POST_NO = #{POST_NO},
 			</if>
-			<if test="BUBJUNG_CD != null and BUBJUNG_CD != ''">
+			<if test="BUBJUNG_CD != null">
 	            BUBJUNG_CD = #{BUBJUNG_CD},
 			</if>
-			<if test="ADDRESS != null and ADDRESS != ''">
+			<if test="ADDRESS != null">
 	            ADDRESS = PKG_COMMON.FN_ENCRYPT(#{ADDRESS}),
 			</if>
-			<if test="ADDRESS_DT != null and ADDRESS_DT != ''">
+			<if test="ADDRESS_DT != null">
 	            ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{ADDRESS_DT}),
 			</if>
-			<if test="RT_ACC_NM != null and RT_ACC_NM != ''">
+			<if test="RT_ACC_NM != null">
 			    RT_ACC_NM = #{RT_ACC_NM},
 			</if>
-			<if test="RT_ACC_NO != null and RT_ACC_NO != ''">
+			<if test="RT_ACC_NO != null">
 			    RT_ACC_NO = #{RT_ACC_NO},
 			</if>
-			<if test="BASE_BRANCH_ID != null and BASE_BRANCH_ID != ''">
+			<if test="BASE_BRANCH_ID != null">
 	            BASE_BRANCH_ID = #{BASE_BRANCH_ID},
 			</if>
-			<if test="BASE_POST_NO != null and BASE_POST_NO != ''">
+			<if test="BASE_POST_NO != null">
 	            BASE_POST_NO = #{BASE_POST_NO},
 			</if>
-			<if test="BASE_BUBJUNG_CD != null and BASE_BUBJUNG_CD != ''">
+			<if test="BASE_BUBJUNG_CD != null">
 	            BASE_BUBJUNG_CD = #{BASE_BUBJUNG_CD},
 			</if>
-			<if test="BASE_ADDRESS != null and BASE_ADDRESS != ''">
+			<if test="BASE_ADDRESS != null">
 	            BASE_ADDRESS = PKG_COMMON.FN_ENCRYPT(#{BASE_ADDRESS}),
 			</if>
-			<if test="BASE_ADDRESS_DT != null and BASE_ADDRESS_DT != ''">
+			<if test="BASE_ADDRESS_DT != null">
 	            BASE_ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{BASE_ADDRESS_DT}),
 			</if>
-			<if test="ADDR_INFO != null and ADDR_INFO != ''">
+			<if test="ADDR_INFO != null">
 			    ADDR_INFO = PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}),
 			</if>
-			<if test="ADDR_INFO2 != null and ADDR_INFO2 != ''">
+			<if test="ADDR_INFO2 != null">
 			    ADDR_INFO2 = PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}),
 			</if>
-			<if test="TEL_NO != null and TEL_NO != ''">
+			<if test="TEL_NO != null">
 	            TEL_NO = PKG_COMMON.FN_ENCRYPT(#{TEL_NO}),
 			</if>
-			<if test="MPHONE_NO != null and MPHONE_NO != ''">
+			<if test="MPHONE_NO != null">
 	            MPHONE_NO = PKG_COMMON.FN_ENCRYPT(#{MPHONE_NO}),
 			</if>
 			<if test="PRDTC_CD != null and PRDTC_CD != ''">
@@ -602,10 +627,10 @@
 			<if test="REQ_CAR_YN != null and REQ_CAR_YN != ''">
 	            REQ_CAR_YN = #{REQ_CAR_YN},
 			</if>
-			<if test="REQ_CAR_NO != null and REQ_CAR_NO != ''">
-	            REQ_CAR_NO = #{REQ_CAR_NO},
+			<if test="REQ_CAR_NO != null">
+			    REQ_CAR_NO = #{REQ_CAR_NO},
 			</if>
-			<if test="CAR_NO != null and CAR_NO != ''">
+			<if test="CAR_NO != null">
 	            CAR_NO = #{CAR_NO},
 			</if>
 			<if test="IMSIGV_DT != null and IMSIGV_DT != ''">
@@ -635,10 +660,10 @@
 			<if test="PAY_GB != null and PAY_GB != ''">
 	            PAY_GB = #{PAY_GB},
 			</if>
-			<if test="PAY_NM != null and PAY_NM != ''">
+			<if test="PAY_NM != null">
 	            PAY_NM = #{PAY_NM},
 			</if>
-			<if test="PAY_HP_NO != null and PAY_HP_NO != ''">
+			<if test="PAY_HP_NO != null">
 	            PAY_HP_NO = PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}),
 			</if>
 			<if test="PAY_ME != null and PAY_ME != ''">
@@ -659,13 +684,13 @@
 			<if test="VBANK_CD != null and VBANK_CD != ''">
 	            VBANK_CD = #{VBANK_CD},
 			</if>
-			<if test="VBANK_NO != null and VBANK_NO != ''">
+			<if test="VBANK_NO != null">
 	            VBANK_NO = #{VBANK_NO},
 			</if>
 			<if test="UPD_USER != null and UPD_USER != ''">
 	            UPD_USER = #{UPD_USER},
 			</if>
-			<if test="CARD_YN != null and CARD_YN != ''">
+			<if test="CARD_YN != null">
 	            CARD_YN = #{CARD_YN},
 			</if>
 			<if test="REGIST_DATE != null and REGIST_DATE != ''">
@@ -674,11 +699,47 @@
 			<if test="RT_BANK_CD != null and RT_BANK_CD != ''">
 	            RT_BANK_CD = #{RT_BANK_CD},
 			</if>
-			<if test="RETURN_NO != null and RETURN_NO != ''">
+			<if test="RETURN_NO != null">
 	            RETURN_NO = #{RETURN_NO},
 			</if>
-			<if test="RETURN_NM != null and RETURN_NM != ''">
+			<if test="RETURN_NM != null">
 	            RETURN_NM = #{RETURN_NM},
+			</if>
+			<if test="NTAX_TRGET_CD != null">
+				NTAX_TRGET_CD = #{NTAX_TRGET_CD},
+			</if>
+			<if test="NTAX_WHO != null and NTAX_WHO != ''">
+			    NTAX_WHO = #{NTAX_WHO},
+			</if>
+			<if test="BOND_AMT != null">
+				BOND_AMT = #{BOND_AMT},
+			</if>
+			<if test="NTAX_TRGET_GR_CD != null and NTAX_TRGET_GR_CD != ''">
+			    NTAX_TRGET_GR_CD = #{NTAX_TRGET_GR_CD},
+			</if>
+			<if test="INSURER_CD != null and INSURER_CD != ''">
+			    INSURER_CD = #{INSURER_CD},
+			</if>
+			<if test="INSURER_SDT != null and INSURER_SDT != ''">
+			    INSURER_SDT = #{INSURER_SDT},
+			</if>
+			<if test="INSURER_EDT != null and INSURER_EDT != ''">
+			    INSURER_EDT = #{INSURER_EDT},
+			</if>
+			<if test="MEMO_TX != null">
+			    MEMO_TX = #{MEMO_TX},
+			</if>
+			<if test="BOND_BANK_CD != null and BOND_BANK_CD != ''">
+			    BOND_BANK_CD = #{BOND_BANK_CD},
+			</if>
+			<if test="BOND_BANK_NO != null">
+			    BOND_BANK_NO = #{BOND_BANK_NO},
+			</if>
+			<if test="RT_AMT != null">
+			    RT_AMT = #{RT_AMT},
+			</if>
+			<if test="BOND_LINK_YN != null">
+				BOND_LINK_YN = #{BOND_LINK_YN},
 			</if>
 	        UPD_DATE = SYSDATE
 		</set>

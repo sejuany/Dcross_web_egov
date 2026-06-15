@@ -58,5 +58,21 @@ public class CommonController {
 
         return ResponseEntity.ok(ApiResponse.withKey("result", result));
     }
+    
+    /**
+     * 화면에서 바로 쿼리 조회 (단건 조회)
+     * POST /api/common/query
+     */
+    @PostMapping("/query")
+    public ResponseEntity<Map<String, Object>> query(
+            @RequestBody Map<String, Object> request) {
+    	
+        String queryId = (String) request.remove("QUERY_ID");
+        logger.info("queryId >>" + queryId + " 조회 시작");
+        
+        return ResponseEntity.ok(
+            ApiResponse.withKey("data", comm.select(request, queryId))
+        );
+    }
 
 }

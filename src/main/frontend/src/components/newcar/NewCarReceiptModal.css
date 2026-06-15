@@ -32,9 +32,13 @@
     border-bottom: 1px solid #294868;
 }
 
-.receipt-section-title {
-    font-size: 15px;
-    margin: 0 0 4px 4px;
+.receipt-title {
+    text-align: center;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 1px;
+    margin-bottom: 15px;
+    color: #2f557d;
 }
 
 .receipt-modal-header h3 {
@@ -65,6 +69,17 @@
     background: #fff;
 }
 
+.receipt-section-title {
+    margin: 12px 0 6px;
+    text-align: center;
+    font-weight: 700;
+    font-size: 15px;
+    color: #2f557d;
+    border-top: 2px solid #2f557d;
+    border-bottom: 1px solid #ced4da;
+    padding: 6px 0;
+}
+
 .receipt-table {
     width: 100%;
     border-collapse: collapse;
@@ -77,12 +92,12 @@
     border: 1px solid #ced4da;
     padding: 7px 10px;
     font-size: 13px;
+    text-align: center;
 }
 
 .receipt-table th {
     background: #f8f9fa;
-    width: 130px;
-    text-align: center;
+    width: 150px;
     font-weight: 600;
 }
 
@@ -93,27 +108,46 @@
 
 .receipt-table .amount {
     text-align: right;
-    color: #1971c2;
+    color: #0056b3;
     font-weight: 700;
+    font-size: 14px;
 }
 
 .receipt-total-row th,
 .receipt-total-row td {
-    background: #e7f5ff;
-    color: #1971c2;
-    font-weight: bold;
+    background: #d9ecff;
+    color: #0056b3;
+    font-weight: 700;
+    font-size: 15px;
     border-bottom: 2px solid #339af0;
 }
 
 .receipt-note {
     margin-top: 12px;
-    padding: 20px 0;
+    padding: 20px 0 10px;
     border: 0;
     background: none;
     color: #666;
     text-align: center;
     font-size: 15px;
     line-height: 1.5;
+}
+
+.receipt-footer {
+    margin-top: 4px;
+    text-align: center;
+}
+
+.receipt-call {
+    font-size: 15px;
+    font-weight: 600;
+    color: #2f557d;
+}
+
+.receipt-print-date {
+    margin-top: 4px;
+    font-size: 14px;
+    color: #777;
 }
 
 .receipt-modal-footer {
@@ -130,7 +164,16 @@
     height: 30px;
 }
 
+.receipt-modal-container {
+    width: 1000px;
+}
+
+
 @media print {
+	.receipt-title {font-size: 28px}
+	.receipt-modal-header {
+    	display: none !important;
+	}
 
     .receipt-modal-overlay {
         background: white !important;
@@ -167,12 +210,19 @@
 
     .receipt-table th {
         background: white !important;
-        
+        width: 220px;
     }
 
     .receipt-modal-header h3 {font-size:26px!important}
     .receipt-table th, .receipt-table td, .receipt-note, .receipt-section-title {font-size: 22px!important}
-    .receipt-table th {width: 150px}
+	    
+	.receipt-call {
+	    font-size: 22px;
+	}
+	
+	.receipt-print-date {
+	    font-size: 20px;
+	}
 }
 
 /* pdf 저장 ===========================*/
@@ -209,3 +259,4 @@
     border: none !important;
     color: black !important;
 }
+

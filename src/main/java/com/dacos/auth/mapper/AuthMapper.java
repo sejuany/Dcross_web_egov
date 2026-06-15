@@ -60,4 +60,8 @@ public interface AuthMapper {
     Map<String, Object> getCommonServiceData(UserDto user, String workCd);
     
     int mergeMemberEtc(Map<String, Object> param);
+    
+    int increaseLoginErrorCount(@Param("userId") String userId);
+
+    int resetLoginErrorCount(@Param("userId") String userId);
 }

@@ -68,9 +68,9 @@
 	            UPD_USER = #{UPD_USER},
 	        </if>
 	
-	        <if test="(UPD_USER == null or UPD_USER == '') and MEMBER_ID != null and MEMBER_ID != ''">
-	            UPD_USER = #{MEMBER_ID},
-	        </if>
+			<if test="(UPD_USER == null or UPD_USER == '') and MEMBER_ID != null and MEMBER_ID != ''">
+			    UPD_USER = #{MEMBER_ID},
+			</if>
 	
 	        <if test="DELIVERY_GB != null and DELIVERY_GB != ''">
 	            DELIVERY_GB = #{DELIVERY_GB},
@@ -116,7 +116,7 @@
 	            INSTALL_TEL_NO = PKG_COMMON.FN_ENCRYPT(#{INSTALL_TEL_NO}),
 	        </if>
 	
-	        <if test="INSTALL_FEE != null and INSTALL_FEE != ''">
+			<if test="INSTALL_FEE != null">
 	            INSTALL_FEE = #{INSTALL_FEE},
 	        </if>
 	
@@ -156,35 +156,35 @@
 	            RENT_RECEIVE_YN = #{RENT_RECEIVE_YN},
 	        </if>
 	
-	        <if test="RENT_SEND_YN_DT == null and RENT_SEND_YN == 'Y'">
-	            RENT_SEND_YN_DT = SYSDATE,
-	        </if>
+	        <if test='"Y".equals(RENT_SEND_YN) and RENT_SEND_YN_DT == null'>
+			    RENT_SEND_YN_DT = SYSDATE,
+			</if>
 	
-	        <if test="RENT_RECEIVE_YN_DT == null and RENT_RECEIVE_YN == 'Y'">
-	            RENT_RECEIVE_YN_DT = SYSDATE,
-	        </if>
+	        <if test='"Y".equals(RENT_RECEIVE_YN) and RENT_RECEIVE_YN_DT == null'>
+			    RENT_RECEIVE_YN_DT = SYSDATE,
+			</if>
 				        
-			<if test="SEND_YN_DT == null and SEND_YN == 'Y'">
+			<if test='"Y".equals(SEND_YN) and SEND_YN_DT == null'>
 			    SEND_YN_DT = SYSDATE,
 			</if>
 			
-			<if test="RENT_SEND_YN_DT != null and RENT_SEND_YN == 'N'">
+			<if test='"N".equals(RENT_SEND_YN) and RENT_SEND_YN_DT != null'>
 			    RENT_SEND_YN_DT = NULL,
 			</if>
 			
-			<if test="RENT_RECEIVE_YN_DT != null and RENT_RECEIVE_YN == 'N'">
+			<if test='"N".equals(RENT_RECEIVE_YN) and RENT_RECEIVE_YN_DT != null'>
 			    RENT_RECEIVE_YN_DT = NULL,
 			</if>
 	
-	        <if test="SEND_YN_DT != null and SEND_YN == 'N'">
+	        <if test='"N".equals(SEND_YN) and SEND_YN_DT != null'>
 			    SEND_YN_DT = NULL,
 			</if>
 			
-			<if test="RECEIVE_YN_DT == null and RECEIVE_YN == 'Y'">
+			<if test='"Y".equals(RECEIVE_YN) and RECEIVE_YN_DT == null'>
 			    RECEIVE_YN_DT = SYSDATE,
 			</if>
 			
-			<if test="RECEIVE_YN_DT != null and RECEIVE_YN == 'N'">
+			<if test='"N".equals(RECEIVE_YN) and RECEIVE_YN_DT != null'>
 			    RECEIVE_YN_DT = NULL,
 			</if>
 	

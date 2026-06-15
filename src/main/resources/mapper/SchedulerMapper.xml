@@ -15,18 +15,36 @@
             TS.PROC_ST,
             TS.JUDGE_ST,
             TN.CARID_NO,
-            TN.CAR_NO,
+            TN.REQ_CAR_NO as CAR_NO,
             TN.OWNER_NM,
             PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
             TN.REGIST_DATE
         FROM TR_SERVICE TS
              JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
         WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
-          AND TS.PROC_ST = 'W_REQ'
+          AND TS.PROC_ST = 'P_END'
+    </select>
+
+        <select id="selectNewcarSpecialistInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT
+            MEMBER_NM AS SPECIALIST_NM,
+            PKG_COMMON.FN_DECRYPT(MPHONE_NO) AS SPECIALIST_HP_NO
+        FROM TM_MEMBER_DT
+        WHERE MEMBER_ID = #{MEMBER_ID}
     </select>
 
     <select id="selectNewcarNonPayedServices" resultType="com.dacos.scheduler.dto.SchedulerDto">
-        
+        SELECT TS.SERVICE_ID, TS.CAR_NO, TS.PROC_ST, TS.JUDGE_ST, TS.COMPANY_ID, TN.REGIST_DATE, TS.MEMBER_ID, TCD.CUSTOMER_NM, PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO
+        FROM TR_SERVICE TS, TR_NEWCAR TN, TR_CARNO_DETACH TCD
+        WHERE TS.SERVICE_ID = TN.SERVICE_ID
+          AND TS.SERVICE_ID = TCD.SERVICE_ID
+          AND TS.PROC_ST IN ('P_REQ', 'PBEND')
+          AND TO_CHAR(TN.REGIST_DATE,'YYYYMMDD') = TO_CHAR(SYSDATE + 1, 'YYYYMMDD')
+          AND TS.WORK_CD = '010'
+    </select>
+
+    <select id="selectMemberInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT MEMBER_NM, COMPANY_ID, BRACNH_ID, MEMBER_GB, TEL_NO, MPHONE_NO FROM TM_MEMBER_DT WHERE MEMBER_ID = #{MEMBER_ID}    
     </select>
 
     <update id="updateServiceToJudgeRequest" parameterType="map">
@@ -36,7 +54,7 @@
                UPD_DATE = SYSDATE,
                UPD_USER = 'SCHEDULAR'
          WHERE SERVICE_ID = #{SERVICE_ID}
-           AND PROC_ST = 'W_REQ'
+           AND PROC_ST = 'P_END'
     </update>
 
 </mapper>

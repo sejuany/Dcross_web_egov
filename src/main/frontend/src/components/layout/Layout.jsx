@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { LogOut, Settings, Bell, ChevronRight, X, ClipboardList } from 'lucide-react';
@@ -84,35 +84,34 @@ const buildAuthorizedMenuConfig = (rawMenuList) => {
     const result = {};
 
     topMenus.forEach((topMenu) => {
-        const children = childMenus
-            // 기존 MiPlatform 구조: 하위 메뉴 ID는 상위 메뉴 ID로 시작
-            .filter(child => child.id.startsWith(topMenu.id))
+		const children = childMenus
+		    .filter(child => child.id.startsWith(topMenu.id))
 
-            // 기존 disabled 메뉴는 웹 메뉴에서 제외
-            .filter(child => child.fileName !== 'disabled')
+		    // 기존 disabled 메뉴는 웹 메뉴에서 제외
+		    .filter(child => child.fileName !== 'disabled')
 
-            // 웹으로 연결할 수 있는 메뉴만 표시
-            // 아직 WEBPATH가 없는 메뉴는 React 화면이 없거나 매핑 미완료로 판단
-            .filter(child => child.webPath)
+		    // 웹으로 연결할 수 있는 메뉴만 표시
+		    .filter(child => child.webPath)
 
-            .map((child) => {
-                return {
-                    // 탭 ID는 WEBID 우선, 없으면 기존 메뉴 ID 사용
-                    id: child.webId || child.id,
+		    // 신규등록 메뉴 안에서는 신규신청현황을 맨 위로 올림
+		    .sort((a, b) => {
+		        if (topMenu.title === '신규등록') {
+		            if (a.title === '신규신청현황') return -1;
+		            if (b.title === '신규신청현황') return 1;
+		        }
 
-                    // 기존 DB 메뉴 ID는 별도 보관
-                    menuId: child.id,
+		        return Number(a.id) - Number(b.id);
+		    })
 
-                    // 화면 표시명
-                    title: child.title,
-
-                    // React Router path
-                    path: child.webPath,
-
-                    // 원본 메뉴 정보 보관
-                    raw: child,
-                };
-            });
+		    .map((child) => {
+		        return {
+		            id: child.webId || child.id,
+		            menuId: child.id,
+		            title: child.title,
+		            path: child.webPath,
+		            raw: child,
+		        };
+		    });
 
         // 하위 메뉴가 하나라도 있는 상위 메뉴만 노출
         if (children.length > 0) {
@@ -322,7 +321,7 @@ const TabBar = () => {
 
 const Layout = ({ children }) => {
     const location = useLocation();
-    const { activeTabId, tabs, addTab } = useTabs();
+    const { activeTabId, tabs, addTab, recentlyClosedPath } = useTabs();
 
     const [layoutWidth] = useState('100%');
     const [menuConfig, setMenuConfig] = useState({});
@@ -331,12 +330,13 @@ const Layout = ({ children }) => {
     const [cachedPanes, setCachedPanes] = useState([]);
 
     const currentTab = tabs.find(t => t.id === activeTabId);
+    const activePath = currentTab?.path || location.pathname;
     const currentRouteComponent = protectedRouteComponents[location.pathname];
     const currentRouteTab = tabs.find(tab => tab.path === location.pathname);
 
     const categories = useMemo(() => Object.keys(menuConfig || {}), [menuConfig]);
 
-    const getTitleByPath = (path) => {
+    const getTitleByPath = useCallback((path) => {
         if (path === '/home') return '홈';
 
         const menuItems = Object.values(menuConfig || {}).flat();
@@ -347,7 +347,21 @@ const Layout = ({ children }) => {
         }
 
         return path.split('/').filter(Boolean).pop() || '홈';
-    };
+    }, [menuConfig]);
+
+    const getMenuEntryByPath = useCallback((path) => {
+        const entries = Object.entries(menuConfig || {});
+
+        for (const [category, items] of entries) {
+            const menu = items.find(item => item.path === path);
+
+            if (menu) {
+                return { category, menu };
+            }
+        }
+
+        return null;
+    }, [menuConfig]);
 
     useEffect(() => {
         let mounted = true;
@@ -410,14 +424,59 @@ const Layout = ({ children }) => {
     }, [activeCategory, categories]);
 
     useEffect(() => {
+        if (menuLoading || !currentRouteComponent) {
+            return;
+        }
+
+        const currentMenuEntry = getMenuEntryByPath(location.pathname);
+
+        if (!currentMenuEntry) {
+            return;
+        }
+
+        const { category, menu } = currentMenuEntry;
+
+        setActiveCategory(prev =>
+            prev === category
+                ? prev
+                : category
+        );
+
+        const tabForPath = tabs.find(tab => tab.path === location.pathname);
+
+        if (
+            tabForPath &&
+            (tabForPath.id !== menu.id || tabForPath.title !== menu.title)
+        ) {
+            addTab(menu.id, menu.title, menu.path, {
+                state: location.state
+            });
+        }
+    }, [
+        addTab,
+        currentRouteComponent,
+        getMenuEntryByPath,
+        location.pathname,
+        location.state,
+        menuLoading,
+        tabs
+    ]);
+
+    useEffect(() => {
         if (!currentRouteComponent) {
             return;
         }
 
         if (!currentRouteTab) {
+            if (recentlyClosedPath === location.pathname) {
+                return;
+            }
+
             addTab(location.pathname, getTitleByPath(location.pathname), location.pathname, {
                 state: location.state
             });
+
+            return;
         }
 
         setCachedPanes(prevPanes => {
@@ -445,17 +504,26 @@ const Layout = ({ children }) => {
                 },
             ];
         });
-    }, [addTab, currentRouteComponent, currentRouteTab, location.pathname, location.state]);
+    }, [
+        addTab,
+        currentRouteComponent,
+        currentRouteTab,
+        getTitleByPath,
+        location.pathname,
+        location.state,
+        recentlyClosedPath
+    ]);
 
     useEffect(() => {
         const openTabPaths = new Set(tabs.map(tab => tab.path));
 
         setCachedPanes(prevPanes =>
             prevPanes.filter(pane =>
-                openTabPaths.has(pane.path) || pane.path === location.pathname
+                openTabPaths.has(pane.path) ||
+                (pane.path === location.pathname && recentlyClosedPath !== pane.path)
             )
         );
-    }, [location.pathname, tabs]);
+    }, [location.pathname, recentlyClosedPath, tabs]);
 
     return (
         <div className="app-container">
@@ -495,7 +563,7 @@ const Layout = ({ children }) => {
                                                 key={id}
                                                 className="keep-alive-pane"
                                                 style={{
-                                                    display: path === location.pathname ? 'block' : 'none',
+                                                    display: path === activePath ? 'block' : 'none',
                                                     height: '100%',
                                                 }}
                                             >

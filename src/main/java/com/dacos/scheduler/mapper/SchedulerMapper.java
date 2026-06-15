@@ -1,6 +1,7 @@
 package com.dacos.scheduler.mapper;
 
 import java.util.List;
+import java.util.Map;
 
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -15,4 +16,6 @@ public interface SchedulerMapper {
     int updateServiceToJudgeRequest(@Param("SERVICE_ID") String serviceId);
 
     List<SchedulerDto> selectNewcarNonPayedServices();
+
+    Map<String, Object> selectNewcarSpecialistInfo(String member_ID);
 }

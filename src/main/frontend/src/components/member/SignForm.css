@@ -1,19 +1,30 @@
 .sign-page-container {
+    position: fixed;
+    inset: 0;
+
     background-color: #f4f7f9;
-    min-height: 100vh;
-    padding: 50px 0;
-    display: flex;
-    justify-content: center;
-    align-items: flex-start;
+
+    padding: 50px 16px 80px;
+    box-sizing: border-box;
+
+    overflow: auto;
 }
 
 .sign-card {
-    width: 900px;
+    width: 1050px;
+    min-width: 1050px;
+
     background: #fff;
     border-radius: 8px;
     box-shadow: 0 15px 35px rgba(0, 0, 0, 0.10);
     border: 1px solid #d1d9e4;
     overflow: hidden;
+
+    margin: 0 auto 40px;
+}
+
+.sign-body {
+    padding: 30px;
 }
 
 /* Header */
@@ -678,4 +689,17 @@ select:disabled {
 
 .special-email-input::placeholder {
     color: #a0aec0;
+}
+
+@media (max-height: 760px) {
+    .sign-page-container {
+        padding-top: 20px;
+        padding-bottom: 80px;
+    }
+}
+
+@media (max-width: 960px) {
+    .sign-page-container {
+        padding: 20px 16px 80px;
+    }
 }

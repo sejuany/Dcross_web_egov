@@ -406,6 +406,64 @@
 	        AND USE_YN = 'Y'
 	</select>
 	
+	<select id="selectBondInfo_DBOND" parameterType="map" resultType="map" >
+        SELECT DT.BANK_CODE AS BANK_CODE 
+              ,FIELD2
+              ,FIELD16
+              ,FIELD18
+              ,FIELD23
+              ,FIELD24
+              ,FIELD25
+              ,FIELD26
+              ,FIELD27
+              ,FIELD28
+              ,FIELD29
+              ,FIELD30
+              ,FIELD50
+              ,''as BND_MNG_NO, '' as RPS_APP_NO,'' as BND_ISU_NO
+              ,'즉시 매도 내역' AS BK_NM
+              ,'' ASCOL_IST_NM
+              ,'' AS NAPBU_DT
+              ,TO_CHAR(sysdate, 'YYYY-MM-DD') AS NAPBU_DT2
+          FROM WCMS_GW_TR_DT DT
+         WHERE FIELD50 = #SERVICE_ID#
+           AND TR_CODE IN ( 'WRT18', 'VRT18')
+           AND DT.STATUS = '31'  
+           ORDER BY TR_END_TIME DESC
+	</select>
+	
+	<select id="selectBondInfo" parameterType="map" resultType="map">
+	    SELECT DT.BANK_CODE AS BANK_CODE
+	          ,FIELD2
+	          ,FIELD16
+	          ,FIELD18
+	          ,FIELD23
+	          ,FIELD24
+	          ,FIELD25
+	          ,FIELD26
+	          ,FIELD27
+	          ,FIELD28
+	          ,FIELD29
+	          ,FIELD30
+	          ,FIELD50
+	          ,BND_MNG_NO
+	          ,RPS_APP_NO
+	          ,BND_ISU_NO
+	          ,'즉시 매도 내역(' || BK_NM || ')' AS BK_NM
+	          ,COL_IST_NM
+	          ,TO_CHAR(
+	                TO_DATE(SAL_DY, 'YYYY-MM-DD HH24:MI:SS'),
+	                'YYYY-MM-DD'
+	           ) AS NAPBU_DT
+	      FROM WCMS_GW_TR_DT DT
+	          ,WCMS_GW_PUBLIC_BOND_LOG LOG
+	     WHERE DT.REQUEST_DATE = LOG.TRCOM_SEND_DATE
+	       AND DT.FIELD3 = LOG.RPS_APP_NO
+	       AND FIELD50 = #{SERVICE_ID}
+	       AND TR_CODE IN ('WRT18', 'VRT18')
+	       AND DT.STATUS = '31'
+	</select>
+	
 	<insert id="insertTrPayment" parameterType="map">
 	    INSERT INTO TR_PAYMENT (
 	        SERVICE_ID, PAY_KD, PAY_AMT, PAY_OP, PAY_ST,
@@ -413,9 +471,9 @@
 	        INS_USER, PRE_PAY_AMT
 	    )
 	    VALUES (
-	        #{SERVICE_ID}, #{PAY_KD}, #{PAY_AMT}, #{PAY_OP}, #{PAY_ST},
-	        #{VBANK_CD}, #{VBANK_NO}, #{PAY_DT}, #{T_VBANK_GB}, #{T_VBANK_ID},
-	        #{MEMBER_ID}, #{PRE_PAY_AMT}
+	        #{SERVICE_ID}, #{PAY_KD}, NVL(#{PAY_AMT}, 0), #{PAY_OP}, #{PAY_ST},
+	        #{VBANK_CD}, #{VBANK_NO}, TO_DATE(TRIM(#{PAY_DT}), 'YYYY/MM/DD HH24:MI:SS'), #{T_VBANK_GB}, #{T_VBANK_ID},
+	        #{MEMBER_ID}, NVL(#{PRE_PAY_AMT}, 0)
 	    )
 	</insert>
 	

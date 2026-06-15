@@ -1,13 +1,21 @@
 package com.dacos.scheduler;
 
+import java.time.LocalDateTime;
+import java.util.LinkedHashMap;
+import java.util.Map;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.scheduling.annotation.Scheduled;
-import org.springframework.stereotype.Component;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
 
 import lombok.RequiredArgsConstructor;
 
-@Component
+@RestController
+@RequestMapping("/api/scheduler")
 @RequiredArgsConstructor
 public class Scheduler {
 
@@ -17,15 +25,71 @@ public class Scheduler {
 
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarWaitingServices() {
-        logger.info("[Scheduler] 심사대기 -> 심사요청 스케쥴러 동작 시작");
-        int updateCount = schedulerService.processTodayNewcarWaitingServices();
-        logger.info("[Scheduler] 심사대기 -> 심사요청 스케쥴러 동작 완료 - updateCount: {}", updateCount);
+        runTodayNewcarWaitingServices("scheduled");
     }
 
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarNonPayed() {
-        logger.info("[Scheduler] 등록예정일 15:30분 이후 미입금건 알림 문자 발송 스케쥴러 동작 시작");
+        runTodayNewcarNonPayed("scheduled");
+    }
+
+    @GetMapping("/newcar/waiting-services/run")
+    @PostMapping("/newcar/waiting-services/run")
+    public Map<String, Object> runTodayNewcarWaitingServicesManually() {
+        int updateCount = runTodayNewcarWaitingServices("manual");
+        return createResult("processTodayNewcarWaitingServices", updateCount);
+    }
+
+    @GetMapping("/newcar/non-payed/run")
+    @PostMapping("/newcar/non-payed/run")
+    public Map<String, Object> runTodayNewcarNonPayedManually() {
+        int updateCount = runTodayNewcarNonPayed("manual");
+        return createResult("processTodayNewcarNonPayed", updateCount);
+    }
+
+    @GetMapping("/newcar/run-all")
+    @PostMapping("/newcar/run-all")
+    public Map<String, Object> runAllNewcarSchedulersManually() {
+        int waitingServicesUpdateCount = runTodayNewcarWaitingServices("manual");
+        int nonPayedUpdateCount = runTodayNewcarNonPayed("manual");
+
+        Map<String, Object> result = createResult(
+            "processAllNewcarSchedulers",
+            waitingServicesUpdateCount + nonPayedUpdateCount
+        );
+        result.put("waitingServicesUpdateCount", waitingServicesUpdateCount);
+        result.put("nonPayedUpdateCount", nonPayedUpdateCount);
+        return result;
+    }
+
+    private int runTodayNewcarWaitingServices(String triggerType) {
+        logger.info("[Scheduler] 납부완료건 신청 처리 start - triggerType: {}", triggerType);
+        int updateCount = schedulerService.processTodayNewcarWaitingServices();
+        logger.info(
+            "[Scheduler] 납부완료건 신청 처리 완료 - triggerType: {}, updateCount: {}",
+            triggerType,
+            updateCount
+        );
+        return updateCount;
+    }
+
+    private int runTodayNewcarNonPayed(String triggerType) {
+        logger.info("[Scheduler] 납부미완료건 처리 start - triggerType: {}", triggerType);
         int updateCount = schedulerService.processTodayNewcarNonPayed();
-        logger.info("[Scheduler] 등록예정일 15:30분 이후 미입금건 알림 문자 발송 스케쥴러 동작 완료 - updateCount: {}", updateCount);
+        logger.info(
+            "[Scheduler] 납부미완료건 처리 완료 - triggerType: {}, updateCount: {}",
+            triggerType,
+            updateCount
+        );
+        return updateCount;
+    }
+
+    private Map<String, Object> createResult(String jobName, int updateCount) {
+        Map<String, Object> result = new LinkedHashMap<>();
+        result.put("success", true);
+        result.put("jobName", jobName);
+        result.put("updateCount", updateCount);
+        result.put("executedAt", LocalDateTime.now().toString());
+        return result;
     }
 }

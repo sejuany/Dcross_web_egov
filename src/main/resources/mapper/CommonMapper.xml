@@ -3,6 +3,15 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.payment.mapper.CommonMapper">
+	
+	<select id="getGovtNM" parameterType="map" resultType="map">
+		SELECT GOVT_NM
+		  FROM TM_GOVT
+		 WHERE GOVT_ID = (SELECT GOVT_ID
+		                    FROM TR_SERVICE
+		                   WHERE SERVICE_ID = #{SERVICE_ID})
+	</select>
+	
 	<select id="selectJibunAddress" parameterType="map" resultType="map">
 	
 	    SELECT A.GICHO_NO AS POST_NO,
@@ -157,6 +166,27 @@
 	}
 	</select>
 	<!-- 문자 전송 -->
+	<insert id="insertSmsSendReal" parameterType="map">
+	    INSERT INTO MSG_QUEUE@RDB_LINK (
+	        MSEQ,
+	        MSG_TYPE,
+	        DSTADDR,
+	        CALLBACK,
+	        STAT,
+	        TEXT,
+	        REQUEST_TIME
+	    )
+	    VALUES (
+	        MSG_QUEUE_SEQ.NEXTVAL@RDB_LINK,
+	        #{MSG_TYPE},
+	        #{PAY_HP_NO},
+	        '16886112',
+	        '0',
+	        #{TEXT},
+	        SYSDATE
+	    )
+	</insert>`
+	
 	<insert id="insertSmsSend" parameterType="map">
 	    INSERT INTO MSG_QUEUE (
 	        MSEQ,
@@ -176,7 +206,7 @@
 	        #{TEXT},
 	        SYSDATE
 	    )
-	</insert>
+	</insert>	
 
 	<!-- 로그 기록 -->
 	<insert id="insertCarDailyLog" parameterType="map">

@@ -454,6 +454,32 @@ public class CompanyService {
 
         companyMapper.updateCompanyUserDetail(memberInfo);
         companyMapper.updateCompanyUserMaster(memberInfo);
+        
+        /*
+         * TM_MEMBER_ETC 이메일 저장
+         * - 기존 row가 있으면 UPDATE
+         * - 없으면 INSERT
+         * - 이메일을 빈값으로 저장하면 MEMBER_MAIL도 NULL/빈값 처리
+         */
+        Object memberMailObj = memberInfo.get("MEMBER_MAIL");
+        String memberMail = memberMailObj == null ? "" : String.valueOf(memberMailObj).trim();
+
+        Map<String, Object> memberEtc = new HashMap<>();
+        memberEtc.put("LOGIN_ID", memberInfo.get("LOGIN_ID"));
+        memberEtc.put("MEMBER_ID", memberInfo.get("MEMBER_ID"));
+        memberEtc.put("COMPANY_ID", memberInfo.get("COMPANY_ID"));
+        memberEtc.put("MEMBER_MAIL", memberMail);
+        memberEtc.put("UPD_USER", memberInfo.get("INS_USER"));
+
+        logger.info(
+                "[CompanyService] TM_MEMBER_ETC 이메일 저장 - LOGIN_ID: {}, MEMBER_ID: {}, COMPANY_ID: {}, MEMBER_MAIL: {}",
+                memberEtc.get("LOGIN_ID"),
+                memberEtc.get("MEMBER_ID"),
+                memberEtc.get("COMPANY_ID"),
+                memberEtc.get("MEMBER_MAIL")
+        );
+
+        companyMapper.mergeCompanyUserEtc(memberEtc);
 
         companyMapper.deleteCompanyUserWork(memberInfo);
 

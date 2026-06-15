@@ -41,6 +41,7 @@
         WHERE
             MM.LOGIN_ID = #{userId}
             AND MM.USE_YN  = 'Y'
+   			AND MD.USE_YN = 'Y'
     </select>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
@@ -106,23 +107,29 @@
 	</select>
 
 	<select id="selectMemberInfo2" resultType="hashmap">
-		SELECT
-		    MT.LOGIN_ID        AS LOGIN_ID,
-		    MT.LOGIN_GB        AS LOGIN_GB,
-		    PKG_COMMON.FN_DECRYPT(MT.REGIST_NO)   AS REGIST_NO,
-		    MT.USE_YN          AS USE_YN,
-		    DT.MEMBER_NM       AS MEMBER_NM,
-		    PKG_COMMON.FN_DECRYPT(DT.TEL_NO)      AS TEL_NO,
-		    PKG_COMMON.FN_DECRYPT(DT.MPHONE_NO)   AS MPHONE_NO,
-		    DT.COMPANY_ID      AS COMPANY_ID,
-		    DT.BRANCH_ID       AS BRANCH_ID,
-		    DT.SANGSA_ID       AS SANGSA_ID,
-		    DT.MEMBER_GB       AS MEMBER_GB
-		FROM TM_MEMBER_MT MT
-		LEFT JOIN TM_MEMBER_DT DT
-		    ON MT.LOGIN_ID = DT.LOGIN_ID
-		WHERE MT.LOGIN_ID = #{loginId}
-	</select>	
+	    SELECT
+	        MT.LOGIN_ID        AS LOGIN_ID,
+	        MT.LOGIN_GB        AS LOGIN_GB,
+	        PKG_COMMON.FN_DECRYPT(MT.REGIST_NO)   AS REGIST_NO,
+	        MT.USE_YN          AS USE_YN,
+	        DT.MEMBER_ID       AS MEMBER_ID,
+	        DT.MEMBER_NM       AS MEMBER_NM,
+	        PKG_COMMON.FN_DECRYPT(DT.TEL_NO)      AS TEL_NO,
+	        PKG_COMMON.FN_DECRYPT(DT.MPHONE_NO)   AS MPHONE_NO,
+	        DT.COMPANY_ID      AS COMPANY_ID,
+	        DT.BRANCH_ID       AS BRANCH_ID,
+	        DT.SANGSA_ID       AS SANGSA_ID,
+	        DT.MEMBER_GB       AS MEMBER_GB,
+	        ETC.MEMBER_MAIL    AS MEMBER_MAIL
+	    FROM TM_MEMBER_MT MT
+	    LEFT JOIN TM_MEMBER_DT DT
+	        ON MT.LOGIN_ID = DT.LOGIN_ID
+	    LEFT JOIN TM_MEMBER_ETC ETC
+	        ON ETC.LOGIN_ID = DT.LOGIN_ID
+	       AND ETC.MEMBER_ID = DT.MEMBER_ID
+	       AND ETC.COMPANY_ID = DT.COMPANY_ID
+	    WHERE MT.LOGIN_ID = #{loginId}
+	</select>
 
 	<select id="selectMemberSuInfo" parameterType="string" resultType="java.util.Map">
 		SELECT COMPANY_ID, MEMBER_NM, LOGIN_ID
@@ -145,7 +152,27 @@
 				UPD_DATE = SYSDATE,
       	 		ERROR_COUNT = '0'	
 			WHERE LOGIN_ID=#{LOGIN_ID}
-	</update>			
+	</update>		
+	
+	<update id="increaseLoginErrorCount">
+    	UPDATE TM_MEMBER_MT
+	       SET ERROR_COUNT = TO_CHAR(NVL(TO_NUMBER(ERROR_COUNT), 0) + 1),
+	           USE_YN = CASE
+	                        WHEN NVL(TO_NUMBER(ERROR_COUNT), 0) + 1 >= 5 THEN 'N'
+	                        ELSE USE_YN
+	                    END,
+	           UPD_USER = #{userId},
+	           UPD_DATE = SYSDATE
+	     WHERE LOGIN_ID = #{userId}
+	</update>
+	
+	<update id="resetLoginErrorCount">
+	    UPDATE TM_MEMBER_MT
+	       SET ERROR_COUNT = '0',
+	           UPD_USER = #{userId},
+	           UPD_DATE = SYSDATE
+	     WHERE LOGIN_ID = #{userId}
+	</update>	
 	
 	<update id="updatePasswordDate">
 		<![CDATA[
