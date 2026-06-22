@@ -23,6 +23,25 @@
              JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
         WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
           AND TS.PROC_ST = 'P_END'
+        UNION ALL
+        SELECT
+            TS.SERVICE_ID,
+            TS.WORK_CD,
+            TS.COMPANY_ID,
+            TS.BRANCH_ID,
+            TS.MEMBER_ID,
+            TS.GOVT_ID,
+            TS.PROC_ST,
+            TS.JUDGE_ST,
+            TN.CARID_NO,
+            TN.REQ_CAR_NO as CAR_NO,
+            TN.OWNER_NM,
+            PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
+            TN.REGIST_DATE
+        FROM TR_SERVICE TS
+             JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
+        WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
+        AND TS.PROC_ST = 'S_WAIT'
     </select>
 
         <select id="selectNewcarSpecialistInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
@@ -54,7 +73,6 @@
                UPD_DATE = SYSDATE,
                UPD_USER = 'SCHEDULAR'
          WHERE SERVICE_ID = #{SERVICE_ID}
-           AND PROC_ST = 'P_END'
     </update>
 
 </mapper>

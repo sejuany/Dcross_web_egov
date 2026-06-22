@@ -44,7 +44,7 @@ import React from 'react';
 
 const ErpField = ({ 
 	label, required = false, span = 1, children, labelWidth = '95px',
-	fontSize, className = '',
+	fontSize, className = '', style = {},
 	labelExtra // 라벨 우측 추가 영역(체크박스 등)
 }) => {
 	return (
@@ -54,8 +54,10 @@ const ErpField = ({
 			<label
 				className={`erp-label ${required ? 'req' : ''}`}
 				style={{
-					width: labelWidth,
-					fontSize
+				    width: `100%`,
+				    minWidth: labelWidth,
+				    flex: `0 0 ${labelWidth}`,
+				    fontSize
 				}}
 			>
 				{/* 라벨 텍스트 */}

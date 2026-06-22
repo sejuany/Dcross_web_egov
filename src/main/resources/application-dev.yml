@@ -1,5 +1,5 @@
-﻿server:
-  port: 8081
+server:
+  port: 8080
   forward-headers-strategy: framework
   servlet:
     encoding:
@@ -37,14 +37,12 @@ mybatis:
     default-statement-timeout: 30
     jdbc-type-for-null: VARCHAR
 
-newcar:
-  pdf-upload-dir: ${NEWCAR_PDF_UPLOAD_DIR:./uploads/newcar-production-certificates}
 mobile-ok:
-  enabled: false
+  enabled: true
+  key-file: ${MOBILE_OK_KEY_FILE:file:D:\ssl\mok_keyInfo_dev.dat}
   key-password: ${MOBILE_OK_KEY_PASSWORD:@dewa1004}
   client-tx-id-prefix: ${MOBILE_OK_CLIENT_TX_ID_PREFIX:Dacos309}
   site-url: ${MOBILE_OK_SITE_URL:t.dcross.kr}
   token-url: ${MOBILE_OK_TOKEN_URL:https://scert-dir.mobile-ok.com/agent/v1/token/get}
   auth-request-url: ${MOBILE_OK_AUTH_REQUEST_URL:https://scert-dir.mobile-ok.com/agent/v1/auth/request}
   confirm-url: ${MOBILE_OK_CONFIRM_URL:https://scert-dir.mobile-ok.com/agent/v1/confirm/request}
-

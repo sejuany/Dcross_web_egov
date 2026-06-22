@@ -13,6 +13,6 @@ public class LogController {
 
     @GetMapping("/login-enter")
     public void logLoginEnter() {
-        logger.info("로그인 화면에 들어왔음!!");
+        //logger.info("로그인 화면에 들어왔음!!");
     }
 }

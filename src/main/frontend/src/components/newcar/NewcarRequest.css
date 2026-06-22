@@ -52,8 +52,10 @@
 }
 
 .erp-section-title {
-    background-color: #dbe4f1;
-    border-bottom: 1px solid #a3b8d7;
+    /* background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7; */
+    background-color: #dbe4f1!important;
+    border-bottom: 2px solid #a3b8d7!important;
     padding: 4px 8px;
     font-size: 13px;
     font-weight: bold;
@@ -87,7 +89,7 @@
     align-items: stretch;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
     .erp-row {
         min-height: 24px;
     }
@@ -230,15 +232,15 @@
 
 /* Labels and Inputs */
 .erp-label {
-    background-color: #f1f3f6;
     height: 100%;
     display: flex;
     align-items: center;
     justify-content: center;
     padding: 0 5px;
     font-size: 12px;
-    color: #495057;
-    border-right: 1px solid #ced4da;
+    background: #e9eff4 !important;
+    color: #44546a!important;
+    border-right: 1px solid #c8d2df!important;
     flex-shrink: 0;
     font-weight: 500;
     min-width: 65px;
@@ -294,13 +296,50 @@ textarea.erp-input:read-only {
 }
 
 /* disabled */
+
+/*
 input.erp-input:disabled,
 textarea.erp-input:disabled,
-select.erp-input:disabled {
+select.erp-input:disabled,
+select:disabled,
+input[readonly],
+input.erp-input:read-only {
     background-color: #ebeff2 !important;
-    color: #868e96;
-    border-color: #ced4da;
+    color: #585d61!important;
+    border-color: #ced4da!important;
     cursor: default;
+    
+}
+
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled,
+select:disabled,
+input[readonly],
+input.erp-input:read-only {
+    background-color: #f3ede0 !important;
+    border: 1px solid #d4c4a8 !important;
+    color: #4b5563 !important;
+}
+*/
+
+
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled,
+input.erp-input:read-only {
+    cursor: not-allowed;
+    
+    background: #f8fafc !important;
+    border: 1px solid #d5dee8 !important;
+    color: #495057 !important;
+
+    opacity: 1 !important;
+    -webkit-text-fill-color: #495057 !important;
+
+    appearance: none;
+    -webkit-appearance: none;
+    -moz-appearance: none;
 }
 
 /* hover */
@@ -309,7 +348,7 @@ textarea.erp-input:read-only:hover,
 input.erp-input:disabled:hover,
 textarea.erp-input:disabled:hover,
 select.erp-input:disabled:hover {
-    cursor: default;
+    cursor: not-allowed;
 }
 
 /* 메모 영역*/
@@ -319,7 +358,7 @@ select.erp-input:disabled:hover {
 }
 
 /* 1280px Optimization for Inputs and Labels */
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
     .erp-label {
         font-size: 15px;
         padding: 0 2px;
@@ -328,7 +367,7 @@ select.erp-input:disabled:hover {
     }
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
     .erp-input {
         font-size: 15px;
         padding: 0 1px;
@@ -387,7 +426,7 @@ select.erp-input:disabled:hover {
     font-weight: 500;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
 
     .value-red,
     .value-black {
@@ -401,7 +440,7 @@ select.erp-input:disabled:hover {
 }
 
 /* 1280px Optimization for Buttons */
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
     .btn-erp {
         height: 20px;
         padding: 0 4px;
@@ -604,24 +643,30 @@ select.erp-input:disabled:hover {
     padding: 4px 18px;
     border: 1px solid #ced4da;
     border-bottom: none;
-    background-color: #e9ecef;
+    /* background-color: #e9ecef; */
+    background: #edf2f7!important;
     font-size: 13px;
     cursor: pointer;
     border-radius: 4px 4px 0 0;
 }
 
 /* 1280px Optimization for Tabs */
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
     .tab-btn {
         padding: 4px 12px;
         font-size: 12px;
     }
 }
 
-.tab-btn.active {
+/* .tab-btn.active {
     background-color: #fff;
     border-top: 2px solid #007bff;
     font-weight: bold;
+} */
+
+.tab-btn.active {
+    background: #fff!important;
+    border-top: 2px solid #3c638d!important;
 }
 
 .tab-content {
@@ -728,7 +773,7 @@ select.erp-input:disabled:hover {
     height: 48px !important;
 }
 
-@media (max-width: 1280px) {
+@media (max-width: 1980px) {
     .owner-split-layout {
         grid-template-columns: 1fr;
     }
@@ -973,9 +1018,9 @@ button.btn-erp.sm.light.mL-25 {
     height: 24px;
 }
 
-.ownerNm-field > .erp-label {
+/* .ownerNm-field > .erp-label {
 	min-width: 110px;
-}
+} */
 
 .ratio-field > .erp-label {
 	min-width: 120px;
@@ -1035,6 +1080,15 @@ button.btn-erp.sm.light.mL-25 {
 
 /* 소유자명 체크 */
 .erp-label-extra {
-	margin-left: 3px;
-	vertical-align: middle;
+	margin-left: 3px!important;
+	vertical-align: middle!important;
+}
+
+.erp-input{
+	background-color: #fbfcfd;
+}
+
+
+#SERVICE_ID {
+	cursor: pointer;
 }

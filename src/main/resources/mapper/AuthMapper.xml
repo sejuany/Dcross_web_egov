@@ -173,6 +173,42 @@
 	           UPD_DATE = SYSDATE
 	     WHERE LOGIN_ID = #{userId}
 	</update>	
+
+	<insert id="insertLoginLog" parameterType="java.util.Map">
+		INSERT INTO TR_LOGIN_LOG (
+			LOGIN_ID,
+			LOGIN_IP,
+			RESULT,
+			LOGIN_DT,
+			LOGOUT_DT,
+			ASSOCIATION_ID,
+			COMPANY_ID,
+			BRANCH_ID,
+			SANGSA_ID,
+			LOGIN_NM,
+			USER_AUTH
+		) VALUES (
+			#{LOGIN_ID},
+			#{LOGIN_IP},
+			#{RESULT},
+			#{LOGIN_DT},
+			NULL,
+			#{ASSOCIATION_ID},
+			#{COMPANY_ID},
+			#{BRANCH_ID},
+			#{SANGSA_ID},
+			#{LOGIN_NM},
+			#{USER_AUTH}
+		)
+	</insert>
+
+	<update id="updateLogoutDt">
+		UPDATE TR_LOGIN_LOG
+		   SET LOGOUT_DT = TO_CHAR(SYSDATE, 'YYYYMMDDHH24MISS')
+		 WHERE LOGIN_ID = #{loginId}
+		   AND LOGIN_DT = #{loginDt}
+		   AND LOGOUT_DT IS NULL
+	</update>
 	
 	<update id="updatePasswordDate">
 		<![CDATA[

@@ -146,6 +146,12 @@ html {
     border-bottom-color: var(--primary-blue);
 }
 
+.input-group input:disabled {
+    color: #718096;
+    cursor: wait;
+    opacity: 0.75;
+}
+
 .input-group input::placeholder {
     color: #cbd5e0;
 }
@@ -175,6 +181,115 @@ html {
 
 .login-btn:active {
     transform: translateY(0);
+}
+
+.login-btn:disabled {
+    background-color: var(--btn-gray);
+    box-shadow: none;
+    cursor: wait;
+    opacity: 0.9;
+    transform: none;
+}
+
+.login-btn:disabled:hover {
+    background-color: var(--btn-gray);
+    box-shadow: none;
+    transform: none;
+}
+
+.login-progress {
+    margin-top: 14px;
+    min-height: 42px;
+    text-align: center;
+}
+
+.login-progress-track {
+    width: 100%;
+    height: 6px;
+    overflow: hidden;
+    background-color: #edf2f7;
+    border-radius: 999px;
+}
+
+.login-progress-bar {
+    width: 42%;
+    height: 100%;
+    background-color: var(--primary-blue);
+    border-radius: inherit;
+    animation: loginProgress 1.1s ease-in-out infinite;
+}
+
+.login-progress p {
+    margin-top: 9px;
+    color: #4a5568;
+    font-size: 0.85rem;
+    font-weight: 600;
+}
+
+.mobile-auth-panel {
+    margin-top: 16px;
+    padding: 14px;
+    border: 1px solid #cbd5e0;
+    border-radius: 8px;
+    background-color: #f8fafc;
+    color: #2d3748;
+}
+
+.mobile-auth-panel strong {
+    display: block;
+    color: var(--primary-blue);
+    font-size: 0.95rem;
+    margin-bottom: 6px;
+}
+
+.mobile-auth-panel p {
+    min-height: 20px;
+    margin: 0 0 12px;
+    color: #4a5568;
+    font-size: 0.85rem;
+    line-height: 1.5;
+}
+
+.mobile-auth-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.mobile-auth-btn {
+    flex: 1;
+    min-height: 38px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #2d3748;
+    font-size: 0.85rem;
+    font-weight: 700;
+    cursor: pointer;
+}
+
+.mobile-auth-btn.primary {
+    border-color: var(--primary-blue);
+    background-color: var(--primary-blue);
+    color: #ffffff;
+}
+
+.mobile-auth-btn:disabled {
+    cursor: wait;
+    opacity: 0.65;
+}
+
+@keyframes loginProgress {
+    0% {
+        transform: translateX(-110%);
+    }
+
+    50% {
+        transform: translateX(85%);
+    }
+
+    100% {
+        transform: translateX(240%);
+    }
 }
 
 .form-footer {
@@ -368,4 +483,13 @@ html {
 
 .signup-link-btn:hover {
     color: var(--accent-blue);
+}
+
+.signup-link-btn:disabled {
+    color: #a0aec0;
+    cursor: wait;
+}
+
+.signup-link-btn:disabled::after {
+    width: 0;
 }

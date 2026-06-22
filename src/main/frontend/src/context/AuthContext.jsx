@@ -32,6 +32,7 @@
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
 
 // Context 생성 (초기값: undefined)
 const AuthContext = createContext();
@@ -65,7 +66,13 @@ export const AuthProvider = ({ children }) => {
      * - localStorage에서 사용자 정보 삭제
      * - 로그인 페이지로 이동
      */
-	const logout = useCallback(() => {
+	const logout = useCallback(async () => {
+        try {
+            await axios.post('/api/logout', {});
+        } catch (error) {
+            console.error('[AuthContext] logout api failed:', error);
+        }
+
 	    setUser(null);
 
 	    // 로그인 정보 제거

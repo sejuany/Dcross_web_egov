@@ -71,6 +71,23 @@ const parsePipeCompanyIds = (value) => {
         .filter(item => item !== '');
 };
 
+
+// 토스트창
+export const toast = (msg, delay = 2500) => {
+
+    const toast = document.createElement('div');
+
+    toast.innerText = msg;
+    toast.className = 'custom-toast';
+
+    document.body.appendChild(toast);
+
+    setTimeout(() => {
+        toast.remove();
+    }, delay);
+};
+
+
 export const gf = {
 	
 	// 공통 알림 팝업
@@ -311,6 +328,35 @@ export const gf = {
 	    return newObj;
 	},
 	
+	async copyText (text, label = '값') {
+
+		if (!text) {
+		    return false;
+		}
+
+		try {
+		    await navigator.clipboard.writeText(text);
+		} catch (err) {
+
+		    const textarea = document.createElement('textarea');
+
+		    textarea.value = text;
+		    textarea.style.position = 'fixed';
+		    textarea.style.opacity = '0';
+
+		    document.body.appendChild(textarea);
+
+		    textarea.select();
+		    document.execCommand('copy');
+
+		    document.body.removeChild(textarea);
+		}
+
+		toast(`${label}가 복사되었습니다.`);
+
+		return true;
+	},
+		
 	// 등록번호 하이픈
 	formatRegNo(regNo) {
 	    if (!regNo) return '';

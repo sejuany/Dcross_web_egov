@@ -1,5 +1,7 @@
 package com.dacos.auth;
 
+import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.slf4j.Logger;
@@ -11,56 +13,166 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.auth.dto.LoginRequest;
+import com.dacos.auth.dto.LoginResult;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
-import jakarta.servlet.http.HttpSession; 
 
-import java.util.HashMap;
-import java.util.List;
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
 
-/**
- * 인증 컨트롤러
- * - 예외 처리는 GlobalExceptionHandler가 담당하므로 try-catch 코드가 없습니다.
- */
 @RestController
 @RequestMapping("/api")
 public class AuthController {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthController.class);
+    public static final String SESSION_USER = "user";
+    public static final String PENDING_LOGIN_USER = "PENDING_LOGIN_USER";
+    public static final String PENDING_LOGIN_IP = "PENDING_LOGIN_IP";
+    public static final String PENDING_AUTH_TOKEN = "PENDING_AUTH_TOKEN";
 
     private final AuthService authService;
+    private final MobileOkService mobileOkService;
 
-    AuthController(AuthService authService) {
+    AuthController(AuthService authService, MobileOkService mobileOkService) {
         this.authService = authService;
+        this.mobileOkService = mobileOkService;
     }
 
-    /**
-     * 로그인 처리
-     * POST /api/login
-     */
     @PostMapping("/login")
-    public ResponseEntity<Map<String, Object>> login(@RequestBody LoginRequest request, HttpSession session) {
-        logger.info("[AuthController] 로그인 요청 - userId: {}", request.getUserId());
-        UserDto user = authService.authenticate(request);
-        session.setAttribute("user", user); // 세션 추가
-        logger.info("[AuthController] 로그인 성공 - userId: {}", request.getUserId());
-        // 프론트엔드 호환: { "success": true, "user": {...} }
-        return ResponseEntity.ok(ApiResponse.withKey("user", user));
-    }
-    
-    @PostMapping("/company/search")
-    public ResponseEntity<Map<String, Object>> searchCompany(@RequestBody Map<String, Object> request) {
-        logger.info("[AuthController] 회원사 조회 요청 - COMPANY_ID: {}", request.get("COMPANY_ID"));
+    public ResponseEntity<Map<String, Object>> login(
+            @RequestBody LoginRequest request,
+            HttpSession session,
+            HttpServletRequest httpRequest) {
 
-        Map<String, Object> companyInfo = authService.selectCompanyInfo(request);
+        logger.info("[AuthController] login request - userId: {}", request.getUserId());
+        String loginIp = getClientIp(httpRequest);
+        LoginResult loginResult = authService.authenticateForLogin(request, loginIp);
 
-        if (companyInfo == null) {
-            //return ResponseEntity.ok(ApiResponse.error("회원사 정보를 찾을 수 없습니다."));
+        if (loginResult.isRequiresMobileAuth()) {
+            session.removeAttribute(SESSION_USER);
+            session.setAttribute(PENDING_LOGIN_USER, loginResult.getUser());
+            session.setAttribute(PENDING_LOGIN_IP, loginIp);
+            session.setAttribute(PENDING_AUTH_TOKEN, loginResult.getPendingAuthToken());
+            logger.info("[AuthController] mobile auth pending - userId: {}", request.getUserId());
+            return ResponseEntity.ok(toLoginResponse(loginResult));
         }
 
+        session.removeAttribute(PENDING_LOGIN_USER);
+        session.removeAttribute(PENDING_LOGIN_IP);
+        session.removeAttribute(PENDING_AUTH_TOKEN);
+        session.setAttribute(SESSION_USER, loginResult.getUser());
+        logger.info("[AuthController] login completed - userId: {}", request.getUserId());
+
+        return ResponseEntity.ok(toLoginResponse(loginResult));
+    }
+
+    private Map<String, Object> toLoginResponse(LoginResult loginResult) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", loginResult.isSuccess());
+        response.put("authType", loginResult.getAuthType());
+        response.put("requiresMobileAuth", loginResult.isRequiresMobileAuth());
+        response.put("requiresCertificateAuth", loginResult.isRequiresCertificateAuth());
+        response.put("pendingAuthToken", loginResult.getPendingAuthToken());
+        response.put("user", loginResult.getUser());
+        return response;
+    }
+
+    private String getClientIp(HttpServletRequest request) {
+        String clientIp = request.getHeader("X-Forwarded-For");
+
+        if (clientIp != null && !clientIp.isBlank()) {
+            int commaIndex = clientIp.indexOf(',');
+            return commaIndex >= 0 ? clientIp.substring(0, commaIndex).trim() : clientIp.trim();
+        }
+
+        clientIp = request.getHeader("X-Real-IP");
+
+        if (clientIp != null && !clientIp.isBlank()) {
+            return clientIp.trim();
+        }
+
+        return request.getRemoteAddr();
+    }
+
+    @PostMapping("/logout")
+    public ResponseEntity<Map<String, Object>> logout(HttpSession session) {
+        UserDto user = (UserDto) session.getAttribute(SESSION_USER);
+
+        if (user != null) {
+            authService.logout(user.getLOGIN_ID(), user.getLOGIN_DT());
+            logger.info("[AuthController] logout - userId: {}", user.getLOGIN_ID());
+        }
+
+        session.invalidate();
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/auth/mobile/request")
+    public ResponseEntity<Map<String, Object>> requestMobileAuth(
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        if (!isValidPendingAuthToken(request, session)) {
+            response.put("success", false);
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            return ResponseEntity.ok(response);
+        }
+
+        try {
+            response.putAll(mobileOkService.requestToken(session));
+            response.put("pendingAuthToken", session.getAttribute(PENDING_AUTH_TOKEN));
+        } catch (Exception e) {
+            logger.error("[AuthController] Mobile-OK token request failed", e);
+            response.put("success", false);
+            response.put("ready", false);
+            response.put("message", e.getMessage());
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/auth/mobile/verify")
+    public ResponseEntity<Map<String, Object>> verifyMobileAuth(
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+
+        Map<String, Object> response = new HashMap<>();
+
+        if (!isValidPendingAuthToken(request, session)) {
+            response.put("success", false);
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            return ResponseEntity.ok(response);
+        }
+
+        response.put("success", false);
+        response.put("message", "Mobile-OK 실제 검증 연동은 다음 단계에서 구현합니다.");
+        return ResponseEntity.ok(response);
+    }
+
+    private boolean isValidPendingAuthToken(Map<String, Object> request, HttpSession session) {
+        Object requestToken = request.get("pendingAuthToken");
+        Object sessionToken = session.getAttribute(PENDING_AUTH_TOKEN);
+        Object pendingUser = session.getAttribute(PENDING_LOGIN_USER);
+
+        if (requestToken == null || sessionToken == null || pendingUser == null) {
+            return false;
+        }
+
+        return String.valueOf(sessionToken).equals(String.valueOf(requestToken));
+    }
+
+    @PostMapping("/company/search")
+    public ResponseEntity<Map<String, Object>> searchCompany(@RequestBody Map<String, Object> request) {
+        logger.info("[AuthController] company search request - COMPANY_ID: {}", request.get("COMPANY_ID"));
+        Map<String, Object> companyInfo = authService.selectCompanyInfo(request);
         return ResponseEntity.ok(ApiResponse.withKey("companyInfo", companyInfo));
     }
-    
+
     @PostMapping("/company/association-list")
     public ResponseEntity<Map<String, Object>> selectAssociation(@RequestBody Map<String, Object> request) {
         List<Map<String, Object>> list = authService.selectAssociation(request);
@@ -72,13 +184,12 @@ public class AuthController {
         List<Map<String, Object>> list = authService.selectBranchID(request);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
-    
+
     @PostMapping("/member/check-id")
     public ResponseEntity<Map<String, Object>> checkMemberId(@RequestBody Map<String, Object> request) {
         Map<String, Object> result = authService.selectMBCount(request);
 
         int count = 0;
-
         Object reccnt = result.get("RECCNT");
         if (reccnt == null) {
             reccnt = result.get("reccnt");
@@ -97,7 +208,7 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
-    
+
     @PostMapping("/member/signup")
     public ResponseEntity<Map<String, Object>> signupMember(@RequestBody Map<String, Object> request) throws Exception {
         authService.setMember(request);
@@ -108,14 +219,13 @@ public class AuthController {
 
         return ResponseEntity.ok(response);
     }
-    
+
     @PostMapping("/member/verify-password")
     public ResponseEntity<Map<String, Object>> verifyPassword(
             @RequestBody Map<String, Object> request,
             HttpSession session) {
 
-        UserDto user = (UserDto) session.getAttribute("user");
-
+        UserDto user = (UserDto) session.getAttribute(SESSION_USER);
         Map<String, Object> response = new HashMap<>();
 
         if (user == null) {
@@ -140,8 +250,7 @@ public class AuthController {
 
     @PostMapping("/member/my-info")
     public ResponseEntity<Map<String, Object>> myInfo(HttpSession session) {
-        UserDto user = (UserDto) session.getAttribute("user");
-
+        UserDto user = (UserDto) session.getAttribute(SESSION_USER);
         Map<String, Object> response = new HashMap<>();
 
         if (user == null) {
@@ -162,8 +271,7 @@ public class AuthController {
             @RequestBody Map<String, Object> request,
             HttpSession session) throws Exception {
 
-        UserDto user = (UserDto) session.getAttribute("user");
-
+        UserDto user = (UserDto) session.getAttribute(SESSION_USER);
         Map<String, Object> response = new HashMap<>();
 
         if (user == null) {
@@ -180,23 +288,20 @@ public class AuthController {
         }
 
         request.put("LOGIN_ID", user.getLOGIN_ID());
-
         authService.updateMemberBasic(request);
-
         session.removeAttribute("MEMBER_EDIT_VERIFIED");
 
         response.put("success", true);
         response.put("message", "회원정보가 수정되었습니다.");
         return ResponseEntity.ok(response);
     }
-    
+
     @PostMapping("/member/change-password")
     public ResponseEntity<Map<String, Object>> changePassword(
             @RequestBody Map<String, Object> request,
             HttpSession session) throws Exception {
 
-        UserDto user = (UserDto) session.getAttribute("user");
-
+        UserDto user = (UserDto) session.getAttribute(SESSION_USER);
         Map<String, Object> response = new HashMap<>();
 
         if (user == null) {
@@ -207,7 +312,6 @@ public class AuthController {
 
         String currentPassword = String.valueOf(request.get("CURRENT_PASS_WD"));
         String newPassword = String.valueOf(request.get("NEW_PASS_WD"));
-
         boolean changed = authService.changePassword(user.getLOGIN_ID(), currentPassword, newPassword);
 
         if (changed) {

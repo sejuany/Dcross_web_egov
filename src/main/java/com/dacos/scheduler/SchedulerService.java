@@ -32,6 +32,7 @@ public class SchedulerService {
     
     @Transactional
     public int processTodayNewcarWaitingServices() {
+        // 오늘 등록예정일 건들 중 '납부완료','심사대기'상태인 것들 조회하여 심사요청으로 변경하는 스케쥴
         List<SchedulerDto> targetList = schedulerMapper.selectNewcarWaitingServices();
 
         if (targetList == null || targetList.isEmpty()) {
@@ -52,12 +53,43 @@ public class SchedulerService {
 
                 SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
                 String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
-
-                String smsText = "안녕하세요. 폴스타코리아 온라인 대행업체입니다.\n"
-                    + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
-                    + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다."
-                    + (isBlank(specialistPhone) ? "" : "\n연락처 : " + specialistPhone);
-
+                String smsText = "";
+                
+                // WA로 시작하는 회사 문자 처리
+                if (target.getCOMPANY_ID() != null && target.getCOMPANY_ID().substring(0,2).equals("WA")) {
+                     if (target.getCOMPANY_ID().equals("WA001")) {
+                            smsText = "안녕하세요. 폴스타코리아 온라인 대행업체입니다.\n"
+                            + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                            + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다."
+                            + (isBlank(specialistPhone) ? "" : "\n연락처 : " + specialistPhone);    
+                     }
+                     else {
+                        smsText = "안녕하세요. 신규등록 온라인 대행업체입니다.\n"
+                                + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                                + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다.";
+                     }
+                    
+                } else if (target.getCOMPANY_ID() != null && target.getCOMPANY_ID().substring(0,2).equals("WA")) {
+                    // 한성자동차 처리
+                    if (target.getCOMPANY_ID().equals("WA002")) {
+                        smsText = "안녕하세요. 한성자동차 온라인 대행업체입니다.\n"
+                                + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                                + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다."
+                                + (isBlank(specialistPhone) ? "" : "\n연락처 : " + specialistPhone);
+                    } else {
+                        smsText = "안녕하세요. 신규등록 온라인 대행업체입니다.\n"
+                                + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                                + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다.";
+                    }
+                    
+                } else {
+                    // 이외 기본 심사요청 문자 처리
+                    smsText = "안녕하세요. 신규등록 온라인 대행업체입니다.\n"
+                            + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                            + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다."
+                            + (isBlank(specialistPhone) ? "" : "\n연락처 : " + specialistPhone);
+                }
+                
                 // 심사요청 문자 발송
                 Map<String, Object> param = new HashMap<>();
                 param.put("PAY_HP_NO", target.getMPHONE_NO()); // 고객 연락처
@@ -68,6 +100,7 @@ public class SchedulerService {
                 logger.info("[SchedulerService] SMS문자 발송완료 - serviceId: {}, 문자내용: {}", serviceId, smsText);
 
                 // 심사요청으로 상태 변경
+                // 한성자동차는 S_WAIT 라서 납부요청 조건 제거
                 int updated = schedulerMapper.updateServiceToJudgeRequest(serviceId);
                 updateCount += updated;
 

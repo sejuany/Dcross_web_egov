@@ -15,5 +15,8 @@
     "terminal.integrated.env.windows": {
         "LANG": "ko_KR.UTF-8"
     },
-    "terminal.integrated.fontFamily": "Consolas, 'Malgun Gothic', 'D2Coding'"
+    "terminal.integrated.fontFamily": "Consolas, 'Malgun Gothic', 'D2Coding'",
+    "files.readonlyInclude": {
+        "{**/.c4z/.extsrcs/*.PROTSYM.cbl,**/.c4z/.extsrcs/*.PROTSYM.listing}": true
+    }
 }

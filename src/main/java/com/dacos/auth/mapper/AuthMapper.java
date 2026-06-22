@@ -64,4 +64,8 @@ public interface AuthMapper {
     int increaseLoginErrorCount(@Param("userId") String userId);
 
     int resetLoginErrorCount(@Param("userId") String userId);
+
+    int insertLoginLog(Map<String, Object> param);
+
+    int updateLogoutDt(@Param("loginId") String loginId, @Param("loginDt") String loginDt);
 }

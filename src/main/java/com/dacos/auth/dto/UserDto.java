@@ -22,4 +22,5 @@ public class UserDto {
     private String MEMBER_GB;
     private String ASSOCIATION_ID;
     private String MEMBER_MAIL;
+    private String LOGIN_DT;
 }

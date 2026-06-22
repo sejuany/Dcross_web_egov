@@ -2,6 +2,7 @@
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { useTabs } from '../../context/TabContext';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
 import AddressSearchModal from '../common/AddressSearchModal';
@@ -408,6 +409,7 @@ const mergeServiceRows = (apiRows = []) => {
 function CompanyManage() {
     const navigate = useNavigate();
     const { user } = useAuth();
+    const { activeTabId, removeTab } = useTabs();
 
     const baseNameRef = useRef(null);
 
@@ -1387,7 +1389,12 @@ function CompanyManage() {
     };
 
     const handleClose = () => {
-        navigate('/home');
+        if (!activeTabId) {
+            navigate('/home');
+            return;
+        }
+
+        removeTab(activeTabId);
     };
 
     const handleCompanyHistory = async () => {

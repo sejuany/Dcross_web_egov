@@ -1,0 +1,87 @@
+﻿.pdf-upload-container {
+    overflow: hidden;
+}
+
+.pdf-upload-content {
+    flex: 1 1 auto;
+    overflow: auto;
+    padding: 6px;
+}
+
+.pdf-file-control {
+    align-items: center;
+    display: flex;
+    gap: 6px;
+    min-width: 0;
+    width: 100%;
+}
+.pdf-file-input {
+    flex: 0 0 auto;
+    max-width: 360px;
+    font-size: 12px;
+}
+
+.pdf-file-name {
+    color: #44546a;
+    font-size: 12px;
+    margin-left: 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-upload-message {
+    border: 1px solid #c8d2df;
+    color: #334e68;
+    font-size: 12px;
+    font-weight: 600;
+    margin-bottom: 4px;
+    padding: 7px 10px;
+}
+
+.pdf-upload-message.success {
+    background-color: #eef8f1;
+    border-color: #9fd4ad;
+    color: #276738;
+}
+
+.pdf-upload-message.warn {
+    background-color: #fff7e6;
+    border-color: #f1c36d;
+    color: #7a4c00;
+}
+
+.pdf-result-table-wrap {
+    overflow: auto;
+    width: 100%;
+}
+
+.pdf-result-table {
+    border-collapse: collapse;
+    font-size: 12px;
+    min-width: 1080px;
+    table-layout: fixed;
+    width: 100%;
+}
+
+.pdf-result-table th,
+.pdf-result-table td {
+    border: 1px solid #c8d2df;
+    height: 30px;
+    overflow: hidden;
+    padding: 5px 7px;
+    text-align: center;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.pdf-result-table th {
+    background-color: #eef2f6;
+    color: #243447;
+    font-weight: 700;
+}
+
+.pdf-result-table td.text-left {
+    text-align: left;
+}
+

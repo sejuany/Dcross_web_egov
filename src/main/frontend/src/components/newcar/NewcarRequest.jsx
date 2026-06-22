@@ -10,7 +10,7 @@ import { AgGridReact } from 'ag-grid-react';
 // 공통 컴포넌트
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
-import { gf, log, mapData } from '../../utils/utils'; // 공통 유틸 함수
+import { gf, log, mapData, toast } from '../../utils/utils'; // 공통 유틸 함수
 import CommonSelect from '../common/CommonSelect';	  // 콤보박스 세팅
 import NumberPlateModal from './NumPlateSelectModal'; // 번호판 모달
 import AddressSearchModal from '../common/AddressSearchModal';  // 주소검색 모달
@@ -481,9 +481,10 @@ const NewcarRequest = () => {
 	    );
 
 	    const acqTax = Math.floor((buyAmt * 0.07) / 10) * 10;
-	    const bond = Math.floor((buyAmt * 0.20 * 0.10) / 10) * 10;
-	    const bondFee = Math.floor(((buyAmt * 0.003) + 800) / 10) * 10;
-
+		const bondAmt = Math.floor((buyAmt * 0.2) / 10) * 10; // 채권매입액
+	    const bond = Math.floor((buyAmt * 0.2 * 0.1) / 10) * 10;  // 채권할인금액 - 20%가 대형 최고금액(0.2), 채권할인금액 10% 적용(0.1)
+	    const bondFee = Math.floor(((bondAmt * 0.003) + 600) / 10) * 10;
+		
 	    const fee = 27500;
 	    const stamp = 2500;
 	    const inji = 3000;
@@ -685,8 +686,8 @@ const NewcarRequest = () => {
 		
 		// 후납
 		if (newDataSet.dsNewCar.PAY_GB === "A") {
-		    newDataSet.dsService.PROC_ST = "REQ";
-		    newDataSet.dsService.JUDGE_ST = "S_REQ";
+		    newDataSet.dsService.PROC_ST = "S_WAIT";
+		    newDataSet.dsService.JUDGE_ST = "S_WAIT";
 		}
 		// 선납
 		else {
@@ -1739,28 +1740,7 @@ const NewcarRequest = () => {
 	    });
 	};
 	
-	// 사용본거지 주소 체크해서 소유자 주소 갖고 오기
-	const handleServiceIdCopy = async () => {
-		const serviceId = (dsService.SERVICE_ID ?? '').trim();
 
-		if (!serviceId) {
-			return;
-		}
-
-		try {
-			await navigator.clipboard.writeText(serviceId);
-		} catch (err) {
-			const textarea = document.createElement('textarea');
-			textarea.value = serviceId;
-			textarea.style.position = 'fixed';
-			textarea.style.opacity = '0';
-			document.body.appendChild(textarea);
-			textarea.select();
-			document.execCommand('copy');
-			document.body.removeChild(textarea);
-		}
-	};
-	
 	const chekBaseAddr = () => {
 		setDsNewCar(prev => ({
 		    ...prev,
@@ -1856,7 +1836,7 @@ const NewcarRequest = () => {
 						<CommonSelect groupId="SGB" codes={codes} name="WORK_CD" value={dsService.WORK_CD ?? '1'} data-type="service" onChange={handleChange} disabled={isDisabled(true)} />
 					</ErpField>
 					<ErpField label="접수번호" span={3} htmlFor="SERVICE_ID">
-						<input type="text" id="SERVICE_ID" className={`erp-input ${!canEdit() ? 'disabled' : ''}`} data-type="service" value={dsService.SERVICE_ID} readOnly={isReadOnly(true)} onClick={handleServiceIdCopy} onChange={() => { }} />
+						<input type="text" id="SERVICE_ID" className={`erp-input ${!canEdit() ? 'disabled' : ''}`} data-type="service" value={dsService.SERVICE_ID} readOnly={isReadOnly(true)} onClick={() => gf.copyText(dsService.SERVICE_ID, '접수번호')} onChange={() => { }} />
 					</ErpField>
 					<ErpField label="회사명" span={4} htmlFor="COMPANY_NM">
 						<input type="text" className="erp-input" id="COMPANY_NM" name="COMPANY_NM" data-type="company" value={dsCompanyInfo.COMPANY_NM ?? ''} readOnly={isReadOnly(true)} onChange={handleChange} />
@@ -2006,16 +1986,19 @@ const NewcarRequest = () => {
 									</ErpField>
 								</div>
 								<div className="erp-row">
-									<ErpField label="등록번호" required={true} span={5} htmlFor="REG_NO">
-										<CommonSelect groupId="REGGB" style={{ width: '100px', flex: '0 0 100px' }} codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
+									<ErpField label="등록번호" required={true} span={4} htmlFor="REG_NO">
+										<CommonSelect groupId="REGGB" width="70px" codes={codes} name="REG_GB" value={dsNewCar.REG_GB ?? ''} data-type="newcar" onChange={handleChange} disabled={isDisabled()} />
 										<input type="text" className="erp-input" id="REG_NO" name="REG_NO" data-type="newcar" value={formatRegNo(dsNewCar.REG_NO ?? '')} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
-									<ErpField label="대표소유자명" span={4} required={true} htmlFor="OWNER_NM" className="ownerNm-field"
-									  labelExtra={<input type="checkbox" className="erp-label-extra" checked={sameOwnerYn} onChange={handleSameOwnerChange} disabled={isDisabled()} />}>
+									<ErpField label="사업자번호" required={true} span={2} htmlFor="BIZ_NO">
+									<input type="text" className="erp-input" id="BIZ_NO" name="BIZ_NO" data-type="newcar" value={dsNewCar.BIZ_NO ?? ''} onChange={handleChange} readOnly={isReadOnly()} />
+									</ErpField>
+									<ErpField label="대표소유자명" span={4} required={true} htmlFor="OWNER_NM" className="ownerNm-field" labelWidth="110px"
+									  	labelExtra={<input type="checkbox" className="erp-label-extra" checked={sameOwnerYn} onChange={handleSameOwnerChange} disabled={isDisabled()} />}>
 										{/* 소유자명 = 계약자명 체크 */}
 										<input type="text" className="erp-input" id="OWNER_NM" name="OWNER_NM" data-type="newcar" value={dsNewCar.OWNER_NM} onChange={handleChange} readOnly={isReadOnly()} onBlur={handleBlur} />
 									</ErpField>
-									<ErpField label="대표소유자 비율(%)" span={3} htmlFor="RATIO_NO" className="ratio-field" >
+									<ErpField label="대표소유자 비율(%)" span={2} htmlFor="RATIO_NO" className="ratio-field" labelWidth="115px" >
 										<input type="text" className="erp-input" id="RATIO_NO" name="RATIO_NO" data-type="newcar" value={dsNewCar.RATIO_NO} onChange={handleChange} readOnly={isReadOnly()} />
 									</ErpField>
 								</div>
@@ -2070,7 +2053,7 @@ const NewcarRequest = () => {
 										<ErpField label="만료일" span={5}>
 											<input type="date" className="erp-input" name="EXPIRE_DT" data-type="owner" value={dsOwnerInfo?.EXPIRE_DT ?? ''} onChange={handleChange} readOnly={isJointOwnerReadOnly(true)} />
 										</ErpField>
-										<ErpField label="공동소유 비율(%)" span={3} className="ratio-field">
+										<ErpField label="공동소유 비율(%)" span={3} className="ratio-field" labelWidth="115px">
 											<input className="erp-input" name="DEBTOR_RATIO" data-type="owner" value={dsOwnerInfo?.DEBTOR_RATIO ?? ''} onChange={handleChange} readOnly={isJointOwnerReadOnly(true)} />
 										</ErpField>
 									</div>

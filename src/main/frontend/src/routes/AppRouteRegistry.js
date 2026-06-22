@@ -27,6 +27,7 @@ import NewcarList from '../components/newcar/NewcarList';
 import NewCarGroupRequest from '../components/newcar/NewCarGroupRequest';
 import Epayconfirm from '../components/newcar/Epayconfirm';
 import NotUsedBond from '../components/newcar/NotUsedBond';
+import NewcarPDFUpload from '../components/newcar/NewcarPDFUpload';
 
 import TrnsNameRequest from '../components/trnsname/TrnsNameRequest';
 import TrnsNameList from '../components/trnsname/TrnsNameList';
@@ -106,6 +107,7 @@ export const protectedRouteComponents = {
     '/newcar/newcar-group-request': NewCarGroupRequest,
     '/newcar/epayconfirm': Epayconfirm,
     '/newcar/not-used-bond': NotUsedBond,
+    '/newcar/pdf-upload': NewcarPDFUpload,
 
     '/trnsname/trnsname-request': TrnsNameRequest,
     '/trnsname/trnsname-list': TrnsNameList,
@@ -155,4 +157,3 @@ export const protectedRouteComponents = {
     '/mypage/member-password-check': MemberPasswordCheck,
     '/mypage/member-edit': MemberEdit,
 };
-

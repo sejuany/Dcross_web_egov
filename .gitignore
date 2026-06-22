@@ -25,6 +25,9 @@ target/
 src/main/resources/application-local.yml
 src/main/resources/application-prod.yml
 
+# Mobile-OK key files
+src/main/resources/mobile-ok/*.dat
+
 # =========================================
 # IntelliJ IDEA / Eclipse
 # =========================================

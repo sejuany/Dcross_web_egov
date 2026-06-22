@@ -50,6 +50,12 @@ const NewCarReceiptModal = ({
 	    }
 	};
 
+	// 과세표준액
+	const taxBaseAmt = Math.max(
+	    Number(dsNewCar.BUY_AMT || 0),
+	    Number(dsNewCar.T_VBANK_ID || 0)
+	);
+	
 	// 모달 오픈 시 채권정보 조회
 	useEffect(() => {
 	    loadBondInfo();
@@ -225,9 +231,9 @@ const NewCarReceiptModal = ({
 				            </td>
 
 				            <th>과세표준액</th>
-				            <td className="amount">
-				                {Number(dsNewCar.T_VBANK_ID || 0).toLocaleString()}원
-				            </td>
+							<td className="amount">
+							    {taxBaseAmt.toLocaleString()}원
+							</td>
 				        </tr>
 				    </tbody>
 				</table>
@@ -268,26 +274,26 @@ const NewCarReceiptModal = ({
 	
 						        <tr>
 						            <th>채권금액</th>
-						            <td>{Number(dsBondInfo.FIELD16 || 0).toLocaleString()}원</td>
+						            <td className="amount">{Number(dsBondInfo.FIELD16 || 0).toLocaleString()}원</td>
 	
 						            <th>선급이자</th>
-						            <td>{Number(dsBondInfo.FIELD24 || 0).toLocaleString()}원</td>
+						            <td className="amount">{Number(dsBondInfo.FIELD24 || 0).toLocaleString()}원</td>
 						        </tr>
 	
 						        <tr>
 						            <th>소득(법인)세</th>
-						            <td>{Number(dsBondInfo.FIELD25 || 0).toLocaleString()}원</td>
+						            <td className="amount">{Number(dsBondInfo.FIELD25 || 0).toLocaleString()}원</td>
 	
 						            <th>주민세</th>
-						            <td>{Number(dsBondInfo.FIELD26 || 0).toLocaleString()}원</td>
+						            <td className="amount">{Number(dsBondInfo.FIELD26 || 0).toLocaleString()}원</td>
 						        </tr>
 	
 						        <tr>
 						            <th>수수료</th>
-						            <td>{Number(dsBondInfo.FIELD27 || 0).toLocaleString()}원</td>
+						            <td className="amount">{Number(dsBondInfo.FIELD27 || 0).toLocaleString()}원</td>
 	
 						            <th>차감지급액</th>
-						            <td>{Number(dsBondInfo.FIELD23 || 0).toLocaleString()}원</td>
+						            <td className="amount">{Number(0).toLocaleString()}원</td>
 						        </tr>
 	
 						        <tr>
@@ -321,9 +327,7 @@ const NewCarReceiptModal = ({
 	
 					            <tr>
 					                <th>지급금액</th>
-					                <td className="amount">
-					                    {Number(dsBondInfo.FIELD23 || 0).toLocaleString()}원
-					                </td>
+									<td className="amount">{Number(0).toLocaleString()}원</td>
 	
 					                <th>본인부담금액</th>
 					                <td className="amount">

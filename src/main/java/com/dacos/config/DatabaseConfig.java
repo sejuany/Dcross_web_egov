@@ -10,14 +10,18 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 
+import com.dacos.common.SearchLogInterceptor;
+
 @Configuration
 @MapperScan(basePackages = "com.dacos")
 public class DatabaseConfig {
 
     private final DataSource dataSource;
+    private final SearchLogInterceptor searchLogInterceptor;
 
-    public DatabaseConfig(DataSource dataSource) {
+    public DatabaseConfig(DataSource dataSource, SearchLogInterceptor searchLogInterceptor) {
         this.dataSource = dataSource;
+        this.searchLogInterceptor = searchLogInterceptor;
     }
 
     @Bean
@@ -34,6 +38,7 @@ public class DatabaseConfig {
         config.setDefaultStatementTimeout(30);
         config.setJdbcTypeForNull(org.apache.ibatis.type.JdbcType.VARCHAR); // Oracle null 파라미터 오류 방지 (ORA-17004)
         factoryBean.setConfiguration(config);
+        factoryBean.setPlugins(searchLogInterceptor);
         return factoryBean.getObject();
     }
 

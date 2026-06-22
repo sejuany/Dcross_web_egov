@@ -1,13 +1,15 @@
-# ============================================================
-# application-local.yml.example - 로컬 환경 설정 예시 파일
-# ============================================================
-# 이 파일을 복사하여 application-local.yml 로 저장한 후
-# 자신의 DB 접속 정보를 입력하세요.
-# (application-local.yml 은 .gitignore 에 등록되어 있습니다)
-# ============================================================
-
 spring:
   datasource:
     url: jdbc:oracle:thin:@{DB_HOST}:{DB_PORT}/{DB_SERVICE}
     username: YOUR_DB_USERNAME
     password: YOUR_DB_PASSWORD
+
+jasypt:
+  encryptor:
+    bean: jasyptStringEncryptor
+
+mobile-ok:
+  enabled: true
+  key-file: file:./src/main/resources/mobile-ok/mok_keyInfo_dev.dat
+  key-password: ${MOBILE_OK_KEY_PASSWORD:@dewa1004}
+  site-url: t.dcross.kr

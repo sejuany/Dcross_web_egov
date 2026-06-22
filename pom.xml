@@ -47,6 +47,15 @@
 
 	<dependencies>
 
+		<!-- Mobile-OK 본인확인 연동 라이브러리 -->
+		<dependency>
+			<groupId>kr.co.mobile-ok</groupId>
+			<artifactId>mobile-ok-manager</artifactId>
+			<version>1.0.1</version>
+			<scope>system</scope>
+			<systemPath>${project.basedir}/libs/mobile-ok/mobileOKManager-jdk1.8_1.0.1.jar</systemPath>
+		</dependency>
+
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
@@ -177,10 +186,16 @@
 		    <version>2.15.2</version>
 		</dependency>
 		
-    	<dependency>
+		<dependency>
 		    <groupId>org.apache.poi</groupId>
 		    <artifactId>poi-ooxml</artifactId>
 		    <version>5.2.5</version>
+		</dependency>
+
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>3.0.7</version>
 		</dependency>
 		
 		<dependency>
@@ -242,7 +257,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
-			<version>3.5.14</version>
+			<version>3.5.15</version>
 			<optional>true</optional>
 			<exclusions>
 				<exclusion>
@@ -260,7 +275,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-			<version>3.5.14</version>
+			<version>3.5.15</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -449,9 +464,10 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-			<version>3.5.14</version>
+			<version>3.5.15</version>
 				<configuration>
 					<jvmArguments>-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dstdout.encoding=UTF-8</jvmArguments>
+					<includeSystemScope>true</includeSystemScope>
 				</configuration>
 				<executions>
 					<execution>

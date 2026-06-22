@@ -1,4 +1,4 @@
-package com.dacos.newcar;
+﻿package com.dacos.newcar;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -37,10 +37,12 @@ public class NewcarController {
 
     private final NewcarService newcarService;
     private final CommonService commonService;
+    private final NewcarPdfExtractService newcarPdfExtractService;
 
-    public NewcarController(NewcarService newcarService, CommonService commonService) {
+    public NewcarController(NewcarService newcarService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService) {
         this.newcarService = newcarService;
         this.commonService = commonService;
+        this.newcarPdfExtractService = newcarPdfExtractService;
     }
     
     /**
@@ -97,6 +99,37 @@ public class NewcarController {
             Map<String, Object> result = newcarService.uploadExcel(file, user);
             return ResponseEntity.ok(ApiResponse.withKey("data", result));
         } catch (Exception e) {
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/pdf-extract")
+    public ResponseEntity<Map<String, Object>> extractPdf(@RequestParam("file") MultipartFile file, HttpSession session) {
+        try {
+            AuthUtil.getLoginUser(session);
+            Map<String, Object> result = newcarPdfExtractService.extractProductionCertificate(file);
+            return ResponseEntity.ok(ApiResponse.withKey("data", result));
+        } catch (Exception e) {
+            logger.error("[NewcarController] PDF 제작증 추출 실패", e);
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "message", e.getMessage()
+            ));
+        }
+    }
+
+    @PostMapping("/pdf-upload")
+    public ResponseEntity<Map<String, Object>> uploadPdf(@RequestParam("files") MultipartFile[] files, HttpSession session) {
+        try {
+            UserDto user = AuthUtil.getLoginUser(session);
+            List<Map<String, Object>> extractedRows = newcarPdfExtractService.extractAndSaveProductionCertificates(files, user);
+            Map<String, Object> result = newcarService.uploadPdf(extractedRows, user);
+            return ResponseEntity.ok(ApiResponse.withKey("data", result));
+        } catch (Exception e) {
+            logger.error("[NewcarController] PDF 제작증 업로드 신청 실패", e);
             return ResponseEntity.ok(Map.of(
                     "success", false,
                     "message", e.getMessage()
@@ -282,3 +315,4 @@ public class NewcarController {
         return result;
     }
 }
+
