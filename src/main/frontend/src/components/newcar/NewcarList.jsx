@@ -90,7 +90,10 @@ const NewcarList = () => {
                 PROC_ST: cleanParam(searchFilters.processStatus),
                 NUM_PROC_ST: cleanParam(searchFilters.deliveryStatus),
 				TIME_DVSN: searchFilters.selectedTimes.join(','),
-				DELIVERY_GB: searchFilters.selectedDeliveryGb.join(',')
+				DELIVERY_GB: searchFilters.selectedDeliveryGb.join(','),
+				
+			    BRANCH_ID: user.member_GB === 'BA' || user.member_GB === 'SA' ? user.branch_ID : '',
+			    SANGSA_ID: user.member_GB === 'SA' ? user.sangsa_ID : ''
             };
 
             const response = await axios.post('/api/newcar/list', params);

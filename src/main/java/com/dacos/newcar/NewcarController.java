@@ -3,6 +3,7 @@
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -109,7 +110,8 @@ public class NewcarController {
     @PostMapping("/pdf-extract")
     public ResponseEntity<Map<String, Object>> extractPdf(@RequestParam("file") MultipartFile file, HttpSession session) {
         try {
-            AuthUtil.getLoginUser(session);
+            UserDto user = AuthUtil.getLoginUser(session);
+            validatePdfUploadCompany(user);
             Map<String, Object> result = newcarPdfExtractService.extractProductionCertificate(file);
             return ResponseEntity.ok(ApiResponse.withKey("data", result));
         } catch (Exception e) {
@@ -125,6 +127,7 @@ public class NewcarController {
     public ResponseEntity<Map<String, Object>> uploadPdf(@RequestParam("files") MultipartFile[] files, HttpSession session) {
         try {
             UserDto user = AuthUtil.getLoginUser(session);
+            validatePdfUploadCompany(user);
             List<Map<String, Object>> extractedRows = newcarPdfExtractService.extractAndSaveProductionCertificates(files, user);
             Map<String, Object> result = newcarService.uploadPdf(extractedRows, user);
             return ResponseEntity.ok(ApiResponse.withKey("data", result));
@@ -294,6 +297,12 @@ public class NewcarController {
 	    );
 	}
 
+    private void validatePdfUploadCompany(UserDto user) {
+        String companyId = Objects.toString(user.getCOMPANY_ID(), "").trim().toUpperCase();
+        if (!companyId.contains("WB")) {
+            throw new BusinessException("제작증 업로드는 WB 기업만 사용할 수 있습니다.", 403);
+        }
+    }
     private List<String> toStringList(Object value, String fieldName) {
         if (!(value instanceof List<?>)) {
             throw new BusinessException(fieldName + " 값이 올바르지 않습니다.", 400);
@@ -315,4 +324,7 @@ public class NewcarController {
         return result;
     }
 }
+
+
+
 

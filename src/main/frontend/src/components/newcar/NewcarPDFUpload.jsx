@@ -2,6 +2,7 @@
 import axios from 'axios';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
+import { useAuth } from '../../context/AuthContext';
 import './NewcarRequest.css';
 import './NewcarPDFUpload.css';
 
@@ -31,7 +32,15 @@ const toPreviewRow = (file, data, index) => ({
     rawText: data.rawText || ''
 });
 
+const getCompanyId = (user) => String(
+    user?.COMPANY_ID ||
+    user?.companyId ||
+    user?.company_ID ||
+    ''
+).trim().toUpperCase();
+
 const NewcarPDFUpload = () => {
+    const { user } = useAuth();
     const fileInputRef = useRef(null);
     const [files, setFiles] = useState([]);
     const [rows, setRows] = useState([]);
@@ -41,8 +50,14 @@ const NewcarPDFUpload = () => {
     const [submitting, setSubmitting] = useState(false);
 
     const loading = extracting || submitting;
+    const companyId = getCompanyId(user);
+    const canUsePdfUpload = companyId.includes('WB');
 
     const selectedFileName = useMemo(() => {
+        if (!canUsePdfUpload) {
+            return 'WB 기업만 사용 가능';
+        }
+
         if (!files.length) {
             return '선택된 파일 없음';
         }
@@ -52,7 +67,7 @@ const NewcarPDFUpload = () => {
         }
 
         return `${files[0].name} 외 ${files.length - 1}건`;
-    }, [files]);
+    }, [canUsePdfUpload, files]);
 
     const handleFileChange = (event) => {
         const selectedFiles = Array.from(event.target.files || []);
@@ -62,7 +77,19 @@ const NewcarPDFUpload = () => {
         setMessage('');
     };
 
+    const validateUse = () => {
+        if (!canUsePdfUpload) {
+            setMessage('제작증 업로드는 WB 기업만 사용할 수 있습니다.');
+            return false;
+        }
+        return true;
+    };
+
     const handleExtract = async () => {
+        if (!validateUse()) {
+            return;
+        }
+
         if (!files.length) {
             setMessage('PDF 파일을 선택해 주세요.');
             return;
@@ -117,6 +144,10 @@ const NewcarPDFUpload = () => {
     };
 
     const handleSubmit = async () => {
+        if (!validateUse()) {
+            return;
+        }
+
         if (!files.length) {
             setMessage('PDF 파일을 선택해 주세요.');
             return;
@@ -198,12 +229,12 @@ const NewcarPDFUpload = () => {
                                     multiple
                                     className="pdf-file-input"
                                     onChange={handleFileChange}
-                                    disabled={loading}
+                                    disabled={loading || !canUsePdfUpload}
                                 />
-                                <button type="button" className="btn-erp sm" onClick={handleExtract} disabled={loading}>
+                                <button type="button" className="btn-erp sm" onClick={handleExtract} disabled={loading || !canUsePdfUpload}>
                                     {extracting ? '추출중' : 'PDF 추출'}
                                 </button>
-                                <button type="button" className="btn-erp sm" onClick={handleSubmit} disabled={loading || !rows.length}>
+                                <button type="button" className="btn-erp sm" onClick={handleSubmit} disabled={loading || !canUsePdfUpload || !rows.length}>
                                     {submitting ? '신청중' : '신청'}
                                 </button>
                                 <span className="pdf-file-name">{selectedFileName}</span>
@@ -211,6 +242,12 @@ const NewcarPDFUpload = () => {
                         </ErpField>
                     </div>
                 </ErpSection>
+
+                {!canUsePdfUpload && (
+                    <div className="pdf-upload-message warn">
+                        제작증 업로드는 WB 기업만 사용할 수 있습니다.
+                    </div>
+                )}
 
                 {message && (
                     <div className={`pdf-upload-message ${errors.length ? 'warn' : 'success'}`}>
