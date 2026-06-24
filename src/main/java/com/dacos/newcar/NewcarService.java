@@ -370,7 +370,8 @@ public class NewcarService {
 	 * - 엑셀 업로드와 동일하게 전체 검증 후 정상 건만 신규등록 저장한다.
 	 */
 	@Transactional
-	public Map<String, Object> uploadPdf(List<Map<String, Object>> extractedRows, UserDto user) {
+	public Map<String, Object> uploadPdf(List<Map<String, Object>> extractedRows, UserDto user, String registrationType) {
+		PdfRegistrationType pdfRegistrationType = resolvePdfRegistrationType(registrationType);
 		List<Map<String, Object>> rows = parsePdfRows(extractedRows);
 		List<Map<String, Object>> errorList = new ArrayList<>();
 		Set<String> pdfCarIds = new HashSet<>();
@@ -401,8 +402,12 @@ public class NewcarService {
 		List<Map<String, Object>> inserted = new ArrayList<>();
 
 		for (Map<String, Object> row : rows) {
-			Map<String, Object> processResult = insertPdfRow(row, user);
+			Map<String, Object> processResult = insertPdfRow(row, user, pdfRegistrationType);
 			row.put("SERVICE_ID", processResult.get("SERVICE_ID"));
+			row.put("REGISTRATION_TYPE", pdfRegistrationType.requestValue());
+			row.put("REGISTRATION_TYPE_NM", pdfRegistrationType.label());
+			row.put("TASK_CD", pdfRegistrationType.taskCd());
+			row.put("REG_GB", pdfRegistrationType.regGb());
 			inserted.add(row);
 			insertCount++;
 		}
@@ -413,6 +418,17 @@ public class NewcarService {
 		result.put("errors", List.of());
 		result.put("rows", inserted);
 		return result;
+	}
+
+	private PdfRegistrationType resolvePdfRegistrationType(String registrationType) {
+		String value = Objects.toString(registrationType, "").trim().toUpperCase();
+
+		return switch (value) {
+			case "PERSONAL" -> new PdfRegistrationType("PERSONAL", "개인", "NORML", "R");
+			case "CORPORATE" -> new PdfRegistrationType("CORPORATE", "법인", "NORML", "B");
+			case "LEASE" -> new PdfRegistrationType("LEASE", "리스", "LEASE", "B");
+			default -> throw new BusinessException("제작증 업로드 구분 값이 올바르지 않습니다.", 400);
+		};
 	}
 
 	private List<Map<String, Object>> parsePdfRows(List<Map<String, Object>> extractedRows) {
@@ -490,7 +506,7 @@ public class NewcarService {
 		return errors;
 	}
 
-	private Map<String, Object> insertPdfRow(Map<String, Object> row, UserDto user) {
+	private Map<String, Object> insertPdfRow(Map<String, Object> row, UserDto user, PdfRegistrationType registrationType) {
 		Map<String, Object> request = new HashMap<>();
 		Map<String, Object> result = initNewCar(user);
 		Map<String, Object> dsService = commonUtil.getMap(result, "dsService");
@@ -504,9 +520,9 @@ public class NewcarService {
 		dsService.put("MEMBER_ID", user.getLOGIN_ID());
 
 		dsNewCar.put("PROC_CD", "I");
-		dsNewCar.put("TASK_CD", "NORML");
+		dsNewCar.put("TASK_CD", registrationType.taskCd());
 		dsNewCar.put("CARID_NO", row.get("CARID_NO"));
-		dsNewCar.put("REG_GB", "B");
+		dsNewCar.put("REG_GB", registrationType.regGb());
 		dsNewCar.put("REG_NO", row.get("REG_NO"));
 		dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));
 		dsNewCar.put("ADDRESS", row.get("ADDRESS"));
@@ -548,6 +564,9 @@ public class NewcarService {
 		request.put("dsPaymentList", getPaymentList(user));
 
 		return processNewCar(request, user);
+	}
+
+	private record PdfRegistrationType(String requestValue, String label, String taskCd, String regGb) {
 	}
 
 	private String onlyNumber(Object value) {

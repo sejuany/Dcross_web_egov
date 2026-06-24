@@ -10,6 +10,7 @@ import { useAuth } from '../../context/AuthContext';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
 import CommonMultiSelect from '../common/CommonMultiSelect';
+import NewcarPDFUpload from './NewcarPDFUpload';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -23,6 +24,39 @@ const getFormattedDateOffset = (offsetDays) => {
     return `${year}-${month}-${day}`;
 };
 
+const getUserCompanyId = (user) => String(
+    user?.company_ID ||
+    user?.COMPANY_ID ||
+    user?.companyId ||
+    user?.company_id ||
+    ''
+).trim().toUpperCase();
+
+const formatYyyyMmDd = (value) => {
+    const digits = String(value || '').replace(/[^0-9]/g, '');
+
+    if (digits.length !== 8) {
+        return value || '';
+    }
+
+    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
+};
+
+const formatAmount = (value) => {
+    const digits = String(value ?? '').replace(/[^0-9-]/g, '');
+
+    if (!digits || digits === '-') {
+        return '';
+    }
+
+    const numberValue = Number(digits);
+
+    if (Number.isNaN(numberValue)) {
+        return value || '';
+    }
+
+    return numberValue.toLocaleString('ko-KR');
+};
 const timeOptions = [
     { label: '8시', value: '08' },
     { label: '9시', value: '09' },
@@ -60,6 +94,8 @@ const NewcarList = () => {
 	const fileInputRef = useRef(null);
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기
     const memberGb = user?.member_GB || '';
+    const companyId = getUserCompanyId(user);
+    const isWb001Company = companyId === 'WB001';
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
     const [companyList, setCompanyList] = useState([]);
@@ -67,6 +103,7 @@ const NewcarList = () => {
     const [rowData, setRowData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
 	const [showReqModal, setShowReqModal] = useState(false);
+    const [showPdfUploadModal, setShowPdfUploadModal] = useState(false);
 	const [showErrorModal, setShowErrorModal] = useState(false);
 	const [errorMessage, setErrorMessage] = useState('');
 	const [selectedRows, setSelectedRows] = useState([]);
@@ -198,7 +235,7 @@ const NewcarList = () => {
 	    }},
         { headerName: '차량명', field: 'CAR_NM', width: 150 },
         { headerName: '차종', field: 'CAR_KD', width: 90, valueFormatter: params => formatCode('CARKD', params.value) },
-        { headerName: '취득가액', field: 'BUY_AMT', width: 100 },
+        { headerName: '취득가액', field: 'BUY_AMT', width: 100, valueFormatter: params => formatAmount(params.value), cellClass: 'ag-right-cell' },
         { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
         { headerName: '회사명', field: 'COMPANY_NM', width: 120 },
         { headerName: '신청인', field: 'MEMBER_NM', width: 90 },
@@ -210,12 +247,12 @@ const NewcarList = () => {
         { headerCheckboxSelection: true, checkboxSelection: true, width: 20 },
         { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
         { headerName: '처리상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
-        { headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120 },
+        { headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120, valueFormatter: params => formatYyyyMmDd(params.value) },
         { headerName: '주문번호', field: 'LINK_ID', width: 145 },
         { headerName: '차대번호', field: 'CARID_NO', width: 160 },
         { headerName: '차량번호', field: 'REQ_CAR_NO', width: 110 },
         { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
-		{ headerName: '공급가액', field: 'BUY_AMT', width: 100 },
+		{ headerName: '공급가액', field: 'BUY_AMT', width: 100, valueFormatter: params => formatAmount(params.value), cellClass: 'ag-right-cell' },
         { headerName: '납부상태', field: 'ALL_PAY_YN', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
         { headerName: '차량대금 납부일자', field: 'BPAY_DT', width: 120 },
         { headerName: '등록비용 납부일자', field: 'PAY_DT', width: 120 },
@@ -241,8 +278,8 @@ const NewcarList = () => {
         { headerName: '차대번호', field: 'CARID_NO', width: 180 },
 		{ headerName: '계약자명', field: 'CUSTOMER_NM', width: 130 },
         { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
-		{ headerName: '등록 예정일자', field: 'REGIST_DATE', width: 130 },
-		{ headerName: '공급가액', field: 'BUY_AMT', width: 120 },
+		{ headerName: '등록 예정일자', field: 'REGIST_DATE', width: 130, valueFormatter: params => formatYyyyMmDd(params.value) },
+		{ headerName: '공급가액', field: 'BUY_AMT', width: 120, valueFormatter: params => formatAmount(params.value), cellClass: 'ag-right-cell' },
 		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 180, valueFormatter: params => {
 		    const value = params.value;
 	        if (value === 'null' || value == null) {
@@ -287,6 +324,10 @@ const NewcarList = () => {
 
     const handleRegistClick = () => {
 		addTab('newcar-request', '신규등록', '/newcar/newcar-request');
+    };
+
+    const handlePdfUploadClick = () => {
+        setShowPdfUploadModal(true);
     };
 
     const handleSearchClick = () => {
@@ -626,20 +667,22 @@ const NewcarList = () => {
 						</>
 					)}
                     <span className="title-count">{totalCount}</span> 건
-					{/* SA만 보이게 */}
-					{(memberGb === 'SA' || memberGb === 'CA') && (
-						<>
-							<button className="btn-status red" onClick={handleExcelClick} style={{ marginLeft: '10px' }}>Excel 업로드</button>
-							<input
-							    type="file"
-							    ref={fileInputRef}
-							    style={{ display: 'none' }}
-							    accept=".xlsx,.xls"
-							    onChange={handleExcelUpload}
-							/>
-							<button className="btn-status yellow" onClick={handlePbEndClick} style={{ marginLeft: '10px' }}>차량대금 납부</button>
-						</>
-					)}
+                    {isWb001Company && (
+                        <button className="btn-status red" onClick={handlePdfUploadClick} style={{ marginLeft: '10px' }}>제작증 업로드</button>
+                    )}
+                    {(memberGb === 'SA' || memberGb === 'CA') && !isWb001Company && (
+                        <>
+                            <button className="btn-status red" onClick={handleExcelClick} style={{ marginLeft: '10px' }}>Excel 업로드</button>
+                            <input
+                                type="file"
+                                ref={fileInputRef}
+                                style={{ display: 'none' }}
+                                accept=".xlsx,.xls"
+                                onChange={handleExcelUpload}
+                            />
+                            <button className="btn-status yellow" onClick={handlePbEndClick} style={{ marginLeft: '10px' }}>차량대금 납부</button>
+                        </>
+                    )}
                 </div>
                 <div className="toolbar-right">
                     {/*<button className="btn-status">통합영수증</button>
@@ -651,6 +694,18 @@ const NewcarList = () => {
                     <button className="btn-status" onClick={handleCloseClick}>닫기[F9]</button>
                 </div>
             </div>
+
+            {showPdfUploadModal && (
+                <div className="pdf-upload-modal-overlay">
+                    <div className="pdf-upload-modal-box">
+                        <NewcarPDFUpload
+                            compact
+                            onClose={() => setShowPdfUploadModal(false)}
+                            onCompleted={() => fetchNewCarList()}
+                        />
+                    </div>
+                </div>
+            )}
 
             {/* 검색 조건 부분 */}
             <ErpSection isHeader={true}>
@@ -836,3 +891,6 @@ const NewcarList = () => {
 };
 
 export default NewcarList;
+
+
+

@@ -1,4 +1,4 @@
-﻿import React, { useMemo, useRef, useState } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
@@ -6,8 +6,8 @@ import { useAuth } from '../../context/AuthContext';
 import './NewcarRequest.css';
 import './NewcarPDFUpload.css';
 
-const resultColumns = [
-    { key: 'SERVICE_ID', label: '접수번호' },
+const resultColumns = [    
+    { key: 'REGISTRATION_TYPE_NM', label: '구분' },
     { key: 'ORIGINAL_FILE_NAME', label: '파일명' },
     { key: 'CARID_NO', label: '차대번호' },
     { key: 'CAR_NM', label: '차명' },
@@ -39,7 +39,17 @@ const getCompanyId = (user) => String(
     ''
 ).trim().toUpperCase();
 
-const NewcarPDFUpload = () => {
+const registrationTypeOptions = [
+    { value: 'PERSONAL', label: '개인' },
+    { value: 'CORPORATE', label: '법인' },
+    { value: 'LEASE', label: '리스' }
+];
+
+const getRegistrationTypeLabel = (value) => (
+    registrationTypeOptions.find(option => option.value === value)?.label || ''
+);
+
+const NewcarPDFUpload = ({ compact = false, onClose, onCompleted } = {}) => {
     const { user } = useAuth();
     const fileInputRef = useRef(null);
     const [files, setFiles] = useState([]);
@@ -48,10 +58,12 @@ const NewcarPDFUpload = () => {
     const [message, setMessage] = useState('');
     const [extracting, setExtracting] = useState(false);
     const [submitting, setSubmitting] = useState(false);
+    const [registrationType, setRegistrationType] = useState('PERSONAL');
 
     const loading = extracting || submitting;
     const companyId = getCompanyId(user);
     const canUsePdfUpload = companyId.includes('WB');
+    const registrationTypeLabel = getRegistrationTypeLabel(registrationType);
 
     const selectedFileName = useMemo(() => {
         if (!canUsePdfUpload) {
@@ -83,6 +95,16 @@ const NewcarPDFUpload = () => {
             return false;
         }
         return true;
+    };
+
+    const handleRegistrationTypeChange = (event) => {
+        const nextValue = event.target.value;
+        const nextLabel = getRegistrationTypeLabel(nextValue);
+        setRegistrationType(nextValue);
+        setRows(prevRows => prevRows.map(row => ({
+            ...row,
+            REGISTRATION_TYPE_NM: nextLabel
+        })));
     };
 
     const handleExtract = async () => {
@@ -125,7 +147,10 @@ const NewcarPDFUpload = () => {
                     continue;
                 }
 
-                extractedRows.push(toPreviewRow(file, response.data.data || {}, index));
+                extractedRows.push({
+                    ...toPreviewRow(file, response.data.data || {}, index),
+                    REGISTRATION_TYPE_NM: registrationTypeLabel
+                });
             }
 
             setRows(extractedRows);
@@ -160,6 +185,7 @@ const NewcarPDFUpload = () => {
 
         const formData = new FormData();
         files.forEach(file => formData.append('files', file));
+        formData.append('registrationType', registrationType);
 
         setSubmitting(true);
         setErrors([]);
@@ -183,6 +209,7 @@ const NewcarPDFUpload = () => {
 
             if (data.success) {
                 setMessage(`${data.insertCount || 0}건의 제작증 업로드 신청이 완료되었습니다.`);
+                onCompleted?.(data);
             } else {
                 setMessage('검증 오류가 있어 신규등록 저장을 중단했습니다. 오류 내용을 확인해 주세요.');
             }
@@ -205,7 +232,7 @@ const NewcarPDFUpload = () => {
     };
 
     return (
-        <div className="new-reg-container pdf-upload-container">
+        <div className={`new-reg-container pdf-upload-container${compact ? ' pdf-upload-container-compact' : ''}`}>
             <div className="erp-toolbar">
                 <div className="toolbar-left">
                     <span className="toolbar-title">제작증 업로드</span>
@@ -214,13 +241,38 @@ const NewcarPDFUpload = () => {
                     <button type="button" className="btn-erp light" onClick={handleReset} disabled={loading}>
                         초기화
                     </button>
+                    {onClose && (
+                        <button type="button" className="btn-erp light" onClick={onClose} disabled={loading}>
+                            닫기
+                        </button>
+                    )}
                 </div>
             </div>
 
             <div className="pdf-upload-content">
                 <ErpSection title="PDF 파일">
                     <div className="erp-row">
-                        <ErpField label="제작증 PDF" span={12}>
+                        <ErpField label="구분" span={5}>
+                            <div className="pdf-registration-type-control">
+                                {registrationTypeOptions.map(option => (
+                                    <label
+                                        key={option.value}
+                                        className={`pdf-registration-type-option${registrationType === option.value ? ' selected' : ''}`}
+                                    >
+                                        <input
+                                            type="radio"
+                                            name="pdfRegistrationType"
+                                            value={option.value}
+                                            checked={registrationType === option.value}
+                                            onChange={handleRegistrationTypeChange}
+                                            disabled={loading || !canUsePdfUpload}
+                                        />
+                                        <span>{option.label}</span>
+                                    </label>
+                                ))}
+                            </div>
+                        </ErpField>
+                        <ErpField label="제작증 PDF" span={7}>
                             <div className="pdf-file-control">
                                 <input
                                     ref={fileInputRef}
@@ -231,13 +283,22 @@ const NewcarPDFUpload = () => {
                                     onChange={handleFileChange}
                                     disabled={loading || !canUsePdfUpload}
                                 />
-                                <button type="button" className="btn-erp sm" onClick={handleExtract} disabled={loading || !canUsePdfUpload}>
+                                <span className="pdf-file-name">{selectedFileName}</span>
+                                <button
+                                    type="button"
+                                    className="pdf-file-trigger"
+                                    onClick={() => fileInputRef.current?.click()}
+                                    disabled={loading || !canUsePdfUpload}
+                                >
+                                    파일 선택
+                                </button>
+                                <button type="button" className="btn-erp sm pdf-action-button" onClick={handleExtract} disabled={loading || !canUsePdfUpload}>
                                     {extracting ? '추출중' : 'PDF 추출'}
                                 </button>
-                                <button type="button" className="btn-erp sm" onClick={handleSubmit} disabled={loading || !canUsePdfUpload || !rows.length}>
+                                <button type="button" className="btn-erp sm pdf-action-button primary" onClick={handleSubmit} disabled={loading || !canUsePdfUpload || !rows.length}>
                                     {submitting ? '신청중' : '신청'}
                                 </button>
-                                <span className="pdf-file-name">{selectedFileName}</span>
+                                
                             </div>
                         </ErpField>
                     </div>

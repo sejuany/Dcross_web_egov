@@ -547,3 +547,40 @@
 
 
 /* Checkbox styling 끝 */
+.pdf-upload-modal-overlay {
+    position: fixed;
+    inset: 0;
+    align-items: center;
+    backdrop-filter: blur(3px);
+    background: rgba(15, 23, 42, 0.42);
+    display: flex;
+    justify-content: center;
+    padding: 24px;
+    z-index: 10000;
+}
+
+.pdf-upload-modal-box {
+    background: #fff;
+    border: 1px solid rgba(148, 163, 184, 0.42);
+    border-radius: 12px;
+    box-shadow: 0 22px 55px rgba(15, 23, 42, 0.32);
+    display: flex;
+    flex-direction: column;
+    height: min(78vh, 720px);
+    max-width: 1180px;
+    min-height: 440px;
+    overflow: hidden;
+    width: min(92vw, 1180px);
+}
+
+@media (max-width: 768px) {
+    .pdf-upload-modal-overlay {
+        padding: 8px;
+    }
+
+    .pdf-upload-modal-box {
+        height: 92vh;
+        min-height: 0;
+        width: 96vw;
+    }
+}

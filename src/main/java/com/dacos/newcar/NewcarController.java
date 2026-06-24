@@ -124,12 +124,15 @@ public class NewcarController {
     }
 
     @PostMapping("/pdf-upload")
-    public ResponseEntity<Map<String, Object>> uploadPdf(@RequestParam("files") MultipartFile[] files, HttpSession session) {
+    public ResponseEntity<Map<String, Object>> uploadPdf(
+            @RequestParam("files") MultipartFile[] files,
+            @RequestParam(value = "registrationType", defaultValue = "PERSONAL") String registrationType,
+            HttpSession session) {
         try {
             UserDto user = AuthUtil.getLoginUser(session);
             validatePdfUploadCompany(user);
             List<Map<String, Object>> extractedRows = newcarPdfExtractService.extractAndSaveProductionCertificates(files, user);
-            Map<String, Object> result = newcarService.uploadPdf(extractedRows, user);
+            Map<String, Object> result = newcarService.uploadPdf(extractedRows, user, registrationType);
             return ResponseEntity.ok(ApiResponse.withKey("data", result));
         } catch (Exception e) {
             logger.error("[NewcarController] PDF 제작증 업로드 신청 실패", e);
