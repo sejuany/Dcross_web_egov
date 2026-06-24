@@ -37,9 +37,10 @@ mybatis:
     default-statement-timeout: 30
     jdbc-type-for-null: VARCHAR
 
+newcar:
+  pdf-upload-dir: ${NEWCAR_PDF_UPLOAD_DIR:./uploads/newcar-production-certificates}
 mobile-ok:
-  enabled: true
-  key-file: ${MOBILE_OK_KEY_FILE:file:D:\ssl\mok_keyInfo_dev.dat}
+  enabled: false
   key-password: ${MOBILE_OK_KEY_PASSWORD:@dewa1004}
   client-tx-id-prefix: ${MOBILE_OK_CLIENT_TX_ID_PREFIX:Dacos309}
   site-url: ${MOBILE_OK_SITE_URL:t.dcross.kr}
