@@ -250,6 +250,33 @@ html {
     line-height: 1.5;
 }
 
+.mobile-auth-fields {
+    margin-bottom: 10px;
+}
+
+.mobile-auth-control {
+    width: 100%;
+    min-height: 38px;
+    padding: 0 10px;
+    border: 1px solid #cbd5e0;
+    border-radius: 6px;
+    background-color: #ffffff;
+    color: #2d3748;
+    font-size: 0.88rem;
+    outline: none;
+}
+
+.mobile-auth-control:focus {
+    border-color: var(--primary-blue);
+    box-shadow: 0 0 0 2px rgba(28, 53, 83, 0.12);
+}
+
+.mobile-auth-control:disabled {
+    color: #718096;
+    cursor: wait;
+    opacity: 0.75;
+}
+
 .mobile-auth-actions {
     display: flex;
     gap: 8px;

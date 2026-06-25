@@ -1,33 +1,12 @@
-server:
-  port: 8080
-  forward-headers-strategy: framework
-  servlet:
-    encoding:
-      charset: UTF-8
-      enabled: true
-      force: true
-
-logging:
-  level:
-    com.dacos: INFO
-
 spring:
-  profiles:
-    default: local
-
-  threads:
-    virtual:
-      enabled: true
-
   datasource:
-    driver-class-name: oracle.jdbc.OracleDriver
-    url: ${DB_URL:jdbc:oracle:thin:@localhost:1521/orcl}
-    username: ${DB_USERNAME:YOUR_DB_USERNAME}
-    password: ${DB_PASSWORD:YOUR_DB_PASSWORD}
+    url: ENC(QENFw9mbKH7jOBm97RCv5zfC8FO4/Hk2YEq9DendCpsW/grR4rOAJVYaDyk7EriRqSct3NblXFo=)
+    username: ENC(14WfeHUldmLYUFEDSfTwkYELrlCcKfEm)
+    password: ENC(uk6pKK+N5Pz3diuWAqZGQgjiVG5gQHcO)
 
 jasypt:
   encryptor:
-    password: ${JASYPT_ENCRYPTOR_PASSWORD:}
+    bean: jasyptStringEncryptor
 
 mybatis:
   mapper-locations: classpath:mapper/**/*.xml
@@ -40,7 +19,8 @@ mybatis:
 newcar:
   pdf-upload-dir: ${NEWCAR_PDF_UPLOAD_DIR:./uploads/newcar-production-certificates}
 mobile-ok:
-  enabled: false
+  enabled: true
+  key-file: ${MOBILE_OK_KEY_FILE:file:./src/main/resources/mobile-ok/mok_keyInfo_dev.dat}
   key-password: ${MOBILE_OK_KEY_PASSWORD:@dewa1004}
   client-tx-id-prefix: ${MOBILE_OK_CLIENT_TX_ID_PREFIX:Dacos309}
   site-url: ${MOBILE_OK_SITE_URL:t.dcross.kr}

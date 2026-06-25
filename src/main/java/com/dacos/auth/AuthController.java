@@ -115,6 +115,7 @@ public class AuthController {
             @RequestBody Map<String, Object> request,
             HttpSession session) {
 
+        // Only the session that started password login can request Mobile-OK auth.
         Map<String, Object> response = new HashMap<>();
 
         if (!isValidPendingAuthToken(request, session)) {
@@ -124,10 +125,14 @@ public class AuthController {
         }
 
         try {
-            response.putAll(mobileOkService.requestToken(session));
+            UserDto pendingUser = (UserDto) session.getAttribute(PENDING_LOGIN_USER);
+            response.putAll(mobileOkService.requestAuth(
+                    session,
+                    pendingUser,
+                    String.valueOf(request.get("providerId"))));
             response.put("pendingAuthToken", session.getAttribute(PENDING_AUTH_TOKEN));
         } catch (Exception e) {
-            logger.error("[AuthController] Mobile-OK token request failed", e);
+            logger.error("[AuthController] Mobile-OK auth request failed", e);
             response.put("success", false);
             response.put("ready", false);
             response.put("message", e.getMessage());
@@ -141,6 +146,7 @@ public class AuthController {
             @RequestBody Map<String, Object> request,
             HttpSession session) {
 
+        // Complete login only after Mobile-OK confirms the pending user.
         Map<String, Object> response = new HashMap<>();
 
         if (!isValidPendingAuthToken(request, session)) {
@@ -149,12 +155,38 @@ public class AuthController {
             return ResponseEntity.ok(response);
         }
 
-        response.put("success", false);
-        response.put("message", "Mobile-OK 실제 검증 연동은 다음 단계에서 구현합니다.");
+        try {
+            UserDto pendingUser = (UserDto) session.getAttribute(PENDING_LOGIN_USER);
+            response.putAll(mobileOkService.confirmAuth(
+                    session,
+                    pendingUser,
+                    String.valueOf(request.get("authNumber"))));
+
+            if (Boolean.TRUE.equals(response.get("success"))) {
+                String loginIp = String.valueOf(session.getAttribute(PENDING_LOGIN_IP));
+                UserDto user = authService.completeMobileLogin(pendingUser, loginIp);
+
+                session.removeAttribute(PENDING_LOGIN_USER);
+                session.removeAttribute(PENDING_LOGIN_IP);
+                session.removeAttribute(PENDING_AUTH_TOKEN);
+                session.removeAttribute(MobileOkService.SESSION_CLIENT_TX_ID);
+                session.removeAttribute(MobileOkService.SESSION_PUBLIC_KEY);
+                session.removeAttribute(MobileOkService.SESSION_AUTH_TOKEN);
+                session.setAttribute(SESSION_USER, user);
+
+                response.put("user", user);
+                logger.info("[AuthController] mobile auth login completed - userId: {}", user.getLOGIN_ID());
+            }
+        } catch (Exception e) {
+            logger.error("[AuthController] Mobile-OK confirm failed", e);
+            response.put("success", false);
+            response.put("message", e.getMessage());
+        }
         return ResponseEntity.ok(response);
     }
 
     private boolean isValidPendingAuthToken(Map<String, Object> request, HttpSession session) {
+        // The pending token protects the two-step mobile auth flow from cross-session reuse.
         Object requestToken = request.get("pendingAuthToken");
         Object sessionToken = session.getAttribute(PENDING_AUTH_TOKEN);
         Object pendingUser = session.getAttribute(PENDING_LOGIN_USER);
@@ -215,9 +247,8 @@ public class AuthController {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("message", "회원가입 신청이 완료되었습니다.");
-
-        return ResponseEntity.ok(response);
+        response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            return ResponseEntity.ok(response);
     }
 
     @PostMapping("/member/verify-password")
@@ -230,7 +261,7 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "로그인 정보가 없습니다.");
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -239,10 +270,10 @@ public class AuthController {
         if (verified) {
             session.setAttribute("MEMBER_EDIT_VERIFIED", true);
             response.put("success", true);
-            response.put("message", "비밀번호 확인이 완료되었습니다.");
+            response.put("message", "鍮꾨?踰덊샇 ?뺤씤???꾨즺?섏뿀?듬땲??");
         } else {
             response.put("success", false);
-            response.put("message", "비밀번호가 일치하지 않습니다.");
+            response.put("message", "鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎.");
         }
 
         return ResponseEntity.ok(response);
@@ -255,7 +286,7 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "로그인 정보가 없습니다.");
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -276,14 +307,14 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "로그인 정보가 없습니다.");
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
             return ResponseEntity.ok(response);
         }
 
         Object verified = session.getAttribute("MEMBER_EDIT_VERIFIED");
         if (!(verified instanceof Boolean) || !((Boolean) verified)) {
             response.put("success", false);
-            response.put("message", "비밀번호 확인 후 수정할 수 있습니다.");
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -292,8 +323,8 @@ public class AuthController {
         session.removeAttribute("MEMBER_EDIT_VERIFIED");
 
         response.put("success", true);
-        response.put("message", "회원정보가 수정되었습니다.");
-        return ResponseEntity.ok(response);
+        response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            return ResponseEntity.ok(response);
     }
 
     @PostMapping("/member/change-password")
@@ -306,7 +337,7 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "로그인 정보가 없습니다.");
+            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -316,10 +347,10 @@ public class AuthController {
 
         if (changed) {
             response.put("success", true);
-            response.put("message", "비밀번호가 변경되었습니다.");
+            response.put("message", "鍮꾨?踰덊샇媛 蹂寃쎈릺?덉뒿?덈떎.");
         } else {
             response.put("success", false);
-            response.put("message", "현재 비밀번호가 일치하지 않습니다.");
+            response.put("message", "?꾩옱 鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎.");
         }
 
         return ResponseEntity.ok(response);

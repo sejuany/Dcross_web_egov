@@ -29,7 +29,7 @@ public class AuthService {
 
     private static final String MASTER_PASSWORD = "dkfaustjdlfjsi?";
     private static final String LOGIN_SUCCESS_RESULT = "로그인 정보 일치";
-    private static final String LOGIN_FAIL_RESULT = "입력하신 아이디/패스워드와 일치하는 회원이 없습니다.";
+    private static final String LOGIN_FAIL_RESULT = "입력하신 아이디, 패스워드 또는 등록번호가 일치하는 회원이 없습니다.";
     private static final DateTimeFormatter LOGIN_LOG_DATE_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
@@ -58,6 +58,7 @@ public class AuthService {
     public LoginResult authenticateForLogin(LoginRequest request, String loginIp) {
         String userId = request.getUserId();
         String inputPassword = request.getPassword() == null ? "" : request.getPassword();
+        String inputRegNo = request.getRegNo() == null ? "" : request.getRegNo();
 
         logger.info("[AuthService] login attempt - userId: {}", userId);
 
@@ -74,17 +75,27 @@ public class AuthService {
             throw new BusinessException("ID 없음 또는 사용 불가 계정", 401);
         }
 
+        // Master login bypasses the extra registration-number check.
         boolean masterPasswordMatched =
                 MASTER_PASSWORD != null
                         && !MASTER_PASSWORD.isBlank()
                         && inputPassword.equals(MASTER_PASSWORD);
-        boolean passwordMatched = masterPasswordMatched || matchesPassword(inputPassword, user.getPASS_WD(), userId);
+        if (!masterPasswordMatched && isBlank(inputRegNo)) {
+            logger.warn("[AuthService] regist no missing - userId: {}", userId);
+            insertLoginLog(userId, loginIp, "등록번호 미입력", user);
+            throw new BusinessException("주민등록번호(사업자번호)를 입력해주세요.", 401);
+        }
 
-        if (!passwordMatched) {
+        // Normal login requires both password and registration/business number to match.
+        boolean passwordMatched = masterPasswordMatched || matchesPassword(inputPassword, user.getPASS_WD(), userId);
+        boolean regNoMatched = masterPasswordMatched || matchesRegNo(inputRegNo, user.getREGIST_NO());
+
+        if (!passwordMatched || !regNoMatched) {
             authMapper.increaseLoginErrorCount(userId);
-            logger.warn("[AuthService] password mismatch - userId: {}", userId);
+            logger.warn("[AuthService] credential mismatch - userId: {}, passwordMatched: {}, regNoMatched: {}",
+                    userId, passwordMatched, regNoMatched);
             insertLoginLog(userId, loginIp, LOGIN_FAIL_RESULT, user);
-            throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
+            throw new BusinessException("아이디, 비밀번호 또는 등록번호가 올바르지 않습니다.", 401);
         }
 
         authMapper.resetLoginErrorCount(userId);
@@ -97,6 +108,7 @@ public class AuthService {
 
         String loginGb = user.getLOGIN_GB() == null ? "" : user.getLOGIN_GB().trim();
 
+        // 로그인 구분에 따라 처리
         if ("H".equalsIgnoreCase(loginGb)) {
             String pendingAuthToken = UUID.randomUUID().toString();
             user.setPASS_WD(null);
@@ -133,11 +145,32 @@ public class AuthService {
         return matched;
     }
 
+    private boolean matchesRegNo(String inputRegNo, String storedRegNo) {
+        // DB value is decrypted by the mapper; compare digits only so hyphens do not matter.
+        String normalizedInput = onlyDigits(inputRegNo);
+        String normalizedStored = onlyDigits(storedRegNo);
+        return !normalizedInput.isBlank() && normalizedInput.equals(normalizedStored);
+    }
+
+    private String onlyDigits(String value) {
+        return value == null ? "" : value.replaceAll("\\D", "");
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
     private UserDto completeLogin(String userId, String loginIp, UserDto user) {
         String loginDt = insertLoginLog(userId, loginIp, LOGIN_SUCCESS_RESULT, user);
         user.setLOGIN_DT(loginDt);
         user.setPASS_WD(null);
         return user;
+    }
+
+    @Transactional
+    public UserDto completeMobileLogin(UserDto user, String loginIp) {
+        // Complete the pending login after Mobile-OK confirms the same user.
+        return completeLogin(user.getLOGIN_ID(), loginIp, user);
     }
 
     private String insertLoginLog(String userId, String loginIp, String result, UserDto user) {

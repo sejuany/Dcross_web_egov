@@ -11,11 +11,14 @@ import java.nio.file.Path;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
 
+import com.dacos.auth.dto.UserDto;
 import com.dacos.config.MobileOkProperties;
 import com.dreamsecurity.json.JSONObject;
 import com.dreamsecurity.mobileOK.mobileOKKeyManager;
@@ -26,7 +29,12 @@ import jakarta.servlet.http.HttpSession;
 public class MobileOkService {
 
     public static final String SESSION_CLIENT_TX_ID = "MOBILE_OK_CLIENT_TX_ID";
+    public static final String SESSION_PUBLIC_KEY = "MOBILE_OK_PUBLIC_KEY";
+    public static final String SESSION_AUTH_TOKEN = "MOBILE_OK_AUTH_TOKEN";
 
+    private static final String SUCCESS_CODE = "2000";
+    private static final Set<String> PROVIDER_IDS = Set.of(
+            "SKT", "KT", "LGU", "SKTMVNO", "KTMVNO", "LGUMVNO");
     private static final DateTimeFormatter CLIENT_INFO_DATE_FORMAT =
             DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
@@ -42,6 +50,141 @@ public class MobileOkService {
         validateConfigured();
 
         mobileOKKeyManager mobileOK = createKeyManager();
+        JSONObject resJson = requestTokenJson(session, mobileOK);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("ready", true);
+        response.put("clientTxId", session.getAttribute(SESSION_CLIENT_TX_ID));
+        response.put("resultCode", getString(resJson, "resultCode"));
+        response.put("resultMsg", getString(resJson, "resultMsg"));
+        response.put("publicKey", getString(resJson, "publicKey"));
+        response.put("encryptMOKToken", getString(resJson, "encryptMOKToken"));
+
+        return response;
+    }
+
+    public Map<String, Object> requestAuth(HttpSession session, UserDto user, String providerId) throws Exception {
+        validateConfigured();
+
+        // Build Mobile-OK identity payload from the pending login user.
+        String normalizedProviderId = normalizeProviderId(providerId);
+        UserIdentity identity = resolveUserIdentity(user);
+
+        mobileOKKeyManager mobileOK = createKeyManager();
+        JSONObject tokenJson = requestTokenJson(session, mobileOK);
+
+        String tokenResultCode = getString(tokenJson, "resultCode");
+        if (!SUCCESS_CODE.equals(tokenResultCode)) {
+            return mobileOkError(tokenJson, "Mobile-OK 거래토큰 요청에 실패했습니다.");
+        }
+
+        String publicKey = getString(tokenJson, "publicKey");
+        String encryptMOKToken = getString(tokenJson, "encryptMOKToken");
+        if (isBlank(publicKey) || isBlank(encryptMOKToken)) {
+            throw new IllegalStateException("Mobile-OK 嫄곕옒?좏겙 ?묐떟 ?뺣낫媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+        }
+
+        // Mobile-OK API step 2: encrypt auth info and request an SMS auth number.
+        JSONObject authInfo = new JSONObject();
+        authInfo.put("serviceType", "telcoAuth");
+        authInfo.put("providerId", normalizedProviderId);
+        authInfo.put("reqAuthType", "SMS");
+        authInfo.put("usageCode", "01005");
+        authInfo.put("userName", identity.userName);
+        authInfo.put("userPhone", identity.userPhone);
+        authInfo.put("userBirthday", identity.userBirthday);
+        authInfo.put("userGender", identity.userGender);
+        authInfo.put("userNation", identity.userNation);
+        authInfo.put("retTransferType", "MOKResult");
+
+        String encryptMOKAuthInfo = mobileOK.RSAServerEncrypt(publicKey, authInfo.toString());
+
+        JSONObject authRequestBody = new JSONObject();
+        authRequestBody.put("siteUrl", mobileOK.getSiteUrl());
+        authRequestBody.put("encryptMOKToken", encryptMOKToken);
+        authRequestBody.put("encryptMOKAuthInfo", encryptMOKAuthInfo);
+
+        JSONObject authResponseJson = new JSONObject(postJson(
+                properties.getAuthRequestUrl(),
+                authRequestBody.toString()));
+
+        String resultCode = getString(authResponseJson, "resultCode");
+        if (authResponseJson.has("encryptMOKToken")) {
+            session.setAttribute(SESSION_AUTH_TOKEN, getString(authResponseJson, "encryptMOKToken"));
+        }
+        session.setAttribute(SESSION_PUBLIC_KEY, publicKey);
+
+        Map<String, Object> response = mobileOkResponse(authResponseJson);
+        response.put("success", SUCCESS_CODE.equals(resultCode));
+        response.put("ready", true);
+        response.put("message", SUCCESS_CODE.equals(resultCode)
+                ? "인증번호가 발송되었습니다."
+                : getString(authResponseJson, "resultMsg"));
+        response.put("requiresAuthNumber", SUCCESS_CODE.equals(resultCode));
+        return response;
+    }
+
+    public Map<String, Object> confirmAuth(HttpSession session, UserDto user, String authNumber) throws Exception {
+        validateConfigured();
+
+        // Mobile-OK API step 3: verify the SMS auth number using the auth token from step 2.
+        String normalizedAuthNumber = onlyDigits(authNumber);
+        if (isBlank(normalizedAuthNumber)) {
+            throw new IllegalArgumentException("통신사를 선택해주세요.");
+        }
+
+        Object publicKeyObj = session.getAttribute(SESSION_PUBLIC_KEY);
+        Object encryptMOKTokenObj = session.getAttribute(SESSION_AUTH_TOKEN);
+        if (publicKeyObj == null || encryptMOKTokenObj == null) {
+            throw new IllegalStateException("Mobile-OK ?몄쬆?붿껌 ?뺣낫媛 ?놁뒿?덈떎. ?몄쬆踰덊샇 諛쒖넚遺???ㅼ떆 吏꾪뻾?댁＜?몄슂.");
+        }
+
+        mobileOKKeyManager mobileOK = createKeyManager();
+
+        JSONObject verifyInfo = new JSONObject();
+        verifyInfo.put("authNumber", normalizedAuthNumber);
+
+        JSONObject confirmRequestBody = new JSONObject();
+        confirmRequestBody.put("encryptMOKToken", String.valueOf(encryptMOKTokenObj));
+        confirmRequestBody.put(
+                "encryptMOKVerifyInfo",
+                mobileOK.RSAServerEncrypt(String.valueOf(publicKeyObj), verifyInfo.toString()));
+
+        JSONObject confirmResponseJson = new JSONObject(postJson(
+                properties.getConfirmUrl(),
+                confirmRequestBody.toString()));
+
+        String resultCode = getString(confirmResponseJson, "resultCode");
+        if (!SUCCESS_CODE.equals(resultCode)) {
+            if (confirmResponseJson.has("encryptMOKToken")) {
+                session.setAttribute(SESSION_AUTH_TOKEN, getString(confirmResponseJson, "encryptMOKToken"));
+            }
+            Map<String, Object> retryResponse = mobileOkResponse(confirmResponseJson);
+            retryResponse.put("success", false);
+            retryResponse.put("message", getString(confirmResponseJson, "resultMsg"));
+            return retryResponse;
+        }
+
+        String encryptMOKResult = getString(confirmResponseJson, "encryptMOKResult");
+        if (isBlank(encryptMOKResult)) {
+            throw new IllegalStateException("Mobile-OK 寃利앷껐怨??묐떟 ?뺣낫媛 ?놁뒿?덈떎.");
+        }
+
+        JSONObject resultJson = new JSONObject(mobileOK.getResultJSON(encryptMOKResult));
+        validateResult(session, user, resultJson);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("success", true);
+        response.put("resultCode", SUCCESS_CODE);
+        response.put("resultMsg", "success");
+        response.put("message", "휴대폰 본인인증이 완료되었습니다.");
+        response.put("userName", getString(resultJson, "userName"));
+        return response;
+    }
+
+    private JSONObject requestTokenJson(HttpSession session, mobileOKKeyManager mobileOK) throws Exception {
+        // Mobile-OK API step 1: create a transaction token tied to this session.
         String clientTxId = createClientTxId();
         session.setAttribute(SESSION_CLIENT_TX_ID, clientTxId);
 
@@ -53,19 +196,7 @@ public class MobileOkService {
         tokenReqBody.put("encryptReqClientInfo", encryptReqClientInfo);
         tokenReqBody.put("siteUrl", mobileOK.getSiteUrl());
 
-        String mokResult = postJson(properties.getTokenUrl(), tokenReqBody.toString());
-        JSONObject resJson = new JSONObject(mokResult);
-
-        Map<String, Object> response = new HashMap<>();
-        response.put("success", true);
-        response.put("ready", true);
-        response.put("clientTxId", clientTxId);
-        response.put("resultCode", getString(resJson, "resultCode"));
-        response.put("resultMsg", getString(resJson, "resultMsg"));
-        response.put("publicKey", getString(resJson, "publicKey"));
-        response.put("encryptMOKToken", getString(resJson, "encryptMOKToken"));
-
-        return response;
+        return new JSONObject(postJson(properties.getTokenUrl(), tokenReqBody.toString()));
     }
 
     private mobileOKKeyManager createKeyManager() throws Exception {
@@ -77,7 +208,7 @@ public class MobileOkService {
 
     private void validateConfigured() throws IOException {
         if (!properties.isEnabled()) {
-            throw new IllegalStateException("Mobile-OK 연동이 비활성화되어 있습니다.");
+            throw new IllegalStateException("Mobile-OK ?곕룞??鍮꾪솢?깊솕?섏뼱 ?덉뒿?덈떎.");
         }
 
         if (isBlank(properties.getKeyFile())) {
@@ -94,6 +225,14 @@ public class MobileOkService {
 
         if (isBlank(properties.getTokenUrl())) {
             throw new IllegalStateException("Mobile-OK token-url 설정이 없습니다.");
+        }
+
+        if (isBlank(properties.getAuthRequestUrl())) {
+            throw new IllegalStateException("Mobile-OK auth-request-url 설정이 없습니다.");
+        }
+
+        if (isBlank(properties.getConfirmUrl())) {
+            throw new IllegalStateException("Mobile-OK confirm-url 설정이 없습니다.");
         }
 
         Path keyPath = Path.of(resolveKeyFilePath());
@@ -137,11 +276,116 @@ public class MobileOkService {
         return response.body();
     }
 
+    private String normalizeProviderId(String providerId) {
+        String normalized = providerId == null ? "" : providerId.trim().toUpperCase(Locale.ROOT);
+        if (!PROVIDER_IDS.contains(normalized)) {
+            throw new IllegalArgumentException("통신사를 선택해주세요.");
+        }
+        return normalized;
+    }
+
+    private UserIdentity resolveUserIdentity(UserDto user) {
+        // Mobile-OK requires birthday/gender/nation derived from the stored registration number.
+        if (user == null) {
+            throw new IllegalStateException("?대???蹂몄씤?몄쬆 ?湲??ъ슜???뺣낫媛 ?놁뒿?덈떎.");
+        }
+
+        String userName = trimToEmpty(user.getMEMBER_NM());
+        String userPhone = onlyDigits(user.getMPHONE_NO());
+        String registNo = onlyDigits(user.getREGIST_NO());
+
+        if (isBlank(userName)) {
+            throw new IllegalStateException("?뚯썝 ?대쫫 ?뺣낫媛 ?놁뒿?덈떎.");
+        }
+        if (userPhone.length() < 10) {
+            throw new IllegalStateException("?뚯썝 ?대??곕쾲???뺣낫媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+        }
+        if (registNo.length() < 7) {
+            throw new IllegalStateException("?대????몄쬆???깅줉踰덊샇 ?뺣낫媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+        }
+
+        String birth6 = registNo.substring(0, 6);
+        char genderCode = registNo.charAt(6);
+
+        String century = switch (genderCode) {
+            case '1', '2', '5', '6' -> "19";
+            case '3', '4', '7', '8' -> "20";
+            case '9', '0' -> "18";
+            default -> throw new IllegalStateException("등록번호 성별 코드가 올바르지 않습니다.");
+        };
+        String userGender = ((genderCode - '0') % 2 == 1) ? "1" : "2";
+        String userNation = (genderCode >= '5' && genderCode <= '8') ? "1" : "0";
+
+        return new UserIdentity(userName, userPhone, century + birth6, userGender, userNation);
+    }
+
+    private void validateResult(HttpSession session, UserDto user, JSONObject resultJson) {
+        // Prevent token replay by checking the returned transaction id and identity fields.
+        String sessionClientTxId = String.valueOf(session.getAttribute(SESSION_CLIENT_TX_ID));
+        String resultClientTxId = getString(resultJson, "clientTxId");
+        if (isBlank(sessionClientTxId) || !sessionClientTxId.equals(resultClientTxId)) {
+            throw new IllegalStateException("Mobile-OK 거래ID 검증에 실패했습니다.");
+        }
+
+        UserIdentity expected = resolveUserIdentity(user);
+        String resultName = trimToEmpty(getString(resultJson, "userName"));
+        String resultPhone = onlyDigits(getString(resultJson, "userPhone"));
+        String resultBirthday = onlyDigits(getString(resultJson, "userBirthday"));
+
+        if (!expected.userName.equals(resultName)
+                || !expected.userPhone.equals(resultPhone)
+                || !expected.userBirthday.equals(resultBirthday)) {
+            throw new IllegalStateException("蹂몄씤?몄쬆 寃곌낵媛 濡쒓렇???ъ슜???뺣낫? ?쇱튂?섏? ?딆뒿?덈떎.");
+        }
+    }
+
+    private Map<String, Object> mobileOkError(JSONObject json, String defaultMessage) {
+        Map<String, Object> response = mobileOkResponse(json);
+        response.put("success", false);
+        response.put("ready", false);
+        response.put("message", isBlank(getString(json, "resultMsg")) ? defaultMessage : getString(json, "resultMsg"));
+        return response;
+    }
+
+    private Map<String, Object> mobileOkResponse(JSONObject json) {
+        Map<String, Object> response = new HashMap<>();
+        response.put("resultCode", getString(json, "resultCode"));
+        response.put("resultMsg", getString(json, "resultMsg"));
+
+        if (json.has("resendCount")) {
+            response.put("resendCount", getString(json, "resendCount"));
+        }
+        if (json.has("arsOtpNumber")) {
+            response.put("arsOtpNumber", getString(json, "arsOtpNumber"));
+        }
+        if (json.has("otpCode")) {
+            response.put("otpCode", getString(json, "otpCode"));
+        }
+
+        return response;
+    }
+
     private String getString(JSONObject json, String key) {
-        return json.has(key) ? json.getString(key) : "";
+        return json.has(key) ? json.optString(key, "") : "";
+    }
+
+    private String onlyDigits(String value) {
+        return value == null ? "" : value.replaceAll("\\D", "");
+    }
+
+    private String trimToEmpty(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
+    }
+
+    private record UserIdentity(
+            String userName,
+            String userPhone,
+            String userBirthday,
+            String userGender,
+            String userNation) {
     }
 }

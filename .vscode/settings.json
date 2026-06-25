@@ -1,7 +1,16 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.compile.nullAnalysis.mode": "automatic",
+    "java.configuration.runtimes": [
+        {
+            "name": "JavaSE-21",
+            "path": "C:\\Program Files\\Java\\jdk-21.0.10",
+            "default": true
+        }
+    ],
+    "maven.terminal.useJavaHome": true,
     "files.encoding": "utf8",
+    "files.autoGuessEncoding": false,
     "terminal.integrated.defaultProfile.windows": "Command Prompt",
     "terminal.integrated.profiles.windows": {
         "Command Prompt": {
@@ -10,13 +19,24 @@
                 "/K",
                 "chcp 65001 > nul"
             ]
+        },
+        "PowerShell UTF-8": {
+            "path": "${env:windir}\\System32\\WindowsPowerShell\\v1.0\\powershell.exe",
+            "args": [
+                "-NoExit",
+                "-Command",
+                "chcp 65001 > $null; [Console]::InputEncoding = [System.Text.UTF8Encoding]::new($false); [Console]::OutputEncoding = [System.Text.UTF8Encoding]::new($false); $OutputEncoding = [System.Text.UTF8Encoding]::new($false)"
+            ]
         }
     },
     "terminal.integrated.env.windows": {
-        "LANG": "ko_KR.UTF-8"
+        "LANG": "ko_KR.UTF-8",
+        "JAVA_HOME": "C:\\Program Files\\Java\\jdk-21.0.10",
+        "Path": "C:\\Program Files\\Java\\jdk-21.0.10\\bin;${env:Path}"
     },
     "terminal.integrated.fontFamily": "Consolas, 'Malgun Gothic', 'D2Coding'",
     "files.readonlyInclude": {
         "{**/.c4z/.extsrcs/*.PROTSYM.cbl,**/.c4z/.extsrcs/*.PROTSYM.listing}": true
-    }
+    },
+    "java.debug.settings.onBuildFailureProceed": true
 }

@@ -4,7 +4,7 @@
 
 <mapper namespace="com.dacos.auth.mapper.AuthMapper">
 
-    <!-- 사용자 ID로 사용자 정보 조회 (USE_YN = 'Y' 조건 포함) -->
+    <!-- ?�용??ID�??�용???�보 조회 (USE_YN = 'Y' 조건 ?�함) -->
     <select id="findByUserId" parameterType="string" resultType="com.dacos.auth.dto.UserDto">
         SELECT
             MM.LOGIN_ID,
@@ -20,7 +20,9 @@
             MD.SANGSA_ID,
             TS.SANGSA_NM,
             MD.MEMBER_GB,
-            MD.ASSOCIATION_ID
+            MD.ASSOCIATION_ID,
+            <!-- Mobile-OK compares the confirmed phone number with this decrypted value. -->
+            PKG_COMMON.FN_DECRYPT(MD.MPHONE_NO) AS MPHONE_NO
         FROM
             TM_MEMBER_MT MM
             INNER JOIN TM_MEMBER_DT MD
@@ -42,6 +44,7 @@
             MM.LOGIN_ID = #{userId}
             AND MM.USE_YN  = 'Y'
    			AND MD.USE_YN = 'Y'
+   			AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') <!-- 기존 ?�코???�용?�사 로그???�되�?-->
     </select>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
@@ -138,7 +141,7 @@
 		  AND COMPANY_ID = #{companyId}
 	</select>	
 	
-    <!-- BCrypt 비밀번호로 업데이트 (단계적 전환용) -->
+    <!-- BCrypt 비�?번호�??�데?�트 (?�계???�환?? -->
     <update id="updatePasswordToBcrypt">
         UPDATE TM_MEMBER_MT
         SET PASS_WD = #{bcryptPassword}

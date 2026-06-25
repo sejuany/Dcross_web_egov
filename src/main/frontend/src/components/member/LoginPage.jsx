@@ -4,6 +4,17 @@ import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import './Login.css';
 
+// Mobile-OK requires the selected carrier when requesting an SMS auth number.
+const MOBILE_PROVIDER_OPTIONS = [
+    { value: '', label: '통신사 선택' },
+    { value: 'SKT', label: 'SKT' },
+    { value: 'KT', label: 'KT' },
+    { value: 'LGU', label: 'LG U+' },
+    { value: 'SKTMVNO', label: 'SKT 알뜰폰' },
+    { value: 'KTMVNO', label: 'KT 알뜰폰' },
+    { value: 'LGUMVNO', label: 'LG U+ 알뜰폰' }
+];
+
 const LoginPage = () => {
     const navigate = useNavigate();
     const { login } = useAuth();
@@ -17,6 +28,9 @@ const LoginPage = () => {
     const [toastMessage, setToastMessage] = useState('');
     const [mobileAuthPending, setMobileAuthPending] = useState(null);
     const [mobileAuthMessage, setMobileAuthMessage] = useState('');
+    const [mobileAuthStep, setMobileAuthStep] = useState('request');
+    const [mobileProviderId, setMobileProviderId] = useState('');
+    const [mobileAuthNumber, setMobileAuthNumber] = useState('');
 
     useEffect(() => {
         axios.get('/api/log/login-enter').catch(() => {
@@ -24,10 +38,18 @@ const LoginPage = () => {
         });
     }, []);
 
-    const handleChange = (e) => {
-        const { name, value, type, checked } = e.target;
+    const resetMobileAuthState = () => {
+        // Any login input change invalidates the previous pending mobile auth flow.
         setMobileAuthPending(null);
         setMobileAuthMessage('');
+        setMobileAuthStep('request');
+        setMobileProviderId('');
+        setMobileAuthNumber('');
+    };
+
+    const handleChange = (e) => {
+        const { name, value, type, checked } = e.target;
+        resetMobileAuthState();
         setFormData(prev => ({
             ...prev,
             [name]: type === 'checkbox' ? checked : value
@@ -44,8 +66,7 @@ const LoginPage = () => {
         if (isSubmitting) return;
 
         setIsSubmitting(true);
-        setMobileAuthPending(null);
-        setMobileAuthMessage('');
+        resetMobileAuthState();
 
         try {
             const response = await axios.post('/api/login', {
@@ -80,28 +101,71 @@ const LoginPage = () => {
     };
 
     const handleMobileAuthRequest = async () => {
+        // Step 1 on the screen: ask Mobile-OK to send the SMS auth number.
         if (!mobileAuthPending?.pendingAuthToken) return;
+        if (!mobileProviderId) {
+            setMobileAuthMessage('통신사를 선택해주세요.');
+            return;
+        }
 
         setIsSubmitting(true);
         setMobileAuthMessage('');
 
         try {
             const response = await axios.post('/api/auth/mobile/request', {
-                pendingAuthToken: mobileAuthPending.pendingAuthToken
+                pendingAuthToken: mobileAuthPending.pendingAuthToken,
+                providerId: mobileProviderId
             });
 
-            setMobileAuthMessage(response.data.message || '휴대폰 본인인증 준비 응답을 받았습니다.');
+            if (response.data.success) {
+                setMobileAuthStep('verify');
+                setMobileAuthNumber('');
+                setMobileAuthMessage(response.data.message || '인증번호가 발송되었습니다.');
+            } else {
+                setMobileAuthMessage(response.data.message || response.data.resultMsg || '휴대폰 본인인증 요청에 실패했습니다.');
+            }
         } catch (err) {
-            const message = err.response?.data?.message || '휴대폰 본인인증 준비 중 오류가 발생했습니다.';
+            const message = err.response?.data?.message || '휴대폰 본인인증 요청 중 오류가 발생했습니다.';
             setMobileAuthMessage(message);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    const resetMobileAuthPending = () => {
-        setMobileAuthPending(null);
+    const handleMobileAuthVerify = async () => {
+        // Step 2 on the screen: submit the SMS auth number and finish login.
+        if (!mobileAuthPending?.pendingAuthToken) return;
+        if (!mobileAuthNumber.trim()) {
+            setMobileAuthMessage('인증번호를 입력해주세요.');
+            return;
+        }
+
+        setIsSubmitting(true);
         setMobileAuthMessage('');
+
+        try {
+            const response = await axios.post('/api/auth/mobile/verify', {
+                pendingAuthToken: mobileAuthPending.pendingAuthToken,
+                authNumber: mobileAuthNumber.trim()
+            });
+
+            if (!response.data.success) {
+                setMobileAuthMessage(response.data.message || response.data.resultMsg || '인증번호 확인에 실패했습니다.');
+                return;
+            }
+
+            login(response.data.user);
+            showToast('로그인 성공!');
+
+            setTimeout(() => {
+                navigate('/home');
+            }, 1000);
+        } catch (err) {
+            const message = err.response?.data?.message || '인증번호 확인 중 오류가 발생했습니다.';
+            setMobileAuthMessage(message);
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     return (
@@ -118,10 +182,10 @@ const LoginPage = () => {
                         <p className="brand-tagline">Dream Of All Car Online Service</p>
                         <p className="brand-tagline">GOVT Version V1.0</p>
                         <div className="notice-box">
-                            <p>본 시스템은 허가된 사용자만 접근할 수 있습니다.</p>
-                            <p>허가되지 않은 접근은 즉시 차단되며 관련 법규에 따라 처벌받을 수 있습니다.</p>
+                            <p>본 시스템은 인가된 사용자만 접근할 수 있습니다.</p>
+                            <p>인가되지 않은 접근은 즉시 차단되며 관련 법규에 따라 처벌받을 수 있습니다.</p>
                             <p>시스템 이용 기록은 보안 감사 목적으로 사용됩니다.</p>
-                            <p>허가받은 아이디와 비밀번호를 입력 후 로그인해 주십시오.</p>
+                            <p>인가받은 아이디와 비밀번호를 입력 후 로그인해 주십시오.</p>
                         </div>
                     </div>
                 </div>
@@ -156,7 +220,7 @@ const LoginPage = () => {
                                 <input
                                     type="password"
                                     name="regNo"
-                                    placeholder="등록번호(주민/사업자)"
+                                    placeholder="등록번호(주민번호 7자리 / 사업자번호 10자리)"
                                     value={formData.regNo}
                                     onChange={handleChange}
                                     disabled={isSubmitting}
@@ -180,19 +244,63 @@ const LoginPage = () => {
                                 <div className="mobile-auth-panel" role="status" aria-live="polite">
                                     <strong>휴대폰 본인인증 필요</strong>
                                     <p>{mobileAuthMessage}</p>
+
+                                    {mobileAuthStep === 'request' && (
+                                        <div className="mobile-auth-fields">
+                                            <select
+                                                className="mobile-auth-control"
+                                                value={mobileProviderId}
+                                                onChange={(e) => setMobileProviderId(e.target.value)}
+                                                disabled={isSubmitting}
+                                            >
+                                                {MOBILE_PROVIDER_OPTIONS.map(option => (
+                                                    <option key={option.value} value={option.value}>
+                                                        {option.label}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                        </div>
+                                    )}
+
+                                    {mobileAuthStep === 'verify' && (
+                                        <div className="mobile-auth-fields">
+                                            <input
+                                                className="mobile-auth-control"
+                                                type="text"
+                                                inputMode="numeric"
+                                                maxLength={6}
+                                                placeholder="인증번호 6자리"
+                                                value={mobileAuthNumber}
+                                                onChange={(e) => setMobileAuthNumber(e.target.value.replace(/\D/g, ''))}
+                                                disabled={isSubmitting}
+                                            />
+                                        </div>
+                                    )}
+
                                     <div className="mobile-auth-actions">
-                                        <button
-                                            type="button"
-                                            className="mobile-auth-btn primary"
-                                            onClick={handleMobileAuthRequest}
-                                            disabled={isSubmitting}
-                                        >
-                                            본인인증 시작
-                                        </button>
+                                        {mobileAuthStep === 'request' ? (
+                                            <button
+                                                type="button"
+                                                className="mobile-auth-btn primary"
+                                                onClick={handleMobileAuthRequest}
+                                                disabled={isSubmitting}
+                                            >
+                                                인증번호 발송
+                                            </button>
+                                        ) : (
+                                            <button
+                                                type="button"
+                                                className="mobile-auth-btn primary"
+                                                onClick={handleMobileAuthVerify}
+                                                disabled={isSubmitting}
+                                            >
+                                                인증번호 확인
+                                            </button>
+                                        )}
                                         <button
                                             type="button"
                                             className="mobile-auth-btn"
-                                            onClick={resetMobileAuthPending}
+                                            onClick={resetMobileAuthState}
                                             disabled={isSubmitting}
                                         >
                                             다시 입력
