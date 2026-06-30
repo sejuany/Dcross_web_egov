@@ -1,4 +1,4 @@
-﻿server:
+server:
   port: 8081
   forward-headers-strategy: framework
   servlet:
@@ -9,7 +9,7 @@
 
 logging:
   level:
-    com.dacos: INFO
+    "[com.dacos]": INFO
 
 spring:
   profiles:

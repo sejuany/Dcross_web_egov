@@ -31,11 +31,16 @@
  * - 세션 만료 시간은 TIMEOUT_MS 값을 조정하세요.
  */
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 // Context 생성 (초기값: undefined)
 const AuthContext = createContext();
+const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+
+const getDefaultLogoutRedirect = () => {
+    const pathname = window.location.pathname || '';
+    return pathname === '/wa' || pathname.startsWith('/wa/') ? '/wa/login' : '/login';
+};
 
 /**
  * useAuth - 로그인 정보를 가져오는 커스텀 훅
@@ -54,11 +59,9 @@ export const AuthProvider = ({ children }) => {
         const savedUser = sessionStorage.getItem('user');
         return savedUser ? JSON.parse(savedUser) : null;
     });
-    const navigate = useNavigate();
 
     // 세션 만료 시간: 30분 (밀리초)
     // 변경하려면 이 값을 수정하세요 (예: 60 * 60 * 1000 = 1시간)
-    const TIMEOUT_MS = 30 * 60 * 1000;
 
     /**
      * logout - 로그아웃 처리
@@ -66,7 +69,7 @@ export const AuthProvider = ({ children }) => {
      * - localStorage에서 사용자 정보 삭제
      * - 로그인 페이지로 이동
      */
-	const logout = useCallback(async () => {
+	const logout = useCallback(async (options = {}) => {
         try {
             await axios.post('/api/logout', {});
         } catch (error) {
@@ -98,9 +101,9 @@ export const AuthProvider = ({ children }) => {
 	        clearTimeout(window.sessionTimeout);
 	        window.sessionTimeout = null;
 	    }
+        const redirectTo = options.redirectTo || getDefaultLogoutRedirect();
 
-	    // navigate보다 강하게 전체 React state를 초기화
-	    window.location.replace('/login');
+        window.location.replace(redirectTo);
 	}, []);
 
     /**
@@ -126,7 +129,7 @@ export const AuthProvider = ({ children }) => {
         window.sessionTimeout = setTimeout(() => {
             alert('세션이 만료되었습니다. 다시 로그인해 주세요.');
             logout();
-        }, TIMEOUT_MS);
+        }, SESSION_TIMEOUT_MS);
     }, [logout]);
 
     /**

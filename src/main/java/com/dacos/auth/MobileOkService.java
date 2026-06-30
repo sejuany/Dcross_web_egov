@@ -82,7 +82,7 @@ public class MobileOkService {
         String publicKey = getString(tokenJson, "publicKey");
         String encryptMOKToken = getString(tokenJson, "encryptMOKToken");
         if (isBlank(publicKey) || isBlank(encryptMOKToken)) {
-            throw new IllegalStateException("Mobile-OK 嫄곕옒?좏겙 ?묐떟 ?뺣낫媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+            throw new IllegalStateException("Mobile-OK 거래토큰 응답 정보가 올바르지 않습니다.");
         }
 
         // Mobile-OK API step 2: encrypt auth info and request an SMS auth number.
@@ -137,7 +137,7 @@ public class MobileOkService {
         Object publicKeyObj = session.getAttribute(SESSION_PUBLIC_KEY);
         Object encryptMOKTokenObj = session.getAttribute(SESSION_AUTH_TOKEN);
         if (publicKeyObj == null || encryptMOKTokenObj == null) {
-            throw new IllegalStateException("Mobile-OK ?몄쬆?붿껌 ?뺣낫媛 ?놁뒿?덈떎. ?몄쬆踰덊샇 諛쒖넚遺???ㅼ떆 吏꾪뻾?댁＜?몄슂.");
+            throw new IllegalStateException("Mobile-OK 인증요청 정보가 없습니다. 인증번호 발송부터 다시 진행해주세요.");
         }
 
         mobileOKKeyManager mobileOK = createKeyManager();
@@ -168,7 +168,7 @@ public class MobileOkService {
 
         String encryptMOKResult = getString(confirmResponseJson, "encryptMOKResult");
         if (isBlank(encryptMOKResult)) {
-            throw new IllegalStateException("Mobile-OK 寃利앷껐怨??묐떟 ?뺣낫媛 ?놁뒿?덈떎.");
+            throw new IllegalStateException("Mobile-OK 검증결과 응답 정보가 없습니다.");
         }
 
         JSONObject resultJson = new JSONObject(mobileOK.getResultJSON(encryptMOKResult));
@@ -208,7 +208,7 @@ public class MobileOkService {
 
     private void validateConfigured() throws IOException {
         if (!properties.isEnabled()) {
-            throw new IllegalStateException("Mobile-OK ?곕룞??鍮꾪솢?깊솕?섏뼱 ?덉뒿?덈떎.");
+            throw new IllegalStateException("Mobile-OK 연동이 비활성화되어 있습니다.");
         }
 
         if (isBlank(properties.getKeyFile())) {
@@ -287,7 +287,7 @@ public class MobileOkService {
     private UserIdentity resolveUserIdentity(UserDto user) {
         // Mobile-OK requires birthday/gender/nation derived from the stored registration number.
         if (user == null) {
-            throw new IllegalStateException("?대???蹂몄씤?몄쬆 ?湲??ъ슜???뺣낫媛 ?놁뒿?덈떎.");
+            throw new IllegalStateException("휴대폰 본인인증 대기 사용자 정보가 없습니다.");
         }
 
         String userName = trimToEmpty(user.getMEMBER_NM());
@@ -295,13 +295,13 @@ public class MobileOkService {
         String registNo = onlyDigits(user.getREGIST_NO());
 
         if (isBlank(userName)) {
-            throw new IllegalStateException("?뚯썝 ?대쫫 ?뺣낫媛 ?놁뒿?덈떎.");
+            throw new IllegalStateException("회원 이름 정보가 없습니다.");
         }
         if (userPhone.length() < 10) {
-            throw new IllegalStateException("?뚯썝 ?대??곕쾲???뺣낫媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+            throw new IllegalStateException("회원 휴대전화번호 정보가 올바르지 않습니다.");
         }
         if (registNo.length() < 7) {
-            throw new IllegalStateException("?대????몄쬆???깅줉踰덊샇 ?뺣낫媛 ?щ컮瑜댁? ?딆뒿?덈떎.");
+            throw new IllegalStateException("휴대폰 인증용 등록번호 정보가 올바르지 않습니다.");
         }
 
         String birth6 = registNo.substring(0, 6);
@@ -335,7 +335,7 @@ public class MobileOkService {
         if (!expected.userName.equals(resultName)
                 || !expected.userPhone.equals(resultPhone)
                 || !expected.userBirthday.equals(resultBirthday)) {
-            throw new IllegalStateException("蹂몄씤?몄쬆 寃곌낵媛 濡쒓렇???ъ슜???뺣낫? ?쇱튂?섏? ?딆뒿?덈떎.");
+            throw new IllegalStateException("본인인증 결과가 로그인 사용자 정보와 일치하지 않습니다.");
         }
     }
 

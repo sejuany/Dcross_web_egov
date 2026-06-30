@@ -4,7 +4,7 @@
 
 <mapper namespace="com.dacos.auth.mapper.AuthMapper">
 
-    <!-- ?�용??ID�??�용???�보 조회 (USE_YN = 'Y' 조건 ?�함) -->
+    <!-- 사용자 ID로 사용자 정보 조회 (USE_YN = 'Y' 조건 포함) -->
     <select id="findByUserId" parameterType="string" resultType="com.dacos.auth.dto.UserDto">
         SELECT
             MM.LOGIN_ID,
@@ -44,7 +44,7 @@
             MM.LOGIN_ID = #{userId}
             AND MM.USE_YN  = 'Y'
    			AND MD.USE_YN = 'Y'
-   			AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') <!-- 기존 ?�코???�용?�사 로그???�되�?-->
+   			AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') <!-- 기존 더코어 사용 회사 로그인 가능 -->
     </select>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
@@ -141,7 +141,7 @@
 		  AND COMPANY_ID = #{companyId}
 	</select>	
 	
-    <!-- BCrypt 비�?번호�??�데?�트 (?�계???�환?? -->
+    <!-- BCrypt 비밀번호로 업데이트 (단계적 전환용) -->
     <update id="updatePasswordToBcrypt">
         UPDATE TM_MEMBER_MT
         SET PASS_WD = #{bcryptPassword}

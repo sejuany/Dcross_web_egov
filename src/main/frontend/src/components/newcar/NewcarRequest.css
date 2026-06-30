@@ -337,9 +337,9 @@ input.erp-input:read-only {
     opacity: 1 !important;
     -webkit-text-fill-color: #495057 !important;
 
-    appearance: none;
     -webkit-appearance: none;
     -moz-appearance: none;
+    appearance: none;
 }
 
 /* hover */

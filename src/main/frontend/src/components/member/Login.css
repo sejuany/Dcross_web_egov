@@ -146,6 +146,10 @@ html {
     border-bottom-color: var(--primary-blue);
 }
 
+.input-group input.reg-no-input {
+    -webkit-text-security: disc;
+}
+
 .input-group input:disabled {
     color: #718096;
     cursor: wait;

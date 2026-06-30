@@ -59,7 +59,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 		</dependency>
 
 		<!-- 표준프레임워크 실행환경 -->
@@ -257,7 +257,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 			<optional>true</optional>
 			<exclusions>
 				<exclusion>
@@ -275,7 +275,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -464,7 +464,7 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 				<configuration>
 					<jvmArguments>-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dstdout.encoding=UTF-8</jvmArguments>
 					<includeSystemScope>true</includeSystemScope>

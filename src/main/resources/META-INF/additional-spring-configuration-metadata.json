@@ -1,0 +1,47 @@
+{"properties": [
+  {
+    "name": "newcar.pdf-upload-dir",
+    "type": "java.lang.String",
+    "description": "A description for 'newcar.pdf-upload-dir'"
+  },
+  {
+    "name": "mobile-ok.enabled",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.enabled'"
+  },
+  {
+    "name": "mobile-ok.client-tx-id-prefix",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.client-tx-id-prefix'"
+  },
+  {
+    "name": "mobile-ok.key-password",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.key-password'"
+  },
+  {
+    "name": "mobile-ok.key-file",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.key-file'"
+  },
+  {
+    "name": "mobile-ok.confirm-url",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.confirm-url'"
+  },
+  {
+    "name": "mobile-ok.site-url",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.site-url'"
+  },
+  {
+    "name": "mobile-ok.auth-request-url",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.auth-request-url'"
+  },
+  {
+    "name": "mobile-ok.token-url",
+    "type": "java.lang.String",
+    "description": "A description for 'mobile-ok.token-url'"
+  }
+]}
