@@ -1077,7 +1077,7 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    max-height: clamp(300px, 52vh, 620px);
+    max-height: clamp(300px, 51vh, 620px);
     background: #ffffff;
     border: 1px solid var(--wa-line);
     border-radius: 10px;
@@ -1102,6 +1102,40 @@
     overflow: auto;
     flex: 1 1 auto;
     scrollbar-gutter: stable;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(148, 163, 184, 0.72) transparent;
+}
+
+.wa-status-table-scroll:hover {
+    scrollbar-color: rgba(47, 109, 246, 0.82) rgba(226, 232, 240, 0.72);
+}
+
+.wa-status-table-scroll::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+}
+
+.wa-status-table-scroll::-webkit-scrollbar-track {
+    border-radius: 999px;
+    background: rgba(226, 232, 240, 0.65);
+}
+
+.wa-status-table-scroll::-webkit-scrollbar-thumb {
+    border: 2px solid rgba(248, 250, 252, 0.95);
+    border-radius: 999px;
+    background: rgba(148, 163, 184, 0.72);
+}
+
+.wa-status-table-scroll:hover::-webkit-scrollbar-thumb {
+    background: rgba(47, 109, 246, 0.82);
+}
+
+.wa-status-table-scroll::-webkit-scrollbar-thumb:hover {
+    background: var(--wa-blue);
+}
+
+.wa-status-table-scroll::-webkit-scrollbar-corner {
+    background: rgba(248, 250, 252, 0.95);
 }
 
 .wa-status-table {
@@ -1584,7 +1618,16 @@
  * WA request modal frame
  * ========================================================= */
 .wa-status-page-content {
+    display: flex;
+    flex-direction: column;
+    gap: 23px;
     transition: filter 0.18s ease, opacity 0.18s ease;
+}
+
+@media (max-width: 760px) {
+    .wa-status-page-content {
+        gap: 17px;
+    }
 }
 
 .wa-status-page.has-modal .wa-status-page-content {

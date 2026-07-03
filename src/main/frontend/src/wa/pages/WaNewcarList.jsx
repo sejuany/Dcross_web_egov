@@ -61,7 +61,7 @@ const DEFAULT_MIN_COLUMN_WIDTH = 56;
 
 const columns = [
     { key: 'CHK', label: '', type: 'checkbox', width: 44, minWidth: 40, sortable: false },
-    { key: 'SEQ', label: '순번', width: 42, minWidth: 20, sortType: 'number' },
+    { key: 'SEQ', label: '순번', width: 44, minWidth: 20, sortType: 'number' },
     { key: 'REGIST_DATE', label: '등록예정일자', width: 116, minWidth: 50, sortType: 'date' },
     { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 92, minWidth: 60 },
     { key: 'LINK_ID', label: '주문번호', width: 82, minWidth: 60 },
