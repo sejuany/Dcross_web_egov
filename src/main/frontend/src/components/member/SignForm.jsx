@@ -26,11 +26,16 @@ const SIGNUP_FORM_TYPE = {
     SA = 팀 관리자
     SU = 팀 사용자
 
-    조건:
+    기존 특수기업 조건:
     CA: BRANCH_ID = '1' 고정, SANGSA_ID 없음
     BA: BRANCH_ID 선택, SANGSA_ID 없음
     SA: BRANCH_ID 선택, SANGSA_ID 선택
     SU: BRANCH_ID 선택, SANGSA_ID 선택
+
+    WA001 조건:
+    CA: BRANCH_ID = '1' 고정, SANGSA_ID 없음
+    BA: BRANCH_ID 선택, SANGSA_ID 없음
+    SU: BRANCH_ID 선택, SANGSA_ID 없음
 */
 const SPECIAL_MEMBER_GB_OPTIONS = [
     { code: 'CA', name: '기업 관리자' },
@@ -39,15 +44,45 @@ const SPECIAL_MEMBER_GB_OPTIONS = [
     { code: 'SU', name: '팀 사용자' },
 ];
 
-const isSpecialMemberGb = (memberGb) => {
-    return ['CA', 'BA', 'SA', 'SU'].includes(memberGb);
+const WA001_SPECIAL_MEMBER_GB_OPTIONS = [
+    { code: 'CA', name: 'Admin' },
+    { code: 'BA', name: 'Supersp' },
+    { code: 'SU', name: 'sp' },
+];
+
+const BRANCH_ONLY_SPECIAL_COMPANY_IDS = [
+    'WA001',
+];
+
+const isBranchOnlySpecialCompany = (companyId) => {
+    const value = String(companyId || '').trim().toUpperCase();
+
+    return BRANCH_ONLY_SPECIAL_COMPANY_IDS.includes(value);
 };
 
-const needBranchByMemberGb = (memberGb) => {
+const getSpecialMemberGbOptions = (companyId) => {
+    return isBranchOnlySpecialCompany(companyId)
+        ? WA001_SPECIAL_MEMBER_GB_OPTIONS
+        : SPECIAL_MEMBER_GB_OPTIONS;
+};
+
+const isSpecialMemberGb = (memberGb, companyId) => {
+    return getSpecialMemberGbOptions(companyId).some(item => item.code === memberGb);
+};
+
+const needBranchByMemberGb = (memberGb, companyId) => {
+    if (isBranchOnlySpecialCompany(companyId)) {
+        return ['BA', 'SU'].includes(memberGb);
+    }
+
     return ['BA', 'SA', 'SU'].includes(memberGb);
 };
 
-const needSangsaByMemberGb = (memberGb) => {
+const needSangsaByMemberGb = (memberGb, companyId) => {
+    if (isBranchOnlySpecialCompany(companyId)) {
+        return false;
+    }
+
     return ['SA', 'SU'].includes(memberGb);
 };
 
@@ -152,6 +187,36 @@ const validateEmail = (email) => {
     };
 };
 
+const getSignupCompleteInfo = (companyId, memberGb) => {
+    const normalizedCompanyId = String(companyId || '').trim().toUpperCase();
+
+    if (normalizedCompanyId === 'WA001') {
+        if (memberGb === 'BA') {
+            return {
+                badge: 'ADMIN APPROVAL',
+                message: '관리자가 승인할 예정입니다.',
+            };
+        }
+
+        if (memberGb === 'SU') {
+            return {
+                badge: 'SPACE APPROVAL',
+                message: 'space 관리자가 승인 예정입니다.',
+            };
+        }
+
+        return {
+            badge: 'REQUEST',
+            message: '다코스로 요청 부탁드립니다.',
+        };
+    }
+
+    return {
+        badge: 'REQUEST',
+        message: '다코스로 요청 부탁드립니다.',
+    };
+};
+
 const SignForm = () => {
     const navigate = useNavigate();
 
@@ -189,6 +254,11 @@ const SignForm = () => {
 
     const [isIdChecked, setIsIdChecked] = useState(false);
     const [serviceAgreed, setServiceAgreed] = useState(false);
+    const [signupCompleted, setSignupCompleted] = useState(false);
+    const [signupCompleteInfo, setSignupCompleteInfo] = useState({
+        badge: 'REQUEST',
+        message: '다코스로 요청 부탁드립니다.',
+    });
     const [regGbOptions, setRegGbOptions] = useState([]);
     const [associationOptions, setAssociationOptions] = useState([]);
     const [branchOptions, setBranchOptions] = useState([]);
@@ -666,6 +736,9 @@ const SignForm = () => {
     };
 
     const validateSpecialForm = () => {
+        const companyId = formData.searchCompanyId.trim().toUpperCase();
+        const branchOnlySpecialCompany = isBranchOnlySpecialCompany(companyId);
+
         if (!formData.regGb) {
             alert('회원사 등록구분 정보가 없습니다. 회원사 ID를 다시 조회해주세요.');
             return false;
@@ -676,7 +749,7 @@ const SignForm = () => {
             return false;
         }
 
-        if (!formData.memberGb || !isSpecialMemberGb(formData.memberGb)) {
+        if (!formData.memberGb || !isSpecialMemberGb(formData.memberGb, companyId)) {
             alert('업무권한을 선택해주세요.');
             return false;
         }
@@ -707,7 +780,7 @@ const SignForm = () => {
                 return false;
             }
 
-            if (!formData.sangsaId) {
+            if (!branchOnlySpecialCompany && !formData.sangsaId) {
                 alert('영업팀을 선택해주세요.');
                 return false;
             }
@@ -828,7 +901,7 @@ const SignForm = () => {
             gf.alert('서비스 이용 신청에 동의해주세요.');
             return;
         }
-        
+
         const confirmSave = await gf.confirm('입력된 내용으로 회원등록을 신청합니다.\n\n계속하시겠습니까?');
 
         if (!confirmSave) {
@@ -860,12 +933,18 @@ const SignForm = () => {
         let sangsaId = formData.sangsaId || '';
 
         if (isSpecialCompany) {
+            const branchOnlySpecialCompany = isBranchOnlySpecialCompany(companyId);
+
             if (memberGb === 'CA') {
                 branchId = '1';
                 sangsaId = '';
             }
 
             if (memberGb === 'BA') {
+                sangsaId = '';
+            }
+
+            if (branchOnlySpecialCompany) {
                 sangsaId = '';
             }
         }
@@ -895,8 +974,13 @@ const SignForm = () => {
             const response = await axios.post('/api/member/signup', payload);
 
             if (response.data.success) {
-                alert('회원가입 신청이 완료되었습니다.');
-                navigate('/login');
+                setSignupCompleteInfo(getSignupCompleteInfo(companyId, memberGb));
+                setSignupCompleted(true);
+
+                window.scrollTo({
+                    top: 0,
+                    behavior: 'smooth',
+                });
             } else {
                 alert(response.data.message || '회원가입 신청에 실패했습니다.');
             }
@@ -1064,146 +1148,144 @@ const SignForm = () => {
         );
     };
 
-    const renderSpecialSignupForm = () => {
-        return (
-            <>
-                <section className="info-section">
-                    <div className="section-header">특정 회원사 전용 신청정보</div>
-                    <div className="form-rows">
-                        <div className="form-row split">
-                            <div className="field">
-                                <label>회원사명</label>
-                                <input
-                                    type="text"
-                                    readOnly
-                                    className="read-only"
-                                    value={companyInfo.companyNm}
-                                />
-                            </div>
+	const renderSpecialSignupForm = () => {
+	    const companyId = formData.searchCompanyId.trim().toUpperCase();
+	    const isWa001 = isBranchOnlySpecialCompany(companyId);
+	    const branchRequired = needBranchByMemberGb(formData.memberGb, companyId);
+	    const sangsaRequired = needSangsaByMemberGb(formData.memberGb, companyId);
 
-                            <div className="field">
-                                <label>사업자번호</label>
-                                <input
-                                    type="text"
-                                    readOnly
-                                    className="read-only"
-                                    value={formatBizNo(companyInfo.bizNo)}
-                                />
-                            </div>
-                        </div>
+	    return (
+	        <>
+	            <section className="info-section">
+	                <div className="section-header">
+	                    {isWa001 ? '회원사 신청정보' : '특정 회원사 전용 신청정보'}
+	                </div>
 
-                        <div className="form-row">
-                            <div className="field special-auth-only-field">
-                                <label className="req">권한</label>
-                                <div className="special-auth-only-group">
-                                    {SPECIAL_MEMBER_GB_OPTIONS.map(item => (
-                                        <label
-                                            key={item.code}
-                                            className={`special-auth-chip ${formData.memberGb === item.code ? 'active' : ''}`}
-                                        >
-                                            <input
-                                                type="radio"
-                                                name="memberGb"
-                                                value={item.code}
-                                                checked={formData.memberGb === item.code}
-                                                onChange={handleChange}
-                                                disabled={!companySearched}
-                                            />
-                                            <span>{item.name}</span>
-                                        </label>
-                                    ))}
-                                </div>
-                            </div>
-                        </div>
+	                <div className="form-rows">
+	                    <div className="form-row split">
+	                        <div className="field">
+	                            <label>회원사명</label>
+	                            <input
+	                                type="text"
+	                                readOnly
+	                                className="read-only"
+	                                value={companyInfo.companyNm}
+	                            />
+	                        </div>
 
-                        <div className="form-row">
-                            <div className="field special-email-field">
-                                <label className="req">이메일</label>
-                                <input
-                                    type="text"
-                                    name="memberMail"
-                                    value={formData.memberMail}
-                                    onChange={handleChange}
-                                    className="special-email-input"
-                                    placeholder="이메일을 입력해주세요"
-                                    disabled={!companySearched}
-                                />
-                            </div>
-                        </div>
+	                        <div className="field">
+	                            <label>사업자번호</label>
+	                            <input
+	                                type="text"
+	                                readOnly
+	                                className="read-only"
+	                                value={formatBizNo(companyInfo.bizNo)}
+	                            />
+	                        </div>
+	                    </div>
 
-                        {needBranchByMemberGb(formData.memberGb) && (
-                            <div className="form-row">
-                                <div className="field">
-                                    <label className="req">지점</label>
-                                    <div className="inline-selects">
-                                        <input
-                                            type="text"
-                                            readOnly
-                                            className="read-only"
-                                            value={getAssociationName()}
-                                        />
+	                    <div className="form-row split special-application-row">
+	                        <div className="field special-auth-only-field">
+	                            <label className="req">업무권한</label>
+	                            <div className={`special-auth-only-group ${isWa001 ? 'wa001-auth-group' : ''}`}>
+	                                {getSpecialMemberGbOptions(formData.searchCompanyId).map(item => (
+	                                    <label
+	                                        key={item.code}
+	                                        className={`special-auth-chip ${formData.memberGb === item.code ? 'active' : ''}`}
+	                                    >
+	                                        <input
+	                                            type="radio"
+	                                            name="memberGb"
+	                                            value={item.code}
+	                                            checked={formData.memberGb === item.code}
+	                                            onChange={handleChange}
+	                                            disabled={!companySearched}
+	                                        />
+	                                        <span>{item.name}</span>
+	                                    </label>
+	                                ))}
+	                            </div>
+	                        </div>
 
-                                        <select
-                                            name="branchId"
-                                            value={formData.branchId}
-                                            onChange={handleBranchChange}
-                                            disabled={!companySearched || branchOptions.length === 0}
-                                        >
-                                            <option value="">지점 선택</option>
-                                            {branchOptions.map(item => (
-                                                <option key={getCodeValue(item)} value={getCodeValue(item)}>
-                                                    {getCodeName(item)}
-                                                </option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+	                        <div className={`field wa-space-field ${!branchRequired ? 'field-disabled' : ''}`}>
+	                            <label className={branchRequired ? 'req' : ''}>
+	                                {isWa001 ? 'SPACE' : '지점'}
+	                            </label>
 
-                        {needSangsaByMemberGb(formData.memberGb) && formData.branchId && (
-                            <div className="form-row">
-                                <div className="field">
-                                    <label className="req">영업팀</label>
-                                    <div className="input-with-btn">
-                                        <input
-                                            type="text"
-                                            readOnly
-                                            className="read-only"
-                                            value={selectedSangsaName}
-                                            placeholder="영업팀을 선택해주세요"
-                                        />
-                                        <button
-                                            type="button"
-                                            className="btn-inner"
-                                            onClick={openSangsaModal}
-                                        >
-                                            검색
-                                        </button>
-                                    </div>
-                                </div>
-                            </div>
-                        )}
+	                            {isWa001 ? (
+	                                <select
+	                                    name="branchId"
+	                                    value={formData.branchId}
+	                                    onChange={handleBranchChange}
+	                                    disabled={!companySearched || !branchRequired || branchOptions.length === 0}
+	                                >
+	                                    <option value="">space 선택</option>
+	                                    {branchOptions.map(item => (
+	                                        <option key={getCodeValue(item)} value={getCodeValue(item)}>
+	                                            {getCodeName(item)}
+	                                        </option>
+	                                    ))}
+	                                </select>
+	                            ) : (
+	                                <div className="inline-selects">
+	                                    <input
+	                                        type="text"
+	                                        readOnly
+	                                        className="read-only"
+	                                        value={getAssociationName()}
+	                                    />
 
-                        <div className="form-row">
-                            <div className="field">
-                                <label>주소</label>
-                                <div className="address-group">
-                                    <input type="text" className="addr-l read-only" readOnly value={companyInfo.address} />
-                                    <input type="text" className="addr-m read-only" readOnly value={companyInfo.addressDt} />
-                                    <input type="text" className="addr-s read-only" readOnly value={companyInfo.postNo} />
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </section>
+	                                    <select
+	                                        name="branchId"
+	                                        value={formData.branchId}
+	                                        onChange={handleBranchChange}
+	                                        disabled={!companySearched || !branchRequired || branchOptions.length === 0}
+	                                    >
+	                                        <option value="">지점 선택</option>
+	                                        {branchOptions.map(item => (
+	                                            <option key={getCodeValue(item)} value={getCodeValue(item)}>
+	                                                {getCodeName(item)}
+	                                            </option>
+	                                        ))}
+	                                    </select>
+	                                </div>
+	                            )}
+	                        </div>
+	                    </div>
 
-                {renderMemberBasicInfoSection()}
-                {renderFooter()}
-                {renderSangsaModal()}
-            </>
-        );
-    };
+	                    {sangsaRequired && formData.branchId && (
+	                        <div className="form-row">
+	                            <div className="field">
+	                                <label className="req">영업팀</label>
+	                                <div className="input-with-btn">
+	                                    <input
+	                                        type="text"
+	                                        readOnly
+	                                        className="read-only"
+	                                        value={selectedSangsaName}
+	                                        placeholder="영업팀을 선택해주세요"
+	                                    />
+	                                    <button
+	                                        type="button"
+	                                        className="btn-inner"
+	                                        onClick={openSangsaModal}
+	                                    >
+	                                        검색
+	                                    </button>
+	                                </div>
+	                            </div>
+	                        </div>
+	                    )}
+
+	                </div>
+	            </section>
+
+	            {renderMemberBasicInfoSection()}
+	            {renderFooter()}
+	            {renderSangsaModal()}
+	        </>
+	    );
+	};
 
     const renderMemberBasicInfoSection = () => {
         return (
@@ -1296,10 +1378,37 @@ const SignForm = () => {
                             />
                         </div>
                     </div>
+					
+					{isSpecialForm && (
+					    <div className="form-row">
+					        <div className="field special-email-field">
+					            <label className="req">이메일</label>
+					            <input
+					                type="text"
+					                name="memberMail"
+					                value={formData.memberMail}
+					                onChange={handleChange}
+					                className="special-email-input"
+					                placeholder="example@email.com"
+					                disabled={!companySearched}
+					            />
+					        </div>
+					    </div>
+					)}
 
                     <div className="form-row split">
                         <div className="field">
-                            <label className="req">인증 구분</label>
+                            <label className="req auth-type-label">
+                                인증 구분
+                                <span className="auth-info-tooltip" tabIndex={0}>
+                                    i
+                                    <span className="auth-info-box">
+                                        로그인 시 사용할 인증 수단입니다.<br />
+                                        법인 공인인증서, 개인 공인인증서, 휴대폰 인증 중<br />
+                                        하나를 선택하는 항목입니다.
+                                    </span>
+                                </span>
+                            </label>
                             <div className="radio-group">
                                 <label>
                                     <input
@@ -1535,6 +1644,57 @@ const SignForm = () => {
         return renderDefaultSignupForm();
     };
 
+
+    const renderSignupComplete = () => {
+        return (
+            <div className="sign-complete-page">
+                <div className="sign-complete-card">
+                    <div className="sign-complete-steps">
+                        <span className="step-item inactive">
+                            <span>1</span>
+                            회원가입
+                        </span>
+                        <span className="step-line"></span>
+                        <span className="step-item active">
+                            <span>2</span>
+                            가입완료
+                        </span>
+                    </div>
+
+                    <div className="sign-complete-divider"></div>
+
+                    <div className="sign-complete-content">
+                        <div className="complete-check">✓</div>
+
+                        <h2>회원가입 신청 완료</h2>
+
+                        <p>
+                            DACOS 서비스 이용 권한 신청이 정상적으로 접수되었습니다.<br />
+                            입력하신 마스터 정보 검토 후 서비스 이용이 승인됩니다.
+                        </p>
+
+                        <div className="approval-box">
+                            <strong>{signupCompleteInfo.badge}</strong>
+                            <span>{signupCompleteInfo.message}</span>
+                        </div>
+
+                        <button
+                            type="button"
+                            className="btn-complete-login"
+                            onClick={() => navigate('/login')}
+                        >
+                            로그인 화면으로
+                        </button>
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
+    if (signupCompleted) {
+        return renderSignupComplete();
+    }
+
     return (
         <div className="sign-page-container">
             <div className="sign-card">
@@ -1543,14 +1703,6 @@ const SignForm = () => {
                         <span className="square-icon"></span>
                         회원가입 정보입력
                     </h3>
-                    <div className="header-actions">
-                        <button className="btn-f-key" onClick={handleSearchCompany}>
-                            조회[F2]
-                        </button>
-                        <button className="btn-f-key" onClick={() => navigate('/login')}>
-                            닫기[F9]
-                        </button>
-                    </div>
                 </div>
 
                 <div className="sign-body">
