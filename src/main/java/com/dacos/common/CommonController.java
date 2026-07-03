@@ -69,12 +69,35 @@ public class CommonController {
     public ResponseEntity<Map<String, Object>> query(
             @RequestBody Map<String, Object> request) {
     	
+    	String gubun = request.get("GUBUN") == null
+    			// 구분 지정 안 하면 자동으로 SELECT
+    			? "SELECT"
+    	        : request.remove("GUBUN").toString().toUpperCase();
+    	
         String queryId = (String) request.remove("QUERY_ID");
         logger.info("queryId >>" + queryId + " 조회 시작");
         
-        return ResponseEntity.ok(
-            ApiResponse.withKey("data", comm.select(request, queryId))
-        );
+        // 기본값 = SELECT
+        if ("SELECT".equalsIgnoreCase(gubun)) {
+
+            logger.info("queryId >> {} 조회 시작", queryId);
+
+            return ResponseEntity.ok(
+                ApiResponse.withKey("data", comm.select(request, queryId))
+            );
+        }
+        
+        // UPDATE
+        if ("UPDATE".equalsIgnoreCase(gubun)) {
+
+            logger.info("queryId >> {} 수정 시작", queryId);
+
+            return ResponseEntity.ok(
+                ApiResponse.withKey("count", comm.update(request, queryId))
+            );
+        }
+        
+        throw new IllegalArgumentException("지원하지 않는 GUBUN : " + gubun);
     }
 
 }

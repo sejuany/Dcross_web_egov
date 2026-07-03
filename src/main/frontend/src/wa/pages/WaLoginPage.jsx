@@ -35,7 +35,7 @@ const WaLoginPage = () => {
         if (!user) return;
 
         if (isWaCompanyUser(user)) {
-            navigate('/wa/home', { replace: true });
+            navigate('/wa/newcar-status', { replace: true });
         } else {
             navigate('/home', { replace: true });
         }
@@ -72,7 +72,7 @@ const WaLoginPage = () => {
 
         login(loginUser);
         showToast('로그인 성공');
-        window.setTimeout(() => navigate('/wa/home', { replace: true }), 700);
+        window.setTimeout(() => navigate('/wa/newcar-status', { replace: true }), 700);
     };
 
     const handleChange = (event) => {

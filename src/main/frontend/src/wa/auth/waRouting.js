@@ -1,4 +1,5 @@
-export const WA_COMPANY_ID = 'WA001';
+export const WA_COMPANY_KEYWORD = 'WA';
+export const WA_HOME_PATH = '/wa/newcar-status';
 
 export const getUserCompanyId = (user) => {
     if (!user) return '';
@@ -12,4 +13,8 @@ export const getUserCompanyId = (user) => {
     ).trim().toUpperCase();
 };
 
-export const isWaCompanyUser = (user) => getUserCompanyId(user) === WA_COMPANY_ID;
+export const isWaCompanyUser = (user) => getUserCompanyId(user).includes(WA_COMPANY_KEYWORD);
+
+export const getHomePathForUser = (user) => (
+    isWaCompanyUser(user) ? WA_HOME_PATH : '/home'
+);

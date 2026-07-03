@@ -381,6 +381,201 @@ export const gf = {
 	    return value;
 	},
 
+	mask(value, type) {
+
+	    const patterns = {
+	        PHONE: '___-____-____',
+	        TEL: '__-___-____',
+	        BIZNO: '___-__-_____',
+	        REGNO: '______-_______',
+	        CARD: '____-____-____-____ __/__'
+	    };
+
+	    const pattern = patterns[type];
+
+	    if (!pattern) {
+	        return value ?? '';
+	    }
+
+	    value = String(value ?? '');
+
+	    // 이미 마스크가 적용된 값이면 그대로 사용
+	    if (value.includes('_')) {
+	        return value;
+	    }
+
+	    const raw = value.replace(/[^\d_]/g, '');
+
+	    let result = '';
+	    let idx = 0;
+
+	    for (const ch of pattern) {
+
+	        if (ch === '_') {
+
+	            if (idx < raw.length) {
+	                result += raw[idx++];
+	            } else {
+	                result += '_';
+	            }
+
+	        } else {
+	            result += ch;
+	        }
+	    }
+
+	    return result;
+	},
+	
+	/**
+	 * 마스크 입력 시 커서 위치 유지
+	 */
+	maskCursor(e) {
+
+	    const input = e.target;
+
+		requestAnimationFrame(() => {
+
+		    const pos = input.__cursorPos ?? 0;
+
+		    input.setSelectionRange(
+		        pos,
+		        pos
+		    );
+		});
+	},
+
+	maskKeyDown(e) {
+
+	    const input = e.target;
+	    const value = input.value;
+
+		// 숫자 입력 시 현재 위치 숫자를 덮어씀
+		if (/^\d$/.test(e.key)) {
+
+		    e.preventDefault();
+
+		    let insertPos = input.selectionStart;
+
+		    // 숫자 또는 언더바 위치 찾기
+		    while (
+		        insertPos < value.length &&
+		        !/[\d_]/.test(value[insertPos])
+		    ) {
+		        insertPos++;
+		    }
+
+		    if (insertPos >= value.length) {
+		        return;
+		    }
+
+		    const newValue =
+		        value.substring(0, insertPos) +
+		        e.key +
+		        value.substring(insertPos + 1);
+
+		    input.value = newValue;
+
+		    input.__cursorPos = insertPos + 1;
+
+		    requestAnimationFrame(() => {
+
+		        input.setSelectionRange(
+		            insertPos + 1,
+		            insertPos + 1
+		        );
+
+		        input.dispatchEvent(
+		            new Event('input', { bubbles: true })
+		        );
+		    });
+
+		    return;
+		}
+
+	    input.__cursorPos = input.selectionStart;
+
+	    // 여러 글자 선택 후 Backspace 했을 때 추가
+	    if (
+	        e.key === 'Backspace' &&
+	        input.selectionStart < input.selectionEnd
+	    ) {
+
+	        e.preventDefault();
+
+	        const start = input.selectionStart;
+	        const end = input.selectionEnd;
+
+	        const chars = value.split('');
+
+	        for (let i = start; i < end; i++) {
+
+	            // 숫자만 언더바로 치환
+	            if (/\d/.test(chars[i])) {
+	                chars[i] = '_';
+	            }
+	        }
+
+	        input.value = chars.join('');
+
+	        requestAnimationFrame(() => {
+
+	            input.setSelectionRange(
+	                start,
+	                start
+	            );
+
+	            input.dispatchEvent(
+	                new Event('input', { bubbles: true })
+	            );
+	        });
+
+	        return;
+	    }
+
+	    // 여기서부터는 숫자를 삭제 했을 때, 언더바로 치환되도록 설정
+	    if (e.key !== 'Backspace') {
+	        return;
+	    }
+
+	    e.preventDefault();
+
+	    const cursorPos = input.selectionStart;
+
+	    let deletePos = cursorPos - 1;
+
+	    // 숫자 위치 찾기
+	    while (
+	        deletePos >= 0 &&
+	        !/\d/.test(value[deletePos])
+	    ) {
+	        deletePos--;
+	    }
+
+	    if (deletePos < 0) {
+	        return;
+	    }
+
+	    const newValue =
+	        value.substring(0, deletePos) +
+	        '_' +
+	        value.substring(deletePos + 1);
+
+	    input.value = newValue;
+
+	    requestAnimationFrame(() => {
+
+	        input.setSelectionRange(
+	            deletePos,
+	            deletePos
+	        );
+
+	        input.dispatchEvent(
+	            new Event('input', { bubbles: true })
+	        );
+	    });
+	},
+	
 	// 전체 주소 넣고 조회하기 
 	createAddrParam(address) {
 

@@ -260,6 +260,131 @@
         ORDER BY TS.REQUEST_DT DESC
 	</select>
 
+    <!-- WA 전용 신규신청현황 목록 조회 -->
+    <select id="getWaNewCarList" parameterType="com.dacos.newcar.dto.NewcarSearchRequest" resultType="java.util.Map">
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY TS.INS_DATE DESC, TS.SERVICE_ID DESC) AS SEQ,
+            TS.SERVICE_ID AS SERVICE_ID,
+            TO_CHAR(TN.REGIST_DATE, 'YYYY-MM-DD') AS REGIST_DATE,
+            TS.PROC_ST AS PROC_ST,
+            TS.LINK_ID AS LINK_ID,
+            TN.CARID_NO AS CARID_NO,
+            NVL(TS.CAR_NO, TN.CAR_NO) AS CAR_NO,
+            TN.OWNER_NM AS OWNER_NM,
+            TN.BUY_AMT AS BUY_AMT,
+            CASE
+                WHEN TRIM(CD.FILENAME1) IS NOT NULL
+                  OR TRIM(CD.FILENAME2) IS NOT NULL
+                  OR TRIM(CD.FILENAME3) IS NOT NULL
+                  OR TRIM(CD.FILENAME4) IS NOT NULL
+                  OR TRIM(CD.FILENAME5) IS NOT NULL
+                  OR TRIM(CD.FILENAME6) IS NOT NULL
+                THEN 'Y'
+                ELSE 'N'
+            END AS ATTACH_YN,
+            TN.CARD_YN AS CARD_YN,
+            CASE
+                WHEN NVL(TN.NTAX_TRGET_CD, '00') &lt;&gt; '00' THEN 'Y'
+                ELSE 'N'
+            END AS NTAX_YN,
+            TN.PAY_ST AS PAY_ST,
+            TN.PAY_GB AS PAY_GB,
+            TO_CHAR(TN.BPAY_DT, 'YYYY-MM-DD') AS BPAY_DT,
+            TO_CHAR(TN.PAY_DT, 'YYYY-MM-DD') AS PAY_DT,
+            TO_CHAR(TS.INS_DATE, 'YYYY-MM-DD') AS INS_DATE,
+            TO_CHAR(TS.JUDGE_DT, 'YYYY-MM-DD') AS JUDGE_DT,
+            TO_CHAR(CD.INSTALL_DT, 'YYYY-MM-DD') AS INSTALL_DT,
+            TB.BRANCH_NM AS SPACE,
+            TRIM(
+                NVL(PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR), '') ||
+                CASE
+                    WHEN CD.DELIVERY_ADDR_DT IS NOT NULL THEN ' ' || NVL(PKG_COMMON.FN_DECRYPT(CD.DELIVERY_ADDR_DT), '')
+                    ELSE ''
+                END
+            ) AS DELIVERY_ADDR,
+            (SELECT MEMBER_NM FROM TM_MEMBER_DT WHERE LOGIN_ID = TS.INS_USER) AS INS_USER,
+            TN.GOVT_TX AS GOVT_TX
+        FROM TR_SERVICE TS
+             JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+             LEFT JOIN TR_CARNO_DETACH CD ON CD.SERVICE_ID = TS.SERVICE_ID
+             LEFT JOIN TM_BRANCH TB ON TB.COMPANY_ID = TS.COMPANY_ID AND TB.BRANCH_ID = TS.BRANCH_ID
+        WHERE TS.WORK_CD = '010'
+          AND TS.PROC_ST &lt;&gt; 'DEL'
+          AND TS.COMPANY_ID = #{COMPANY_ID}
+        <if test="START_DT != null and START_DT != '' and END_DT != null and END_DT != ''">
+            <choose>
+                <when test="DATE_CD == 'JDGDT'">
+                    AND TS.JUDGE_DT BETWEEN
+                        TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                        AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+                </when>
+                <when test="DATE_CD == 'REGDT'">
+                    AND TN.REGIST_DATE BETWEEN
+                        TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                        AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+                </when>
+				<when test="DATE_CD == 'REQDT'">
+                    AND TS.REQUEST_DT BETWEEN
+                        TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                        AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+                </when>
+                <otherwise>
+                    AND TS.INS_DATE BETWEEN
+                        TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+                        AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+                </otherwise>
+            </choose>
+        </if>
+        <if test="CAR_NO != null and CAR_NO != ''">
+            AND (
+                TN.CARID_NO LIKE '%' || #{CAR_NO} || '%'
+                OR TN.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+                OR TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+            )
+        </if>
+        <if test="LINK_ID != null and LINK_ID != ''">
+            AND TS.LINK_ID LIKE '%' || #{LINK_ID} || '%'
+        </if>
+        <if test="CUSTOMER_NM != null and CUSTOMER_NM != ''">
+            AND TN.OWNER_NM LIKE '%' || #{CUSTOMER_NM} || '%'
+        </if>
+        <if test="PAY_GB != null and PAY_GB != ''">
+            AND TN.PAY_GB = #{PAY_GB}
+        </if>
+        <if test="PROC_ST != null and PROC_ST != ''">
+            AND TS.PROC_ST = #{PROC_ST}
+        </if>
+        <if test="SPACE_TYPE != null and SPACE_TYPE != ''">
+            AND (
+                TS.BRANCH_ID = #{SPACE_TYPE}
+                OR TB.BRANCH_NM = #{SPACE_TYPE}
+                OR CD.DELIVERY_GB = #{SPACE_TYPE}
+            )
+        </if>
+        <if test="NUM_PROC_ST != null and NUM_PROC_ST != ''">
+            <choose>
+                <when test="NUM_PROC_ST == 'BEFORE'">
+                    AND CD.INSTALL_DT IS NULL
+                    AND NVL(CD.SEND_YN, 'N') &lt;&gt; 'Y'
+                    AND NVL(CD.RENT_SEND_YN, 'N') &lt;&gt; 'Y'
+                </when>
+                <when test="NUM_PROC_ST == 'ING'">
+                    AND CD.INSTALL_DT IS NULL
+                    AND (CD.SEND_YN = 'Y' OR CD.RENT_SEND_YN = 'Y')
+                </when>
+                <when test="NUM_PROC_ST == 'DONE'">
+                    AND CD.INSTALL_DT IS NOT NULL
+                </when>
+                <when test="NUM_PROC_ST == 'NONE'">
+                    AND (CD.DELIVERY_GB IS NULL OR CD.DELIVERY_GB = 'INPUT')
+                </when>
+                <otherwise>
+                    AND CD.NUMPLATE_ST = #{NUM_PROC_ST}
+                </otherwise>
+            </choose>
+        </if>
+        ORDER BY TS.INS_DATE DESC, TS.SERVICE_ID DESC
+    </select>
 	<!-- 신규등록 상세 조회 -->
 	<select id="getNewCarDetail" parameterType="string" resultType="java.util.Map">
         SELECT
@@ -377,11 +502,13 @@
 	<!-- 번호판 상태 체크 -->
 	<select id="checkDuplicateCarNo" parameterType="java.util.Map" resultType="java.util.Map">
 	
-	    SELECT SERVICE_ID,
+	    SELECT TS.SERVICE_ID,
+	    	   PROC_ST,
 	           REQ_CAR_NO
-	      FROM TR_NEWCAR
-	     WHERE REQ_CAR_NO = #{CAR_NO}
-	       AND SERVICE_ID 		<![CDATA[<>]]> #{SERVICE_ID}
+	      FROM TR_SERVICE TS, TR_NEWCAR TN
+	     WHERE TN.SERVICE_ID = TS.SERVICE_ID
+	       AND REQ_CAR_NO = #{REQ_CAR_NO}
+	       AND TS.SERVICE_ID <![CDATA[<>]]> #{SERVICE_ID}
 	
 	</select>
 
@@ -458,6 +585,12 @@
 		</if>
 
         ORDER BY SEQ
+	</select>
+	
+	<select id="checkEnumQueu" parameterType="java.util.Map" resultType="java.util.Map">
+		SELECT SERVICE_ID, CAR_NO
+		  FROM TR_ENUM_QUEUE
+		 WHERE SERVICE_ID = #{SERVICE_ID};
 	</select>
 
 	<!-- 신규등록 신청 -->

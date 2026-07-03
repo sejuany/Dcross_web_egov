@@ -237,7 +237,7 @@
     align-items: center;
     justify-content: center;
     padding: 0 5px;
-    font-size: 12px;
+    font-size: 13px;
     background: #e9eff4 !important;
     color: #44546a!important;
     border-right: 1px solid #c8d2df!important;
@@ -360,7 +360,6 @@ select.erp-input:disabled:hover {
 /* 1280px Optimization for Inputs and Labels */
 @media (max-width: 1980px) {
     .erp-label {
-        font-size: 15px;
         padding: 0 2px;
         min-width: 50px;
         letter-spacing: -0.3px;
@@ -766,7 +765,6 @@ select.erp-input:disabled:hover {
     width: 105px !important;
     min-width: 105px;
     padding: 0 4px;
-    font-size: 12px;
 }
 
 .fixed-reg-info-section .erp-textArea {
@@ -1018,9 +1016,6 @@ button.btn-erp.sm.light.mL-25 {
     height: 24px;
 }
 
-/* .ownerNm-field > .erp-label {
-	min-width: 110px;
-} */
 
 .ratio-field > .erp-label {
 	min-width: 120px;

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
+import { getHomePathForUser } from '../../wa/auth/waRouting';
 import './Login.css';
 
 const MOBILE_PROVIDER_OPTIONS = [
@@ -34,7 +35,7 @@ const LoginPage = () => {
 
     useEffect(() => {
         if (user) {
-            navigate('/home', { replace: true });
+            navigate(getHomePathForUser(user), { replace: true });
         }
     }, [navigate, user]);
 
@@ -61,7 +62,7 @@ const LoginPage = () => {
     const completeLogin = (loginUser) => {
         login(loginUser);
         showToast('로그인 성공');
-        window.setTimeout(() => navigate('/home', { replace: true }), 700);
+        window.setTimeout(() => navigate(getHomePathForUser(loginUser), { replace: true }), 700);
     };
 
     const handleSubmit = async (event) => {

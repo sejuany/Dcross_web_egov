@@ -12,16 +12,6 @@
     z-index: 9999;
 }
 
-.receipt-modal-container {
-    width: 900px;
-    max-width: 95vw;
-    background: #fff;
-    border-radius: 8px;
-    overflow: hidden;
-    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
-    border: 1px solid #ced4da;
-}
-
 .receipt-modal-header {
     background: linear-gradient(to bottom, #3c638d, #2f557d);
     color: #fff;
@@ -30,6 +20,8 @@
     align-items: center;
     justify-content: space-between;
     border-bottom: 1px solid #294868;
+    
+    flex-shrink: 0;
 }
 
 .receipt-title {
@@ -67,6 +59,9 @@
     padding: 16px;
     font-size: 13px;
     background: #fff;
+
+    overflow-y: auto;
+    flex: 1;
 }
 
 .receipt-section-title {
@@ -155,8 +150,11 @@
     justify-content: flex-end;
     gap: 6px;
     padding: 10px 16px;
+
     background-color: #f1f3f6;
     border-top: 1px solid #ced4da;
+
+    flex-shrink: 0;
 }
 
 .receipt-modal-footer .btn-erp {
@@ -166,6 +164,16 @@
 
 .receipt-modal-container {
     width: 1000px;
+    max-width: 95vw;
+
+    max-height: 90vh;
+
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+
+    display: flex;
+    flex-direction: column;
 }
 
 

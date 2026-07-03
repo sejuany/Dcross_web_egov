@@ -21,6 +21,9 @@ public interface NewcarMapper {
      */
     List<Map<String, Object>> getNewCarList(NewcarSearchRequest request);
 
+    /** WA 전용 신규신청현황 목록 조회 */
+    List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request);
+
     /**
      * 신차 등록 상세 조회
      * @param serviceId 서비스 ID

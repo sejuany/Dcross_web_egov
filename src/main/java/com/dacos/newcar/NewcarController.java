@@ -60,6 +60,17 @@ public class NewcarController {
     }
 
     /**
+     * WA 전용 신규신청현황 목록 조회
+     * POST /api/newcar/wa-list
+     */
+    @PostMapping("/wa-list")
+    public ResponseEntity<Map<String, Object>> getWaNewCarList(@RequestBody NewcarSearchRequest request, HttpSession session) {
+        logger.info("[NewcarController] WA 신규신청현황 조회 요청");
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = newcarService.getWaNewCarList(request, user);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+    /**
      * 신차 상세 조회
      * GET /api/newcar/detail/{serviceId}
      */

@@ -92,6 +92,13 @@ public class NewcarService {
         return newcarMapper.getNewCarList(request);
     }
 
+    public List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request, UserDto user) {
+        logger.info("[NewcarService] WA 신규신청현황 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());
+        request.setCOMPANY_ID(user.getCOMPANY_ID());
+        request.setMEMBER_GB(user.getMEMBER_GB());
+        request.setMEMBER_ID(user.getLOGIN_ID());
+        return newcarMapper.getWaNewCarList(request);
+    }
     /**
      * 신차 등록 상세 조회
      */
@@ -872,7 +879,7 @@ public class NewcarService {
 		    result.put("RESULT_CD", "0");
 		    
 		    // 신청 여부 확인
-		    // 신청 상태: REQ(신청), P_REQ(납부요청)
+		    // 신청 상태: S_WAIT(심사대기), P_REQ(납부요청)
 		    boolean isRequest = "S_WAIT".equals(procSt)|| "P_REQ".equals(procSt);
 		    logger.info("isRequest : {}",isRequest);
 		    
@@ -906,15 +913,10 @@ public class NewcarService {
 						throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
 					}
 		    		
-					/*
-					 * result.put("RESULT_CD", "0"); result.put("MESSAGE", "처리완료");
-					 */
-		    		
-		    		//return ApiResponse.withKey("data", result);
 		    	}
 		    	
 		    	
-		    	// 후납건은 바로 관청 서버 연계
+		    	// 선납, 후납 바로 관청 서버 연계
 		        Map<String, Object> linkData = commonUtil.filterMap(input,
 		                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
 		                + " REQUEST_DT, COMPANY_ID, COMPANY_NM, COMPANY_NO,"
@@ -1443,13 +1445,6 @@ public class NewcarService {
 	// 번호판 선택
 	@Transactional
 	public ApiResponse<Object> selectNumplate(Map<String, Object> param, UserDto user) {
-	    // 선택한 번호판 중복 체크
-	    Map<String, Object> dupCar = common.select(param, "checkDuplicateCarNo");
-	    
-	    if( dupCar != null ) {
-	    	return ApiResponse.fail("이미 등록된 차량번호입니다.");
-	    }
-	    
 		// 선택한 번호판 변경
 		param.put("SERVICE_ID", param.get("SERVICE_ID") + "_S");
 		param.put("LOGIN_ID", user.getLOGIN_ID());

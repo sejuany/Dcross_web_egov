@@ -11,12 +11,19 @@
 }
 
 .addr-modal {
+    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
+    font-family: 'Pretendard', sans-serif;
+    
     width: 760px;
+    max-width: 95vw;
+    max-height: 90vh;
+
     background: #fff;
     border-radius: 20px;
     overflow: hidden;
-    box-shadow: 0 20px 60px rgba(0, 0, 0, 0.18);
-    font-family: 'Pretendard', sans-serif;
+
+    display: flex;
+    flex-direction: column;
 }
 
 .addr-modal-header {
@@ -26,6 +33,8 @@
     display: flex;
     justify-content: space-between;
     align-items: flex-start;
+    
+    flex-shrink: 0;
 }
 
 .addr-modal-header h2 {
@@ -51,6 +60,7 @@
 .addr-search-section {
     padding: 24px 28px 10px;
     border-bottom: 1px solid #eef2f7;
+    flex-shrink: 0;
 }
 
 .addr-search-box {
@@ -114,6 +124,9 @@
 
 .addr-result-section {
     padding: 20px 28px;
+    
+    flex: 1;
+    overflow-y: auto;
 }
 
 .addr-result-header {
@@ -127,7 +140,6 @@
 .addr-table-wrap {
     border: 1px solid #e7edf4;
     border-radius: 14px;
-    overflow: hidden;
 }
 
 .addr-table-wrap table {
@@ -185,6 +197,8 @@
     padding: 24px 28px 28px;
     background: #fafbfd;
     border-top: 1px solid #eef2f7;
+    
+    flex-shrink: 0;
 }
 
 .addr-bottom-box {

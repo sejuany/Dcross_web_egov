@@ -25,8 +25,8 @@ const NumberPlateModal = ({
 	// 선택 가능한 번호판 조회
 	const fetchList = async() => {
 		
-
 		let assignCd =
+			// 회원사 코드 + 지점코드
 		    `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
 			
 		console.log("assignCd : " + assignCd);
@@ -145,34 +145,87 @@ const NumberPlateModal = ({
 		
 		try {
 			
-			// 기존 번호판 해제
-			await releaseNumplate();
-
-			// 번호판 신청처리
-			const res = await axios.post('/api/newcar/numplateSelect', dsWhere);
+			// 선택한 번호판 중복 체크
+			const numFind = await axios.post('/api/common/query', {
+				    QUERY_ID: 'checkDuplicateCarNo',
+				    SERVICE_ID: dsService.SERVICE_ID,
+					REQ_CAR_NO: selected
+				});
+				
 			
-			if (!res.data.success) {
-			    alert(res.data.message);
-			    return;
+			if (!numFind.data.success) {
+				gf.alert('통신 실패 입니다. 재시도 해주세요.');
+				return;
+			}
+
+			const duplicateInfo = numFind.data.data;
+			const procSt = duplicateInfo?.PROC_ST;
+
+			if (!duplicateInfo) {
+			    // 중복 없음
 			}
 			
-			alert('선택되었습니다.');
+			// 반려, 삭제건에 들어가 있는 번호판인 경우
+			else if(['DEL', 'RET'].includes(procSt)) {
+				// 차량번호가 원래 들어가 있던 건의 서비스아이디 
+				const beforeServiceId = duplicateInfo.SERVICE_ID;
+				const procNm = procSt === 'DEL' ? '삭제' : '반려';
+
+				// TR_NEWCAR의 REQ_CAR_NO를 빈값 처리
+				const ok = await gf.confirm(
+					`선택한 번호판 [${selected}]은(는) ${procNm} 처리된 신청건\n(${beforeServiceId})에서 사용 중입니다.\n
+					기존 번호판을 해제하고 현재 신청건에 적용하시겠습니까?`
+				);
+
+				if (!ok) {
+				    return;
+				}
+				
+				// TR_NEWCAR의 REQ_CAR_NO를 빈값 처리
+				await axios.post('/api/common/query', {
+				    GUBUN: 'UPDATE',
+				    QUERY_ID: 'updateTrNewCar',
+				    SERVICE_ID: beforeServiceId,
+				    REQ_CAR_NO: ''
+				});
+			}
+			else {
+				gf.alert(
+					`선택한 번호판 [${selected}]은(는) 이미 사용 중인 번호판입니다. \n신청번호 : ${numFind.data.data.SERVICE_ID}`
+				);
+				return;
+			}
+			
+			// 번호판 신청처리
+			const res = await axios.post('/api/newcar/numplateSelect', dsWhere);
+
+			console.log(res);
+
+			if (!res.data.success) {
+			    gf.alert(res.data.message);
+				return;
+			}
+
+			// 화면에 있는 번호판들 미사용처리
+			await releaseNumplate();
+
+			gf.alert('선택되었습니다.');
 			bTrue = true;
 			
 		} catch(e) {
 			
 			console.error(e);
 			
-			alert('[번호선택] 처리 중 오류가 발생했습니다.');
+			gf.alert('[번호선택] 처리 중 오류가 발생했습니다.\n' + e);
 			
-		} finally {
-
-			resetModal();
-
-			onSelect(bTrue, selectedCarNo);
-
-			onClose();
 		}
+		 
+		if (bTrue) {
+		    resetModal();
+		    onSelect(bTrue, selectedCarNo);
+		    onClose();
+		}
+		
 	};
 	
 	const handleSendSMS = async () => {

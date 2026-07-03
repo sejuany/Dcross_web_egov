@@ -45,7 +45,8 @@ import React from 'react';
 const ErpField = ({ 
 	label, required = false, span = 1, children, labelWidth = '95px',
 	fontSize, className = '', style = {},
-	labelExtra // 라벨 우측 추가 영역(체크박스 등)
+	labelExtra, // 라벨 우측 추가 영역(체크박스 등)
+	rightLabel // 라벨과 컬럼 확장
 }) => {
 	return (
 		// col-{span}: 그리드에서 몇 칸을 차지할지 결정
@@ -70,6 +71,12 @@ const ErpField = ({
 			{/* flex-row: 내부 입력 요소들을 가로로 나열 */}
 			<div className="flex-row">
 				{children}
+				
+				{rightLabel &&( 
+					<label class="erp-sub-label">
+						{rightLabel}
+					</label>
+				)}
 			</div>
 		</div>
 	);

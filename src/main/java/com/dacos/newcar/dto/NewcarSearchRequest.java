@@ -35,16 +35,22 @@ public class NewcarSearchRequest {
     private String CAR_NO;
     /** 납입 상태 */
     private String PAY_ST;
+    /** 등록/납부 구분 */
+    private String PAY_GB;
     /** 관청 ID */
     private String GOVT_ID;
     /** 번호판 처리 상태 */
     private String NUM_PROC_ST;
     /** 탁송 구분 (콤마 구분) */
     private String DELIVERY_GB;
+    /** WA Space 구분 */
+    private String SPACE_TYPE;
     /** 시간 구분 (콤마 구분) */
     private String TIME_DVSN;
     /** 고객명 */
     private String CUSTOMER_NM;
+    /** 주문번호 */
+    private String LINK_ID;
     /** 담당자명 */
     private String USER_NM;
     /** 가상계좌 번호 */
