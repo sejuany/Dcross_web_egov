@@ -6,7 +6,9 @@ import { WA_HOME_PATH } from './auth/waRouting';
 import WaLayout from './layout/WaLayout';
 import WaNewcarRequest from './pages/newcar/WaNewcarRequest';
 import WaNewcarList from './pages/WaNewcarList';
-import WaComingSoon from './pages/WaComingSoon';
+import WaPayInfo from './pages/WaPayInfo';
+import WaPaymentReceipt from './pages/newcar/WaPaymentReceipt';
+import WaCompanyManage from './pages/company/WaCompanyManage';
 
 const WaRoutes = () => (
     <Routes>
@@ -18,12 +20,21 @@ const WaRoutes = () => (
                 </WaProtectedRoute>
             )}
         >
+		
+		<Route
+		    path="newcar/receipt/:serviceId"
+		    element={(
+		        <WaProtectedRoute>
+		            <WaPaymentReceipt />
+		        </WaProtectedRoute>
+		    )}
+		/>
             <Route index element={<Navigate replace to="newcar-status" />} />
             <Route path="home" element={<Navigate replace to={WA_HOME_PATH} />} />
             <Route path="newcar-request" element={<WaNewcarRequest />} />
             <Route path="newcar-status" element={<WaNewcarList />} />
-            <Route path="payment-status" element={<WaComingSoon title="납부현황" />} />
-            <Route path="company-manage" element={<WaComingSoon title="기업관리" />} />
+            <Route path="payment-status" element={<WaPayInfo />} />
+			<Route path="company-manage" element={<WaCompanyManage />} />
             <Route path="*" element={<Navigate replace to="newcar-status" />} />
         </Route>
     </Routes>

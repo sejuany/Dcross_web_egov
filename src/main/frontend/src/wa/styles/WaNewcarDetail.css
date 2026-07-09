@@ -1,0 +1,241 @@
+@charset "UTF-8";
+
+/* =========================================================
+ * Detail Header
+ * ========================================================= */
+.wa-detail-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+    gap:20px;
+}
+
+.wa-detail-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:15px;
+    font-weight:600;
+}
+
+.wa-detail-type{
+    color:#2f66f3;
+    font-weight:700;
+}
+
+.wa-detail-arrow{
+    color:#999;
+}
+
+.wa-detail-reason{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex:1;
+}
+
+.wa-detail-label{
+    font-weight:700;
+}
+
+.wa-detail-reason span:last-child{
+    flex:1;
+    min-height:36px;
+    padding:8px 12px;
+    border-radius:8px;
+    background:#f5f7fb;
+}
+
+/* =========================================================
+ * Detail Box
+ * ========================================================= */
+
+.wa-request-card.detail {
+	padding: 20px	
+}
+.simple-summary.detail {
+    margin: 0px;
+    border-radius:8px;
+}
+
+.wa-detail-box {
+    margin-top:6px;
+    padding:18px 24px;
+    border:1px solid #dbe2ef;
+    border-radius:8px;
+    background:#fff;
+}
+
+.wa-detail-grid.two{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:36px;
+}
+
+.wa-detail-col{
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.wa-detail-row{
+    display:flex;
+    align-items:flex-start;
+    gap:10px;
+    font-size:14px;
+    line-height:1.7;
+}
+
+.wa-detail-name{
+    min-width:92px;
+    color:#2f66f3;
+    font-weight:700;
+}
+
+.wa-detail-info{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+}
+
+.wa-detail-left{
+    flex:1;
+    display:flex;
+    flex-direction:column;
+    gap:8px;
+}
+
+.wa-detail-right{
+    width:180px;
+    display:flex;
+    justify-content:center;
+}
+
+.wa-detail-delivery-btn{
+    width:140px;
+    height:44px;
+    border:1px solid #cfd8ea;
+    border-radius:10px;
+    background:#fff;
+    color:#2f66f3;
+    font-weight:600;
+    cursor:pointer;
+}
+
+.wa-detail-desc{
+    margin-left:8px;
+    color:#9aa3b2;
+    font-size:12px;
+}
+
+
+/* =========================================================
+ * File Button
+ * ========================================================= */
+
+.wa-detail-file-buttons{
+    display:flex;
+    gap:14px;
+    margin:18px 0 14px;
+}
+
+.wa-detail-file-btn{
+    flex:1;
+    height:38px;
+    border:1px solid #b8cdfb;
+    border-radius:8px;
+    background:#edf4ff;
+    color:#2f66f3;
+    font-size:14px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.2s;
+}
+
+.wa-detail-file-btn:hover{
+    background:#dfeeff;
+}
+
+/* ========================
+ * 결제정보
+ * ========================*/
+.wa-payment-table{
+    width:100%;
+    margin-top:24px;
+    border-collapse:separate;
+    border-spacing:0;
+    overflow:hidden;
+    border:1px solid #e5e7eb;
+    border-radius:12px;
+    background:#fff;
+}
+
+.wa-payment-table thead th{
+    padding:14px 18px;
+    background:#f8fafc;
+    border-bottom:1px solid #e5e7eb;
+    color:#475569;
+    font-size:14px;
+    font-weight:700;
+    text-align:center;
+}
+
+.wa-payment-table tbody td{
+    padding:11px 18px;
+    border-bottom:1px solid #eef2f7;
+    font-size:14px;
+    color:#334155;
+}
+
+.wa-payment-table tbody tr:last-child td{
+    border-bottom:none;
+}
+
+/* 결제종류 */
+.wa-payment-table tbody td:first-child{
+    width:240px;
+    font-weight:600;
+}
+
+/* 금액 */
+.wa-payment-table tbody td:nth-child(2),
+.wa-payment-table tbody td:nth-child(3){
+    width:180px;
+    text-align:right;
+    font-variant-numeric:tabular-nums;
+}
+
+/* 마우스 오버 */
+.wa-payment-table tbody tr:hover{
+    background:#f8fbff;
+}
+
+/* 수수료 */
+.wa-payment-table tr.payment-gray td{
+    background:#f8fafc;
+}
+
+/* 카드납부, 입금합계 */
+.wa-payment-table tr.payment-blue td{
+    background:#eef5ff;
+    font-weight:700;
+}
+
+/* 입금합계 */
+.wa-payment-table tr.payment-blue:last-child td{
+    color:#2563eb;
+}
+
+/* 수수료 */
+.wa-payment-table tr.payment-gray td{
+    background:#f3f4f6;
+    color:#4b5563;
+}
+
+/* 취득세 카드납부, 입금 합계 */
+.wa-payment-table tr.payment-blue td{
+    background:#eef4ff;
+    color:#2563eb;
+    font-weight:700;
+}

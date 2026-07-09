@@ -1,4 +1,4 @@
-﻿﻿import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { useTabs, useTabPageState } from '../../context/TabContext'; // 전역 탭
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -9,6 +9,7 @@ import { useAuth } from '../../context/AuthContext';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
 import './PayInfo.css';
+import { exportAgGridToXlsx } from '../../utils/xlsxExport';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -976,9 +977,15 @@ const PayInfo = () => {
     };
 
     const handleExportExcel = () => {
-        if (gridRef.current && gridRef.current.api) {
-            // AG-Grid Community 버전은 CSV 내보내기를 기본 지원합니다.
-            gridRef.current.api.exportDataAsCsv({ fileName: `납부현황_${new Date().toISOString().split('T')[0]}.csv` });
+        const exported = exportAgGridToXlsx(
+            gridRef.current?.api,
+            `납부현황_${new Date().toISOString().split('T')[0]}.xlsx`,
+            '납부현황'
+        );
+
+        if (!exported) {
+            setToastMessage('내보낼 데이터가 없습니다.');
+            setTimeout(() => setToastMessage(''), 2500);
         }
     };
 

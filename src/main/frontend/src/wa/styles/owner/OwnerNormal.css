@@ -1,0 +1,227 @@
+@charset "UTF-8";
+
+/* 
+	외국인 등록번호 안내 텍스트 
+*/
+.wa-guide-text{
+    margin-top:6px;
+    padding-left:4px;
+
+    color:var(--wa-blue);
+
+    font-size:13px;
+    font-weight:600;
+}
+
+/* 
+	공동명의 
+*/
+.wa-joint-owner{
+    margin-top:16px;
+    padding-top:20px;
+    border-top:1px solid #e6eaf2;
+}
+
+.wa-joint-btn{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    gap:8px;
+}
+
+.wa-check-icon{
+    opacity:0;
+    transform:scale(.8);
+    transition:.2s;
+    color:#3b82f6;
+}
+
+.wa-check-icon.active{
+    opacity:1;
+    transform:scale(1);
+}
+
+.wa-joint-btn.active{
+    color:#3b82f6;
+}
+
+.wa-joint-btn.active .wa-joint-icon{
+    color:#3b82f6;
+}
+
+.wa-ratio-input{
+    position:relative;
+    flex:1;
+}
+
+.wa-ratio-input .wa-input{
+    width:100%;
+    padding-right:90px;
+}
+
+.wa-ratio-input span{
+    position:absolute;
+    top:50%;
+    right:12px;
+    transform:translateY(-50%);
+    color:#a8b0bc;
+    font-size:12px;
+    white-space:nowrap;
+    pointer-events:none;
+}
+/* ========================
+ * 주소 검색
+ * ========================*/
+.wa-address-wrap{
+    position:relative;
+}
+
+.wa-address-wrap .wa-input{
+    padding-right:72px;
+}
+
+
+
+.wa-address-wrap{
+    min-width: 0;
+    display:flex;
+    gap:8px;
+    margin-bottom:8px;
+}
+
+.wa-clear-btn{
+    position:absolute;
+    top:50%;
+    right:64px;
+    transform:translateY(-50%);
+    width:18px;
+    height:18px;
+    border:0;
+    border-radius:50%;
+    background:#9ca3af;
+    color:#fff;
+    font-size:12px;
+    line-height:18px;
+    cursor:pointer;
+}
+
+.wa-address-result{
+    margin-top:6px;
+    border:1px solid #ddd;
+    border-radius:8px;
+    background:#fff;
+    max-height:240px;
+    overflow-y:auto;
+}
+
+.wa-address-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+    padding:18px 20px;
+    border-bottom:1px solid #eef2f7;
+    cursor:pointer;
+    font-size:14px;
+}
+
+.wa-address-item:last-child{
+    border-bottom:none;
+}
+
+.wa-address-item:hover{
+    background:#f7faff;
+}
+
+.wa-address-info{
+	min-width: 0;
+    flex:1;
+}
+
+.wa-address-row{
+    display:flex;
+    align-items:flex-start;
+    gap:14px;
+    margin-bottom:6px;
+    line-height:1.5;
+}
+
+.wa-address-row:last-child{
+    margin-bottom:0;
+}
+
+.wa-address-row .label{
+    flex-shrink:0;
+    width:56px;
+    color:#555;
+    font-weight:600;
+}
+
+.addr-span{
+    flex:1;
+    color:#666;
+    min-width: 0;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+}
+
+.wa-address-select-btn{
+    flex-shrink:0;
+    width:74px;
+    height:34px;
+    margin-top:4px;
+    margin-left:16px;
+    border:none;
+    border-radius:10px;
+    background:#3f6df6;
+    color:#fff;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.15s;
+}
+
+.wa-address-select-btn:hover{
+    background:#315ae2;
+}
+
+.wa-address-select-btn:active{
+    transform:scale(.97);
+}
+
+.wa-address-pagination{
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    gap:6px;
+    padding:14px;
+    border-top:1px solid #eef2f7;
+    background:#fff;
+    flex-wrap:wrap;
+}
+
+.wa-address-pagination button:disabled{
+    opacity:.4;
+    cursor:default;
+}
+
+.wa-address-pagination button{
+    width:30px;
+    height:30px;
+    border:1px solid #d6dbe6;
+    border-radius:8px;
+    background:#fff;
+    color:#666;
+    cursor:pointer;
+    transition:.15s;
+}
+
+.wa-address-pagination button:hover{
+    border-color:#3f6df6;
+    color:#3f6df6;
+}
+
+.wa-address-pagination button.active{
+    background:#3f6df6;
+    border-color:#3f6df6;
+    color:#fff;
+}

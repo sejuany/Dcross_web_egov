@@ -15,6 +15,10 @@ public interface PaymentMapper {
 
     List<Map<String, Object>> getPayInfoList(PaymentSearchRequest request);
 
+    List<Map<String, Object>> getWaPayInfoList(PaymentSearchRequest request);
+
+    List<Map<String, Object>> getWaPayMemberList(PaymentSearchRequest request);
+
     List<Map<String, Object>> getTvbankList(PaymentSearchRequest request);
 
     List<Map<String, Object>> getSellingInfoList(PaymentSearchRequest request);

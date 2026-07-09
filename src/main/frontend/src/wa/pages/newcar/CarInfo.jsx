@@ -1,5 +1,5 @@
 import React from 'react';
-import { CarFront, Leaf } from 'lucide-react';
+import { CarFront, Leaf, ChevronLeft, LoaderCircle, saving } from 'lucide-react';
 
 const CarInfo = () => {
 

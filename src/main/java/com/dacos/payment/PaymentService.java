@@ -29,6 +29,15 @@ public class PaymentService {
         return paymentMapper.getPayInfoList(request);
     }
 
+    public List<Map<String, Object>> getWaPayInfoList(PaymentSearchRequest request) {
+        logger.info("[PaymentService] WA 납부현황 조회");
+        return paymentMapper.getWaPayInfoList(request);
+    }
+
+    public List<Map<String, Object>> getWaPayMemberList(PaymentSearchRequest request) {
+        logger.info("[PaymentService] WA 납부현황 담당SP 조회");
+        return paymentMapper.getWaPayMemberList(request);
+    }
     public List<Map<String, Object>> getTvbankList(PaymentSearchRequest request) {
         logger.info("[PaymentService] 통합가상계좌 조회");
         return paymentMapper.getTvbankList(request);

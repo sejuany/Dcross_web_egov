@@ -4,6 +4,195 @@
 
 <mapper namespace="com.dacos.payment.mapper.PaymentMapper">
 
+    <!-- WA 납부현황 조회: 신규등록 전용 -->
+    <select id="getWaPayInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            ROW_NUMBER() OVER (ORDER BY NVL(TS.PROC_DT, TS.REQUEST_DT) DESC, TS.SERVICE_ID DESC) AS SEQ,
+            TS.WORK_CD,
+            TS.SERVICE_ID,
+            TS.LINK_ID,
+            NVL(TS.CAR_NO, TN.CAR_NO) AS CAR_NO,
+            TS.PROC_ST,
+            CASE
+                WHEN NVL(TN.DIRECT_YN, 'N') = 'Y' THEN 'DIRCT'
+                WHEN TS.PROC_ST IN ('C_REQ', 'REQ') THEN 'REQ'
+                WHEN TS.PROC_ST IN ('INPUT', 'SAV') THEN 'SAV'
+                WHEN TS.PROC_ST = 'W_REQ' THEN 'W_REQ'
+                WHEN TS.PROC_ST IN ('B_REQ', 'P_REQ') THEN 'P_REQ'
+                WHEN TS.PROC_ST = 'PREND' THEN 'PREND'
+                WHEN TS.PROC_ST = 'PBEND' THEN 'PBEND'
+                WHEN TS.PROC_ST = 'P_END' THEN 'P_END'
+                WHEN TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC') THEN 'S_REQ'
+                WHEN TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END') THEN 'S_END'
+                WHEN TS.PROC_ST IN ('RET', 'REJECT') THEN 'RET'
+                ELSE TS.PROC_ST
+            END AS NPROC_ST,
+            NVL(TN.DIRECT_YN, 'N') AS DIRECT_YN,
+            TN.PAY_ST,
+            NVL(TN.BPAY_YN, 'N') AS BPAY_YN,
+            CASE
+                WHEN NVL(TN.PAY_ST, 'N') = 'Y' AND NVL(TN.BPAY_YN, 'N') = 'Y' THEN '납부'
+                WHEN NVL(TN.PAY_ST, 'N') = 'Y' AND NVL(TN.BPAY_YN, 'N') = 'N' THEN '등록비용 납부'
+                WHEN NVL(TN.PAY_ST, 'N') = 'N' AND NVL(TN.BPAY_YN, 'N') = 'Y' THEN '차량대금 납부'
+                ELSE '미납'
+            END AS PAY_STATUS_NM,
+            TN.PAY_ME,
+            TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+            NVL(TS.PROC_DT, TS.REQUEST_DT) AS SORT_DT,
+            TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') AS JUDGE_DT,
+            TO_CHAR(TN.PAY_DT, 'YYYYMMDD') AS PAY_DT,
+            TO_CHAR(TN.BPAY_DT, 'YYYYMMDD') AS BPAY_DT,
+            TO_CHAR(TN.REGIST_DATE, 'YYYYMMDD') AS REGIST_DT,
+            TN.VBANK_NO,
+            TN.TOTAL_AMT,
+            NVL(TMD.MEMBER_NM, '다코스대행') AS MEMBER_NM,
+            TB.BRANCH_NM,
+            TS.MEMBER_ID,
+            TC.COMPANY_NM,
+            TN.OWNER_NM AS REQUEST_NM,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'FEE') AS FEE_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'STAMP') AS STAMP_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG') AS REGIS_AMT,
+            (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ') AS EPAY_NO,
+            (SELECT VBANK_NO FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UREG') AS UREG_EPAY_NO,
+            (SELECT PRE_PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ') AS PRE_ACQ_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ') AS ACQ_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'INJI') AS INJI_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BOND') AS BOND_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BFEE') AS BFEE_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TMAN') AS TMAN_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TPROX') AS TPROX_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TNUM') AS NUMP_AMT,
+            (SELECT PAY_AMT FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'UNUM') AS NUMP_PROXY_AMT,
+            (SELECT CONFIRM_NO FROM TR_DSIGN WHERE SERVICE_ID = TS.SERVICE_ID AND DSIGN_SEQ = 1) AS CONFIRM_NO,
+            '' AS DSIGN_GB,
+            TS.GOVT_ID,
+            TN.BOND_DC AS PAY_TP,
+            TN.CARID_NO,
+            TN.INJI_NO,
+            TN.OWNER_NM AS CU_NAME,
+            DECODE(TN.REG_GB, 'R', '1', 'F', '1', '2') AS REG_GB,
+            DECODE(TN.REG_GB, 'R', SUBSTR(PKG_COMMON.FN_DECRYPT(TN.REG_NO), 1, 6), 'F', SUBSTR(PKG_COMMON.FN_DECRYPT(TN.REG_NO), 1, 6), PKG_COMMON.FN_DECRYPT(TN.REG_NO)) AS REG_NO,
+            TN.CAR_NM,
+            TN.GOVT_TX,
+            0 AS MORT_COUNT,
+            PKG_COMMON.FN_DECRYPT(TN.BASE_ADDRESS) AS BASE_ADDRESS,
+            (SELECT SUM(PAY_AMT) FROM TR_PAYMENT TP WHERE TP.SERVICE_ID = TS.SERVICE_ID AND PAY_KD IN ('FEE', 'BOND', 'BFEE', 'TNUM', 'UNUM')) AS ORIX_NEWCAR_AMT,
+            TN.TASK_CD,
+            TN.PROC_CD,
+            TN.REG_GB AS RAW_REG_GB
+        FROM TR_SERVICE TS
+             JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+             LEFT JOIN TM_MEMBER_DT TMD ON TS.ASSOCIATION_ID = TMD.ASSOCIATION_ID AND TS.COMPANY_ID = TMD.COMPANY_ID AND TS.MEMBER_ID = TMD.MEMBER_ID
+             JOIN TM_COMPANY TC ON TS.ASSOCIATION_ID = TC.ASSOCIATION_ID AND TS.COMPANY_ID = TC.COMPANY_ID
+             LEFT JOIN TM_BRANCH TB ON TS.COMPANY_ID = TB.COMPANY_ID AND TS.BRANCH_ID = TB.BRANCH_ID
+        WHERE TS.WORK_CD = '010'
+          AND TS.PROC_ST &lt;&gt; 'DEL'
+        <if test="COMPANY_ID != null and COMPANY_ID != ''">
+          AND TS.COMPANY_ID = #{COMPANY_ID}
+        </if>
+        <if test="BRANCH_ID != null and BRANCH_ID != ''">
+          AND TS.BRANCH_ID = #{BRANCH_ID}
+        </if>
+        <if test="MEMBER_ID != null and MEMBER_ID != ''">
+          AND (TS.MEMBER_ID = #{MEMBER_ID} OR TMD.LOGIN_ID = #{MEMBER_ID})
+        </if>
+        <if test="CAR_NO != null and CAR_NO != ''">
+          AND (
+              TN.CARID_NO LIKE '%' || #{CAR_NO} || '%'
+              OR TN.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+              OR TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+          )
+        </if>
+        <if test="PROC_ST != null and PROC_ST != ''">
+            <choose>
+                <when test="PROC_ST == 'REQ'">
+                    AND TS.PROC_ST IN ('C_REQ', 'REQ')
+                </when>
+                <when test="PROC_ST == 'SAV'">
+                    AND TS.PROC_ST IN ('INPUT', 'SAV')
+                    AND NVL(TN.DIRECT_YN, 'N') &lt;&gt; 'Y'
+                </when>
+                <when test="PROC_ST == 'W_REQ'">
+                    AND TS.PROC_ST = 'W_REQ'
+                </when>
+                <when test="PROC_ST == 'P_REQ'">
+                    AND TS.PROC_ST IN ('B_REQ', 'P_REQ')
+                </when>
+                <when test="PROC_ST == 'PREND'">
+                    AND TS.PROC_ST = 'PREND'
+                </when>
+                <when test="PROC_ST == 'PBEND'">
+                    AND TS.PROC_ST = 'PBEND'
+                </when>
+                <when test="PROC_ST == 'P_END'">
+                    AND TS.PROC_ST = 'P_END'
+                </when>
+                <when test="PROC_ST == 'S_REQ'">
+                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC')
+                </when>
+                <when test="PROC_ST == 'S_END'">
+                    AND TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END')
+                </when>
+                <when test="PROC_ST == 'DIRCT'">
+                    AND NVL(TN.DIRECT_YN, 'N') = 'Y'
+                </when>
+                <when test="PROC_ST == 'RET'">
+                    AND TS.PROC_ST IN ('RET', 'REJECT')
+                </when>
+                <otherwise>
+                    AND TS.PROC_ST = #{PROC_ST}
+                </otherwise>
+            </choose>
+        </if>
+        <if test="PAY_STATUS != null and PAY_STATUS != ''">
+            <choose>
+                <when test="PAY_STATUS == 'PAID'">
+                    AND NVL(TN.PAY_ST, 'N') = 'Y'
+                    AND NVL(TN.BPAY_YN, 'N') = 'Y'
+                </when>
+                <when test="PAY_STATUS == 'REG_PAID'">
+                    AND NVL(TN.PAY_ST, 'N') = 'Y'
+                    AND NVL(TN.BPAY_YN, 'N') = 'N'
+                </when>
+                <when test="PAY_STATUS == 'BPAY_PAID'">
+                    AND NVL(TN.PAY_ST, 'N') = 'N'
+                    AND NVL(TN.BPAY_YN, 'N') = 'Y'
+                </when>
+                <when test="PAY_STATUS == 'UNPAID'">
+                    AND NVL(TN.PAY_ST, 'N') = 'N'
+                    AND NVL(TN.BPAY_YN, 'N') = 'N'
+                </when>
+            </choose>
+        </if>
+        <if test="START_DT != null and START_DT != '' and END_DT != null and END_DT != ''">
+            <choose>
+                <when test="BASE_GUBUN != null and BASE_GUBUN != '' and BASE_GUBUN == 'PROC_DT'">
+                    AND TS.PROC_DT BETWEEN TO_DATE(#{START_DT}, 'YYYYMMDD') AND TO_DATE(#{END_DT} || ' 23:59:59', 'YYYYMMDD HH24:MI:SS')
+                </when>
+                <otherwise>
+                    AND TS.REQUEST_DT BETWEEN TO_DATE(#{START_DT}, 'YYYYMMDD') AND TO_DATE(#{END_DT} || ' 23:59:59', 'YYYYMMDD HH24:MI:SS')
+                </otherwise>
+            </choose>
+        </if>
+        ORDER BY SORT_DT DESC, TS.SERVICE_ID DESC
+    </select>
+
+    <!-- WA 납부현황 담당SP 조회 -->
+    <select id="getWaPayMemberList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT
+            MEMBER_NM,
+            LOGIN_ID
+        FROM TM_MEMBER_DT
+        WHERE COMPANY_ID = #{COMPANY_ID}
+          AND NVL(USE_YN, 'Y') = 'Y'
+        <if test="BRANCH_ID != null and BRANCH_ID != ''">
+          AND BRANCH_ID = #{BRANCH_ID}
+        </if>
+        ORDER BY MEMBER_NM, LOGIN_ID
+    </select>
     <!-- 납부현황 조회 -->
     <select id="getPayInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
             resultType="java.util.Map">

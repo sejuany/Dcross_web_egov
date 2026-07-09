@@ -1,3 +1,4 @@
+import axios from 'axios';
 // console.log 단축용 로그 함수
 export const log = (...args) => console.log(...args);
 
@@ -57,6 +58,7 @@ export const commonPopup = {
         });
     },
 };
+
 
 const SPECIAL_COMPANY_CACHE_KEY = 'SPECIAL_COMPANY_IDS';
 
@@ -155,6 +157,8 @@ export const gf = {
 
 		    return String(detailNm || '').toUpperCase().includes(`|${targetCompanyId}|`);
 		},
+		
+	
 		
 	// 빈값 체크
     isEmpty: (data) => data === '' || data == null,
@@ -710,7 +714,41 @@ export const gf = {
 
 	    return inputAddr;
 
-	}
+	},
+	
+
+	/**
+	 * 최소 로딩시간 보장
+	 * @param {number} startTime Date.now()
+	 * @param {Function} callback 로딩 종료 함수
+	 * @param {number} minTime 최소 유지 시간(ms)
+	 */
+	 loadingDelay(startTime, callback, minTime = 800) {
+	    const elapsed = Date.now() - startTime;
+	    const remain = Math.max(0, minTime - elapsed);
+
+	    setTimeout(callback, remain);
+	},
+	
+	// 금액 콤마
+	formatAmount(amount) {
+
+	    if (amount === '' || amount == null) {
+	        return '';
+	    }
+
+	    return Number(String(amount).replaceAll(',', '')).toLocaleString();
+	},
+	
+	// 코드관리 코드 갖고 오기
+	getCodeList: async (groupId, codeId) => {
+	    const res = await axios.post('/api/common/query', {
+	        QUERY_ID: 'selectCodeDetail',
+	        GROUP_ID: groupId,
+	        CODE_ID: codeId
+	    });
+	    return res.data.data.DETAIL_NM;
+	},
 };
 
  

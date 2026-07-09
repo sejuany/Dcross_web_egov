@@ -640,6 +640,17 @@
 /* =========================================================
  * Responsive
  * ========================================================= */
+@media (max-width:1020px) {
+
+    .wa-request-modal-backdrop{
+        padding:48px 0 0 0!important;
+    }
+    .wa-request-modal-frame {
+    	max-width:100%!important;
+    	width:100%!important;
+    }
+
+}
 
 @media (max-width:920px){
 
@@ -659,7 +670,7 @@
     .wa-home-summary{
         grid-template-columns:repeat(2,minmax(0,1fr));
     }
-
+	
 }
 
 @media (max-width:760px){
@@ -755,15 +766,10 @@
     }
 
     .wa-home-hero{
-
         min-height:0;
-
         padding:24px;
-
         flex-direction:column;
-
         align-items:stretch;
-
     }
 
     .wa-home-hero h1{
@@ -1173,7 +1179,7 @@
     font-weight: 900;
     position: sticky;
     top: 0;
-    z-index: 1;
+    z-index: 3;
 }
 .wa-status-sort-button {
     width: 100%;
@@ -1252,8 +1258,37 @@
     border-left-color: var(--wa-blue);
 }
 
+
+.wa-status-table th.wa-status-sticky-column,
+.wa-status-table td.wa-status-sticky-column {
+    position: sticky;
+    left: 0;
+}
+
+.wa-status-table th.wa-status-sticky-column {
+    z-index: 5;
+    background-color: #f8fafc;
+}
+
+.wa-status-table td.wa-status-sticky-column {
+    z-index: 2;
+    background-color: #ffffff;
+}
+
+.wa-status-table th.wa-status-sticky-column-last,
+.wa-status-table td.wa-status-sticky-column-last {
+    box-shadow: 8px 0 10px -10px rgba(15, 23, 42, 0.45);
+}
+
+.wa-status-table tbody tr:hover td.wa-status-sticky-column {
+    background-color: #f9fbff;
+}
 .wa-status-table td.number-cell {
     text-align: right;
+}
+
+.wa-status-table td.wa-pay-highlight-amount {
+    background-color: #ccffcc;
 }
 
 .wa-status-table tbody tr:hover {
@@ -1267,6 +1302,15 @@
     border-bottom: 1px solid var(--wa-line);
     background: #fff0ed;
     color: #b42318;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-status-notice {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--wa-line);
+    background: #ecfdf3;
+    color: #027a48;
     font-size: 12px;
     font-weight: 900;
 }
@@ -1433,7 +1477,7 @@
     }
 }
 .wa-status-filter-panel {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 16px;
 }
 
@@ -1647,21 +1691,29 @@
     outline-offset: -2px;
 }
 
-.wa-request-modal-backdrop {
+.wa-request-modal-backdrop{
     position: fixed;
     inset: 0;
     z-index: 1000;
+
     display: flex;
-    align-items: center;
     justify-content: center;
-    padding: 24px;
+    align-items: center;
+
+    overflow-y: none;
+
+    padding:
+        calc(48px + 20px)
+        24px
+        24px;
+
     background: rgba(15, 23, 42, 0.38);
-    -webkit-backdrop-filter: blur(6px);
     backdrop-filter: blur(6px);
     box-sizing: border-box;
 }
 
-.wa-request-modal-frame {
+
+.wa-request-modal-frame{
     width: min(1180px, calc(100vw - 48px));
     max-height: calc(100vh - 48px);
     display: flex;
@@ -1671,6 +1723,10 @@
     border-radius: 14px;
     background: #ffffff;
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+}
+
+.wa-request-modal-backdrop.overflow{
+    align-items:flex-start;
 }
 
 .wa-request-modal-header {
@@ -1727,6 +1783,46 @@
     color: var(--wa-blue);
 }
 
+.wa-action-confirm-frame {
+    width: min(420px, calc(100vw - 32px));
+    overflow: hidden;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 12px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.22);
+}
+
+.wa-action-confirm-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 16px 18px;
+    border-bottom: 1px solid var(--wa-line);
+}
+
+.wa-action-confirm-header strong {
+    color: var(--wa-navy);
+    font-size: 16px;
+    font-weight: 900;
+}
+
+.wa-action-confirm-content {
+    padding: 24px 18px;
+    color: #2f3a4a;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.5;
+    text-align: center;
+}
+
+.wa-action-confirm-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 14px 18px 18px;
+    border-top: 1px solid var(--wa-line);
+}
 .wa-request-modal-body {
     min-height: 0;
     flex: 1 1 auto;
@@ -1791,5 +1887,643 @@
 
     .wa-request-modal-body {
         padding: 10px;
+    }
+}
+
+/* =========================================================
+   WA top nav dropdown
+   ========================================================= */
+
+.wa-top-nav-dropdown-wrap {
+    position: relative;
+    height: 100%;
+    display: flex;
+    align-items: center;
+}
+
+.wa-top-nav-dropdown-button {
+    border: none;
+    background: transparent;
+    font-family: inherit;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.wa-dropdown-icon {
+    transition: transform 0.16s ease;
+}
+
+.wa-dropdown-icon.open {
+    transform: rotate(180deg);
+}
+
+.wa-top-nav-dropdown {
+    position: absolute;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+    min-width: 170px;
+    padding: 6px;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    border-radius: 8px;
+    box-shadow: 0 12px 26px rgba(15, 23, 42, 0.18);
+    z-index: 3000;
+}
+
+.wa-top-nav-dropdown::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: 50%;
+    transform: translateX(-50%);
+    border-left: 7px solid transparent;
+    border-right: 7px solid transparent;
+    border-bottom: 7px solid #ffffff;
+}
+
+.wa-top-nav-dropdown-item {
+    height: 34px;
+    padding: 0 12px;
+    border-radius: 6px;
+    color: #1e293b;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    display: flex;
+    align-items: center;
+    white-space: nowrap;
+}
+
+.wa-top-nav-dropdown-item:hover {
+    background: #eef4ff;
+    color: #0f2f5f;
+}
+
+.wa-top-nav-dropdown-item.active {
+    background: #0f2f5f;
+    color: #ffffff;
+}
+
+/* =========================================================
+   WA 모바일 상단 드롭다운 보정
+   ========================================================= */
+
+.wa-topbar,
+.wa-topbar-inner,
+.wa-top-nav,
+.wa-top-nav-dropdown-wrap {
+    overflow: visible !important;
+}
+
+.wa-topbar {
+    position: sticky;
+    top: 0;
+    z-index: 5000;
+}
+
+.wa-top-nav-dropdown-wrap {
+    position: relative;
+}
+
+.wa-top-nav-dropdown {
+    z-index: 6000;
+}
+
+/* 모바일에서는 드롭다운을 화면 기준으로 띄움 */
+@media (max-width: 720px) {
+    .wa-topbar {
+        overflow: visible !important;
+    }
+
+    .wa-topbar-inner {
+        overflow: visible !important;
+    }
+
+    .wa-top-nav {
+        overflow: visible !important;
+        position: relative;
+    }
+
+    .wa-top-nav-dropdown-wrap {
+        position: static;
+    }
+
+    .wa-top-nav-dropdown {
+        position: fixed !important;
+        top: 78px;
+        left: 12px;
+        right: 12px;
+        transform: none !important;
+        width: auto;
+        min-width: 0;
+        padding: 8px;
+        border-radius: 12px;
+        z-index: 9999;
+    }
+
+    .wa-top-nav-dropdown::before {
+        display: none;
+    }
+
+    .wa-top-nav-dropdown-item {
+        height: 42px;
+        font-size: 14px;
+        justify-content: center;
+    }
+}
+/* =========================================================
+   WA payment status adjustments
+   ========================================================= */
+.wa-pay-registration-field {
+    grid-column: span 2;
+}
+
+.wa-pay-registration-controls {
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 8px;
+}
+
+.wa-pay-stat-grid {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
+}
+
+.wa-pay-stat-grid .wa-status-card strong {
+    font-size: 21px;
+}
+
+@media (max-width: 920px) {
+    .wa-pay-registration-field {
+        grid-column: 1 / -1;
+    }
+
+    .wa-pay-stat-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .wa-pay-registration-controls {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-pay-stat-grid {
+        grid-template-columns: 1fr;
+    }
+}
+/* =========================================================
+   WA payment dashboard modal
+   ========================================================= */
+.wa-pay-dashboard-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 9000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 18px;
+    background: rgba(15, 23, 42, 0.48);
+}
+
+.wa-pay-dashboard-modal {
+    width: min(1480px, calc(100vw - 36px));
+    max-height: calc(100vh - 36px);
+    overflow: auto;
+    border: 1px solid rgba(148, 163, 184, 0.28);
+    border-radius: 8px;
+    background: #f3f6fa;
+    box-shadow: 0 26px 80px rgba(15, 23, 42, 0.34);
+}
+
+.wa-pay-dashboard-header {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    padding: 12px 16px;
+    border-bottom: 1px solid #d9e2ef;
+    background: #ffffff;
+}
+
+.wa-pay-dashboard-header h2 {
+    margin: 0;
+    color: #0f172a;
+    font-size: 22px;
+    font-weight: 900;
+    letter-spacing: 0;
+}
+
+.wa-pay-dashboard-controls {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.wa-pay-dashboard-controls select,
+.wa-pay-dashboard-controls input {
+    height: 36px;
+    min-width: 130px;
+    border: 1px solid #d8e0ea;
+    border-radius: 6px;
+    background: #ffffff;
+    color: #1f2937;
+    font-family: inherit;
+    font-size: 13px;
+    font-weight: 800;
+    padding: 0 10px;
+}
+
+.wa-pay-dashboard-controls span {
+    color: #ffffff;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-search,
+.wa-pay-dashboard-close {
+    height: 36px;
+    border: 1px solid #d8e0ea;
+    border-radius: 6px;
+    font-family: inherit;
+    font-weight: 900;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.wa-pay-dashboard-search {
+    min-width: 106px;
+    padding: 0 18px;
+    border-color: #2f6df6;
+    background: #2f6df6;
+    color: #ffffff;
+}
+
+.wa-pay-dashboard-search:disabled {
+    opacity: 0.68;
+    cursor: wait;
+}
+
+.wa-pay-dashboard-close {
+    width: 36px;
+    background: #ffffff;
+    color: #475467;
+}
+
+.wa-pay-dashboard-hero {
+    margin: 14px 16px;
+    min-height: 124px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 10px;
+    padding: 22px 24px;
+    border-radius: 8px;
+    background: #3b82f6;
+    color: #ffffff;
+    box-shadow: 0 10px 28px rgba(59, 130, 246, 0.18);
+}
+
+.wa-pay-dashboard-hero span {
+    color: rgba(255, 255, 255, 0.78);
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-hero strong {
+    font-size: 34px;
+    line-height: 1;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-hero small {
+    color: rgba(255, 255, 255, 0.84);
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.wa-pay-dashboard-kpis {
+    display: grid;
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+    margin: 0 16px 14px;
+}
+
+.wa-pay-dashboard-kpis > div {
+    min-height: 82px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 7px;
+    padding: 14px 16px;
+    border: 1px solid #dde6f2;
+    border-radius: 8px;
+    background: #ffffff;
+}
+
+.wa-pay-dashboard-kpis span,
+.wa-pay-dashboard-kpis small {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-kpis strong {
+    color: #111827;
+    font-size: 23px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-kpis .danger strong {
+    color: #d92d20;
+}
+
+.wa-pay-dashboard-layout {
+    display: grid;
+    grid-template-columns: minmax(430px, 0.95fr) minmax(520px, 1.05fr);
+    gap: 18px;
+    padding: 12px 16px 16px;
+}
+
+.wa-pay-dashboard-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+    min-width: 0;
+}
+
+.wa-pay-dashboard-panel {
+    min-width: 0;
+    border: 1px solid #dde6f2;
+    border-radius: 8px;
+    background: #ffffff;
+    box-shadow: 0 8px 24px rgba(15, 23, 42, 0.06);
+}
+
+.wa-pay-dashboard-panel h3 {
+    margin: 0;
+    padding: 18px 20px 10px;
+    color: #1f2937;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-table {
+    width: calc(100% - 40px);
+    margin: 0 20px 20px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.wa-pay-dashboard-table th,
+.wa-pay-dashboard-table td {
+    height: 38px;
+    padding: 0 10px;
+    border-bottom: 1px solid #edf2f7;
+    color: #344054;
+    font-size: 13px;
+    font-weight: 800;
+    text-align: right;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-pay-dashboard-table th:first-child,
+.wa-pay-dashboard-table td:first-child {
+    text-align: left;
+}
+
+.wa-pay-dashboard-table th {
+    background: #f8fafc;
+    color: #667085;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-table .total td {
+    background: #f8fafc;
+    color: #2563eb;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-table .empty {
+    text-align: center;
+    color: #98a2b3;
+}
+
+.wa-pay-dashboard-chart-panel {
+    display: flex;
+    flex-direction: column;
+    min-height: 528px;
+}
+
+.wa-pay-dashboard-chart {
+    min-height: 440px;
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(64px, 1fr));
+    align-items: end;
+    gap: 14px;
+    margin: 0 22px 22px;
+    padding: 28px 8px 0;
+    border-top: 1px solid #e4e9f2;
+    border-bottom: 1px solid #dbe3ef;
+    background:
+        linear-gradient(to bottom, transparent 0, transparent 32%, #e8eef6 32%, transparent calc(32% + 1px), transparent 66%, #e8eef6 66%, transparent calc(66% + 1px));
+}
+
+.wa-pay-dashboard-chart-empty {
+    grid-column: 1 / -1;
+    align-self: center;
+    color: #98a2b3;
+    font-size: 14px;
+    font-weight: 900;
+    text-align: center;
+}
+
+.wa-pay-dashboard-bar-item {
+    min-width: 0;
+    height: 100%;
+    display: grid;
+    grid-template-rows: 24px minmax(210px, 1fr) 34px 24px;
+    justify-items: center;
+    gap: 6px;
+}
+
+.wa-pay-dashboard-bar-value {
+    color: #344054;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-bar-track {
+    width: 32px;
+    height: 100%;
+    display: flex;
+    align-items: end;
+}
+
+.wa-pay-dashboard-bar {
+    width: 100%;
+    min-height: 10px;
+    border-radius: 5px 5px 0 0;
+    background: #3b82f6;
+    box-shadow: 0 6px 16px rgba(59, 130, 246, 0.22);
+}
+
+.wa-pay-dashboard-bar.top {
+    background: #2563eb;
+}
+
+.wa-pay-dashboard-bar.warn {
+    background: #4f46e5;
+}
+
+.wa-pay-dashboard-bar-label {
+    max-width: 78px;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 900;
+    text-align: center;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wa-pay-dashboard-bar-item strong {
+    color: #1f2937;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-member-panel {
+    margin: 0 16px 16px;
+}
+
+.wa-pay-dashboard-member-list {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(0, 1fr));
+    gap: 10px;
+    padding: 0 20px 20px;
+}
+
+.wa-pay-dashboard-member-list > div,
+.wa-pay-dashboard-member-list > .empty {
+    min-height: 70px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    padding: 12px;
+    border: 1px solid #edf2f7;
+    border-radius: 8px;
+    background: #f8fafc;
+}
+
+.wa-pay-dashboard-member-list span {
+    color: #667085;
+    font-size: 12px;
+    font-weight: 900;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.wa-pay-dashboard-member-list strong {
+    color: #111827;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-member-list small {
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+@media (max-width: 1180px) {
+    .wa-pay-dashboard-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-pay-dashboard-member-list {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+@media (max-width: 760px) {
+    .wa-pay-dashboard-backdrop {
+        align-items: stretch;
+        padding: 8px;
+    }
+
+    .wa-pay-dashboard-modal {
+        width: 100%;
+        max-height: calc(100vh - 16px);
+    }
+
+    .wa-pay-dashboard-header {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .wa-pay-dashboard-controls {
+        display: grid;
+        grid-template-columns: 1fr;
+        justify-content: stretch;
+    }
+
+    .wa-pay-dashboard-controls select,
+    .wa-pay-dashboard-controls input,
+    .wa-pay-dashboard-search,
+    .wa-pay-dashboard-close {
+        width: 100%;
+    }
+
+    .wa-pay-dashboard-controls > span {
+        display: none;
+    }
+
+    .wa-pay-dashboard-kpis {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-pay-dashboard-layout {
+        padding: 10px;
+    }
+
+    .wa-pay-dashboard-table {
+        width: calc(100% - 24px);
+        margin: 0 12px 14px;
+    }
+
+    .wa-pay-dashboard-table th,
+    .wa-pay-dashboard-table td {
+        padding: 0 6px;
+        font-size: 12px;
+    }
+
+    .wa-pay-dashboard-chart {
+        grid-template-columns: repeat(auto-fit, minmax(52px, 1fr));
+        min-height: 330px;
+        margin: 0 12px 16px;
+        gap: 8px;
+    }
+
+    .wa-pay-dashboard-bar-track {
+        width: 24px;
+    }
+
+    .wa-pay-dashboard-member-list {
+        grid-template-columns: 1fr;
+        padding: 0 12px 14px;
     }
 }

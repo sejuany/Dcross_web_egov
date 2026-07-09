@@ -13,9 +13,11 @@ public class PaymentSearchRequest {
     private String BRANCH_ID;
     private String SANGSA_ID;
     private String PAY_ST;
+    private String PAY_STATUS;
     private String WORK_CD;
     private String TASK_CD;
     private String CAR_NO;
+    private String MEMBER_ID;
     private String USER_NM;
     private String GOVT_ID;    
     private String PAY_TP;

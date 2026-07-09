@@ -84,7 +84,8 @@
                 WHERE CP.SERVICE_ID = NL2.SERVICE_ID
                 ORDER BY PRINT_DT DESC
             ) CPP WHERE CPP.SERVICE_ID = NL.SERVICE_ID AND ROWNUM = 1) AS SERIAL_NO,
-            NVL2(TN.CAR_NO, TN.CAR_NO, TN.REQ_CAR_NO) AS R_CAR_NO
+            NVL2(TN.CAR_NO, TN.CAR_NO, TN.REQ_CAR_NO) AS R_CAR_NO,
+			TN.DIRECT_YN
         FROM
             TR_NEWCAR          TN,
             TR_SERVICE         TS,
@@ -267,6 +268,20 @@
             TS.SERVICE_ID AS SERVICE_ID,
             TO_CHAR(TN.REGIST_DATE, 'YYYY-MM-DD') AS REGIST_DATE,
             TS.PROC_ST AS PROC_ST,
+            CASE
+                WHEN NVL(TN.DIRECT_YN, 'N') = 'Y' THEN 'DIRCT'
+                WHEN TS.PROC_ST IN ('C_REQ', 'REQ') THEN 'REQ'
+                WHEN TS.PROC_ST IN ('INPUT', 'SAV') THEN 'SAV'
+                WHEN TS.PROC_ST = 'W_REQ' THEN 'W_REQ'
+                WHEN TS.PROC_ST IN ('B_REQ', 'P_REQ') THEN 'P_REQ'
+                WHEN TS.PROC_ST = 'PREND' THEN 'PREND'
+                WHEN TS.PROC_ST = 'PBEND' THEN 'PBEND'
+                WHEN TS.PROC_ST = 'P_END' THEN 'P_END'
+                WHEN TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC') THEN 'S_REQ'
+                WHEN TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END') THEN 'S_END'
+                WHEN TS.PROC_ST IN ('RET', 'REJECT') THEN 'RET'
+                ELSE TS.PROC_ST
+            END AS NPROC_ST,
             TS.LINK_ID AS LINK_ID,
             TN.CARID_NO AS CARID_NO,
             NVL(TS.CAR_NO, TN.CAR_NO) AS CAR_NO,
@@ -303,7 +318,9 @@
                 END
             ) AS DELIVERY_ADDR,
             (SELECT MEMBER_NM FROM TM_MEMBER_DT WHERE LOGIN_ID = TS.INS_USER) AS INS_USER,
-            TN.GOVT_TX AS GOVT_TX
+            TS.RETURN_TX AS RETURN_TX,
+			TN.DIRECT_YN AS DIRECT_YN,
+			TO_CHAR(CD.SEND_YN_DT, 'YYYY-MM-DD') AS SEND_YN_DT
         FROM TR_SERVICE TS
              JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
              LEFT JOIN TR_CARNO_DETACH CD ON CD.SERVICE_ID = TS.SERVICE_ID
@@ -352,35 +369,54 @@
             AND TN.PAY_GB = #{PAY_GB}
         </if>
         <if test="PROC_ST != null and PROC_ST != ''">
-            AND TS.PROC_ST = #{PROC_ST}
-        </if>
-        <if test="SPACE_TYPE != null and SPACE_TYPE != ''">
-            AND (
-                TS.BRANCH_ID = #{SPACE_TYPE}
-                OR TB.BRANCH_NM = #{SPACE_TYPE}
-                OR CD.DELIVERY_GB = #{SPACE_TYPE}
-            )
+            <choose>
+                <when test="PROC_ST == 'REQ'">
+                    AND TS.PROC_ST IN ('C_REQ', 'REQ')
+                </when>
+                <when test="PROC_ST == 'SAV'">
+                    AND TS.PROC_ST IN ('INPUT', 'SAV')
+                    AND NVL(TN.DIRECT_YN, 'N') &lt;&gt; 'Y'
+                </when>
+                <when test="PROC_ST == 'W_REQ'">
+                    AND TS.PROC_ST = 'W_REQ'
+                </when>
+                <when test="PROC_ST == 'P_REQ'">
+                    AND TS.PROC_ST IN ('B_REQ', 'P_REQ')
+                </when>
+                <when test="PROC_ST == 'PREND'">
+                    AND TS.PROC_ST = 'PREND'
+                </when>
+                <when test="PROC_ST == 'PBEND'">
+                    AND TS.PROC_ST = 'PBEND'
+                </when>
+                <when test="PROC_ST == 'P_END'">
+                    AND TS.PROC_ST = 'P_END'
+                </when>
+                <when test="PROC_ST == 'S_REQ'">
+                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC')
+                </when>
+                <when test="PROC_ST == 'S_END'">
+                    AND TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END')
+                </when>
+                <when test="PROC_ST == 'DIRCT'">
+                    AND NVL(TN.DIRECT_YN, 'N') = 'Y'
+                </when>
+                <when test="PROC_ST == 'RET'">
+                    AND TS.PROC_ST IN ('RET', 'REJECT')
+                </when>
+                <otherwise>
+                    AND TS.PROC_ST = #{PROC_ST}
+                </otherwise>
+            </choose>
         </if>
         <if test="NUM_PROC_ST != null and NUM_PROC_ST != ''">
             <choose>
                 <when test="NUM_PROC_ST == 'BEFORE'">
-                    AND CD.INSTALL_DT IS NULL
-                    AND NVL(CD.SEND_YN, 'N') &lt;&gt; 'Y'
-                    AND NVL(CD.RENT_SEND_YN, 'N') &lt;&gt; 'Y'
+                    AND CD.SEND_YN_DT IS NULL
                 </when>
-                <when test="NUM_PROC_ST == 'ING'">
-                    AND CD.INSTALL_DT IS NULL
-                    AND (CD.SEND_YN = 'Y' OR CD.RENT_SEND_YN = 'Y')
+                <when test="NUM_PROC_ST == 'DELIVERY'">
+                    AND CD.SEND_YN_DT IS NOT NULL
                 </when>
-                <when test="NUM_PROC_ST == 'DONE'">
-                    AND CD.INSTALL_DT IS NOT NULL
-                </when>
-                <when test="NUM_PROC_ST == 'NONE'">
-                    AND (CD.DELIVERY_GB IS NULL OR CD.DELIVERY_GB = 'INPUT')
-                </when>
-                <otherwise>
-                    AND CD.NUMPLATE_ST = #{NUM_PROC_ST}
-                </otherwise>
             </choose>
         </if>
         ORDER BY TS.INS_DATE DESC, TS.SERVICE_ID DESC
@@ -614,7 +650,7 @@
 		    RT_BANK_CD, RT_ACC_NO, RT_ACC_NM, RT_AMT, CARP_ADDRESS, GOVT_TX,
 		    CARP_ADDRESS_DT, CARP_POST_NO, VH_TY_CD, INSURER_CD, INSURER_SDT, INSURER_EDT,
 		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT, CARD_YN, REGIST_DATE,
-			RETURN_NO, RETURN_NM
+			RETURN_NO, RETURN_NM, DIRECT_YN
 		)
 		VALUES (
 		    #{SERVICE_ID}, #{WORK_CD}, #{PROC_CD}, #{TASK_CD}, #{BOND_YN},
@@ -635,7 +671,7 @@
 		    #{RT_BANK_CD}, #{RT_ACC_NO}, #{RT_ACC_NM}, #{RT_AMT}, PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}), #{GOVT_TX},
 		    PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}), #{CARP_POST_NO}, #{VH_TY_CD}, #{INSURER_CD}, #{INSURER_SDT}, #{INSURER_EDT},
 		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}, #{CARD_YN}, #{REGIST_DATE},
-			#{RETURN_NO}, #{RETURN_NM}
+			#{RETURN_NO}, #{RETURN_NM}, #{DIRECT_YN}
 		)
 	</insert>
 

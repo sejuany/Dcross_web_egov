@@ -11,6 +11,7 @@ import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
 import CommonMultiSelect from '../common/CommonMultiSelect';
 import NewcarPDFUpload from './NewcarPDFUpload';
+import { exportAgGridToXlsx } from '../../utils/xlsxExport';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -511,9 +512,15 @@ const NewcarList = () => {
     };
 
     const handleExportExcel = () => {
-        if (gridRef.current && gridRef.current.api) {
-            // AG-Grid Community 버전은 CSV 내보내기를 기본 지원합니다.
-            gridRef.current.api.exportDataAsCsv({ fileName: `신규신청현황_${new Date().toISOString().split('T')[0]}.csv` });
+        const exported = exportAgGridToXlsx(
+            gridRef.current?.api,
+            `신규신청현황_${new Date().toISOString().split('T')[0]}.xlsx`,
+            '신규신청현황'
+        );
+
+        if (!exported) {
+            setToastMessage('내보낼 데이터가 없습니다.');
+            setTimeout(() => setToastMessage(''), 2500);
         }
     };
 
@@ -689,7 +696,7 @@ const NewcarList = () => {
                     <button className="btn-status red">세금계산서</button>
                     <button className="btn-status grey">입금처리</button>*/}
                     <button className="btn-status" onClick={handleSearchClick}>조회[F2]</button>
-                    <button className="btn-status" >엑셀[F7]</button>
+                    <button className="btn-status" onClick={handleExportExcel}>엑셀[F7]</button>
                     <button className="btn-status" onClick={handleResetClick}>초기화[F8]</button>
                     <button className="btn-status" onClick={handleCloseClick}>닫기[F9]</button>
                 </div>

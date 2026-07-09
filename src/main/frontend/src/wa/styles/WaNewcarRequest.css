@@ -56,7 +56,6 @@
  * ========================================================= */
 
 .wa-request-summary {
-
     display: grid;
     grid-template-columns: repeat(4,1fr);
 
@@ -66,11 +65,9 @@
     border-radius: 16px;
 
     overflow: hidden;
-
 }
 
 .wa-request-summary-item {
-
     display: flex;
     align-items: center;
     gap: 14px;
@@ -78,7 +75,6 @@
     padding: 18px;
 
     border-right: 1px solid var(--wa-line);
-
 }
 
 .wa-request-summary-item:last-child{
@@ -86,7 +82,6 @@
 }
 
 .summary-icon{
-
     width:38px;
     height:38px;
 
@@ -101,29 +96,24 @@
     color:var(--wa-blue);
 
     flex-shrink:0;
-
 }
 
 .wa-request-summary-item p{
-
     margin:0 0 4px;
 
     color:var(--wa-blue);
 
     font-size:12px;
     font-weight:700;
-
 }
 
 .wa-request-summary-item strong{
-
     display:block;
 
     color:var(--wa-text);
 
     font-size:15px;
     font-weight:600;
-
 }
 
 /* =========================================================
@@ -131,25 +121,20 @@
  * ========================================================= */
 
 .wa-request-title{
-
     margin-top:34px;
 
     text-align:center;
-
 }
 
 .wa-request-title h1{
-
     margin:0;
 
     color:var(--wa-navy-deep);
 
     font-size:28px;
-
 }
 
 .wa-service-badge{
-
     margin-top:10px;
 
     display:inline-flex;
@@ -168,7 +153,11 @@
 
     font-size:12px;
     font-weight:700;
+}
 
+.wa-bold-span1{
+    display:block;
+    margin:0 48px 8px;   /* 42px + 6px */
 }
 
 /* ===========================
@@ -177,7 +166,7 @@
 
 .wa-owner-tabs {
     display: flex;
-    margin: 20px 36px 0;
+    margin: 8px 42px 16px;
     padding: 6px;
     border-radius: 999px;
     background: #eef0f3;
@@ -332,7 +321,7 @@
     display: grid;
     grid-template-columns: repeat(4, 1fr);
 
-    margin: 18px 36px 0;
+    margin: 25px 32px;
 
     border: 1px solid var(--wa-line);
     border-radius: 16px;
@@ -345,7 +334,7 @@
     align-items: center;
     gap: 14px;
 
-    padding: 18px;
+    padding: 14px;
 
     border-right: 1px solid var(--wa-line);
 }
@@ -359,14 +348,14 @@
 
     color: var(--wa-blue);
 
-    font-size: 12px;
+    font-size: 14px;
     font-weight: 700;
 }
 
 .summary-value {
     color: var(--wa-text);
 
-    font-size: 15px;
+    font-size: 13px;
     font-weight: 600;
 }
 
@@ -375,44 +364,31 @@
  * ========================================================= */
 
 .wa-form-body{
-
-    padding:32px 36px 40px;
-
+    padding: 32px 46px 0;
 }
 
 .wa-form-row{
-
     display:grid;
-
-    grid-template-columns:110px 1fr;
-
+    grid-template-columns:140px 1fr;
     gap:20px;
-
     align-items:center;
-
     margin-bottom:22px;
-
 }
 
 .wa-form-label{
-
     color:#222;
 
     font-size:15px;
     font-weight:700;
-
 }
 
 .wa-form-label-wrap{
-
     display:flex;
 
     flex-direction:column;
-
 }
 
 .wa-form-sub-label{
-
     display:flex;
     align-items:center;
     gap:4px;
@@ -424,61 +400,38 @@
 }
 
 .wa-form-sub-label input{
-
     width:16px;
     height:16px;
 
     accent-color:var(--wa-blue);
-
 }
 
 .wa-form-control{
-
     width:100%;
-
 }
 
 .wa-inline-group{
-
     display:flex;
 
     align-items:center;
 
     gap:10px;
-
-}
-
-.wa-address-wrap{
-
-    display:flex;
-
-    gap:8px;
-
-    margin-bottom:8px;
-
 }
 
 .wa-address-wrap .wa-input{
-
     flex:1;
-
 }
 
 .wa-inline-group .wa-input{
-
     flex:1;
-
 }
 
 .wa-inline-group .wa-select{
-
     width:160px;
-
 }
 
 .wa-input,
 .wa-select{
-
     width:100%;
 
     height:44px;
@@ -493,28 +446,22 @@
     font-size:15px;
 
     box-sizing:border-box;
-
 }
 
 .wa-input:focus,
 .wa-select:focus{
-
     outline:none;
 
     border-color:var(--wa-blue);
 
     box-shadow:0 0 0 3px rgba(47,109,246,.12);
-
 }
 
 .wa-dash{
-
     font-weight:700;
-
 }
 
 .wa-search-btn{
-
     width:44px;
     height:44px;
 
@@ -528,7 +475,6 @@
     background:#fff;
 
     cursor:pointer;
-
 }
 
 .wa-joint-btn{
@@ -554,9 +500,7 @@
 }
 
 .wa-joint-btn:hover{
-
     background:#edf4ff;
-
 }
 
 .wa-joint-icon {
@@ -602,12 +546,62 @@
     transform: rotate(45deg);
 }
 
+.wa-hr-div {
+	width: 100%;
+}
+
+hr.wa-divider.hr2 {
+	margin: 34px 0 5px 0;
+}
+
+.wa-detail-header{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    margin-bottom:14px;
+    gap:20px;
+}
+
+.wa-detail-status{
+    display:flex;
+    align-items:center;
+    gap:8px;
+    font-size:15px;
+    font-weight:600;
+}
+
+.wa-detail-type{
+    color:#2f66f3;
+    font-weight:700;
+}
+
+.wa-detail-arrow{
+    color:#999;
+}
+
+.wa-detail-reason{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    flex:1;
+}
+
+.wa-detail-label{
+    font-weight:700;
+}
+
+.wa-detail-reason span:last-child{
+    flex:1;
+    min-height:36px;
+    padding:8px 12px;
+    border-radius:8px;
+    background:#f5f7fb;
+}
 /* =========================================================
  * Alert
  * ========================================================= */
 
 .wa-alert{
-
     display:flex;
     align-items:center;
     gap:10px;
@@ -620,27 +614,22 @@
 
     font-size:14px;
     font-weight:600;
-
 }
 
 .wa-alert.error{
-
     border:1px solid #f2c4ba;
 
     background:#fff0ed;
 
     color:#a23928;
-
 }
 
 .wa-alert.success{
-
     border:1px solid #bde4cf;
 
     background:#edf8f2;
 
     color:#167246;
-
 }
 
 /* =========================================================
@@ -650,7 +639,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    margin: 20px;
+    margin: 20px 40px;
 }
 
 .wa-action-btn {
@@ -846,9 +835,9 @@
 
 .wa-title {
 	text-align: center;
-    margin-top: 20px;
-    font-size: 30px;
+    font-size: 28px;
     font-weight: 700;
+    margin : 16px 0;
     color: #14376d;
 }
 
@@ -912,71 +901,94 @@
 }
 
 /* =========================================================
+ * Rent 페이지
+ * ========================================================= */
+.owner-corporate-box{
+    width:100%;
+    min-height:190px;
+    background:#f5f8fc;
+    border:1px solid #d9dee6;
+    border-radius:8px;
+    box-sizing:border-box;
+}
+
+.owner-corporate-info{
+    height:100%;
+    min-height:190px;
+    display:flex;
+    flex-direction:column;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+    padding: 40px 0px 50px 0;
+}
+
+.owner-corporate-icon{
+    color:#3d7cff;
+    margin-bottom:22px;
+    stroke-width:2.6;
+}
+
+.owner-corporate-text{
+    color:#333;
+    font-size:14px;
+    font-weight:600;
+    line-height:1.6;
+}
+
+.owner-corporate-text p{
+    margin:0;
+}
+
+/* =========================================================
  * Responsive
  * ========================================================= */
 
 @media (max-width:760px){
-
     .wa-request-summary{
-
         grid-template-columns:1fr 1fr;
 
         margin:14px;
-
     }
 
     .wa-request-summary-item{
-
         border-right:0;
 
         border-bottom:1px solid var(--wa-line);
-
     }
 
     .wa-request-summary-item:nth-last-child(-n+2){
-
         border-bottom:0;
-
     }
 
+	.wa-bold-span1{
+	    margin: 0 0 7px 21px;
+	}
+
     .wa-owner-tabs{
-
-        margin:20px 14px 0;
-
+        margin:0px 14px;
         flex-wrap:wrap;
-
     }
 
     .wa-form-body{
-
         padding:24px 14px 32px;
-
     }
 
     .wa-form-row{
-
         grid-template-columns:1fr;
 
         gap:8px;
-
     }
 
     .wa-inline-group{
-
         flex-wrap:wrap;
-
     }
 
     .wa-inline-group .wa-select{
-
         width:100%;
-
     }
 
     .wa-form-actions{
-
         padding:0 14px 32px;
-
     }
-
 }

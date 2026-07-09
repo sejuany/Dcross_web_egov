@@ -1,7 +1,8 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, RotateCcw, Search, Upload, WalletCards, X } from 'lucide-react';
+import { ClipboardCheck, Download, RotateCcw, Search, Upload, WalletCards, X } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from './newcar/WaNewcarRequest';
 import '../styles/wa.css';
 
@@ -11,20 +12,17 @@ const dateTypeFallbackOptions = [
     { CODE_ID: 'REGDT', CODE_NM: '등록예정일자' },
 ];
 
-const registrationTypeFallbackOptions = [
-    { CODE_ID: 'B', CODE_NM: '대행등록' },
-    { CODE_ID: 'A', CODE_NM: '직접등록' }
-];
 
 const processStatusFallbackOptions = [];
+
+const SEARCH_START_LIMIT_YEARS = 2;
+const DIRECT_REGISTRATION_PROCESS_CODE = 'DIRCT';
 
 
 const plateDeliveryOptions = [
     { value: '', label: '전체' },
-    { value: 'BEFORE', label: '배송 전' },
-    { value: 'ING', label: '배송 중' },
-    { value: 'DONE', label: '배송 완료' },
-    { value: 'NONE', label: '미배송' }
+    { value: 'BEFORE', label: '미배송' },
+    { value: 'DELIVERY', label: '배송' }
 ];
 
 const spaceFallbackOptions = [
@@ -48,6 +46,7 @@ const quickDateButtons = [
 
 const headerActionButtons = [
     { key: 'search', label: '조회', Icon: Search, variant: 'primary' },
+    { key: 'export', label: '엑셀', Icon: Download, variant: 'outline' },
     { key: 'reset', label: '초기화', Icon: RotateCcw, variant: 'outline' },
     { key: 'close', label: '닫기', Icon: X, variant: 'outline' }
 ];
@@ -63,7 +62,7 @@ const columns = [
     { key: 'CHK', label: '', type: 'checkbox', width: 44, minWidth: 40, sortable: false },
     { key: 'SEQ', label: '순번', width: 44, minWidth: 20, sortType: 'number' },
     { key: 'REGIST_DATE', label: '등록예정일자', width: 116, minWidth: 50, sortType: 'date' },
-    { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 92, minWidth: 60 },
+    { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 100, minWidth: 60 },
     { key: 'LINK_ID', label: '주문번호', width: 82, minWidth: 60 },
     { key: 'CARID_NO', label: '차대번호', width: 150, minWidth: 60 },
     { key: 'CAR_NO', label: '차량번호', width: 96, minWidth: 60 },
@@ -77,16 +76,14 @@ const columns = [
     { key: 'PAY_DT', label: '등록비용 납부일자', width: 110, minWidth: 60, sortType: 'date' },
     { key: 'INS_DATE', label: '입력일자', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'JUDGE_DT', label: '등록일자', width: 90, minWidth: 60, sortType: 'date' },
-    { key: 'INSTALL_DT', label: '배송일자', width: 90, minWidth: 60, sortType: 'date' },
+    { key: 'SEND_YN_DT', label: '배송일자', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'SPACE', label: 'SPACE', width: 116, minWidth: 60 },
     { key: 'DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
     { key: 'INS_USER', label: '담당SP명', width: 112, minWidth: 60 },
-    { key: 'GOVT_TX', label: '비고', type: 'remark', width: 190, minWidth: 60, className: 'wide-text' }
+    { key: 'RETURN_TX', label: '비고', type: 'remark', width: 190, minWidth: 60, className: 'wide-text' }
 ];
 
-const getFormattedDateOffset = (offsetDays) => {
-    const date = new Date();
-    date.setDate(date.getDate() + offsetDays);
+const formatDateInputValue = (date) => {
     const year = date.getFullYear();
     const month = String(date.getMonth() + 1).padStart(2, '0');
     const day = String(date.getDate()).padStart(2, '0');
@@ -94,18 +91,65 @@ const getFormattedDateOffset = (offsetDays) => {
     return `${year}-${month}-${day}`;
 };
 
-const getInitialSearchFilters = () => ({
-    dateType: dateTypeFallbackOptions[0].CODE_ID,
-    startDate: getFormattedDateOffset(0),
-    endDate: getFormattedDateOffset(7),
-    processStatus: '',
-    plateDeliveryStatus: '',
-    spaceType: '',
-    registrationType: '',
-    carKeyword: '',
-    orderNo: '',
-    ownerName: ''
-});
+const getFormattedDateOffset = (offsetDays) => {
+    const date = new Date();
+    date.setDate(date.getDate() + offsetDays);
+
+    return formatDateInputValue(date);
+};
+
+const getSearchStartLimitDate = () => {
+    const date = new Date();
+    date.setFullYear(date.getFullYear() - SEARCH_START_LIMIT_YEARS);
+
+    return formatDateInputValue(date);
+};
+
+const clampSearchStartDate = (value) => {
+    const dateValue = String(value || '');
+
+    if (!dateValue) {
+        return dateValue;
+    }
+
+    const minDate = getSearchStartLimitDate();
+
+    return dateValue < minDate ? minDate : dateValue;
+};
+
+const getInitialSearchDateRange = (memberGb) => {
+    const normalizedMemberGb = String(memberGb || '').trim().toUpperCase();
+    const today = getFormattedDateOffset(0);
+
+    if (normalizedMemberGb === 'SA') {
+        return {
+            startDate: clampSearchStartDate(getFormattedDateOffset(-7)),
+            endDate: today
+        };
+    }
+
+    return {
+        startDate: today,
+        endDate: today
+    };
+};
+
+const getInitialSearchFilters = (memberGb = '') => {
+    const dateRange = getInitialSearchDateRange(memberGb);
+
+    return {
+        dateType: dateTypeFallbackOptions[0].CODE_ID,
+        startDate: dateRange.startDate,
+        endDate: dateRange.endDate,
+        processStatus: '',
+        plateDeliveryStatus: '',
+        spaceType: '',
+        registrationType: '',
+        carKeyword: '',
+        orderNo: '',
+        ownerName: ''
+    };
+};
 
 const getUserCompanyId = (user) => String(
     user?.COMPANY_ID ??
@@ -114,6 +158,13 @@ const getUserCompanyId = (user) => String(
     user?.company_id ??
     ''
 ).trim();
+const getUserMemberGb = (user) => String(
+    user?.MEMBER_GB ??
+    user?.member_GB ??
+    user?.memberGb ??
+    user?.member_gb ??
+    ''
+).trim().toUpperCase();
 
 const toYmd = (value) => String(value || '').replace(/-/g, '');
 
@@ -179,39 +230,69 @@ const buildCodeMap = (codes) => Object.entries(codes || {}).reduce((acc, [groupI
 const getStatusClass = (statusLabel, statusCode) => {
     const text = `${statusLabel || ''} ${statusCode || ''}`;
 
-    if (/반려|RET|REJECT/.test(text)) return 'reject';
-    if (/완료|END|DONE/.test(text)) return 'done';
-    if (/중|REQ|ING/.test(text)) return 'progress';
+    if (/RET/.test(text)) return 'reject';
+    if (/END/.test(text)) return 'done';
+    if (/REQ/.test(text)) return 'progress';
     return 'ready';
 };
 
-const isRejectRow = (row) => /반려|RET|REJECT/.test(`${row.processStatus} ${row.PROC_ST}`);
+const getProcessGroupCode = (row) => toStringValue(row.NPROC_ST || row.PROC_ST);
 
-const isStatusIn = (row, statusCodes) => statusCodes.includes(toStringValue(row.PROC_ST));
+const isRejectRow = (row) => getProcessGroupCode(row) === 'RET' || /반려|RET|REJECT/.test([row.processStatus, row.PROC_ST].join(' '));
+
+const isStatusIn = (row, statusCodes) => statusCodes.includes(getProcessGroupCode(row));
+
+const isDirectRegistrationRow = (row) =>
+    getProcessGroupCode(row) === DIRECT_REGISTRATION_PROCESS_CODE ||
+    toStringValue(row.DIRECT_YN) === 'Y';
 
 const createStatusCards = (rows) => [
-    { label: '정보입력', value: rows.filter(row => isStatusIn(row, ['SAV', 'INFO'])).length },
-    { label: '신청대기', value: rows.filter(row => isStatusIn(row, ['C_REQ', 'REQ'])).length },
-    { label: '인도금 납부중', value: rows.filter(row => isStatusIn(row, ['P_REQ', 'B_REQ', 'PAYING'])).length, active: true },
-    { label: '인도금 납부완료', value: rows.filter(row => isStatusIn(row, ['P_END', 'PBEND', 'PAID'])).length },
-    { label: '등록 중', value: rows.filter(row => isStatusIn(row, ['J_REQ', 'J_ING', 'D_REQ', 'D_ING', 'REG_ING'])).length },
-    { label: '등록 완료', value: rows.filter(row => isStatusIn(row, ['J_END', 'D_END', 'END', 'REG_DONE'])).length },
+    { label: '정보입력', value: rows.filter(row => isStatusIn(row, ['SAV'])).length },
+    { label: '신청대기', value: rows.filter(row => isStatusIn(row, ['W_REQ'])).length },
+    { label: '인도금 납부중', value: rows.filter(row => isStatusIn(row, ['P_REQ'])).length},
+    { label: '인도금 납부완료', value: rows.filter(row => isStatusIn(row, ['P_END'])).length },
+    { label: '등록 중', value: rows.filter(row => isStatusIn(row, ['S_REQ'])).length },
+    { label: '등록 완료', value: rows.filter(row => isStatusIn(row, ['S_END'])).length },
     { label: '반려', value: rows.filter(isRejectRow).length, danger: true },
-    { label: '고객 직접 납부', value: rows.filter(row => toStringValue(row.PAY_GB) === 'A').length, muted: true }
+    { label: '고객 직접 납부', value: rows.filter(row => toStringValue(row.DIRECT_YN) === 'Y').length, muted: true }
 ];
 
 const WaNewcarList = () => {
     const { user, logout } = useAuth();
+    const memberGb = getUserMemberGb(user);
+    const canManageNewcarActions = memberGb === 'SA';
     const [codeListMap, setCodeListMap] = useState({});
     const [branchList, setBranchList] = useState([]);
     const [rawRows, setRawRows] = useState([]);
     const [selectedRowKeys, setSelectedRowKeys] = useState([]);
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
-    const [searchFilters, setSearchFilters] = useState(getInitialSearchFilters);
+    const [noticeMessage, setNoticeMessage] = useState('');
+    const [searchFilters, setSearchFilters] = useState(() => getInitialSearchFilters(memberGb));
     const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
     const [columnWidths, setColumnWidths] = useState({});
     const [activeRequest, setActiveRequest] = useState(null);
+    const [requestRows, setRequestRows] = useState([]);
+    const [showRequestConfirm, setShowRequestConfirm] = useState(false);
+    const fileInputRef = useRef(null);
+    const searchStartLimitDate = getSearchStartLimitDate();
+	// 더블클릭 했을 때 해당 건으로 들어가기 위해
+	const [clickTimer, setClickTimer] = useState(null);
+
+	const handleRowClick = (row) => {
+	    if (clickTimer) {
+	        clearTimeout(clickTimer);
+	        setClickTimer(null);
+	        handleRowDoubleClick(row);
+	        return;
+	    }
+
+	    const timer = setTimeout(() => {
+	        setClickTimer(null);
+	    }, 250);
+
+	    setClickTimer(timer);
+	};
 
     const codeMap = useMemo(() => buildCodeMap(codeListMap), [codeListMap]);
 
@@ -225,14 +306,10 @@ const WaNewcarList = () => {
         [codeListMap.NEWDT]
     );
 
-    const registrationTypeOptions = useMemo(
-        () => toSelectOptions(codeListMap.PSNGB, registrationTypeFallbackOptions),
-        [codeListMap.PSNGB]
-    );
 
     const processStatusOptions = useMemo(
-        () => toSelectOptions(codeListMap.PR_ST, processStatusFallbackOptions),
-        [codeListMap.PR_ST]
+        () => toSelectOptions(codeListMap.NPRST, processStatusFallbackOptions),
+        [codeListMap.NPRST]
     );
 
     const spaceOptions = useMemo(() => {
@@ -248,7 +325,7 @@ const WaNewcarList = () => {
     }, [branchList]);
 
     const rows = useMemo(() => rawRows.map((row, index) => {
-        const processStatus = formatCode('PR_ST', row.PROC_ST);
+        const processStatus = formatCode('NPRST', row.NPROC_ST || row.PROC_ST);
         const paymentStatus = formatCode('PAYST', row.PAY_ST);
         const rowKey = toStringValue(row.SERVICE_ID) || `${row.LINK_ID || 'row'}-${index}`;
         const displayValues = {
@@ -268,11 +345,11 @@ const WaNewcarList = () => {
             PAY_DT: row.PAY_DT || '',
             INS_DATE: row.INS_DATE || '',
             JUDGE_DT: row.JUDGE_DT || '',
-            INSTALL_DT: row.INSTALL_DT || '',
+            SEND_YN_DT: row.SEND_YN_DT || '',
             SPACE: row.SPACE || '',
             DELIVERY_ADDR: row.DELIVERY_ADDR || '',
             INS_USER: row.INS_USER || '',
-            GOVT_TX: row.GOVT_TX || ''
+            RETURN_TX: row.RETURN_TX || ''
         };
 
         return {
@@ -280,6 +357,7 @@ const WaNewcarList = () => {
             rowKey,
             displayValues,
             processStatusCode: row.PROC_ST,
+            processStatusGroupCode: row.NPROC_ST,
             paymentStatusCode: row.PAY_ST,
             seq: displayValues.SEQ,
             expectedDate: displayValues.REGIST_DATE,
@@ -297,11 +375,11 @@ const WaNewcarList = () => {
             regPayDate: displayValues.PAY_DT,
             inputDate: displayValues.INS_DATE,
             regDate: displayValues.JUDGE_DT,
-            deliveryDate: displayValues.INSTALL_DT,
+            sendYnDT: displayValues.SEND_YN_DT,
             space: displayValues.SPACE,
             address: displayValues.DELIVERY_ADDR,
             sp: displayValues.INS_USER,
-            remark: displayValues.GOVT_TX
+            remark: displayValues.RETURN_TX
         };
     }), [formatCode, rawRows]);
 
@@ -340,11 +418,12 @@ const WaNewcarList = () => {
 
     const selectedRowKeySet = useMemo(() => new Set(selectedRowKeys), [selectedRowKeys]);
     const allRowsSelected = rows.length > 0 && rows.every(row => selectedRowKeySet.has(row.rowKey));
+    const selectedRows = useMemo(() => rows.filter(row => selectedRowKeySet.has(row.rowKey)), [rows, selectedRowKeySet]);
 
     const buildSearchPayload = useCallback((filters) => ({
         WORK_CD: '010',
         DATE_CD: filters.dateType,
-        START_DT: toYmd(filters.startDate),
+        START_DT: toYmd(clampSearchStartDate(filters.startDate)),
         END_DT: toYmd(filters.endDate),
         CAR_NO: filters.carKeyword.trim(),
         LINK_ID: filters.orderNo.trim(),
@@ -390,7 +469,7 @@ const WaNewcarList = () => {
         const fetchInitialData = async () => {
             try {
                 const [codeResponse, branchResponse] = await Promise.all([
-                    axios.post('/api/codes/list', { groupIds: ['NEWDT', 'PSNGB', 'PR_ST', 'PAYST'] }),
+                    axios.post('/api/codes/list', { groupIds: ['NEWDT', 'PSNGB', 'NPRST', 'PAYST'] }),
                     companyId
                         ? axios.get('/api/branch/list', { params: { companyId } })
                         : Promise.resolve({ data: { success: false, list: [] } })
@@ -410,15 +489,18 @@ const WaNewcarList = () => {
             }
         };
 
+        const initialFilters = getInitialSearchFilters(memberGb);
+        setSearchFilters(initialFilters);
+
         fetchInitialData();
-        fetchNewCarList(searchFilters);
+        fetchNewCarList(initialFilters);
 
         return () => {
             isMounted = false;
         };
         // 최초 진입 시 현재 기본 조회조건으로 한 번만 조회한다.
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fetchNewCarList, user]);
+    }, [fetchNewCarList, memberGb, user]);
 
     useEffect(() => {
         const hasSelectedDateType = dateTypeOptions.some(option => option.CODE_ID === searchFilters.dateType);
@@ -433,29 +515,51 @@ const WaNewcarList = () => {
 
     const handleFilterChange = (event) => {
         const { name, value } = event.target;
+        const nextValue = name === 'startDate' ? clampSearchStartDate(value) : value;
+
         setSearchFilters(prev => ({
             ...prev,
-            [name]: value
+            [name]: nextValue
         }));
     };
 
     const handleDateQuickRange = (startOffset) => {
         setSearchFilters(prev => ({
             ...prev,
-            startDate: getFormattedDateOffset(startOffset),
+            startDate: clampSearchStartDate(getFormattedDateOffset(startOffset)),
             endDate: getFormattedDateOffset(0)
         }));
     };
 
     const handleReset = () => {
-        const nextFilters = getInitialSearchFilters();
+        const nextFilters = getInitialSearchFilters(memberGb);
         setSearchFilters(nextFilters);
         fetchNewCarList(nextFilters);
     };
 
+    const handleExport = () => {
+        if (rows.length === 0) {
+            setErrorMessage('내보낼 데이터가 없습니다.');
+            setNoticeMessage('');
+            return;
+        }
+
+        exportRowsToXlsx({
+            columns,
+            rows: sortedRows,
+            fileName: `신규등록현황_${getFormattedDateOffset(0)}.xlsx`,
+            sheetName: '신규등록현황',
+            getCellValue: (row, column) => row.displayValues[column.key] ?? ''
+        });
+    };
     const handleHeaderActionClick = (actionKey) => {
         if (actionKey === 'search') {
             fetchNewCarList(searchFilters);
+            return;
+        }
+
+        if (actionKey === 'export') {
+            handleExport();
             return;
         }
 
@@ -469,6 +573,206 @@ const WaNewcarList = () => {
         }
     };
 
+    const handleExcelClick = () => {
+        if (!canManageNewcarActions) {
+            return;
+        }
+
+        setErrorMessage('');
+        setNoticeMessage('');
+        fileInputRef.current?.click();
+    };
+
+    const handleExcelUpload = async (event) => {
+        const fileInput = event.target;
+        const file = fileInput?.files?.[0];
+
+        if (!file) {
+            setErrorMessage('파일이 없습니다.');
+            setNoticeMessage('');
+            return;
+        }
+
+        setLoading(true);
+        setErrorMessage('');
+        setNoticeMessage('');
+
+        try {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            const response = await axios.post('/api/newcar/excel-upload', formData);
+
+            if (response.data?.data?.success) {
+                const insertCount = response.data.data?.insertCount ?? 0;
+                setNoticeMessage(`업로드 완료 ${insertCount}건`);
+                await fetchNewCarList(searchFilters);
+                return;
+            }
+
+            if (response.data?.message === '로그인 정보 없음') {
+                setErrorMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+                await logout({ redirectTo: '/wa/login' });
+                return;
+            }
+
+            const errors = response.data?.data?.errors;
+            const errorText = Array.isArray(errors) && errors.length
+                ? errors.map(error => `${error.row ?? ''}행: ${(error.errors || []).join(', ')}`).join('\n')
+                : '';
+            setErrorMessage(response.data?.message || response.data?.data?.message || errorText || '등록 실패');
+        } catch (error) {
+            console.error('WA 엑셀 업로드 실패:', error);
+
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                setErrorMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+                await logout({ redirectTo: '/wa/login' });
+                return;
+            }
+
+            setErrorMessage('등록 중 오류가 발생했습니다.');
+        } finally {
+            if (fileInputRef.current) {
+                fileInputRef.current.value = '';
+            }
+            setLoading(false);
+        }
+    };
+    const handleRequestClick = () => {
+        setErrorMessage('');
+        setNoticeMessage('');
+
+        if (selectedRows.length === 0) {
+            setErrorMessage('선택된 건이 없습니다.');
+            return;
+        }
+
+        const invalidRows = selectedRows.filter(row => toStringValue(row.PROC_ST) !== 'W_REQ');
+
+        if (invalidRows.length > 0) {
+            setErrorMessage('처리상태가 신청대기인 건만 신청 가능합니다.');
+            setSelectedRowKeys([]);
+            return;
+        }
+
+        setRequestRows(selectedRows);
+        setShowRequestConfirm(true);
+    };
+
+    const handleRequestConfirm = async () => {
+        setLoading(true);
+        setErrorMessage('');
+        setNoticeMessage('');
+
+        try {
+            const payload = requestRows.map(row => ({ SERVICE_ID: row.SERVICE_ID }));
+            const response = await axios.post('/api/newcar/request-process', payload);
+
+            if (response.data?.success) {
+                setNoticeMessage('신청이 완료되었습니다.');
+                setSelectedRowKeys([]);
+                await fetchNewCarList(searchFilters);
+                return;
+            }
+
+            setErrorMessage(response.data?.message || '신청 실패');
+        } catch (error) {
+            console.error('WA 신규등록 신청 실패:', error);
+
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                setErrorMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+                await logout({ redirectTo: '/wa/login' });
+                return;
+            }
+
+            setErrorMessage('신청 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+            setShowRequestConfirm(false);
+            setRequestRows([]);
+        }
+    };
+
+    const handlePaymentClick = async () => {
+        setErrorMessage('');
+        setNoticeMessage('');
+
+        if (selectedRows.length === 0) {
+            setErrorMessage('선택된 건이 없습니다.');
+            return;
+        }
+
+        const invalidRows = selectedRows.filter(row => {
+            const procStatus = toStringValue(row.PROC_ST);
+            return procStatus !== 'P_REQ' && procStatus !== 'PREND';
+        });
+
+        if (invalidRows.length > 0) {
+            setErrorMessage('납부요청 또는 등록비용 납부 상태만 처리 가능합니다.');
+            return;
+        }
+
+        setLoading(true);
+
+        try {
+            const today = new Date();
+            const todayYmd = `${today.getFullYear()}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+            const payload = selectedRows.map(row => {
+                const procStatus = toStringValue(row.PROC_ST);
+                let nextStatus = '';
+
+                if (procStatus === 'P_REQ') {
+                    nextStatus = 'PBEND';
+                } else if (procStatus === 'PREND') {
+                    const registDate = toYmd(row.REGIST_DATE);
+                    nextStatus = registDate && registDate <= todayYmd ? 'S_REQ' : 'P_END';
+                }
+
+                return {
+                    SERVICE_ID: row.SERVICE_ID,
+                    PROC_ST: nextStatus
+                };
+            });
+
+            const response = await axios.post('/api/newcar/payment-process', payload);
+
+            if (response.data?.success) {
+                setNoticeMessage('차량대금 납부 처리가 완료되었습니다.');
+                setSelectedRowKeys([]);
+                await fetchNewCarList(searchFilters);
+                return;
+            }
+
+            setErrorMessage(response.data?.message || '처리 실패!');
+        } catch (error) {
+            console.error('WA 차량대금 납부 처리 실패:', error);
+
+            if (error.response?.status === 401 || error.response?.status === 403) {
+                setErrorMessage('세션이 만료되었습니다. 다시 로그인해주세요.');
+                await logout({ redirectTo: '/wa/login' });
+                return;
+            }
+
+            setErrorMessage('납부 처리 중 오류가 발생했습니다.');
+        } finally {
+            setLoading(false);
+        }
+    };
+
+    const handleGridActionClick = (actionKey) => {
+        if (!canManageNewcarActions) {
+            return;
+        }
+
+        if (actionKey === 'apply') {
+            handleRequestClick();
+            return;
+        }
+
+        if (actionKey === 'payment') {
+            handlePaymentClick();
+        }
+    };
     const toggleAllRows = (checked) => {
         setSelectedRowKeys(checked ? rows.map(row => row.rowKey) : []);
     };
@@ -484,6 +788,10 @@ const WaNewcarList = () => {
     };
 
     const handleRowDoubleClick = useCallback((row) => {
+        if (isDirectRegistrationRow(row)) {
+            return;
+        }
+
         const serviceId = toStringValue(row.SERVICE_ID);
 
         if (!serviceId) {
@@ -582,14 +890,46 @@ const WaNewcarList = () => {
         }
 
         if (column.type === 'remark') {
-            return <span className={isRejectRow(row) ? 'wa-grid-danger' : ''}>{row.displayValues.GOVT_TX}</span>;
+            return <span className={isRejectRow(row) ? 'wa-grid-danger' : ''}>{row.displayValues.RETURN_TX}</span>;
         }
 
         return row.displayValues[column.key] ?? '';
     };
+	
+	// 모달 세로가 화면보다 커진 경우 상단 정렬
+	const frameRef = useRef(null);
+	const [isOverflow, setIsOverflow] = useState(false);
+
+	useLayoutEffect(() => {
+	    if (!activeRequest) return;
+
+	    const check = () => {
+	        if (!frameRef.current) return;
+
+	        setIsOverflow(
+	            frameRef.current.scrollHeight > window.innerHeight - 48
+	        );
+	    };
+
+	    check();
+
+	    const resizeObserver = new ResizeObserver(check);
+
+	    if (frameRef.current) {
+	        resizeObserver.observe(frameRef.current);
+	    }
+
+	    window.addEventListener('resize', check);
+
+	    return () => {
+	        resizeObserver.disconnect();
+	        window.removeEventListener('resize', check);
+	    };
+	}, [activeRequest]);
+	
     return (
-        <div className={`wa-status-page${activeRequest ? ' has-modal' : ''}`}>
-            <div className="wa-status-page-content" aria-hidden={activeRequest ? 'true' : undefined}>
+        <div className={`wa-status-page${(activeRequest || showRequestConfirm) ? ' has-modal' : ''}`}>
+            <div className="wa-status-page-content" aria-hidden={(activeRequest || showRequestConfirm) ? 'true' : undefined}>
             <section className="wa-status-top-toolbar" aria-label="신규신청현황 조회 조건">
                 <section className="wa-status-period-panel" aria-label="조회 기간">
                     <label className="wa-status-field wa-status-date-field" aria-label="기준일자">
@@ -600,7 +940,7 @@ const WaNewcarList = () => {
                                 ))}
                             </select>
                             <div className="wa-status-date-range">
-                                <input type="date" name="startDate" value={searchFilters.startDate} onChange={handleFilterChange} />
+                                <input type="date" name="startDate" value={searchFilters.startDate} min={searchStartLimitDate} onChange={handleFilterChange} />
                                 <span aria-hidden="true">~</span>
                                 <input type="date" name="endDate" value={searchFilters.endDate} onChange={handleFilterChange} />
                             </div>
@@ -664,15 +1004,6 @@ const WaNewcarList = () => {
                 </label>
 
                 <label className="wa-status-field">
-                    <span>등록구분</span>
-                    <select name="registrationType" value={searchFilters.registrationType} onChange={handleFilterChange}>
-                        {registrationTypeOptions.map(option => (
-                            <option key={option.value || 'ALL'} value={option.value}>{option.label}</option>
-                        ))}
-                    </select>
-                </label>
-
-                <label className="wa-status-field">
                     <span>소유자명(계약자명)</span>
                     <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} placeholder="입력" />
                 </label>
@@ -690,25 +1021,39 @@ const WaNewcarList = () => {
 
             <section className="wa-status-grid-panel" aria-label="신규신청현황 목록">
                 <section className="wa-status-heading">
-                    <div className="wa-status-actions" aria-label="목록 처리 버튼">
-                        {gridActionButtons.map(({ key, label, Icon, variant }) => (
-                            <button key={key} type="button" className={`wa-status-action ${variant}`}>
-                                <Icon size={15} />
-                                <span>{label}</span>
-                            </button>
-                        ))}
-                    </div>
+                    {canManageNewcarActions && (
+                        <div className="wa-status-actions" aria-label="목록 처리 버튼">
+                            {gridActionButtons.map(({ key, label, Icon, variant }) => (
+                                <button key={key} type="button" className={`wa-status-action ${variant}`} onClick={() => handleGridActionClick(key)} disabled={loading}>
+                                    <Icon size={15} />
+                                    <span>{label}</span>
+                                </button>
+                            ))}
+                        </div>
+                    )}
 
                     <div className="wa-status-actions" aria-label="목록 부가 기능">
                         <strong>검색 결과 총 {rows.length}건</strong>
-                        <button type="button" className="wa-status-action primary">
-                            <Upload size={15} />
-                            <span>엑셀 업로드</span>
-                        </button>
+                        {canManageNewcarActions && (
+                            <>
+                                <button type="button" className="wa-status-action primary" onClick={handleExcelClick} disabled={loading}>
+                                    <Upload size={15} />
+                                    <span>엑셀 업로드</span>
+                                </button>
+                                <input
+                                    type="file"
+                                    ref={fileInputRef}
+                                    style={{ display: 'none' }}
+                                    accept=".xlsx,.xls"
+                                    onChange={handleExcelUpload}
+                                />
+                            </>
+                        )}
                     </div>
                 </section>
 
                 {errorMessage && <div className="wa-status-error">{errorMessage}</div>}
+                {noticeMessage && <div className="wa-status-notice">{noticeMessage}</div>}
 
                 <div className="wa-status-table-scroll">
                     <table className="wa-status-table" style={{ width: `${gridWidth}px`, minWidth: `${gridWidth}px` }}>
@@ -759,7 +1104,10 @@ const WaNewcarList = () => {
                                     <td className="wa-status-empty" colSpan={columns.length}>조회된 데이터가 없습니다.</td>
                                 </tr>
                             ) : sortedRows.map(row => (
-                                <tr key={row.rowKey} className="wa-status-data-row" onDoubleClick={() => handleRowDoubleClick(row)} tabIndex={0} onKeyDown={event => event.key === 'Enter' && handleRowDoubleClick(row)}>
+                                <tr key={row.rowKey} className="wa-status-data-row"
+									onClick={() => handleRowClick(row)}
+									/*onDoubleClick={() => handleRowDoubleClick(row)} */
+									tabIndex={0} onKeyDown={event => event.key === 'Enter' && handleRowDoubleClick(row)}>
                                     {columns.map(column => (
                                         <td key={`${row.rowKey}-${column.key}`} className={column.className || undefined}>
                                             {renderGridCell(row, column)}
@@ -773,9 +1121,52 @@ const WaNewcarList = () => {
             </section>
             </div>
 
-            {activeRequest && (
+            {showRequestConfirm && (
                 <div className="wa-request-modal-backdrop" role="presentation">
-                    <section className="wa-request-modal-frame" role="dialog" aria-modal="true" aria-label="신규등록 상세">
+                    <section className="wa-action-confirm-frame" role="dialog" aria-modal="true" aria-label="신규등록 신청 확인">
+                        <header className="wa-action-confirm-header">
+                            <strong>신규등록 신청</strong>
+                            <button
+                                type="button"
+                                className="wa-request-modal-close"
+                                onClick={() => {
+                                    setShowRequestConfirm(false);
+                                    setRequestRows([]);
+                                }}
+                                aria-label="닫기"
+                                disabled={loading}
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
+                        <div className="wa-action-confirm-content">
+                            {requestRows.length}건 차량을 신규등록 신청하시겠습니까?
+                        </div>
+                        <footer className="wa-action-confirm-footer">
+                            <button
+                                type="button"
+                                className="wa-status-action outline"
+                                onClick={() => {
+                                    setShowRequestConfirm(false);
+                                    setRequestRows([]);
+                                }}
+                                disabled={loading}
+                            >
+                                취소
+                            </button>
+                            <button type="button" className="wa-status-action primary" onClick={handleRequestConfirm} disabled={loading}>
+                                신청
+                            </button>
+                        </footer>
+                    </section>
+                </div>
+            )}
+            {activeRequest && (
+
+				<div className={`wa-request-modal-backdrop ${isOverflow ? 'overflow' : ''}`}>
+					<section ref={frameRef}
+					    className="wa-request-modal-frame" role="dialog" aria-modal="true" aria-label="신규등록 상세"
+						>
                         <header className="wa-request-modal-header">
                             <div>
                                 <span>신규등록</span>

@@ -10,7 +10,7 @@ import { AgGridReact } from 'ag-grid-react';
 // 공통 컴포넌트
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
-import { gf, log, mapData, toast } from '../../utils/utils'; // 공통 유틸 함수
+import { gf, log, mapData} from '../../utils/utils'; // 공통 유틸 함수
 import CommonSelect from '../common/CommonSelect';	  // 콤보박스 세팅
 import NumberPlateModal from './NumPlateSelectModal'; // 번호판 모달
 import AddressSearchModal from '../common/AddressSearchModal';  // 주소검색 모달

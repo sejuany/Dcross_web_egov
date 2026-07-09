@@ -1,0 +1,586 @@
+/* =========================================================
+   WA CompanyManage
+   부모 프레임이 overflow를 막아도 이 화면 자체에서 스크롤되도록
+   wa-company-fixed-scroll을 최상위 스크롤 컨테이너로 사용한다.
+   ========================================================= */
+
+/* 강제 스크롤 컨테이너 */
+.wa-company-fixed-scroll {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--wa-topbar-height, 48px);
+    bottom: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    background: #edf3fa;
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+
+    z-index: 1;
+}
+
+/* 전체 페이지 */
+.wa-company-page {
+    width: min(1180px, calc(100vw - 40px));
+    margin: 24px auto 32px;
+    padding-bottom: 0;
+    box-sizing: border-box;
+}
+
+/* 상단 헤더 */
+.wa-company-header {
+    margin-bottom: 18px;
+    padding: 22px 26px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 20px;
+}
+
+.wa-company-eyebrow {
+    margin: 0 0 5px;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+}
+
+.wa-company-header h1 {
+    margin: 0;
+    color: #0f2f5f;
+    font-size: 26px;
+    font-weight: 900;
+    line-height: 1.15;
+}
+
+.wa-company-header p {
+    margin: 8px 0 0;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 700;
+}
+
+/* 공통 버튼 */
+.wa-company-actions,
+.wa-company-branch-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+.wa-company-actions button,
+.wa-company-branch-actions button {
+    height: 38px;
+    min-width: 88px;
+    padding: 0 13px;
+    border: none;
+    border-radius: 11px;
+    background: #0f2f5f;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.wa-company-branch-actions button.danger {
+    background: #ef4444;
+}
+
+.wa-company-actions button:hover,
+.wa-company-branch-actions button:hover {
+    filter: brightness(0.96);
+}
+
+.wa-company-actions button:disabled,
+.wa-company-branch-actions button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+    filter: none;
+}
+
+/* 카드 */
+.wa-company-card {
+    margin-bottom: 18px;
+    padding: 24px 26px;
+    border-radius: 20px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    box-shadow: 0 18px 45px rgba(15, 23, 42, 0.08);
+}
+
+.wa-company-card:last-child {
+    margin-bottom: 0;
+}
+
+/* 권한 없음 */
+.wa-company-no-auth {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.wa-company-no-auth h2 {
+    margin: 0;
+    color: #0f2f5f;
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.wa-company-no-auth p {
+    margin: 12px 0 0;
+    color: #64748b;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* 섹션 헤더 */
+.wa-company-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 18px;
+}
+
+.wa-company-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #0f2f5f;
+    margin-bottom: 16px;
+}
+
+.wa-company-section-header .wa-company-section-title {
+    margin-bottom: 0;
+}
+
+.wa-company-section-title h2 {
+    margin: 0;
+    font-size: 19px;
+    font-weight: 900;
+}
+
+/* =========================================================
+   회원사 정보
+   ========================================================= */
+
+.wa-company-info-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.wa-company-info-grid.compact {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+    gap: 12px;
+}
+
+.wa-company-info-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.wa-company-info-grid span,
+.wa-company-address-row span {
+    color: #334155;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.wa-company-info-grid input,
+.wa-company-address-box input {
+    width: 100%;
+    height: 40px;
+    border: 1px solid #dbe4ef;
+    border-radius: 10px;
+    padding: 0 13px;
+    color: #64748b;
+    background: #f1f5f9;
+    font-size: 14px;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+
+/* 회원사 주소 */
+.wa-company-address-row {
+    margin-top: 12px;
+}
+
+.wa-company-address-row label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+}
+
+.wa-company-address-box {
+    display: grid;
+    grid-template-columns: minmax(0, 1.6fr) minmax(0, 1.2fr) 100px;
+    gap: 10px;
+}
+
+/* =========================================================
+   지점 정보
+   ========================================================= */
+
+.wa-company-branch-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(420px, 0.8fr);
+    gap: 18px;
+    align-items: stretch;
+}
+
+/* 좌측 GRID */
+.wa-company-table-wrap {
+    border: 1px solid #dbe4ef;
+    border-radius: 14px;
+    background: #ffffff;
+    overflow-x: hidden;
+    overflow-y: auto;
+    min-height: 360px;
+    max-height: 430px;
+}
+
+.wa-company-table {
+    width: 100%;
+    min-width: 0;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+/* 컬럼 폭 */
+.wa-company-table th:nth-child(1),
+.wa-company-table td:nth-child(1) {
+    width: 70px;
+}
+
+.wa-company-table th:nth-child(2),
+.wa-company-table td:nth-child(2) {
+    width: auto;
+}
+
+.wa-company-table th:nth-child(3),
+.wa-company-table td:nth-child(3) {
+    width: 150px;
+}
+
+.wa-company-table th:nth-child(4),
+.wa-company-table td:nth-child(4),
+.wa-company-table th:nth-child(5),
+.wa-company-table td:nth-child(5) {
+    width: 90px;
+}
+
+.wa-company-table th,
+.wa-company-table td {
+    height: 44px;
+    padding: 8px 10px;
+    border-bottom: 1px solid #e2e8f0;
+    border-right: 1px solid #e2e8f0;
+    text-align: center;
+    font-size: 13px;
+    white-space: nowrap;
+    word-break: keep-all;
+    box-sizing: border-box;
+}
+
+.wa-company-table th:last-child,
+.wa-company-table td:last-child {
+    border-right: none;
+}
+
+.wa-company-table th {
+    background: #0f2f5f;
+    color: #ffffff;
+    font-weight: 900;
+}
+
+.wa-company-table tbody tr {
+    cursor: pointer;
+}
+
+.wa-company-table tbody tr:hover td {
+    background: #eef4ff;
+}
+
+.wa-company-table tbody tr.selected td {
+    background: #e7f0ff;
+    color: #0f2f5f;
+    font-weight: 800;
+}
+
+.wa-company-table td.text-left {
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-company-table .empty {
+    height: 120px;
+    color: #64748b;
+    background: #f8fafc;
+    font-weight: 800;
+}
+
+/* 우측 지점 상세정보 */
+.wa-company-branch-form {
+    border: 1px solid #d9e4f2;
+    border-radius: 18px;
+    padding: 20px;
+    background: #f8fbff;
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.75);
+    max-height: none;
+    overflow: visible;
+}
+
+.wa-company-branch-form h3 {
+    margin: 0 0 18px;
+    padding-bottom: 12px;
+    border-bottom: 1px solid #e2e8f0;
+    color: #0f2f5f;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.wa-company-form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.wa-company-form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.wa-company-form-grid label.wide {
+    grid-column: 1 / -1;
+}
+
+.wa-company-form-grid span {
+    color: #334155;
+    font-size: 12px;
+    font-weight: 900;
+    letter-spacing: -0.02em;
+}
+
+.wa-company-form-grid input,
+.wa-company-form-grid select {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #d7e2ef;
+    border-radius: 11px;
+    padding: 0 13px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+
+.wa-company-form-grid input[readonly] {
+    background: #eef3f8;
+    color: #64748b;
+}
+
+.wa-company-form-grid input:focus,
+.wa-company-form-grid select:focus {
+    border-color: #2f80ed;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.12);
+}
+
+.wa-company-branch-form input[name="BRANCH_ID"] {
+    color: #64748b;
+    font-weight: 800;
+}
+
+.wa-company-branch-form input[name="BRANCH_NM"] {
+    border-color: #bfd1e7;
+    font-weight: 900;
+}
+
+/* 주소검색 */
+.wa-company-address-search-row {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 96px;
+    gap: 8px;
+}
+
+.wa-company-address-search-row input {
+    width: 100%;
+    height: 42px;
+    border: 1px solid #d7e2ef;
+    border-radius: 11px;
+    padding: 0 13px;
+    background: #eef3f8;
+    color: #64748b;
+    font-size: 14px;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+
+.wa-company-address-search-row button {
+    height: 42px;
+    border: none;
+    border-radius: 11px;
+    background: #0f2f5f;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.wa-company-address-search-row button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+/* select 강조 */
+.wa-company-branch-form select[name="NEWCAR_YN"],
+.wa-company-branch-form select[name="USE_YN"] {
+    background: #ffffff;
+    font-weight: 900;
+}
+
+/* =========================================================
+   반응형
+   ========================================================= */
+
+@media (max-width: 1180px) {
+    .wa-company-info-grid.compact {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .wa-company-branch-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-company-table-wrap {
+        min-height: 0;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: visible;
+    }
+
+    .wa-company-table {
+        min-width: 620px;
+        table-layout: fixed;
+    }
+}
+
+@media (max-width: 1080px) {
+    .wa-company-info-grid,
+    .wa-company-info-grid.compact {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wa-company-address-box {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 720px) {
+    .wa-company-fixed-scroll {
+        top: var(--wa-topbar-height, 48px);
+    }
+
+    .wa-company-page {
+        width: calc(100vw - 24px);
+        margin: 16px auto 32px;
+        padding-bottom: 0;
+    }
+
+    .wa-company-header {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 20px;
+    }
+
+    .wa-company-section-header {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .wa-company-info-grid,
+    .wa-company-info-grid.compact,
+    .wa-company-form-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-company-form-grid label.wide {
+        grid-column: auto;
+    }
+
+    .wa-company-address-box {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-company-branch-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        width: 100%;
+    }
+
+    .wa-company-branch-actions button {
+        width: 100%;
+        min-width: 0;
+        justify-content: center;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .wa-company-branch-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-company-table-wrap {
+        width: 100%;
+        min-height: 0;
+        max-height: none;
+        overflow-x: auto;
+        overflow-y: visible;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .wa-company-table {
+        min-width: 620px;
+        table-layout: fixed;
+    }
+
+    .wa-company-table th,
+    .wa-company-table td {
+        height: 42px;
+        padding: 8px 10px;
+        font-size: 13px;
+        white-space: nowrap;
+        word-break: keep-all;
+    }
+
+    .wa-company-address-search-row {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-company-branch-form {
+        padding: 18px;
+    }
+}

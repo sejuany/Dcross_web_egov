@@ -40,6 +40,21 @@ public class PaymentController {
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
+    /** WA 납부현황 조회 - POST /api/payment/wa-list */
+    @PostMapping("/payment/wa-list")
+    public ResponseEntity<Map<String, Object>> getWaPayInfoList(@RequestBody PaymentSearchRequest request) {
+        logger.info("[PaymentController] WA 납부현황 조회 요청");
+        List<Map<String, Object>> list = paymentService.getWaPayInfoList(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    /** WA 납부현황 담당SP 조회 - POST /api/payment/wa/member-list */
+    @PostMapping("/payment/wa/member-list")
+    public ResponseEntity<Map<String, Object>> getWaPayMemberList(@RequestBody PaymentSearchRequest request) {
+        logger.info("[PaymentController] WA 납부현황 담당SP 조회 요청");
+        List<Map<String, Object>> list = paymentService.getWaPayMemberList(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
     /** 통합가상계좌 조회 - POST /api/payment/tvbank/list */
     @PostMapping("/payment/tvbank/list")
     public ResponseEntity<Map<String, Object>> getTvbankList(@RequestBody PaymentSearchRequest request) {
