@@ -1,8 +1,9 @@
 .company-manage-page {
-    width: 100%;
-    min-height: 100%;
-    padding: 18px 22px 30px;
-    background: #f4f7fb;
+    width: min(1280px, calc(100vw - 56px));
+    min-height: auto;
+    margin: 22px auto 36px;
+    padding: 0;
+    background: transparent;
     box-sizing: border-box;
 }
 
@@ -307,9 +308,17 @@
     }
 }
 
+@media (max-width: 1180px) {
+    .company-manage-page {
+        width: calc(100vw - 40px);
+    }
+}
+
 @media (max-width: 860px) {
     .company-manage-page {
-        padding: 14px;
+        width: calc(100vw - 24px);
+        margin: 16px auto 32px;
+        padding: 0;
     }
 
     .company-manage-toolbar-left {

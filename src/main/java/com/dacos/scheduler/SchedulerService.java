@@ -59,9 +59,11 @@ public class SchedulerService {
                 if (target.getCOMPANY_ID() != null && target.getCOMPANY_ID().substring(0,2).equals("WA")) {
                      if (target.getCOMPANY_ID().equals("WA001")) {
                             smsText = "안녕하세요. 폴스타코리아 온라인 대행업체입니다.\n"
-                            + safeValue(target.getCAR_NO()) + "차량의 신규등록이 접수되었습니다.\n\n"
+                            + safeValue(target.getCAR_NO()) + "차량의 등록이 접수되었으며 고객님께서 동의하신 내용 중 중요한 내용을 다시 한번 안내 해 드립니다.\n아래의 내용을 반드시 확인하시기 바랍니다.\n\n"
+                            + "· 취득세 감면 조건 위반 등으로 인한 추징 안내.\n감면 조건위반 등으로 추후 추징 대상이 될 경우 감면된 지방세를 징수하며, 추징금 발생 60일 이내 지자체에 미신고 시 별도의 가산세가 부과됩니다.\n\n"
+                            + "저공해 등록 정보는 신규등록 완료 후 확인 가능하니 참고하시기 바랍니다.\n\n"
                             + "※ 본 발신번호는 발신전용으로 전화 및 문자 수신이 불가합니다. 관련 문의 사항은 담당 스페셜리스트에게 연락 바랍니다."
-                            + (isBlank(specialistPhone) ? "" : "\n연락처 : " + specialistPhone);    
+                            + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 연락처 : " + specialistPhone);    
                      }
                      else {
                         smsText = "안녕하세요. 신규등록 온라인 대행업체입니다.\n"
@@ -116,7 +118,7 @@ public class SchedulerService {
     }
 
     public int processTodayNewcarNonPayed() {
-        // 내일 등록예정인 건들 중에서 15:30분 이후에도 입금이 안된 건들을 조회
+        // 내일 등록예정인 건들 중에서 15:00분 이후에도 입금이 안된 건들을 조회
         try {
             List<SchedulerDto> targetList = schedulerMapper.selectNewcarNonPayedServices();
 

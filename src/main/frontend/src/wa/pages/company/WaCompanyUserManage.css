@@ -1,0 +1,838 @@
+/* =========================================================
+   WA Company User Manage
+   Desktop admin UI - cleaned version
+   ========================================================= */
+
+.wum-fixed-scroll {
+    position: fixed;
+    left: 0;
+    right: 0;
+    top: var(--wa-topbar-height, 48px);
+    bottom: 0;
+
+    overflow-y: auto;
+    overflow-x: hidden;
+
+    background: linear-gradient(180deg, #edf4fb 0%, #e8f0f8 100%);
+    box-sizing: border-box;
+    -webkit-overflow-scrolling: touch;
+    z-index: 1;
+}
+
+.wum-page {
+    width: min(1280px, calc(100vw - 56px));
+    margin: 22px auto 36px;
+    box-sizing: border-box;
+}
+
+/* =========================================================
+   Header / Card
+   ========================================================= */
+
+.wum-header-card,
+.wum-card {
+    margin-bottom: 18px;
+    border-radius: 18px;
+    background: #ffffff;
+    border: 1px solid #dbe5f0;
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.07);
+}
+
+.wum-header-card {
+    min-height: 92px;
+    padding: 20px 24px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 18px;
+}
+
+.wum-card {
+    padding: 24px 26px;
+}
+
+.wum-eyebrow {
+    margin: 0 0 4px;
+    color: #64748b;
+    font-size: 11px;
+    font-weight: 900;
+    letter-spacing: 0.13em;
+    text-transform: uppercase;
+}
+
+.wum-header-card h1 {
+    margin: 0;
+    color: #0f2f5f;
+    font-size: 25px;
+    font-weight: 900;
+    line-height: 1.1;
+}
+
+.wum-header-card p {
+    margin: 7px 0 0;
+    color: #64748b;
+    font-size: 13px;
+    font-weight: 700;
+}
+
+.wum-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: nowrap;
+}
+
+.wum-header-actions button {
+    height: 38px;
+    min-width: 82px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 9px;
+    background: #0f2f5f;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    cursor: pointer;
+    white-space: nowrap;
+}
+
+.wum-header-actions button:hover {
+    background: #143b75;
+}
+
+/* 권한 없음 */
+.wum-no-auth {
+    min-height: 220px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    text-align: center;
+}
+
+.wum-no-auth h2 {
+    margin: 0;
+    color: #0f2f5f;
+    font-size: 24px;
+    font-weight: 900;
+}
+
+.wum-no-auth p {
+    margin: 12px 0 0;
+    color: #64748b;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+/* =========================================================
+   Section Title
+   ========================================================= */
+
+.wum-section-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 16px;
+    margin-bottom: 14px;
+}
+
+.wum-section-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #0f2f5f;
+    margin-bottom: 16px;
+}
+
+.wum-section-header .wum-section-title {
+    margin-bottom: 0;
+}
+
+.wum-section-title h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 900;
+}
+
+.wum-section-title em {
+    margin-left: 2px;
+    color: #64748b;
+    font-size: 13px;
+    font-style: normal;
+    font-weight: 900;
+}
+
+/* =========================================================
+   Search Area
+   1행: SPACE / 회원명 / 신청일자
+   2행: 사용여부 / 업무권한 같은 줄
+   ========================================================= */
+
+.wum-search-grid {
+    display: grid;
+    grid-template-columns: 1.15fr 1fr 1.55fr;
+    gap: 16px 22px;
+    align-items: end;
+}
+
+.wum-search-grid > label,
+.wum-search-radio {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+.wum-search-grid span,
+.wum-search-radio > span,
+.wum-detail-grid span,
+.wum-detail-radio > span {
+    color: #26364a;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.wum-search-grid input,
+.wum-search-grid select,
+.wum-detail-grid input,
+.wum-detail-grid select {
+    width: 100%;
+    height: 40px;
+    border: 1px solid #d4dfeb;
+    border-radius: 9px;
+    padding: 0 12px;
+    background: #ffffff;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 700;
+    box-sizing: border-box;
+}
+
+.wum-search-grid input:focus,
+.wum-search-grid select:focus,
+.wum-detail-grid input:focus,
+.wum-detail-grid select:focus {
+    border-color: #2f80ed;
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 128, 237, 0.13);
+}
+
+.wum-date-range {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 18px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
+}
+
+.wum-date-range em {
+    color: #64748b;
+    font-style: normal;
+    font-weight: 900;
+    text-align: center;
+}
+
+/* 검색조건 2행: 사용여부 + 업무권한을 같은 줄 */
+.wum-search-use-filter {
+    grid-column: 1 / 2;
+}
+
+.wum-search-role-filter {
+    grid-column: 2 / 4;
+}
+
+.wum-search-use-filter .wum-radio-group,
+.wum-search-role-filter .wum-radio-group {
+    flex-wrap: nowrap;
+}
+
+.wum-search-use-filter .wum-radio-group label {
+    min-width: 64px;
+}
+
+.wum-search-role-filter .wum-radio-group label {
+    min-width: 72px;
+}
+
+/* =========================================================
+   Radio Group
+   칸 안에 동그라미가 보이는 버튼형 라디오
+   ========================================================= */
+
+.wum-radio-group {
+    min-height: 34px;
+    display: flex;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.wum-radio-group > label {
+    height: 32px;
+    min-width: 74px;
+    padding: 0 12px;
+    border: 1px solid #cfdced;
+    border-radius: 8px;
+    background: #ffffff;
+
+    display: inline-flex;
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+
+    color: #24364d;
+    font-size: 13px;
+    font-weight: 800;
+    line-height: 1;
+    white-space: nowrap;
+    cursor: pointer;
+    box-sizing: border-box;
+
+    transition: background-color 0.15s ease, border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.wum-radio-group > label:hover {
+    border-color: #93b7e7;
+    background: #f7fbff;
+}
+
+.wum-radio-group > label input[type="radio"] {
+    appearance: auto;
+    -webkit-appearance: radio;
+
+    position: static;
+    display: inline-block;
+    opacity: 1;
+    pointer-events: auto;
+
+    width: 14px;
+    height: 14px;
+    margin: 0;
+    flex: 0 0 14px;
+
+    accent-color: #0f2f5f;
+    cursor: pointer;
+}
+
+.wum-radio-group > label span {
+    display: inline-flex;
+    align-items: center;
+    color: inherit;
+    font-size: inherit;
+    font-weight: inherit;
+    line-height: 1;
+}
+
+.wum-radio-group > label:has(input:checked) {
+    border-color: #0f2f5f;
+    background: #eef4ff;
+    color: #0f2f5f;
+    box-shadow: inset 0 0 0 1px rgba(15, 47, 95, 0.12);
+}
+
+.wum-radio-group > label:has(input:disabled) {
+    opacity: 0.5;
+    background: #f1f5f9;
+    cursor: not-allowed;
+}
+
+.wum-radio-group > label:has(input:disabled) input {
+    cursor: not-allowed;
+}
+
+.wum-search-radio .wum-radio-group > label {
+    min-width: 64px;
+    height: 32px;
+    font-size: 12px;
+}
+
+/* =========================================================
+   AG Grid
+   ========================================================= */
+
+.wum-ag-grid-wrap {
+    width: 100%;
+    height: 320px;
+    border: 1px solid #d4dfeb;
+    border-radius: 13px;
+    overflow: hidden;
+    background: #ffffff;
+}
+
+.wum-ag-grid-wrap .ag-root-wrapper {
+    width: 100%;
+    border: none;
+}
+
+.wum-ag-grid-wrap .ag-header {
+    background: #0f2f5f;
+    border-bottom: 1px solid #0b2347;
+}
+
+.wum-ag-grid-wrap .ag-header-cell {
+    background: #0f2f5f;
+    color: #ffffff;
+    font-weight: 900;
+    font-size: 13px;
+    border-right: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.wum-ag-grid-wrap .ag-header-cell-label {
+    justify-content: center;
+}
+
+.wum-ag-grid-wrap .ag-row {
+    font-size: 13px;
+    color: #0f172a;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.wum-ag-grid-wrap .ag-row-even {
+    background: #ffffff;
+}
+
+.wum-ag-grid-wrap .ag-row-odd {
+    background: #f8fafc;
+}
+
+.wum-ag-grid-wrap .ag-row-hover {
+    background: #eef4ff !important;
+}
+
+.wum-ag-grid-wrap .ag-row-selected {
+    background: #dbeafe !important;
+}
+
+.wum-ag-grid-wrap .ag-cell {
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #e2e8f0;
+    padding-left: 10px;
+    padding-right: 10px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wum-ag-center {
+    justify-content: center;
+    text-align: center;
+}
+
+.wum-ag-status {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 44px;
+    height: 22px;
+    padding: 0 8px;
+    border-radius: 999px;
+    font-size: 12px;
+    font-weight: 900;
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.wum-ag-status.status-Y {
+    background: #d9fff1;
+    color: #047857;
+}
+
+.wum-ag-status.status-N {
+    background: #ffe4e6;
+    color: #be123c;
+}
+
+.wum-ag-status.status-W {
+    background: #fff4d6;
+    color: #a16207;
+}
+
+.wum-ag-status.status-R {
+    background: #fee2e2;
+    color: #991b1b;
+}
+
+.wum-ag-empty {
+    color: #64748b;
+    font-weight: 800;
+}
+
+/* =========================================================
+   Detail Area
+   ========================================================= */
+
+.wum-detail-grid {
+    display: grid;
+    grid-template-columns: repeat(12, minmax(0, 1fr));
+    gap: 16px 18px;
+    align-items: start;
+}
+
+.wum-detail-grid > label,
+.wum-detail-radio {
+    display: flex;
+    flex-direction: column;
+    gap: 7px;
+    min-width: 0;
+}
+
+/* 1행: 사용자ID / 성명 / 전화번호 / 휴대폰번호 */
+.wum-detail-grid > label:nth-of-type(1),
+.wum-detail-grid > label:nth-of-type(2),
+.wum-detail-grid > label:nth-of-type(3),
+.wum-detail-grid > label:nth-of-type(4) {
+    grid-column: span 3;
+}
+
+/* 2행: 이메일 + 업무권한 */
+.wum-detail-grid > label:nth-of-type(5) {
+    grid-column: span 6;
+}
+
+.wum-detail-grid > .wum-detail-radio:nth-of-type(1) {
+    grid-column: span 6;
+}
+
+/* 3행: 사용여부 / 인증구분 / 로그인 등록번호 */
+.wum-detail-grid > .wum-detail-radio:nth-of-type(2),
+.wum-detail-grid > .wum-detail-radio:nth-of-type(3),
+.wum-detail-grid > label:nth-of-type(6) {
+    grid-column: span 4;
+}
+
+.wum-detail-grid input,
+.wum-detail-grid select {
+    height: 42px;
+    border-radius: 9px;
+}
+
+.wum-detail-grid input[readonly],
+.wum-detail-grid input:disabled {
+    background: #eef3f8;
+    color: #64748b;
+    font-weight: 800;
+}
+
+/* 전화번호/휴대폰번호 수정 가능 필드 */
+.wum-detail-grid input[name="TEL_NO"],
+.wum-detail-grid input[name="MPHONE_NO"] {
+    background: #ffffff;
+    color: #0f172a;
+    font-weight: 800;
+}
+
+.wum-detail-grid input[name="TEL_NO"]:disabled,
+.wum-detail-grid input[name="MPHONE_NO"]:disabled {
+    background: #eef3f8;
+    color: #64748b;
+}
+
+/* 업무권한 패널 */
+.wum-detail-radio:nth-of-type(1) {
+    padding: 10px 12px;
+    border: 1px solid #edf2f7;
+    border-radius: 10px;
+    background: #fbfdff;
+}
+
+.wum-detail-radio:nth-of-type(1) > span {
+    margin-bottom: 6px;
+}
+
+/* 사용여부 / 인증구분 패널 */
+.wum-detail-radio:nth-of-type(2),
+.wum-detail-radio:nth-of-type(3) {
+    border: 1px solid #cfdced;
+    border-radius: 12px;
+    overflow: hidden;
+    background: #ffffff;
+    gap: 0;
+}
+
+.wum-detail-radio:nth-of-type(2) > span,
+.wum-detail-radio:nth-of-type(3) > span {
+    height: 38px;
+    margin: 0;
+    padding: 0 14px;
+    display: flex;
+    align-items: center;
+    background: #eef4ff;
+    border-bottom: 1px solid #cfdced;
+    color: #0f2f5f;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.wum-detail-radio:nth-of-type(2) .wum-radio-group,
+.wum-detail-radio:nth-of-type(3) .wum-radio-group {
+    min-height: 46px;
+    padding: 7px 10px;
+    background: #ffffff;
+}
+
+/* 로그인 등록번호 */
+.wum-regist-row {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.wum-regist-row input {
+    height: 42px;
+    text-align: center;
+}
+
+.wum-regist-row input:first-child {
+    width: 130px;
+    flex: none;
+}
+
+.wum-regist-row input:nth-child(3) {
+    width: 58px;
+    flex: none;
+}
+
+.wum-regist-row span {
+    color: #0f172a;
+    font-weight: 900;
+}
+
+.wum-regist-row em {
+    color: #0f2f5f;
+    font-style: normal;
+    font-weight: 900;
+    letter-spacing: 4px;
+}
+
+/* 패스워드 초기화 */
+.wum-password-action.wide {
+    grid-column: 1 / -1;
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding-top: 4px;
+}
+
+.wum-password-action button {
+    height: 38px;
+    padding: 0 14px;
+    border: none;
+    border-radius: 9px;
+    background: #0f2f5f;
+    color: #ffffff;
+    font-size: 13px;
+    font-weight: 900;
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    cursor: pointer;
+}
+
+.wum-password-action button:hover {
+    background: #143b75;
+}
+
+.wum-password-action button:disabled {
+    background: #94a3b8;
+    cursor: not-allowed;
+}
+
+.wum-password-action p {
+    margin: 0;
+    color: #64748b;
+    font-size: 12px;
+    font-weight: 700;
+    line-height: 1.35;
+}
+
+/* =========================================================
+   Work Permission
+   ========================================================= */
+
+.wum-work-grid {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(220px, 1fr));
+    gap: 12px;
+}
+
+.wum-work-grid.single {
+    display: grid;
+    grid-template-columns: minmax(420px, 560px);
+    justify-content: start;
+}
+
+.wum-work-card {
+    border-radius: 12px;
+    border: 1px solid #cfdced;
+    background: #ffffff;
+    overflow: hidden;
+}
+
+.wum-work-card.disabled {
+    opacity: 0.55;
+}
+
+.wum-work-title {
+    height: 42px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #eef4ff;
+    border-bottom: 1px solid #cfdced;
+    color: #0f2f5f;
+    font-size: 15px;
+    font-weight: 900;
+}
+
+.wum-work-line {
+    display: grid;
+    grid-template-columns: 72px minmax(0, 1fr);
+    min-height: 46px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.wum-work-line:last-child {
+    border-bottom: none;
+}
+
+.wum-work-line > label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #f8fafc;
+    border-right: 1px solid #e2e8f0;
+    color: #26364a;
+    font-size: 13px;
+    font-weight: 900;
+}
+
+.wum-work-line .wum-radio-group {
+    padding: 7px 10px;
+}
+
+.wum-work-line .wum-radio-group > label {
+    min-width: 72px;
+    height: 32px;
+    font-size: 13px;
+}
+
+/* =========================================================
+   Responsive
+   ========================================================= */
+
+@media (max-width: 1180px) {
+    .wum-page {
+        width: calc(100vw - 40px);
+    }
+
+    .wum-search-grid {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .wum-search-use-filter,
+    .wum-search-role-filter {
+        grid-column: span 1;
+    }
+
+    .wum-search-use-filter .wum-radio-group,
+    .wum-search-role-filter .wum-radio-group {
+        flex-wrap: wrap;
+    }
+
+    .wum-detail-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wum-detail-grid > label:nth-of-type(1),
+    .wum-detail-grid > label:nth-of-type(2),
+    .wum-detail-grid > label:nth-of-type(3),
+    .wum-detail-grid > label:nth-of-type(4),
+    .wum-detail-grid > label:nth-of-type(5),
+    .wum-detail-grid > label:nth-of-type(6),
+    .wum-detail-grid > .wum-detail-radio:nth-of-type(1),
+    .wum-detail-grid > .wum-detail-radio:nth-of-type(2),
+    .wum-detail-grid > .wum-detail-radio:nth-of-type(3),
+    .wum-password-action.wide {
+        grid-column: span 1;
+    }
+
+    .wum-work-grid,
+    .wum-work-grid.single {
+        grid-template-columns: 1fr;
+    }
+}
+
+@media (max-width: 780px) {
+    .wum-page {
+        width: calc(100vw - 24px);
+        margin: 16px auto 32px;
+    }
+
+    .wum-header-card {
+        flex-direction: column;
+        align-items: stretch;
+        padding: 20px;
+    }
+
+    .wum-header-actions {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+
+    .wum-header-actions button {
+        width: 100%;
+        min-width: 0;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+
+    .wum-search-grid,
+    .wum-detail-grid,
+    .wum-work-grid,
+    .wum-work-grid.single {
+        grid-template-columns: 1fr;
+    }
+
+    .wum-search-use-filter,
+    .wum-search-role-filter,
+    .wum-detail-grid > label:nth-of-type(1),
+    .wum-detail-grid > label:nth-of-type(2),
+    .wum-detail-grid > label:nth-of-type(3),
+    .wum-detail-grid > label:nth-of-type(4),
+    .wum-detail-grid > label:nth-of-type(5),
+    .wum-detail-grid > label:nth-of-type(6),
+    .wum-detail-grid > .wum-detail-radio:nth-of-type(1),
+    .wum-detail-grid > .wum-detail-radio:nth-of-type(2),
+    .wum-detail-grid > .wum-detail-radio:nth-of-type(3),
+    .wum-password-action.wide {
+        grid-column: auto;
+    }
+
+    .wum-date-range {
+        grid-template-columns: 1fr;
+    }
+
+    .wum-date-range em {
+        display: none;
+    }
+
+    .wum-ag-grid-wrap {
+        height: 340px;
+        overflow-x: auto;
+    }
+
+    .wum-regist-row {
+        flex-wrap: wrap;
+        height: auto;
+    }
+
+    .wum-password-action.wide {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+}

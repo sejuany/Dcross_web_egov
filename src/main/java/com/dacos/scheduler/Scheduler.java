@@ -28,7 +28,7 @@ public class Scheduler {
         runTodayNewcarWaitingServices("scheduled");
     }
 
-    @Scheduled(cron = "0 30 15 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 15 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarNonPayed() {
         runTodayNewcarNonPayed("scheduled");
     }

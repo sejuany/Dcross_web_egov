@@ -9,6 +9,7 @@ import WaNewcarList from './pages/WaNewcarList';
 import WaPayInfo from './pages/WaPayInfo';
 import WaPaymentReceipt from './pages/newcar/WaPaymentReceipt';
 import WaCompanyManage from './pages/company/WaCompanyManage';
+import WaCompanyUserManage from './pages/company/WaCompanyUserManage';
 
 const WaRoutes = () => (
     <Routes>
@@ -35,6 +36,7 @@ const WaRoutes = () => (
             <Route path="newcar-status" element={<WaNewcarList />} />
             <Route path="payment-status" element={<WaPayInfo />} />
 			<Route path="company-manage" element={<WaCompanyManage />} />
+			<Route path="company-user-manage" element={<WaCompanyUserManage />} />
             <Route path="*" element={<Navigate replace to="newcar-status" />} />
         </Route>
     </Routes>
