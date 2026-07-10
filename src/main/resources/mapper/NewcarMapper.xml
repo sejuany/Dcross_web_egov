@@ -628,6 +628,57 @@
 		  FROM TR_ENUM_QUEUE
 		 WHERE SERVICE_ID = #{SERVICE_ID};
 	</select>
+	
+	<!-- ============================================================ -->
+    <!-- WA 신규등록 첨부파일 조회                                    -->
+    <!-- ============================================================ -->
+    <select id="getWaNewcarAttachFiles" parameterType="java.util.Map" resultType="java.util.Map">
+        SELECT
+               SERVICE_ID,
+               ATCHFILEPATH_NM,
+               ATCHFILE_NM,
+               SEQ,
+               ATCHSVRFILE_NM,
+               GUBUN,
+               INS_USER,
+               TO_CHAR(INS_DATE, 'YYYY-MM-DD HH24:MI:SS') AS INS_DATE,
+               UPD_USER,
+               TO_CHAR(UPD_DATE, 'YYYY-MM-DD HH24:MI:SS') AS UPD_DATE
+          FROM TR_ATTACH_FILE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND GUBUN = #{GUBUN}
+           AND SEQ IN ('0', '1', '2', '3')
+         ORDER BY TO_NUMBER(SEQ)
+    </select>
+	
+	<!-- ============================================================ -->
+    <!-- WA 신규등록 첨부파일 등록                                    -->
+    <!-- ============================================================ -->
+    <insert id="insertWaNewcarAttachFile" parameterType="java.util.Map">
+        INSERT INTO TR_ATTACH_FILE (
+               SERVICE_ID,
+               ATCHFILEPATH_NM,
+               ATCHFILE_NM,
+               SEQ,
+               ATCHSVRFILE_NM,
+               GUBUN,
+               INS_USER,
+               INS_DATE,
+               UPD_USER,
+               UPD_DATE
+        ) VALUES (
+               #{SERVICE_ID},
+               #{ATCHFILEPATH_NM},
+               #{ATCHFILE_NM},
+               #{SEQ},
+               #{ATCHSVRFILE_NM},
+               #{GUBUN},
+               #{INS_USER},
+               SYSDATE,
+               #{UPD_USER},
+               SYSDATE
+        )
+    </insert>
 
 	<!-- 신규등록 신청 -->
 	<insert id="insertTrNewCar" parameterType="java.util.Map">
@@ -735,6 +786,9 @@
 			</if>
 			<if test="BIZ_NO != null">
 	            BIZ_NO = #{BIZ_NO},
+			</if>
+			<if test="CAR_NM != null">
+	            CAR_NM = #{CAR_NM},
 			</if>
 			<if test="OWNER_NM != null">
 	            OWNER_NM = #{OWNER_NM},
@@ -978,4 +1032,14 @@
 	    DELETE FROM TR_TAX_RECEIPT
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</delete>
+    <!-- ============================================================ -->
+    <!-- WA 신규등록 첨부파일 삭제                                    -->
+    <!-- ============================================================ -->
+    <delete id="deleteWaNewcarAttachFile" parameterType="java.util.Map">
+        DELETE FROM TR_ATTACH_FILE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND GUBUN = #{GUBUN}
+           AND SEQ = #{SEQ}
+    </delete>	
+
 </mapper>

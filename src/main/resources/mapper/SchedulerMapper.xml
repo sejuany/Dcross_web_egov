@@ -62,6 +62,22 @@
           AND TS.WORK_CD = '010'
     </select>
 
+    <select id="selectNewcarCardNonPayedServices" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT TS.SERVICE_ID, TS.CAR_NO, TS.PROC_ST, TS.JUDGE_ST, TS.COMPANY_ID, TN.REGIST_DATE, TS.MEMBER_ID, TCD.CUSTOMER_NM, PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO, TP.VBANK_NO AS ACQ_VBANK_NO, TP.PAY_AMT AS ACQ_PAY_AMT
+        FROM TR_SERVICE TS, TR_NEWCAR TN, TR_CARNO_DETACH TCD, TR_PAYMENT TP
+        WHERE TS.SERVICE_ID = TN.SERVICE_ID
+          AND TS.SERVICE_ID = TCD.SERVICE_ID
+          AND TCD.SERVICE_ID = TP.SERVICE_ID
+          AND TS.PROC_ST NOT IN ('RET', 'DEL', 'END', 'D_CON', 'A_RET', 'P_RET')
+          AND TN.CARD_YN = 'Y'
+          AND TN.CARD_PAY_YN = 'N'
+          AND TO_CHAR(TN.REGIST_DATE,'YYYYMMDD') = TO_CHAR(SYSDATE, 'YYYYMMDD')
+          AND TS.WORK_CD = '010'
+          AND TP.PAY_KD = 'ACQ' 
+          AND TP.VBANK_NO IS NOT NULL
+          AND TP.PAY_AMT != 0
+    </select>
+
     <select id="selectMemberInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT MEMBER_NM, COMPANY_ID, BRACNH_ID, MEMBER_GB, TEL_NO, MPHONE_NO FROM TM_MEMBER_DT WHERE MEMBER_ID = #{MEMBER_ID}    
     </select>

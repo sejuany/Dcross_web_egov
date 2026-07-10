@@ -25,4 +25,6 @@ public class SchedulerDto {
     private Date REGIST_DATE;
     private String SPECIALIST_NM;
     private String SPECIALIST_HP_NO;
+    private String ACQ_VBANK_NO;
+    private String ACQ_PAY_AMT;
 }

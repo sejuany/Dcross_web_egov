@@ -61,4 +61,13 @@ public interface NewcarMapper {
 	void createSms(Map<String, Object> param);
 	
 	int updateBpayYn(Map<String, Object> param);
+	
+	/** WA 신규등록 첨부파일 조회 */
+	List<Map<String, Object>> getWaNewcarAttachFiles(Map<String, Object> param);
+
+	/** WA 신규등록 첨부파일 기존 건 삭제 */
+	int deleteWaNewcarAttachFile(Map<String, Object> param);
+
+	/** WA 신규등록 첨부파일 등록 */
+	int insertWaNewcarAttachFile(Map<String, Object> param);
 }

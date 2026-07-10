@@ -31,6 +31,7 @@ public class Scheduler {
     @Scheduled(cron = "0 0 15 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarNonPayed() {
         runTodayNewcarNonPayed("scheduled");
+        runTodayNewcarCardNonPayed("scheduled");
     }
 
     @GetMapping("/newcar/waiting-services/run")
@@ -82,6 +83,17 @@ public class Scheduler {
             updateCount
         );
         return updateCount;
+    }
+
+    private int runTodayNewcarCardNonPayed(String triggerType) {
+    	logger.info("[Scheduler] 카드납부미완료건 처리 start - triggerType: {}", triggerType);
+    	int updateCount = schedulerService.processTodayNewcarCardNonPayed();
+    	logger.info(
+    			"[Scheduler] 카드납부미완료건 처리 완료 - triggerType: {}, updateCount: {}",
+    			triggerType,
+    			updateCount
+    			);
+    	return updateCount;
     }
 
     private Map<String, Object> createResult(String jobName, int updateCount) {

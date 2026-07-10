@@ -488,6 +488,10 @@
 
 }
 
+.inline-p {
+	display: inline;
+}
+
 .wa-field input,
 .wa-field select,
 .wa-field textarea,

@@ -215,7 +215,7 @@
     border: 0;
     border-radius: 12px;
 
-    background: var(--wa-blue);
+    background: #4f8cff;
     color: #fff;
 
     font-size: 14px;
@@ -377,15 +377,17 @@
 
 .wa-form-label{
     color:#222;
-
     font-size:15px;
     font-weight:700;
+        justify-self: end;
+    text-align: right;
 }
 
-.wa-form-label-wrap{
+.wa-form-label-wrap {
     display:flex;
-
     flex-direction:column;
+    align-items: flex-end;
+    text-align: right;
 }
 
 .wa-form-sub-label{
@@ -754,16 +756,18 @@ hr.wa-divider.hr2 {
 }
 
 .wa-number-btn {
+    display: flex;
+	justify-content: center;
+    align-items: center;
     flex: 1;
 
     height: 44px;
+    gap: 8px;
 
     border: 0;
-    border-radius: 12px;
-
-    background: var(--wa-blue);
+    border-radius: 8px;
+    background: #4f8cff;
     color: #fff;
-
     font-size: 15px;
     font-weight: 600;
 
@@ -940,9 +944,53 @@ hr.wa-divider.hr2 {
     line-height:1.6;
 }
 
+.wa-title.rent{
+	margin: 21px 0 30px 0;
+}
+.owner-corporate-info.rent{
+	padding: 50px 0px 60px 0;
+}
+.owner-corporate-text.rent {
+	font-size:16px;
+}
+
 .owner-corporate-text p{
     margin:0;
 }
+
+/* =========================================================
+ * 자동차 정보 페이지 CarInfo
+ * ========================================================= */
+ 
+.wa-radio-group{
+    display:flex;
+    width:100%;
+    gap:8px;
+}
+
+.wa-radio-btn{
+    flex:1;
+    height:42px;
+    border:1px solid #d5dbe5;
+    border-radius:8px;
+    background:#fff;
+    color:#555;
+    font-size:14px;
+    cursor:pointer;
+    transition:.15s;
+}
+
+.wa-radio-btn:hover{
+    border-color:#4f8cff;
+}
+
+.wa-radio-btn.active{
+    background:#4f8cff;
+    border-color:#4f8cff;
+    color:#fff;
+    font-weight:600;
+}
+
 
 /* =========================================================
  * Responsive
@@ -998,7 +1046,7 @@ hr.wa-divider.hr2 {
 }
 
 /* =========================================================
- * Newcar Info Step
+ * 자동차정보입력
  * ========================================================= */
 
 .wa-newcar-info-body {
@@ -1452,4 +1500,385 @@ hr.wa-divider.hr2 {
     .wa-payment-table th:nth-child(3) {
         width: 72px;
     }
+
+/* =========================================================
+   WA 신규등록 첨부서류 업로드 팝업
+   ========================================================= */
+
+.wa-attach-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10000;
+    background: rgba(15, 23, 42, 0.45);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
 }
+
+.wa-attach-modal {
+    width: min(760px, 94vw);
+    max-height: calc(100vh - 48px);
+    background: #ffffff;
+    border: 1px solid #0f2f5f;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.wa-attach-modal-header {
+    min-height: 32px;
+    padding: 6px 10px;
+    background: #0f2f5f;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.wa-attach-modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.wa-attach-modal-close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-attach-modal-body {
+    padding: 18px 20px 20px;
+    background: #ffffff;
+    overflow: auto;
+}
+
+.wa-attach-modal-body.single {
+    display: block;
+}
+
+.wa-attach-doc-section {
+    border: none;
+    background: #ffffff;
+}
+
+.wa-attach-doc-line {
+    display: grid;
+    grid-template-columns: 120px minmax(0, 1fr) 24px;
+    align-items: center;
+    min-height: 26px;
+    gap: 8px;
+    font-size: 13px;
+}
+
+.wa-attach-doc-line.sub {
+    grid-template-columns: 120px minmax(0, 1fr);
+    color: #475569;
+}
+
+.wa-attach-doc-line.sub.blue {
+    color: #1d4ed8;
+    font-weight: 800;
+}
+
+.wa-attach-doc-label {
+    color: #1d4ed8;
+    font-weight: 900;
+}
+
+.wa-attach-doc-state {
+    color: #64748b;
+    font-weight: 800;
+}
+
+.wa-attach-doc-check {
+    color: #2f80ed;
+    font-weight: 900;
+}
+
+.wa-attach-guide {
+    margin: 14px 0 10px;
+    color: #3b82f6;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.wa-attach-doc-grid {
+    display: grid;
+    grid-template-columns: repeat(5, minmax(92px, 1fr));
+    gap: 12px;
+    margin-bottom: 16px;
+}
+
+.wa-attach-doc-card {
+    min-width: 0;
+    text-align: center;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.wa-attach-doc-card input {
+    display: none;
+}
+
+.wa-attach-doc-thumb {
+    height: 78px;
+    border: 1px solid #e2e8f0;
+    background: #f8fafc;
+    color: #64748b;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-attach-doc-thumb.empty {
+    background: #f1f5f9;
+    color: #ffffff;
+    font-weight: 900;
+}
+
+.wa-attach-doc-card strong {
+    min-height: 28px;
+    color: #475569;
+    font-size: 11px;
+    line-height: 1.3;
+    font-weight: 800;
+}
+
+.wa-attach-file-btn {
+    height: 22px;
+    min-width: 54px;
+    margin: 0 auto;
+    padding: 0 10px;
+    border-radius: 5px;
+    background: #2f80ed;
+    color: #ffffff;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    font-weight: 900;
+}
+
+.wa-attach-link-btn {
+    width: min(420px, 100%);
+    height: 44px;
+    margin: 8px auto 0;
+    border: none;
+    border-radius: 10px;
+    background: #dbeafe;
+    color: #1d4ed8;
+    font-size: 13px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.wa-attach-link-btn:hover {
+    background: #cfe2ff;
+}
+
+/* =========================================================
+   WA 신규등록 문자발송 팝업
+   ========================================================= */
+
+.wa-sms-modal-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 10001;
+    background: rgba(15, 23, 42, 0.35);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    box-sizing: border-box;
+}
+
+.wa-sms-modal {
+    width: min(480px, 92vw);
+    background: #ffffff;
+    border: 1px solid #0f2f5f;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
+    overflow: hidden;
+}
+
+.wa-sms-modal-header {
+    min-height: 38px;
+    padding: 8px 10px;
+    background: #0f2f5f;
+    color: #ffffff;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+}
+
+.wa-sms-modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.wa-sms-modal-header p {
+    margin: 4px 0 0;
+    color: #dbeafe;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.wa-sms-modal-close {
+    width: 24px;
+    height: 24px;
+    border: none;
+    background: transparent;
+    color: #ffffff;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.wa-sms-modal-body {
+    padding: 18px;
+    background: #ffffff;
+}
+
+.wa-sms-phone-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin-bottom: 16px;
+}
+
+.wa-sms-phone-row input {
+    height: 36px;
+    border: 1px solid #d4dfeb;
+    border-radius: 6px;
+    text-align: center;
+    color: #0f172a;
+    font-size: 14px;
+    font-weight: 800;
+    box-sizing: border-box;
+}
+
+.wa-sms-phone-row input:nth-of-type(1) {
+    width: 82px;
+}
+
+.wa-sms-phone-row input:nth-of-type(2),
+.wa-sms-phone-row input:nth-of-type(3) {
+    width: 96px;
+}
+
+.wa-sms-phone-row span {
+    width: 10px;
+    color: #64748b;
+    text-align: center;
+    font-weight: 900;
+}
+
+.wa-sms-send-btn {
+    width: 100%;
+    height: 42px;
+    border: none;
+    border-radius: 7px;
+    background: #0f2f5f;
+    color: #ffffff;
+    font-size: 14px;
+    font-weight: 900;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.wa-sms-send-btn:hover {
+    background: #143b75;
+}
+
+@media (max-width: 760px) {
+    .wa-attach-modal {
+        width: 96vw;
+    }
+
+    .wa-attach-doc-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wa-sms-modal {
+        width: 94vw;
+    }
+
+    .wa-sms-phone-row {
+        gap: 6px;
+    }
+
+    .wa-sms-phone-row input:nth-of-type(1) {
+        width: 70px;
+    }
+
+    .wa-sms-phone-row input:nth-of-type(2),
+    .wa-sms-phone-row input:nth-of-type(3) {
+        width: 82px;
+    }
+}
+
+.wa-attach-doc-thumb {
+    border: 1px solid #dbe4ef;
+    cursor: pointer;
+    overflow: hidden;
+}
+
+.wa-attach-doc-thumb.has-file {
+    background: #ffffff;
+}
+
+.wa-attach-preview-img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+}
+
+.wa-attach-file-name {
+    display: block;
+    max-width: 100%;
+    min-height: 16px;
+    color: #334155;
+    font-size: 10px;
+    font-weight: 700;
+    line-height: 1.2;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-attach-file-btn:disabled {
+    background: #94a3b8;
+    cursor: wait;
+}
+
+.wa-attach-loading {
+    margin: 8px 0 10px;
+    padding: 8px 10px;
+    border-radius: 6px;
+    background: #eff6ff;
+    color: #1d4ed8;
+    font-size: 12px;
+    font-weight: 800;
+}>>>>>>> .r258

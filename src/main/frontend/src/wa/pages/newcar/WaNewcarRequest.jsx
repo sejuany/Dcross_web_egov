@@ -6,7 +6,7 @@ import React, { useEffect, useRef, useState } from 'react';
 
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, CarFront, ChevronLeft, FileText, LoaderCircle, UserRound } from 'lucide-react';
+import { CalendarDays, CarFront, ChevronLeft, FileText, LoaderCircle, UserRound, CircleAlert } from 'lucide-react';
 
 // 공통
 import { gf, log, mapData } from '../../../utils/utils';
@@ -40,6 +40,9 @@ import OwnerUserLease from './owner/OwnerUserLease';
 import OwnerRent from './owner/OwnerRent';
 // 상세 조회 화면
 import WaNewcarDetail from './WaNewcarDetail';
+// 첨부서류 모달
+import WaNewcarAttachModal from './WaNewcarAttachModal';
+import WaSendSmsModal from './WaSendSmsModal';
 
 // Style
 import '../../styles/wa.css';
@@ -101,7 +104,7 @@ const REQUIRED_FIELDS = [
 
 
 // 상세조회 화면 표시 대상 상태
-const DETAIL_PROC_STATUS = ['INPUT', 'REQ', 'S_REQ', 'RET', 'END'];
+const DETAIL_PROC_STATUS = ['REQ', 'S_REQ', 'RET', 'END'];
 // 신청 단계
 const REQUEST_STEPS = [ '소유자 정보 입력', '자동차 정보 입력', '신규등록 정보 입력', '최종 확인'];
 // 단계 제목
@@ -389,6 +392,9 @@ const WaNewcarRequest = ({
 
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
+	// 첨부서류 모달
+	const [attachModalOpen, setAttachModalOpen] = useState(false);
+	const [smsModalOpen, setSmsModalOpen] = useState(false);
 	
 	// 주소 기능 사용
 	const {
@@ -437,9 +443,9 @@ const WaNewcarRequest = ({
 	const current = hoverStep ?? step;
 	// 상세조회 화면 여부 = 상태가 DETAIL_PROC_STATUS에 포함되거나, JUDGE_ST가 빈값이 아닌 경우 
 	const isDetailPage = DETAIL_PROC_STATUS.includes(dsService.PROC_ST) || dsService.JUDGE_ST;
-	// 법인 또는 사업자인지 확인
-	const isCorp = dsNewCar.REG_GB === 'B' || dsNewCar.REG_GB === 'C';
-	
+	// 처리상태가 '입력'이고, 신규등록 구분이 '렌트'인 경우 특정 화면을 보여줌  
+	const isRentInput = dsService.PROC_ST === 'INPUT' && dsNewCar.TASK_CD === 'ADD';
+		
 /* =========================================================
  * Effect
  * ========================================================= */
@@ -484,6 +490,56 @@ const WaNewcarRequest = ({
 		
 	}, [serviceId]);
 	
+	// 다음 눌렀을 때 다음 단계로 이동하도록 함
+	const handleNext = async (e) => {
+	    e.preventDefault();
+
+		// 이미 렌트 안내 화면인 경우
+		if (isRentInput) {
+		    onClose();
+		    return;
+		}
+		
+		// 렌트 선택하고 확인 눌렀을 때
+	    if (purchaseType === 'RENT') {
+			
+			const confirm = await gf.confirm('렌트 차량은 직접등록 건으로 변경됩니다.\n계속 진행하시겠습니까?', '렌트 확인');
+			
+			if(!confirm) {
+				return;
+			}
+			
+			const newDsService = {
+			    ...dsService,
+			    PROC_ST: 'INPUT',
+			    JUDGE_ST: '',
+				TASK_CD: 'ADD'
+			};
+
+			await saveProcess(
+			    {...dsNewCar}, 'SAV', null, null, newDsService
+			);
+			
+			return;
+	    }
+
+	    switch (step) {
+	        case 1:
+	            setStep(2); // 자동차 정보 입력
+	            break;
+
+	        case 2:
+	            setStep(3); // 신규등록 정보 입력
+	            break;
+
+	        case 3:
+	            setStep(4); // 최종 확인
+	            break;
+
+	        default:
+	            break;
+	    }
+	};
 	
 	// 차량 구매 방식 정보 저장
 	const handlePurchaseTypeSelect = (option) => {
@@ -647,12 +703,8 @@ const WaNewcarRequest = ({
 		}
 	};
 	
-
+	// 주소 잘 저장 됐는지 확인 하는 용도 
 	useEffect(() => {
-	    console.log('dsNewCar 변경');
-		
-		console.log('IMSIGV_DT >>' + dsNewCar.IMSIGV_DT);
-		
 	    console.log({
 	        ADDRESS: dsNewCar.ADDRESS,
 	        ADDRESS_DT: dsNewCar.ADDRESS_DT,
@@ -675,7 +727,8 @@ const WaNewcarRequest = ({
 	    newDsNewCar = null,
 	    proc = "SAV",
 	    newDsPaymentList = null, // 사전조회 계산 결과 저장용
-		newDsOwnerInfo = null 	// 공동소유자 정보 저장용
+		newDsOwnerInfo = null, 	// 공동소유자 정보 저장용
+		newDsService = null
 	) => {
 		
 		const targetNewCar = newDsNewCar || dsNewCar;
@@ -689,8 +742,7 @@ const WaNewcarRequest = ({
 		// 저장 시 사용할 요청 데이터 생성
 		// 파라미터가 있으면 계산된 최신 데이터 사용
 		let newDataSet = {
-		    dsService: { ...dsService },
-
+		    dsService: newDsService ? { ...newDsService } : { ...dsService },
 		    dsNewCar: newDsNewCar ? { ...newDsNewCar } : { ...dsNewCar },
 			dsOwnerInfo: newDsOwnerInfo ? { ...newDsOwnerInfo } : { ...dsOwnerInfo },
 		    dsOwnerInfo1,
@@ -700,12 +752,24 @@ const WaNewcarRequest = ({
 		    dsPaymentList: newDsPaymentList ? [...newDsPaymentList] : [...dsPaymentList]
 		};
 		
+		// 법인번호판 대상이 아닌 경우
+		const isCorpNumplate =
+		    newDataSet.dsNewCar.REG_GB === 'B' &&
+		    Number(newDataSet.dsNewCar.BUY_AMT || 0) >= 80000000;
+
+		// 법인번호판이 아닌데 G 계열 번호판이면 필름(F)으로 변경
+		if (
+		    !isCorpNumplate &&
+		    String(newDataSet.dsNewCar.NUMPLATE_GB).includes('G')
+		) {
+		    newDataSet.dsNewCar.NUMPLATE_GB = 'F';
+		}
+		
 		// 숫자 데이터 하이픈(-), 쉼표(,) 등 제거 
 		newDataSet = formatNumberData(newDataSet); 
 		
 	    const { PROC_ST } = dsService;
 		const userGb = dsUserInfo.MEMBER_GB;
-		log("userGb : " + userGb);
 
 	    // 1. 일반 저장 상태 처리
 		// 입력, 등록요청, 신청대기, 저장일 때 저장 가능 
@@ -726,8 +790,6 @@ const WaNewcarRequest = ({
 	const processService = async (newDataSet, proc) => {
 
 	    try {
-
-			log(newDataSet);
 			
 	        // 저장 요청
 	        const res = await axios.post('/api/newcar/process', newDataSet);
@@ -884,9 +946,6 @@ const WaNewcarRequest = ({
 	        } = resData.data || {};
 
 	        setDsUserInfo(dsUserInfo);
-
-
-
 
 			// 회사별 기본값
 			// 적용 순서
@@ -1157,6 +1216,7 @@ const WaNewcarRequest = ({
 					</div>
 
 				</div>
+<<<<<<< .mine
 
 				<div className="wa-body">
 
@@ -1269,45 +1329,196 @@ const WaNewcarRequest = ({
 					}
 					
 				</div>
+||||||| .r251
+=======
+>>>>>>> .r258
 				
-				<div className="wa-form-actions">
 				
-					{step !== 1 && (
+				<div className="wa-body">
+					{isRentInput ? (
+					    <>
+					        <h2 className="wa-title rent">
+					            렌트 차량 안내
+					        </h2>
+	
+					        <div className="owner-corporate-box">
+					            <div className="owner-corporate-info rent">
+					                <CircleAlert
+					                    className="owner-corporate-icon"
+					                    size={24}
+					                />
+	
+					                <div className="owner-corporate-text rent">
+					                    <p>해당 차량은 렌트 차량입니다.</p>
+										<p>렌트 등록은 렌터카 회사로 문의하여 진행해 주시기 바랍니다.</p>
+					                </div>
+					            </div>
+					        </div>
+					    </>
+					) : (
+					    <>
+						{/* 현재 단계 제목 */}
+						<h2 className="wa-title">
+							{STEP_TITLES[step]}
+						</h2>
+	
+						{/* 단계별 내용 */}
+						{step === 1 && (
+							<>
+								<span className="wa-bold-span1">해당하는 차량 구매 방식을 선택해주세요.</span>
+								{/* 소유자 유형 */}
+								<div className="wa-owner-tabs" role="tablist" aria-label="소유자 유형">
+									{OWNER_TYPE_OPTIONS.map(option => (
+										<button
+											key={option.value}
+											type="button"
+											className={purchaseType === option.value ? 'active' : ''}
+											onClick={() => handlePurchaseTypeSelect(option)}
+										>
+											{option.label}
+										</button>
+									))}
+								</div>
+								{/* 소유자 정보 입력 */}
+								<div className="wa-form-body">
+	
+									{/* 현금/할부 */}
+									{purchaseType === 'NORMAL' &&
+										<OwnerNormal
+											dsNewCar={dsNewCar}
+										    dsCarNoDetach={dsCarNoDetach}
+											setDsNewCar={setDsNewCar}
+											dsOwnerInfo={dsOwnerInfo}
+											setDsOwnerInfo={setDsOwnerInfo}
+											handleChange={handleChange}
+											onSelect={handleAddressSelect}
+											onSameChange={handleSameAddress}
+											onClear={handleClearAddress}
+											saveProcess={saveProcess}
+										/>
+									}
+	
+									{/* 리스 */}
+									{purchaseType === 'LEASE' &&
+										<OwnerLease
+											dsNewCar={dsNewCar}
+											setDsNewCar={setDsNewCar}
+											dsCarNoDetach={dsCarNoDetach}
+											dsBaseList={dsBaseList}
+											setDsOwnerInfo={setDsOwnerInfo}
+											handleChange={handleChange}
+										/>
+									}
+	
+									{/* 이용자명의 리스 */}
+									{purchaseType === 'USER_LEASE' &&
+										<OwnerUserLease
+											dsNewCar={dsNewCar}
+											setDsNewCar={setDsNewCar}
+											dsCarNoDetach={dsCarNoDetach}
+											dsBaseList={dsBaseList}
+											setDsOwnerInfo={setDsOwnerInfo}
+											handleChange={handleChange}
+										/>}
+	
+									{/* 렌트 */}
+									{purchaseType === 'RENT' &&
+										<OwnerRent
+											dsNewCar={dsNewCar}
+											handleChange={handleChange}
+										/>
+									}
+									<hr className="wa-divider hr2" />
+								</div>
+							</>
+						)}
+	
+						{/* 번호판 정보 입력 */}
+						{step === 2 &&
+							<CarInfo
+								dsService={dsService}
+								dsNewCar={dsNewCar}
+								setDsNewCar={setDsNewCar}
+								dsCarNoDetach={dsCarNoDetach}
+								dsUserInfo={dsUserInfo}
+								handleChange={handleChange}
+								saveProcess={saveProcess}
+							/>
+						}
+	
+						{/* 신규등록 정보 */}
+						{step === 3 &&
+							<NewcarInfo
+								dsNewCar={dsNewCar}
+								dsPaymentList={dsPaymentList}
+								handleChange={handleChange}
+							/>
+						}
+	
+						{/* 최종 확인 */}
+						{step === 4 &&
+						    <ConfirmInfo
+						        dsNewCar={dsNewCar}
+						        onOpenAttachModal={() => setAttachModalOpen(true)}
+						    />
+						}
+						
+							</>
+						)}
+					</div>
+					
+					<div className="wa-form-actions">
+					
+						{step !== 1 && (
+							<button
+								type="button"
+								className="wa-action-btn wa-prev-btn"
+								disabled
+							>
+								<ChevronLeft size={16} strokeWidth={2.5} />
+								이전
+							</button>
+						)}
+					
 						<button
 							type="button"
-							className="wa-action-btn wa-prev-btn"
-							disabled
+							className="wa-action-btn wa-confirm-btn"
+							disabled={saving}
+							onClick={handleNext}
 						>
-							<ChevronLeft size={16} strokeWidth={2.5} />
-							이전
+							<span>
+								{purchaseType === 'RENT' ? '확인' : '다음'}
+							</span>
 						</button>
-					)}
-				
-					<button
-						type="submit"
-						className="wa-action-btn wa-confirm-btn"
-						disabled={saving}
-					>
-						<span>
-							{purchaseType === 'RENT' ? '확인' : '다음'}
-						</span>
-					</button>
-
-					{(step !== 4 &&
-						purchaseType !== 'RENT') &&	
-						 (
-						<button
-							type="button"
-							className="wa-action-btn wa-save-btn"
-							onClick={() => saveProcess()}
-						>
-							{saving ? <LoaderCircle size={18} className="wa-spin" /> : ''}
-							{saving ? '저장 중' : '저장'}
-						</button>
-					)}
-				
-				</div>
+	
+						{(step !== 4 &&
+							purchaseType !== 'RENT') &&	
+							 (
+							<button
+								type="button"
+								className="wa-action-btn wa-save-btn"
+								onClick={() => saveProcess()}
+							>
+								{saving ? <LoaderCircle size={18} className="wa-spin" /> : ''}
+								{saving ? '저장 중' : '저장'}
+							</button>
+						)}
+					
+					</div>
 			</div>
+			<WaNewcarAttachModal
+			    open={attachModalOpen}
+			    dsService={dsService}
+			    dsNewCar={dsNewCar}
+			    onClose={() => setAttachModalOpen(false)}
+			    onOpenSmsModal={() => setSmsModalOpen(true)}
+			/>
+
+			<WaSendSmsModal
+			    open={smsModalOpen}
+			    dsNewCar={dsNewCar}
+			    onClose={() => setSmsModalOpen(false)}
+			/>
 		</div>
 	);
 };

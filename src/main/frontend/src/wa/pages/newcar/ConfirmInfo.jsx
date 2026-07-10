@@ -1,7 +1,9 @@
 import React from 'react';
 import { ChevronRight, FileText } from 'lucide-react';
 
-const ConfirmInfo = () => {
+const ConfirmInfo = ({
+    onOpenAttachModal,
+}) => {
 
     return (
         <>
@@ -122,7 +124,11 @@ const ConfirmInfo = () => {
 		        </div>
 				
 				{/* 첨부 서류 */}
-				<button type="button" className="wa-attach-btn">
+				<button
+                    type="button"
+                    className="wa-attach-btn"
+                    onClick={onOpenAttachModal}
+                >
 				    <FileText size={18} />
 				    첨부 서류 업로드
 				</button>

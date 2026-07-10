@@ -1182,8 +1182,6 @@ const NewcarRequest = () => {
 
 				const dbData = gf.formatDateFields(data.data);
 				
-				console.log('DB PROC_ST =', dbData.dsService?.PROC_ST);
-
 				// 신규등록 데이터 매핑
 				const mappedNewCar = mapData(
 				    initialDsNewCar,
@@ -1203,9 +1201,6 @@ const NewcarRequest = () => {
 				    paymentList
 				);
 				
-
-				console.log('>>>DB paymentList', paymentList);
-				console.log('>>>>TNUM', paymentList.find(item => item.PAY_KD === 'TNUM'));
 				setDsPaymentList(result.dsPaymentList);
 
 				setDsService(
@@ -1232,7 +1227,6 @@ const NewcarRequest = () => {
 				loadedReceiptNoRef.current = receiptNo;
 				loadedDetailOpenKeyRef.current = detailOpenKey;
 				
-				console.log('DB PROC_ST', dbData.dsService.PROC_ST);
 	        }
 
 	    } catch (err) {
@@ -2354,7 +2348,8 @@ const NewcarRequest = () => {
 
 									<ErpField label="공급가액(VAT별도)" span={3} labelWidth="120px">
 										<div className="flex-row">
-											<input type="text" className="erp-input text-right" name="BUY_AMT" data-type="newcar" value={Number(dsNewCar.BUY_AMT || 0).toLocaleString()} onChange={handleChange} readOnly={isReadOnly()} />
+											<input type="text" className="erp-input text-right" name="BUY_AMT" 
+											data-type="newcar" value={Number(dsNewCar.BUY_AMT || 0).toLocaleString()} onChange={handleChange} readOnly={isReadOnly()} />
 										</div>
 									</ErpField>
 								</div>

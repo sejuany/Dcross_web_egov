@@ -25,6 +25,16 @@ import com.dacos.common.util.AuthUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 
 import jakarta.servlet.http.HttpSession;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 
 /**
  * 신차 등록 컨트롤러
@@ -298,6 +308,45 @@ public class NewcarController {
 	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
 	}
 	
+    /**
+     * WA 신규등록 첨부파일 조회
+     * GET /api/newcar/wa-attach-files?serviceId=...
+     */
+    @GetMapping("/wa-attach-files")
+    public ResponseEntity<Map<String, Object>> getWaNewcarAttachFiles(
+            @RequestParam("serviceId") String serviceId,
+            HttpSession session
+    ) {
+        logger.info("[NewcarController] WA 신규등록 첨부파일 조회 - serviceId: {}", serviceId);
+
+        AuthUtil.getLoginUser(session);
+
+        List<Map<String, Object>> list = newcarService.getWaNewcarAttachFiles(serviceId);
+
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    /**
+     * WA 신규등록 첨부파일 업로드
+     * POST /api/newcar/wa-attach-file
+     */
+    @PostMapping("/wa-attach-file")
+    public ResponseEntity<Map<String, Object>> uploadWaNewcarAttachFile(
+            @RequestParam("serviceId") String serviceId,
+            @RequestParam("seq") int seq,
+            @RequestParam("file") MultipartFile file,
+            HttpSession session
+    ) {
+        logger.info("[NewcarController] WA 신규등록 첨부파일 업로드 - serviceId: {}, seq: {}", serviceId, seq);
+
+        UserDto user = AuthUtil.getLoginUser(session);
+
+        List<Map<String, Object>> list =
+                newcarService.uploadWaNewcarAttachFile(serviceId, seq, file, user);
+
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+	
 	/**
 	 * 채권 및 영수증 조회
 	 * GET /api/newcar/bond-info/{serviceId}
@@ -336,6 +385,53 @@ public class NewcarController {
         }
 
         return result;
+    }
+    
+    
+    
+    /**
+     * WA 신규등록 첨부파일 보기
+     * GET /api/newcar/wa-attach-view?fileName=...
+     */
+    @GetMapping("/wa-attach-view")
+    public ResponseEntity<Resource> viewWaNewcarAttachFile(
+            @RequestParam("fileName") String fileName,
+            HttpSession session
+    ) throws Exception {
+
+        // 로그인 체크
+        AuthUtil.getLoginUser(session);
+
+        String cleanFileName = String.valueOf(fileName).trim();
+
+        if (cleanFileName.contains("..")
+                || cleanFileName.contains("/")
+                || cleanFileName.contains("\\")) {
+            throw new BusinessException("잘못된 파일명입니다.", 400);
+        }
+
+        Path filePath = newcarService.getWaAttachFilePath(cleanFileName);
+
+        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
+            throw new BusinessException("첨부파일을 찾을 수 없습니다.", 404);
+        }
+
+        Resource resource = new UrlResource(filePath.toUri());
+
+        String contentType = Files.probeContentType(filePath);
+
+        if (contentType == null || contentType.isBlank()) {
+            contentType = "application/octet-stream";
+        }
+
+        String encodedFileName = URLEncoder
+                .encode(cleanFileName, StandardCharsets.UTF_8)
+                .replace("+", "%20");
+
+        return ResponseEntity.ok()
+                .contentType(MediaType.parseMediaType(contentType))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
+                .body(resource);
     }
 }
 
