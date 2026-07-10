@@ -693,6 +693,10 @@ hr.wa-divider.hr2 {
     background: #eef2fa;
 }
 
+.wa-save-btn:hover {
+	color:#fff;
+}
+
 .wa-confirm-btn:hover:not(:disabled) {
     background: #2d61f0;
 }
@@ -990,5 +994,462 @@ hr.wa-divider.hr2 {
 
     .wa-form-actions{
         padding:0 14px 32px;
+    }
+}
+
+/* =========================================================
+ * Newcar Info Step
+ * ========================================================= */
+
+.wa-newcar-info-body {
+    padding-bottom: 4px;
+}
+
+.wa-info-section {
+    display: flex;
+    flex-direction: column;
+}
+
+.wa-sub-btn.active {
+    border-color: var(--wa-blue);
+    background: #edf4ff;
+    color: var(--wa-blue);
+}
+
+.wa-conditional-panel {
+    margin: -2px 0 16px;
+    padding: 16px 16px 2px;
+    border: 1px solid #dbe6f6;
+    border-radius: 12px;
+    background: #f8fbff;
+}
+
+.wa-conditional-panel .wa-form-row {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 14px;
+}
+
+.wa-conditional-panel .wa-form-control {
+    min-width: 0;
+}
+
+.wa-select-stack {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: minmax(92px, .8fr) minmax(0, 1.5fr) minmax(92px, .8fr);
+    gap: 8px;
+}
+
+.wa-select-stack .wa-select {
+    width: 100% !important;
+    min-width: 0;
+}
+
+.wa-required-docs {
+    margin-top: 12px;
+    padding: 12px 14px;
+    border: 1px solid #dbe6f6;
+    border-radius: 10px;
+    background: #fff;
+    color: #2f3a4a;
+    font-size: 12px;
+    line-height: 1.55;
+}
+
+.wa-required-docs-heading {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-bottom: 8px;
+    color: #2459d8;
+    font-weight: 800;
+}
+
+.wa-required-docs-list {
+    margin: 0;
+    padding-left: 18px;
+}
+
+.wa-required-docs-list li {
+    margin: 2px 0;
+}
+
+.wa-required-docs-section {
+    margin-top: 10px;
+    padding-top: 9px;
+    border-top: 1px solid #edf2f7;
+}
+
+.wa-required-docs-section strong {
+    display: block;
+    margin-bottom: 4px;
+    color: #4b5563;
+    font-size: 12px;
+}
+
+.wa-required-docs-section p {
+    margin: 0;
+    white-space: pre-line;
+}
+
+.wa-required-docs-footnote {
+    margin: 10px 0 0;
+    color: #b54708;
+    font-weight: 800;
+    white-space: pre-line;
+}
+
+.wa-estimate-action-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.wa-estimate-action-row .wa-check-btn {
+    flex: 1;
+    width: auto;
+    margin-bottom: 0;
+}
+
+.wa-refresh-btn {
+    width: 46px;
+    height: 46px;
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    border: 1px solid var(--wa-line-strong);
+    border-radius: 12px;
+    background: #fff;
+    color: var(--wa-blue);
+    cursor: pointer;
+    transition: .2s;
+}
+
+.wa-refresh-btn:hover:not(:disabled) {
+    border-color: var(--wa-blue);
+    background: #edf4ff;
+}
+
+.wa-refresh-btn:disabled {
+    color: #a8b0bd;
+    cursor: default;
+}
+
+.wa-estimate-guide.warning {
+    color: #b54708;
+}
+
+.wa-estimate-progress {
+    min-height: 44px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+    margin: 12px 0 0;
+    border-radius: 12px;
+    background: #f6f8fb;
+    color: #2f3a4a;
+    font-size: 14px;
+    font-weight: 800;
+}
+
+.wa-estimate-panel {
+    margin-top: 14px;
+    overflow: hidden;
+    border: 1px solid var(--wa-line);
+    border-radius: 12px;
+    background: #fff;
+}
+
+.wa-estimate-total {
+    min-height: 58px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 12px;
+    padding: 0 16px;
+    background: #f8fafc;
+    border-bottom: 1px solid var(--wa-line);
+}
+
+.wa-estimate-total span {
+    color: #4b5563;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.wa-estimate-total strong {
+    color: var(--wa-blue);
+    font-size: 20px;
+    font-weight: 900;
+    white-space: nowrap;
+}
+
+.wa-card-tax-amount {
+    margin: 12px 14px 0;
+    padding: 10px 12px;
+    border-radius: 10px;
+    background: #eef4ff;
+    color: #2459d8;
+    font-size: 13px;
+    font-weight: 800;
+}
+
+.wa-payment-table {
+    width: calc(100% - 28px);
+    margin: 14px;
+    border-collapse: collapse;
+    table-layout: fixed;
+}
+
+.wa-payment-table th,
+.wa-payment-table td {
+    height: 38px;
+    padding: 0 10px;
+    border-bottom: 1px solid #edf2f7;
+    color: #344054;
+    font-size: 13px;
+    font-weight: 700;
+    text-align: left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.wa-payment-table th {
+    background: #f8fafc;
+    color: #667085;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-payment-table td:nth-child(2),
+.wa-payment-table th:nth-child(2) {
+    text-align: right;
+}
+
+.wa-payment-table td:nth-child(3),
+.wa-payment-table th:nth-child(3) {
+    width: 92px;
+    text-align: center;
+}
+
+.wa-payment-table tr.muted td {
+    color: #98a2b3;
+    text-decoration: line-through;
+}
+
+.wa-receipt-panel {
+    --wa-receipt-offset: 160px;
+    width: calc(100% + var(--wa-receipt-offset));
+    margin: 14px 0 0 calc(var(--wa-receipt-offset) * -1);
+    padding: 14px 18px 20px;
+    border: 1px solid #dbe6f6;
+    border-radius: 12px;
+    background: #f8fbff;
+    box-sizing: border-box;
+}
+
+.wa-receipt-panel-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    margin-bottom: 12px;
+}
+
+.wa-receipt-panel-header strong {
+    color: var(--wa-navy-deep);
+    font-size: 14px;
+    font-weight: 900;
+}
+
+.wa-receipt-panel-header button {
+    width: 30px;
+    height: 30px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border: 1px solid var(--wa-line-strong);
+    border-radius: 8px;
+    background: #fff;
+    color: #475467;
+    cursor: pointer;
+}
+
+.wa-tax-receipt-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    column-gap: 18px;
+}
+
+.wa-receipt-panel > .wa-form-row {
+    grid-template-columns: 120px minmax(0, 1fr);
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.wa-receipt-panel .wa-address-result {
+    max-width: 100%;
+}
+
+.wa-info-section .wa-form-row:has(.wa-receipt-panel) {
+    align-items: start;
+}
+
+.wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-label {
+    padding-top: 13px;
+}
+
+.wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-control {
+    min-width: 0;
+}
+
+.wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-control > .wa-inline-group {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+}
+
+.wa-info-section .wa-form-row:has(.wa-receipt-panel) .wa-option-btn {
+    height: 44px;
+    border-radius: 11px;
+    background: #f7f9fc;
+    color: #475467;
+}
+
+.wa-info-section .wa-form-row:has(.wa-receipt-panel) .wa-option-btn.active {
+    border: 2px solid #111827;
+    background: #edf4ff;
+    color: #2563eb;
+    box-shadow: none;
+}
+
+.wa-receipt-panel .wa-input {
+    height: 44px;
+    border-radius: 12px;
+    background: #fff;
+}
+
+.wa-receipt-panel .wa-inline-group {
+    gap: 12px;
+}
+
+.wa-receipt-panel .wa-inline-group .wa-input {
+    min-width: 0;
+    text-align: center;
+}
+
+.wa-receipt-panel .wa-address-wrap {
+    position: relative;
+    min-width: 0;
+    display: flex;
+    gap: 10px;
+    margin-bottom: 8px;
+}
+
+.wa-receipt-panel .wa-address-wrap .wa-input {
+    flex: 1 1 auto;
+    min-width: 0;
+    text-align: left;
+}
+
+.wa-receipt-panel .wa-search-btn {
+    flex: 0 0 58px;
+    width: 58px;
+    border-radius: 12px;
+}
+
+.wa-receipt-panel .wa-clear-btn {
+    right: 68px;
+}
+
+.wa-form-row.compact {
+    grid-template-columns: 120px 1fr;
+    gap: 16px;
+    margin-bottom: 10px;
+}
+
+.wa-form-row.compact:last-child {
+    margin-bottom: 0;
+}
+
+.receipt-same-owner {
+    justify-content: flex-end;
+    margin: -4px 2px 10px;
+    color: #2563eb;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.wa-refund-group .wa-select {
+    flex: 0 0 150px;
+    width: auto !important;
+}
+
+.wa-refund-group .refund-owner {
+    flex: 0 0 130px !important;
+}
+
+@media (max-width:760px){
+    .wa-conditional-panel,
+    .wa-receipt-panel {
+        width: 100%;
+        margin-left: 0;
+        padding: 14px 12px 2px;
+    }
+
+    .wa-estimate-action-row {
+        align-items: stretch;
+    }
+
+    .wa-refresh-btn {
+        flex: 0 0 46px;
+    }
+
+    .wa-conditional-panel .wa-form-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .wa-select-stack {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-select-stack .wa-select,
+    .wa-refund-group .wa-select,
+    .wa-refund-group .refund-owner {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+    }
+
+    .wa-form-row.compact,
+    .wa-receipt-panel > .wa-form-row {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+
+    .wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-label {
+        padding-top: 0;
+    }
+
+    .wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-control > .wa-inline-group {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-tax-receipt-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .wa-payment-table th,
+    .wa-payment-table td {
+        padding: 0 7px;
+        font-size: 12px;
+    }
+
+    .wa-payment-table td:nth-child(3),
+    .wa-payment-table th:nth-child(3) {
+        width: 72px;
     }
 }

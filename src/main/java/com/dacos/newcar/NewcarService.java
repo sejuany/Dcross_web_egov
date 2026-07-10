@@ -169,6 +169,9 @@ public class NewcarService {
         Map<String, Object> carNoDetach =
             newcarMapper.getTrCarNoDetach(service);
 
+        Map<String, Object> taxReceipt =
+            common.select(Map.of("SERVICE_ID", serviceId), "getTrTaxReceipt");
+
         // 공동 소유자 분리
         Map<String, Object> owner0 = new HashMap<>();
         Map<String, Object> owner1 = new HashMap<>();
@@ -191,6 +194,7 @@ public class NewcarService {
             "dsCarNoDetach",
             carNoDetach != null ? carNoDetach : new HashMap<>()
         );
+        result.put("dsTaxReceipt", taxReceipt != null ? taxReceipt : new HashMap<>());
 
         return result;
     }
@@ -886,6 +890,7 @@ public class NewcarService {
 		    Map<String, Object> mService = commonUtil.getMap(request, "dsService");
 		    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
 		    Map<String, Object> mCarNoDetach = commonUtil.getMap(request, "dsCarNoDetach");
+            Map<String, Object> mTaxReceipt = commonUtil.getMap(request, "dsTaxReceipt");
 
 		    List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
 		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
@@ -909,18 +914,19 @@ public class NewcarService {
 
 			// 공동소유자 데이터 정리 (하이픈, 공백, 줄바꿈, 쉼표 제거)
 		    normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
+            normalizeTaxReceipt(mTaxReceipt);
 
 		    logger.info("lOwnerInfoList >>> " + lOwnerInfoList);
 		    logger.info("lOwnerInfoList1 >>> " + lOwnerInfoList1);
 
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
-			insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
+			insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 		    }
 
 		    // update
 		    else {
-			updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
+			updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 		    }
 
 		    result.put("SERVICE_ID", input.get("SERVICE_ID"));
@@ -1126,7 +1132,6 @@ public class NewcarService {
 	        owner.put(field, value.isEmpty() ? null : value);
 	    }
 	}
-
 	@SafeVarargs
 	private void normalizeOwnerInfoList(List<Map<String, Object>>... lists) {
 
@@ -1138,6 +1143,49 @@ public class NewcarService {
 	        list.forEach(this::normalizeOwnerInfo);
 	    }
 	}
+
+    private void normalizeTaxReceipt(Map<String, Object> taxReceipt) {
+        if (taxReceipt == null) {
+            return;
+        }
+
+        String[] stringFields = {
+            "GUBUN",
+            "NAME",
+            "COMPANY_NM",
+            "ADDR",
+            "ADDR_DT",
+            "POST_NO",
+            "BUSINESS_TYPE",
+            "INDUSTRY_TYPE",
+            "MAIL1",
+            "MAIL2"
+        };
+
+        for (String field : stringFields) {
+            String value = Objects.toString(taxReceipt.get(field), "").trim();
+            taxReceipt.put(field, value.isEmpty() ? null : value);
+        }
+
+        normalizeNumberFields(taxReceipt, "REG_NO", "PHONE_NO");
+    }
+
+    private boolean hasTaxReceipt(Map<String, Object> taxReceipt) {
+        return taxReceipt != null && !isEmpty(taxReceipt.get("GUBUN"));
+    }
+
+    private void replaceTaxReceipt(String serviceId, Map<String, Object> taxReceipt) {
+        Map<String, Object> param = new HashMap<>();
+        param.put("SERVICE_ID", serviceId);
+        common.delete(param, "deleteTrTaxReceipt");
+
+        if (!hasTaxReceipt(taxReceipt)) {
+            return;
+        }
+
+        taxReceipt.put("SERVICE_ID", serviceId);
+        common.insert(taxReceipt, "insertTrTaxReceipt");
+    }
 
 	@Transactional
 	public void requestProcess(List<Map<String, Object>> request, UserDto user) {
@@ -1154,6 +1202,7 @@ public class NewcarService {
 		    Map<String, Object> mService = commonUtil.getMap(mNewCarDetail, "dsService");
 		    Map<String, Object> mNewCar = commonUtil.getMap(mNewCarDetail, "dsNewCar");
 		    Map<String, Object> mCarNoDetach = commonUtil.getMap(mNewCarDetail, "dsCarNoDetach");
+            Map<String, Object> mTaxReceipt = commonUtil.getMap(mNewCarDetail, "dsTaxReceipt");
 
 		    List<Map<String, Object>> lPaymentList = commonUtil.getList(mNewCarDetail, "dsPaymentList");
 		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(mNewCarDetail, "dsOwnerInfo");
@@ -1164,6 +1213,7 @@ public class NewcarService {
 			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
 
 			normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
+            normalizeTaxReceipt(mTaxReceipt);
 
 		    logger.info("lOwnerInfoList >>> " + lOwnerInfoList);
 		    logger.info("lOwnerInfoList1 >>> " + lOwnerInfoList1);
@@ -1253,7 +1303,7 @@ public class NewcarService {
 
 				input.put("PROC_ST", "P_REQ");
 
-				updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
+				updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 
 
 				// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
@@ -1289,7 +1339,7 @@ public class NewcarService {
 				input.put("PROC_ST", "REQ");
 				input.put("JUDGE_ST", "S_REQ");
 
-				updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList);
+				updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 			}
 
 			// 후납건은 바로 관청 서버 연계
@@ -1389,7 +1439,7 @@ public class NewcarService {
 	@Transactional
 	private Map<String, String> insertNewCar(Map<String, Object> input,
 			Map<String, Object> mService, List<Map<String, Object>> lOwnerInfoList,
-			List<Map<String, Object>> lOwnerInfoList1, List<Map<String, Object>> paymentList) {
+			List<Map<String, Object>> lOwnerInfoList1, List<Map<String, Object>> paymentList, Map<String, Object> mTaxReceipt) {
 
 		// 중복된 차대번호 조회
 	    if (isDuplicateCar(input)) {
@@ -1411,6 +1461,7 @@ public class NewcarService {
 	    common.insertList(lOwnerInfoList1, "insertTrOwnerInfo", serviceId, true);
 	    // 결제정보
 	    common.insertList(paymentList, "insertTrPayment", serviceId, true);
+        replaceTaxReceipt(serviceId, mTaxReceipt);
 
 	    return Map.of("SERVICE_ID", serviceId,"MESSAGE", "");
 	}
@@ -1419,7 +1470,7 @@ public class NewcarService {
 	@Transactional
 	private Map<String, String> updateNewCar(Map<String, Object> input,
 	        Map<String, Object> mService, List<Map<String, Object>> lOwnerInfoList,
-	        List<Map<String, Object>> lOwnerInfoList1, List<Map<String, Object>> paymentList) {
+	        List<Map<String, Object>> lOwnerInfoList1, List<Map<String, Object>> paymentList, Map<String, Object> mTaxReceipt) {
 
 		String serviceId = input.get("SERVICE_ID").toString();
 
@@ -1446,6 +1497,7 @@ public class NewcarService {
 		common.insertList(lOwnerInfoList1, "insertTrOwnerInfo", serviceId, false);
 		// 결제정보
 	    common.replaceList(paymentList, "deleteTrPayment", "insertTrPayment", serviceId, true);
+        replaceTaxReceipt(serviceId, mTaxReceipt);
 
 	    return Map.of("SERVICE_ID", input.get("SERVICE_ID").toString(),"MESSAGE", "");
 	}

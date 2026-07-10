@@ -35,7 +35,7 @@ const JointOwner = ({
 			    <div className="wa-form-control">
 			        <div className="wa-inline-group">
 
-						<div class="wa-ratio-input">
+						<div className="wa-ratio-input">
 				            <input
 				                className="wa-input"
 				                name="DEBTOR_RATIO"

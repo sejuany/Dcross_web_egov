@@ -1,13 +1,29 @@
 import { X } from 'lucide-react';
 
+import React, { useMemo, useState } from 'react';
+
 import '../../../styles/LeaseCompanyModal.css';
 
 
 // 그 외 캐피탈 선택 모달
 const LeaseCompanyModal = ({
-    onClose
+	dsBaseList,
+	onSelect,
+	onClose
 }) => {
+	const [company, setCompany] = useState('');
+	
+	// 리스사 목록 (본점만)
+	const leaseCompanies = useMemo(() => {
 
+	    return dsBaseList
+	        .filter(item => item.BASE_NM.includes('(본점)'))
+	        .map(item =>
+	            item.BASE_NM.replace(/\(.*\)/, '').trim()
+	        );
+
+	}, [dsBaseList]);
+	
     return (
 
         <div className="wa-modal-overlay">
@@ -40,10 +56,20 @@ const LeaseCompanyModal = ({
                         </label>
 
                         <div className="wa-form-control">
-
-                            <select className="wa-select">
-                                <option>선택</option>
-                            </select>
+	
+							<select
+							    className="wa-select"
+							    value={company}
+							    onChange={e => setCompany(e.target.value)}
+							>
+							    <option value="">선택</option>
+	
+							    {leaseCompanies.map(company => (
+							        <option key={company} value={company}>
+							            {company}
+							        </option>
+							    ))}
+							</select>
 
                         </div>
 
@@ -54,10 +80,21 @@ const LeaseCompanyModal = ({
                 {/* 완료 버튼 */}
                 <div className="wa-lease-modal-footer">
 
-                    <button
-                        type="button"
-                        className="wa-primary-btn"
-                    >
+					<button
+					    type="button"
+					    className="wa-primary-btn"
+						onClick={() => {
+
+						    const headOffice = dsBaseList.find(item =>
+						        item.BASE_NM.includes(company) &&
+						        item.BASE_NM.includes('(본점)')
+						    );
+
+						    onSelect(headOffice.BASE_ID);
+
+						    onClose();
+						}}
+					>
                         완료
                     </button>
 

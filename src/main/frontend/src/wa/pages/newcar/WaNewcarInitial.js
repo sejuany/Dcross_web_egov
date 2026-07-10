@@ -77,6 +77,7 @@ export const initialDsNewCar = {
 	INSURER_CD: '',
 	INSURER_SDT: '',
 	INSURER_EDT: '',
+	IMSIGV_DT: '',
 
 	// 금액
 	BUY_AMT: 0,
@@ -235,6 +236,21 @@ export const initialDsBaseList = [
     }
 ];
 
+export const initialDsTaxReceipt = {
+    SERVICE_ID: '',
+    GUBUN: '',
+    REG_NO: '',
+    NAME: '',
+    COMPANY_NM: '',
+    PHONE_NO: '',
+    ADDR: '',
+    ADDR_DT: '',
+    POST_NO: '',
+    BUSINESS_TYPE: '',
+    INDUSTRY_TYPE: '',
+    MAIL1: '',
+    MAIL2: ''
+};
 export const initialDsCarNoDetach = {
     SERVICE_ID: '',
     WORK_CD: '010',
@@ -331,6 +347,7 @@ export const newCarMap = {
 	INSURER_CD: 'INSURER_CD',
 	INSURER_SDT: 'INSURER_SDT',
 	INSURER_EDT: 'INSURER_EDT',
+	IMSIGV_DT : 'IMSIGV_DT',
 
 	// 금액
 	BUY_AMT: 'BUY_AMT',
@@ -384,6 +401,21 @@ export const newCarMap = {
 	CONTRACTOR_DT: 'CONTRACTOR_DT'
 };
 
+export const taxReceiptMap = {
+    SERVICE_ID: 'SERVICE_ID',
+    GUBUN: 'GUBUN',
+    REG_NO: 'REG_NO',
+    NAME: 'NAME',
+    COMPANY_NM: 'COMPANY_NM',
+    PHONE_NO: 'PHONE_NO',
+    ADDR: 'ADDR',
+    ADDR_DT: 'ADDR_DT',
+    POST_NO: 'POST_NO',
+    BUSINESS_TYPE: 'BUSINESS_TYPE',
+    INDUSTRY_TYPE: 'INDUSTRY_TYPE',
+    MAIL1: 'MAIL1',
+    MAIL2: 'MAIL2'
+};
 export const ownerMap = {
     DEBTOR_GB: 'DEBTOR_GB',
     DEBTOR_NM: 'DEBTOR_NM',

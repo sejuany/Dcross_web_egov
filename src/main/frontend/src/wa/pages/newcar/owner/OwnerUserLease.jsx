@@ -5,11 +5,24 @@ import { gf, log } from '../../../../utils/utils';
 import LeaseCompanyModal from './LeaseCompanyModal';
 import AddressSearch from '../../common/AddressSearch';
 
+// 분리 입력 (주민번호, 사업자번호, 휴대폰 등)
+import SplitInput from '../../common/SplitInput';
+
+// 주소 기능
+import useAddressHandler from '../../../../hooks/useAddressHandler'; 
+
 const OwnerUserLease = ({
-    dsNewCar,
-	setDsNewCar,
-    handleChange
+	dsNewCar,
+		setDsNewCar,
+		dsCarNoDetach,
+		dsBaseList,
+		setDsOwnerInfo,
+		handleChange,
+		onSelect,
+		onClear
 }) => {
+	// 외국인등록번호 선택 시 최종확인 단계에서 첨부해야 하는 서류를 안내한다.
+	const showForeignerGuide = dsNewCar.REG_GB === 'F';
 	// 그 외 리스사 모달창
 	const [showLeaseModal, setShowLeaseModal] = useState(false);
 	// 법인 등록번호 선택 시 화면 변경 
@@ -17,78 +30,176 @@ const OwnerUserLease = ({
 	// 등록번호 종류를 선택한 경우에만 주소 입력을 표시한다.
 	// 초기 화면에서는 구매 방식 선택과 기본 정보 입력에 집중할 수 있도록 주소를 숨긴다.
 	const showAddress = Boolean(dsNewCar.REG_GB);
-	// 리스사 목록 
-	const [leaseCompanies, setLeaseCompanies] = useState([]);
+	// 자주 사용하는 리스사
+	const LEASE_COMPANIES = [
+	    '우리금융캐피탈', '산은캐피탈', 'BNK캐피탈', 'NH농협캐피탈', 'KB캐피탈', '오릭스캐피탈',
+	    '하나캐피탈'
+	];
+	// 주소 기능 추가
+	const { handleLeaseCompany } = useAddressHandler({ dsNewCar, dsBaseList, setDsNewCar, setDsOwnerInfo });
+
+	// 계약자와 동일
+	const handleSameCustomer = (e) => {
+
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        OWNER_NM: e.target.checked
+	            ? (dsCarNoDetach.CUSTOMER_NM ?? '')
+	            : ''
+	    }));
+
+	};
 	
-	useEffect(() => {
-		// 리스사 목록 불러오기 
-	    gf.getCodeList('ETC..', 'FLEASE')
-	        .then(list => setLeaseCompanies(list.split('|')));
-	}, []);
+	// 사용본거지 밑 체크 
+	const handleSameAddress = (e) => {
+
+	    setDsNewCar(prev => ({
+
+	        ...prev,
+
+	        BASE_ADDRESS: e.target.checked ? prev.ADDRESS : '',
+	        BASE_ADDRESS_DT: e.target.checked ? prev.ADDRESS_DT : '',
+	        BASE_POST_NO: e.target.checked ? prev.POST_NO : '',
+	        BASE_BUBJUNG_CD: e.target.checked ? prev.BUBJUNG_CD : '',
+	        RT_ACC_NO: e.target.checked ? prev.RT_ACC_NM : '',
+	        ADDR_INFO2: e.target.checked ? prev.ADDR_INFO : ''
+	    }));
+	};
+
+	// 현재 선택된 리스사
+	const currentCompany = useMemo(() => {
+
+	    const base = dsBaseList.find(item =>
+	        String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
+	    );
+		
+	    if (!base) {
+	        return null;
+	    }
+
+	    return {
+	        BASE_ID: base.BASE_ID,
+	        BASE_NM: base.BASE_NM.replace(/\(.*\)/, '').trim()
+	    };
+
+	}, [dsBaseList, dsNewCar.BASE_BRANCH_ID]);
+
+
+	// 자주 사용하는 리스사 (본점만)
+	const leaseCompanies = useMemo(() => {
+
+	    return LEASE_COMPANIES
+	        .map(company => {
+
+	            const headOffice = dsBaseList.find(item =>
+	                item.BASE_NM.includes(company) &&
+	                item.BASE_NM.includes('(본점)')
+	            );
+
+	            return headOffice
+	                ? {
+	                    BASE_ID: headOffice.BASE_ID,
+	                    BASE_NM: company
+	                }
+	                : null;
+
+	        })
+	        .filter(Boolean);
+
+	}, [dsBaseList]);
+
+
+	// Select 표시 목록
+	const selectCompanies = useMemo(() => {
+
+	    const list = [...leaseCompanies];
+
+	    if (
+	        currentCompany &&
+	        !list.some(item => String(item.BASE_ID) === String(currentCompany.BASE_ID))
+	    ) {
+	        list.unshift(currentCompany);
+	    }
+
+	    return list;
+
+	}, [leaseCompanies, currentCompany]);
+
+
 
     return (
         <>
-            {/* 리스사 선택 */}
-            <div className="wa-form-row">
-                <label className="wa-form-label">리스사 선택</label>
+			{/* 리스사 선택 */}
+			<div className="wa-form-row">
 
-                <div className="wa-form-control">
-                    <div className="wa-inline-group">
-                        <select
-                            className="wa-select wa-flex"
-                            name="OWNER_BRANCH_ID"
-                            data-type="newcar"
-                            value={dsNewCar.OWNER_BRANCH_ID ?? ''}
-                            onChange={handleChange}
-                        >
-                            <option value="">선택</option>
-							
-							{/* 리스사 목록 */}
-							{leaseCompanies.map(company => (
-							    <option key={company} value={company}>
-							        {company}
+			    <label className="wa-form-label">
+			        리스사 선택
+			    </label>
+
+			    <div className="wa-form-control">
+
+			        <div className="wa-inline-group">
+		
+						<select
+						    className="wa-select wa-flex"
+						    value={dsNewCar.BASE_BRANCH_ID ?? ''}
+						    onChange={e => handleLeaseCompany(e.target.value)}
+						>
+						    <option value="">선택</option>
+
+							{selectCompanies.map(item => (
+							    <option
+							        key={item.BASE_ID}
+							        value={item.BASE_ID}
+							    >
+							        {item.BASE_NM}
 							    </option>
 							))}
+						</select>
 
-                        </select>
-
-                        <button 
-							type="button" className="wa-lease-btn"
-							onClick={() => setShowLeaseModal(true)}
+						<button
+						    type="button"
+						    className="wa-lease-btn"
+						    onClick={() => setShowLeaseModal(true)}
 						>
-                            그 외 캐피탈
-                        </button>
-                    </div>
-                </div>
-            </div>
+						    그 외 캐피탈
+						</button>
+
+			        </div>
+
+			    </div>
+
+			</div>
 			
 			{/* 그 외 캐피탈 선택 모달창 */}
 			{showLeaseModal && (
-			    <LeaseCompanyModal
-			        onClose={() => setShowLeaseModal(false)}
-			    />
+				<LeaseCompanyModal
+				    dsBaseList={dsBaseList}
+				    onSelect={baseId => handleLeaseCompany(baseId)}
+				    onClose={() => setShowLeaseModal(false)}
+				/>
 			)}
 
-            {/* 리스 종료일 */}
-            <div className="wa-form-row">
-                <label className="wa-form-label">리스 종료일</label>
+            {/* 리스 종료일 (만료일) IMSIGV_DT */}
+			<div className="wa-form-row">
+			    <label className="wa-form-label">
+			        리스 종료일
+			    </label>
 
-                <div className="wa-form-control">
-                    <div className="wa-inline-group">
-                        <select className="wa-select">
-                            <option>년도</option>
-                        </select>
-
-                        <select className="wa-select">
-                            <option>월</option>
-                        </select>
-
-                        <select className="wa-select">
-                            <option>일</option>
-                        </select>
-                    </div>
-                </div>
-            </div>
+			    <div className="wa-form-control">
+			        <input
+			            type="date"
+			            className="wa-input"
+			            value={dsNewCar.IMSIGV_DT ?? ''}
+			            onChange={e =>
+			                setDsNewCar(prev => ({
+			                    ...prev,
+			                    IMSIGV_DT: e.target.value
+			                }))
+			            }
+			        />
+			    </div>
+			</div>
 
             <hr className="wa-divider" />
 
@@ -99,7 +210,9 @@ const OwnerUserLease = ({
 
                     <label className="wa-form-sub-label">
                         계약자와 동일
-                        <input type="checkbox" />
+						<input type="checkbox"
+						        onChange={handleSameCustomer}
+						 />
                     </label>
                 </div>
 
@@ -115,44 +228,45 @@ const OwnerUserLease = ({
                 </div>
             </div>
 
-            {/* 등록번호 */}
-            <div className="wa-form-row">
-                <label className="wa-form-label">등록번호</label>
+			{/* 등록번호 */}
+			<div className="wa-form-row">
+			    <label className="wa-form-label">
+			        등록번호
+			    </label>
+			    <div className="wa-form-control">
+			        <div className="wa-inline-group">
+						<select
+						    className="wa-select"
+						    name="REG_GB"
+						    data-type="newcar"
+						    value={dsNewCar.REG_GB ?? ''}
+						    onChange={handleChange}
+						>
+						    <option value="">선택</option>
+						    <option value="R">주민등록번호</option>
+						    <option value="F">외국인등록번호</option>
+						    <option value="B">법인등록번호</option>
+						</select>
 
-                <div className="wa-form-control">
-                    <div className="wa-inline-group">
-                        <select
-                            className="wa-select"
-                            name="REG_GB"
-                            data-type="newcar"
-                            value={dsNewCar.REG_GB ?? ''}
-                            onChange={handleChange}
-                        >
-							<option value="">선택</option>
-							<option value="R">주민등록번호</option>
-							<option value="F">외국인등록번호</option>
-                            <option value="B">법인등록번호</option>
-                        </select>
+						<SplitInput
+						    value={dsNewCar.REG_NO}
+						    lengths={[6, 7]}
+						    onChange={value =>
+						        setDsNewCar(prev => ({
+						            ...prev,
+						            REG_NO: value
+						        }))
+						    }
+						/>
+			        </div>
 
-                        <input
-                            className="wa-input"
-                            name="REG_NO"
-                            data-type="newcar"
-                            value={dsNewCar.REG_NO ?? ''}
-                            onChange={handleChange}
-                            placeholder="앞 6자리"
-                        />
-
-                        <span className="wa-dash">-</span>
-
-                        <input
-                            className="wa-input"
-                            placeholder="뒤 7자리"
-                            readOnly
-                        />
-                    </div>
-                </div>
-            </div>
+					{showForeignerGuide && (
+					    <div className="wa-guide-text">
+					        *최종확인 페이지에서 외국인 등록증을 첨부하여 주십시오.
+					    </div>
+					)}
+			    </div>
+			</div>
 			
 			{/* 사업자등록번호 */}
 			{isCorporate && (
@@ -164,53 +278,44 @@ const OwnerUserLease = ({
 			        <div className="wa-form-control">
 			            <div className="wa-inline-group">
 
-			                <input
-			                    className="wa-input"
-			                    name="BIZ_NO1"
-			                    maxLength={3}
-			                    placeholder="앞 3자리"
-			                />
-
-			                <span className="wa-dash">-</span>
-
-			                <input
-			                    className="wa-input"
-			                    name="BIZ_NO2"
-			                    maxLength={2}
-			                    placeholder="중간 2자리"
-			                />
-
-			                <span className="wa-dash">-</span>
-
-			                <input
-			                    className="wa-input"
-			                    name="BIZ_NO3"
-			                    maxLength={5}
-			                    placeholder="뒤 5자리"
-			                />
+							<SplitInput
+							    value={dsNewCar.BIZ_NO}
+							    lengths={[3, 2, 5]}
+							    placeholders={['123', '45', '67890']}
+							    onChange={value =>
+							        setDsNewCar(prev => ({
+							            ...prev,
+							            BIZ_NO: value
+							        }))
+							    }
+							/>
 
 			            </div>
 			        </div>
 			    </div>
 			)}
 			
-            {/* 휴대폰번호 */}
-            <div className="wa-form-row">
-                <label className="wa-form-label">휴대폰번호</label>
-
-                <div className="wa-form-control">
-                    <div className="wa-inline-group">
-                        <input
-                            className="wa-input phone"
-                            name="MPHONE_NO"
-                            data-type="newcar"
-                            value={dsNewCar.MPHONE_NO ?? ''}
-                            onChange={handleChange}
-                            placeholder="010-1234-5678"
-                        />
-                    </div>
-                </div>
-            </div>
+			{/* 휴대폰번호 */}
+			<div className="wa-form-row">
+			    <label className="wa-form-label">
+			        휴대폰번호
+			    </label>
+			    <div className="wa-form-control">
+			        <div className="wa-inline-group">
+						<SplitInput
+						    value={dsNewCar.MPHONE_NO}
+						    lengths={[3, 4, 4]}
+						    placeholders={['010', '1234', '5678']}
+						    onChange={value =>
+						        setDsNewCar(prev => ({
+						            ...prev,
+						            MPHONE_NO: value
+						        }))
+						    }
+						/>
+			        </div>
+			    </div>
+			</div>
 			
 
 			{showAddress && (
@@ -228,12 +333,15 @@ const OwnerUserLease = ({
 				    dsNewCar={dsNewCar}
 				    setDsNewCar={setDsNewCar}
 				    handleChange={handleChange}
+					onSelect={onSelect}
+					onClear={onClear}
 				/>
 			)}
 
 			{isCorporate && (
 				<AddressSearch
 				    label="사용본거지"
+					sameLabel="본점소재지"
 				    placeholder="자동차보험 가입 시 등록할 주소 입력 (건물, 지번 또는 도로명 검색)"
 					type="BASE_ADDRESS"
 					prefix="BASE_"
@@ -241,6 +349,10 @@ const OwnerUserLease = ({
 				    dsNewCar={dsNewCar}
 				    setDsNewCar={setDsNewCar}
 				    handleChange={handleChange}
+					onSelect={onSelect}
+					onClear={onClear}
+					showSameCheckbox
+					onSameChange={handleSameAddress}
 				/>
 			)}
 			

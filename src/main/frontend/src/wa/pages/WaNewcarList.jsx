@@ -1101,7 +1101,7 @@ const WaNewcarList = () => {
                                 </tr>
                             ) : rows.length === 0 ? (
                                 <tr>
-                                    <td className="wa-status-empty" colSpan={columns.length}>조회된 데이터가 없습니다.</td>
+                                    <td className="wa-status-empty" colSpan={columns.length} >조회된 데이터가 없습니다.</td>
                                 </tr>
                             ) : sortedRows.map(row => (
                                 <tr key={row.rowKey} className="wa-status-data-row"

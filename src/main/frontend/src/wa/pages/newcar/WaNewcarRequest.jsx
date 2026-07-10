@@ -10,6 +10,8 @@ import { CalendarDays, CarFront, ChevronLeft, FileText, LoaderCircle, UserRound 
 
 // 공통
 import { gf, log, mapData } from '../../../utils/utils';
+// 주소 기능
+import useAddressHandler from '../../../hooks/useAddressHandler';
 
 // 초기값
 import {
@@ -21,9 +23,11 @@ import {
     initialDsBranchList,
     initialDsBaseList,
     initialDsCarNoDetach,
+    initialDsTaxReceipt,
     serviceMap,
     newCarMap,
-    ownerMap
+    ownerMap,
+    taxReceiptMap
 } from './WaNewcarInitial';
 
 // 화면
@@ -95,6 +99,7 @@ const REQUIRED_FIELDS = [
     { name: 'RETURN_NM', label: '환급예금주' }
 ];
 
+
 // 상세조회 화면 표시 대상 상태
 const DETAIL_PROC_STATUS = ['INPUT', 'REQ', 'S_REQ', 'RET', 'END'];
 // 신청 단계
@@ -106,28 +111,24 @@ const OWNER_TYPE_OPTIONS = [
     {
         value: 'NORMAL',
         label: '현금/할부',
-        regGb: 'R',
         taskCd: 'NORML', // 일반등록
         procCd: 'I'		 // 수입차신규
     },
     {
         value: 'LEASE',
         label: '리스',
-        regGb: 'B',
         taskCd: 'LEASE', // 리스
         procCd: 'I'		 // 수입차신규
     },
     {
         value: 'USER_LEASE',
         label: '이용자명의 리스',
-        regGb: 'B',
         taskCd: 'LEASE', // 리스
         procCd: 'C'		 // 이용자명의 리스
     },
     {
         value: 'RENT',
         label: '렌트',
-        regGb: 'R',
         taskCd: 'ADD', // 증차배정
         procCd: 'I'
     }
@@ -275,6 +276,12 @@ const formatNumberData = (dataSet) => {
 			...dataSet.dsCarNoDetach
 		},
 
+        dsTaxReceipt: {
+            ...(dataSet.dsTaxReceipt || {}),
+            REG_NO: gf.onlyNumber(String(dataSet.dsTaxReceipt?.REG_NO || '')),
+            PHONE_NO: gf.onlyNumber(String(dataSet.dsTaxReceipt?.PHONE_NO || ''))
+        },
+
         dsOwnerInfo: {
             ...dataSet.dsOwnerInfo,
 
@@ -361,6 +368,7 @@ const WaNewcarRequest = ({
 	const [dsOwnerInfo, setDsOwnerInfo] = useState(initialOwnerInfo);
 	const [dsOwnerInfo1, setDsOwnerInfo1] = useState(initialOwnerInfo1);
 	const [dsCarNoDetach, setDsCarNoDetach] = useState(initialDsCarNoDetach);
+	const [dsTaxReceipt, setDsTaxReceipt] = useState(initialDsTaxReceipt);
 
 	// 조회 데이터
 	const [dsBranchList, setDsBranchList] = useState(initialDsBranchList);
@@ -382,7 +390,16 @@ const WaNewcarRequest = ({
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
 	
-
+	// 주소 기능 사용
+	const {
+	    handleAddressSelect,
+	    handleSameAddress
+	} = useAddressHandler({
+	    dsNewCar,
+	    dsBaseList,
+	    setDsNewCar,
+	    setDsOwnerInfo
+	});
 /* =========================================================
  * Ref
  * 렌더링 없이 유지되는 값
@@ -471,11 +488,14 @@ const WaNewcarRequest = ({
 	// 차량 구매 방식 정보 저장
 	const handlePurchaseTypeSelect = (option) => {
 
+		console.log('handlePurchaseTypeSelect');
+		console.log('이전 REG_GB =', dsNewCar.REG_GB);
+		console.log(option);
+
 	    setOwnerType(option.value);
 
 	    setDsNewCar(prev => ({
 	        ...prev,
-	        REG_GB: option.regGb,
 	        TASK_CD: option.taskCd,
 	        PROC_CD: option.procCd
 	    }));
@@ -520,6 +540,8 @@ const WaNewcarRequest = ({
 			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'detach') {
 			setDsCarNoDetach(prev => ({ ...prev, [name]: v }));
+		} else if (dataset.type === 'taxReceipt') {
+			setDsTaxReceipt(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'company') {
 			setDsCompanyInfo(prev => ({ ...prev, [name]: v }));
 		}
@@ -547,9 +569,6 @@ const WaNewcarRequest = ({
 
 				const dbData = gf.formatDateFields(data.data);
 				
-				console.log('DB PROC_ST =', dbData.dsService?.PROC_ST);
-				console.log('DB PROC_ST =', dbData.dsService?.PROC_ST);
-
 				// 신규등록 데이터 매핑
 				const mappedNewCar = mapData(
 				    initialDsNewCar,
@@ -599,6 +618,10 @@ const WaNewcarRequest = ({
 				setDsOwnerInfo1(
 				    mapData(initialOwnerInfo1, dbData.dsOwnerInfo1 || {}, ownerMap)
 				);
+
+                setDsTaxReceipt(
+                    mapData(initialDsTaxReceipt, dbData.dsTaxReceipt || {}, taxReceiptMap)
+                );
 				
 				// 상세조회 데이터
 	            setDsBranchList(dbData.dsBranchList || []);
@@ -610,7 +633,7 @@ const WaNewcarRequest = ({
 				hasInitializedRef.current = true;
 				loadedReceiptNoRef.current = receiptNo;
 				loadedDetailOpenKeyRef.current = detailOpenKey;
-				
+
 	        }
 	    } catch (err) {
 			loadedReceiptNoRef.current = '';
@@ -623,6 +646,29 @@ const WaNewcarRequest = ({
 		    }
 		}
 	};
+	
+
+	useEffect(() => {
+	    console.log('dsNewCar 변경');
+		
+		console.log('IMSIGV_DT >>' + dsNewCar.IMSIGV_DT);
+		
+	    console.log({
+	        ADDRESS: dsNewCar.ADDRESS,
+	        ADDRESS_DT: dsNewCar.ADDRESS_DT,
+	        POST_NO: dsNewCar.POST_NO,
+	        BUBJUNG_CD: dsNewCar.BUBJUNG_CD,
+	        RT_ACC_NM: dsNewCar.RT_ACC_NM,
+	        ADDR_INFO: dsNewCar.ADDR_INFO,
+
+	        BASE_ADDRESS: dsNewCar.BASE_ADDRESS,
+	        BASE_ADDRESS_DT: dsNewCar.BASE_ADDRESS_DT,
+	        BASE_POST_NO: dsNewCar.BASE_POST_NO,
+	        BASE_BUBJUNG_CD: dsNewCar.BASE_BUBJUNG_CD,
+	        RT_ACC_NO: dsNewCar.RT_ACC_NO,
+	        ADDR_INFO2: dsNewCar.ADDR_INFO2
+	    });
+	}, [dsNewCar]);
 	
 	// 저장
 	const saveProcess = async (
@@ -649,6 +695,7 @@ const WaNewcarRequest = ({
 			dsOwnerInfo: newDsOwnerInfo ? { ...newDsOwnerInfo } : { ...dsOwnerInfo },
 		    dsOwnerInfo1,
 		    dsCarNoDetach,
+            dsTaxReceipt,
 
 		    dsPaymentList: newDsPaymentList ? [...newDsPaymentList] : [...dsPaymentList]
 		};
@@ -804,6 +851,7 @@ const WaNewcarRequest = ({
 	    setDsNewCar(initialDsNewCar);
 	    setDsOwnerInfo(initialOwnerInfo);
 	    setDsOwnerInfo1(initialOwnerInfo1);
+        setDsTaxReceipt(initialDsTaxReceipt);
 	    setDsPaymentList([]);
 	    setDsBranchList(initialDsBranchList);
 	    setDsBaseList(initialDsBaseList);
@@ -826,6 +874,7 @@ const WaNewcarRequest = ({
 	            dsNewCar = {},
 	            dsOwnerInfo = {},
 	            dsOwnerInfo1 = {},
+                dsTaxReceipt = {},
 	            dsPaymentList = [],
 	            dsBranchList = [],
 	            dsBaseList = [],
@@ -867,6 +916,11 @@ const WaNewcarRequest = ({
 			    ...(companyDefault.dsOwnerInfo1 || {})
 			};
 
+            const mergedTaxReceipt = {
+                ...mergeData(initialDsTaxReceipt, dsTaxReceipt),
+                ...(companyDefault.dsTaxReceipt || {})
+            };
+
 			const mergedCarNoDetach = {
 			    ...mergeData(initialDsCarNoDetach, dsCarNoDetach),
 			    ...(companyDefault.dsCarNoDetach || {})
@@ -891,6 +945,7 @@ const WaNewcarRequest = ({
 			setDsNewCar(result.dsNewCar);
 	        setDsOwnerInfo(mergedOwnerInfo);
 	        setDsOwnerInfo1(mergedOwnerInfo1);
+            setDsTaxReceipt(mergedTaxReceipt);
 	        setDsCarNoDetach(mergedCarNoDetach);
 
 	        setDsCompanyInfo(dsCompanyInfo || {});
@@ -928,107 +983,6 @@ const WaNewcarRequest = ({
 			/>
 	    );
 	}
-	
-	/* =========================================================
-	 * Constant > 주소 처리
-	 * ========================================================= */
-
-	// 주소 선택 처리
-	// 주소 저장 공통
-	const handleAddressSelect = (type, addr) => {
-
-	    const isCorp =
-	        dsNewCar.REG_GB === 'B' ||
-	        dsNewCar.REG_GB === 'C';
-
-	    let addrInfo = '';
-
-		// 공동명의 주소
-		if (type === 'DEBTOR_ADDR') {
-
-		    setDsOwnerInfo(prev => ({
-		        ...prev,
-		        DEBTOR_ADDR: addr.ADDR,
-		        DEBTOR_POST_NO: addr.POST_NO,
-		        DEBTOR_BUBJUNG_CD: addr.BUBJUNG_CD,
-		        DEBTOR_ROAD_CD: addr.ROAD_CD,
-		        ...(isCorp && { ADDR_INFO: addrInfo })
-		    }));
-
-		    return;
-		}
-		
-	    if (isCorp) {
-	        addrInfo =
-	            (addr.ROAD_CD ?? '') + 'þ' +
-	            String(addr.BUBJUNG_CD ?? '').substring(0, 8) + '00þ' +
-	            (addr.HJD_CD ?? '') + 'þ' +
-	            (addr.JIHA_YN ?? '0') + 'þ' +
-	            (addr.BUILDB_NO ?? '0') + 'þ' +
-	            (addr.BUILDS_NO ?? '0') + 'þ' +
-	            // 상세주소는 나중에 
-				'þ';
-	    }
-
-
-	    setDsNewCar(prev => {
-
-	        const next = { ...prev };
-
-			const setBaseAddress = () => {
-			    next.BASE_ADDRESS = addr.ADDR;
-			    next.BASE_POST_NO = addr.POST_NO;
-			    next.BASE_BUBJUNG_CD = addr.BUBJUNG_CD;
-			    next.RT_ACC_NO = addr.ROAD_CD;
-				if (isCorp) {
-				    next.ADDR_INFO2 = addrInfo;
-				}
-			};
-
-	        switch (type) {
-				
-				// 소유자 주소
-	            case 'ADDRESS':
-	                next.ADDRESS = addr.ADDR;
-	                next.POST_NO = addr.POST_NO;
-	                next.BUBJUNG_CD = addr.BUBJUNG_CD;
-	                next.RT_ACC_NM = addr.ROAD_CD;
-	                next.ADDR_INFO = addrInfo;
-
-	                // 개인이면 사용본거지도 같이 저장
-	                if (!isCorp) {
-						setBaseAddress();
-	                }
-					
-	                break;
-				
-				// 사용본거지 주소 
-	            case 'BASE_ADDRESS':
-					setBaseAddress();
-	                break;
-				
-				default: break;
-	        }
-
-	        return next;
-	    });
-	};
-	
-
-	const handleSameAddress = (e) => {
-
-	    setDsNewCar(prev => ({
-
-	        ...prev,
-
-	        BASE_ADDRESS: e.target.checked ? prev.ADDRESS : '',
-	        BASE_ADDRESS_DT: e.target.checked ? prev.ADDRESS_DT : '',
-	        BASE_POST_NO: e.target.checked ? prev.POST_NO : '',
-	        BASE_BUBJUNG_CD: e.target.checked ? prev.BUBJUNG_CD : '',
-	        RT_ACC_NO: e.target.checked ? prev.RT_ACC_NM : '',
-	        ADDR_INFO2: e.target.checked ? prev.ADDR_INFO : ''
-	    }));
-	};
 	
 	// 주민번호, 외국인일 때
 	// 등본상 주소지에서 x 버튼 누르면, 화면에 안 보이는 소유자주소+사용본거지 주소 한 번에 지워지도록 함
@@ -1081,6 +1035,31 @@ const WaNewcarRequest = ({
 	        return next;
 	    });
 	};
+
+    const handleTaxReceiptAddressSelect = (type, addr) => {
+        if (type !== 'ADDR') {
+            return;
+        }
+
+        setDsTaxReceipt(prev => ({
+            ...prev,
+            ADDR: addr.ADDR,
+            POST_NO: addr.POST_NO
+        }));
+    };
+
+    const handleClearTaxReceiptAddress = (type) => {
+        if (type !== 'ADDR') {
+            return;
+        }
+
+        setDsTaxReceipt(prev => ({
+            ...prev,
+            ADDR: '',
+            ADDR_DT: '',
+            POST_NO: ''
+        }));
+    };
 	
 	
 	return (
@@ -1226,6 +1205,10 @@ const WaNewcarRequest = ({
 								{purchaseType === 'LEASE' &&
 									<OwnerLease
 										dsNewCar={dsNewCar}
+										setDsNewCar={setDsNewCar}
+										dsCarNoDetach={dsCarNoDetach}
+										dsBaseList={dsBaseList}
+										setDsOwnerInfo={setDsOwnerInfo}
 										handleChange={handleChange}
 									/>
 								}
@@ -1235,6 +1218,9 @@ const WaNewcarRequest = ({
 									<OwnerUserLease
 										dsNewCar={dsNewCar}
 										setDsNewCar={setDsNewCar}
+										dsCarNoDetach={dsCarNoDetach}
+										dsBaseList={dsBaseList}
+										setDsOwnerInfo={setDsOwnerInfo}
 										handleChange={handleChange}
 									/>}
 
@@ -1245,7 +1231,7 @@ const WaNewcarRequest = ({
 										handleChange={handleChange}
 									/>
 								}
-								<hr class="wa-divider hr2" />
+								<hr className="wa-divider hr2" />
 							</div>
 						</>
 					)}
@@ -1264,7 +1250,14 @@ const WaNewcarRequest = ({
 						<NewcarInfo
 							dsNewCar={dsNewCar}
 							dsPaymentList={dsPaymentList}
+							codes={codes}
 							handleChange={handleChange}
+							setDsNewCar={setDsNewCar}
+							dsTaxReceipt={dsTaxReceipt}
+                            setDsTaxReceipt={setDsTaxReceipt}
+                            onTaxReceiptAddressSelect={handleTaxReceiptAddressSelect}
+                            onTaxReceiptAddressClear={handleClearTaxReceiptAddress}
+							setDsPaymentList={setDsPaymentList}
 						/>
 					}
 
@@ -1295,17 +1288,21 @@ const WaNewcarRequest = ({
 						className="wa-action-btn wa-confirm-btn"
 						disabled={saving}
 					>
-						{saving ? <LoaderCircle size={18} className="wa-spin" /> : ''}
-						<span>{saving ? '저장 중' : '확인'}</span>
+						<span>
+							{purchaseType === 'RENT' ? '확인' : '다음'}
+						</span>
 					</button>
 
-					{step !== 4 && (
+					{(step !== 4 &&
+						purchaseType !== 'RENT') &&	
+						 (
 						<button
 							type="button"
 							className="wa-action-btn wa-save-btn"
 							onClick={() => saveProcess()}
 						>
-							저장
+							{saving ? <LoaderCircle size={18} className="wa-spin" /> : ''}
+							{saving ? '저장 중' : '저장'}
 						</button>
 					)}
 				

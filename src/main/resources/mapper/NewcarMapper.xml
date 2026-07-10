@@ -943,4 +943,39 @@
 		</foreach>
 	</update>
 
+	<select id="getTrTaxReceipt" parameterType="map" resultType="map">
+	    SELECT SERVICE_ID,
+	           GUBUN,
+	           REG_NO,
+	           NAME,
+	           COMPANY_NM,
+	           PKG_COMMON.FN_DECRYPT(PHONE_NO) AS PHONE_NO,
+	           PKG_COMMON.FN_DECRYPT(ADDR) AS ADDR,
+	           BUSINESS_TYPE,
+	           INDUSTRY_TYPE,
+	           MAIL1,
+	           MAIL2,
+	           POST_NO,
+	           PKG_COMMON.FN_DECRYPT(ADDR_DT) AS ADDR_DT
+	      FROM TR_TAX_RECEIPT
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
+
+	<insert id="insertTrTaxReceipt" parameterType="map">
+	    INSERT INTO TR_TAX_RECEIPT (
+	        SERVICE_ID, GUBUN, REG_NO, NAME, COMPANY_NM,
+	        PHONE_NO, ADDR, BUSINESS_TYPE, INDUSTRY_TYPE,
+	        MAIL1, MAIL2, POST_NO, ADDR_DT, INS_DATE, UPD_DATE
+	    )
+	    VALUES (
+	        #{SERVICE_ID}, #{GUBUN}, #{REG_NO}, #{NAME}, #{COMPANY_NM},
+	        PKG_COMMON.FN_ENCRYPT(#{PHONE_NO}), PKG_COMMON.FN_ENCRYPT(#{ADDR}), #{BUSINESS_TYPE}, #{INDUSTRY_TYPE},
+	        #{MAIL1}, #{MAIL2}, #{POST_NO}, PKG_COMMON.FN_ENCRYPT(#{ADDR_DT}), SYSDATE, SYSDATE
+	    )
+	</insert>
+
+	<delete id="deleteTrTaxReceipt" parameterType="map">
+	    DELETE FROM TR_TAX_RECEIPT
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</delete>
 </mapper>
