@@ -44,7 +44,7 @@
             MM.LOGIN_ID = #{userId}
             AND MM.USE_YN  = 'Y'
    			AND MD.USE_YN = 'Y'
-   			AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') <!-- 기존 더코어 사용 회사 로그인 가능 -->
+   			<!-- AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') --> <!-- 기존 더코어 사용 회사 로그인 가능 -->
     </select>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">

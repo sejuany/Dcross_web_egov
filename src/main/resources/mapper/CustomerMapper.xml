@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.customer.mapper.CustomerMapper">
+	
+	<select id="getTokenInfo" parameterType="map" resultType="map">
+        SELECT TS.SERVICE_ID,
+               TOKEN,
+               REG_GB,
+               RATIO_NO,
+               TN.TASK_CD,
+               TN.PROC_CD,
+               NTAX_TRGET_CD,
+               NTAX_WHO,
+               NTAX_TRGET_GR_CD,
+           -- 신규등록인 경우 차량번호 REQ_CAR_NO
+           CASE
+                WHEN TS.WORK_CD = '010' THEN TN.REQ_CAR_NO
+                ELSE TS.CAR_NO
+           END AS CAR_NO, 
+           -- 비과세 대상자인 경우 사인 페이지로 이동
+           CASE
+                WHEN TRIM(TN.NTAX_TRGET_CD) = '00' THEN 'N'
+                ELSE 'Y'
+           END AS SIGN_YN,
+                  (SELECT pkg_common.fn_decrypt(MPHONE_NO) 
+                        FROM TM_MEMBER_DT 
+                       WHERE LOGIN_ID = TS.MEMBER_ID
+                  ) AS MANAGER_TEL
+          FROM TR_SERVICE TS,
+               TR_NEWCAR TN,
+               TR_CARNO_DETACH TCD
+         WHERE TS.SERVICE_ID = TCD.SERVICE_ID
+           AND TS.SERVICE_ID = TN.SERVICE_ID
+           AND TS.REQUEST_DT >= ADD_MONTHS(SYSDATE, -1)
+		   AND TOKEN =  #{TOKEN}
+	</select>
+</mapper>

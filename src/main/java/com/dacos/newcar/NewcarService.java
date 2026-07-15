@@ -1,7 +1,5 @@
 package com.dacos.newcar;
 
-import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
@@ -28,9 +26,11 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.addservice.dto.AddServiceDto;
+import com.dacos.attach.AttachService;
 import com.dacos.auth.AuthService;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.auth.mapper.AuthMapper;
+import com.dacos.code.mapper.CodeMapper;
 import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
@@ -43,23 +43,15 @@ import com.dacos.newcar.dto.NewcarSearchRequest;
 import com.dacos.newcar.mapper.NewcarMapper;
 import com.dacos.payment.mapper.PaymentMapper;
 import com.fasterxml.jackson.databind.JsonNode;
-import com.dacos.code.mapper.CodeMapper;
-import java.io.IOException;
-import java.net.InetAddress;
-import java.net.URLEncoder;
-import java.net.UnknownHostException;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
+
+import lombok.RequiredArgsConstructor;
 
 
 /**
  * 신차 등록 서비스
  * - getNewCarList: Map으로 반환하여 컬럼명 그대로 프론트에 전달 (직렬화 문제 방지)
  */
+@RequiredArgsConstructor
 @Service
 public class NewcarService {
 
@@ -68,21 +60,11 @@ public class NewcarService {
     private static final DateTimeFormatter SEARCH_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Seoul");
     
- // WA 신규등록 첨부파일
-    private static final String WA_ATTACH_GUBUN = "NWEB";
- // WAS2 실제 저장 경로
-    private static final String WA_ATTACH_UPLOAD_ROOT = "/web/upload";
-
-    // WAS2 웹에서 접근할 URL
-    private static final String WA_ATTACH_URL_PREFIX = "/upload";
-
-    // DB 저장 경로
-    private static final String WA_ATTACH_PATH_NM = "/upload";
+    // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
+    private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
+            "WA001", new CarSpecSearchConfig("POLESTAR", "1", "e")
+    );
     
-    private static final long WA_ATTACH_MAX_SIZE = 10L * 1024L * 1024L;
-    private static final DateTimeFormatter WA_ATTACH_FILE_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
-
     // 번호판대 계산 시 사용하는 번호판 구분 코드
 	public static final String NORMAL = "7";
 	public static final String FILM   = "F";
@@ -97,18 +79,8 @@ public class NewcarService {
     private final CommonRepository common; // DB 접근 역할
     private final CodeMapper codeMapper;
     private final AuthMapper authMapper;
-
-    public NewcarService(NewcarMapper newcarMapper, MortgageMapper mortgageMapper, PaymentMapper paymentMapper, CommonService commonService, AuthService authService, CommonUtil commonUtil, CommonRepository common, CodeMapper codeMapper, AuthMapper authMapper) {
-        this.newcarMapper = newcarMapper;
-        this.mortgageMapper = mortgageMapper;
-        this.paymentMapper = paymentMapper;
-        this.commonService = commonService;
-        this.authService = authService;
-        this.commonUtil = commonUtil;
-        this.common = common;
-        this.codeMapper = codeMapper;
-        this.authMapper = authMapper;
-    }
+    private final AttachService attachService;
+    
 
     /**
      * 신차 등록 목록 조회
@@ -125,11 +97,105 @@ public class NewcarService {
         clampWaSearchStartDate(request);
         logger.info("[NewcarService] WA 신규신청현황 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());
         request.setCOMPANY_ID(user.getCOMPANY_ID());
+        request.setBRANCH_ID(user.getBRANCH_ID());
         request.setMEMBER_GB(user.getMEMBER_GB());
         request.setMEMBER_ID(user.getLOGIN_ID());
         return newcarMapper.getWaNewCarList(request);
     }
 
+    /**
+     * 로그인 회사에 설정된 Maker와 차량명으로 TR_CAR_SPEC 차량제원을 조회함.
+     * Maker와 차량명이 같은 첫 번째 차량제원을 사용함.
+     */
+    public Map<String, Object> getCarSpec(
+            String companyId,
+            String carName) {
+        String normalizedCompanyId = Objects.toString(companyId, "").trim().toUpperCase();
+        String normalizedCarName = Objects.toString(carName, "").trim();
+
+        // 클라이언트 입력이 아닌 로그인 회사코드로 Maker를 결정함.
+        CarSpecSearchConfig searchConfig = CAR_SPEC_SEARCH_CONFIG_BY_COMPANY.get(normalizedCompanyId);
+        if (searchConfig == null) {
+            throw new BusinessException("차량제원 Maker 설정이 없는 회사입니다: " + normalizedCompanyId, 400);
+        }
+
+        if (normalizedCarName.isEmpty()) {
+            throw new BusinessException("차량명을 입력해주세요.", 400);
+        }
+
+        if (normalizedCarName.length() > 100) {
+            throw new BusinessException("차량명은 100자 이하로 입력해주세요.", 400);
+        }
+
+        Map<String, Object> carSpec = newcarMapper.getCarSpec(
+                searchConfig.maker(),
+                normalizedCarName);
+
+        if (carSpec == null || carSpec.isEmpty()) {
+            throw new BusinessException("TR_CAR_SPEC에서 차량제원을 찾을 수 없습니다: " + normalizedCarName, 404);
+        }
+
+        // 회사별 차종구분과 연료구분을 세금 및 공채 감면 계산에 사용함.
+        // WA001은 폴스타 전기차만 처리하므로 DB 연료값과 무관하게 e로 통일함.
+        carSpec.put("VHCTY_ASORT_CODE", searchConfig.vehicleTypeCode());
+        carSpec.put("FUEL_CD", searchConfig.fuelCode());
+        return carSpec;
+    }
+
+    /**
+     * 사용본거지 주소와 차량구분/비교값에 맞는 현재 공채 매입률 가져옴.
+     * 다목적형 지역 분기로 결정된 CAR_GB와 비교값은 클라이언트 계산 후 제한된 값만 전달받음.
+     */
+    public Map<String, Object> getNewcarBondRate(String baseAddress, String carGb, double baseValue) {
+        String normalizedBaseAddress = Objects.toString(baseAddress, "").trim();
+        String normalizedCarGb = Objects.toString(carGb, "e").trim().toLowerCase();
+
+        if (normalizedBaseAddress.isEmpty()) {
+            throw new BusinessException("사용본거지 주소를 입력해주세요.", 400);
+        }
+
+        if (normalizedBaseAddress.length() > 500) {
+            throw new BusinessException("사용본거지 주소는 500자 이하로 입력해주세요.", 400);
+        }
+
+        // 폴스타 승용/다목적 공채 분기에서 사용하는 차량구분만 허용함.
+        if (!Set.of("e", "1", "2").contains(normalizedCarGb)) {
+            throw new BusinessException("지원하지 않는 공채 차량구분입니다: " + normalizedCarGb, 400);
+        }
+
+        double normalizedBaseValue = Math.max(baseValue, 0);
+        Map<String, Object> bondRate = newcarMapper.getBondRate(
+                normalizedBaseAddress,
+                normalizedCarGb,
+                normalizedBaseValue);
+
+        if (bondRate == null || bondRate.isEmpty()) {
+            throw new BusinessException(
+                    "TM_BOND에서 사용 가능한 공채 매입률을 찾을 수 없습니다: "
+                            + normalizedBaseAddress + " / " + normalizedCarGb + " / " + normalizedBaseValue,
+                    404);
+        }
+
+        // 실제 조회에 사용한 다목적 분기 기준을 화면 계산 결과에서 확인할 수 있게 반환함.
+        bondRate.put("SEARCH_CAR_GB", normalizedCarGb);
+        bondRate.put("SEARCH_BASE_VALUE", normalizedBaseValue);
+        return bondRate;
+    }
+    /**
+     * 신규등록 WORK_CD=010에 적용되는 현재 TM_TAX 세율정보 가져옴.
+     * 사용여부, 적용기간, 최신 시작일 조건은 getTmTax 매퍼에서 처리함.
+     */
+    public Map<String, Object> getNewcarTaxInfo() {
+        Map<String, Object> taxInfo = common.select("010", "getTmTax");
+
+        if (taxInfo == null || taxInfo.isEmpty()) {
+            throw new BusinessException("TM_TAX에서 사용 가능한 신규등록 세율정보를 찾을 수 없습니다: 010", 404);
+        }
+
+        return taxInfo;
+    }
+    private record CarSpecSearchConfig(String maker, String vehicleTypeCode, String fuelCode) {
+    }
     private void clampWaSearchStartDate(NewcarSearchRequest request) {
         if (request == null) {
             return;
@@ -367,6 +433,7 @@ public class NewcarService {
 				row.put("SPACE_NM", getCellValue(excelRow.getCell(3), formatter));						//담당 Specialist명
 				row.put("LINK_ID", getCellValue(excelRow.getCell(5), formatter));						//주문번호
 				row.put("OWNER_NM", getCellValue(excelRow.getCell(6), formatter));						//소유자명
+				row.put("CAR_NM", getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"CAR_NM"));//차량번호
 				row.put("CARID_NO", getCellValue(excelRow.getCell(11), formatter));						//차대번호
 				row.put("BUY_AMT", getCellValue(excelRow.getCell(28), formatter).replace(",", ""));		//공급가액
 				row.put("REGIST_DATE", getCellValue(excelRow.getCell(41), formatter).replace("-", "").replace(".", ""));	//등록일자
@@ -378,12 +445,60 @@ public class NewcarService {
 		}
 		return result;
     }
+	private String getExcelCellValue(Row headerRow, Row dataRow, DataFormatter formatter, int fallbackIndex, String... aliases) {
+		int columnIndex = findHeaderIndex(headerRow, formatter, aliases);
+		if (columnIndex < 0) {
+			columnIndex = fallbackIndex;
+		}
+		return columnIndex >= 0 ? getCellValue(dataRow.getCell(columnIndex), formatter) : "";
+	}
+
+	private int findHeaderIndex(Row headerRow, DataFormatter formatter, String... aliases) {
+		if (headerRow == null) {
+			return -1;
+		}
+
+		Set<String> normalizedAliases = new HashSet<>();
+		for (String alias : aliases) {
+			normalizedAliases.add(normalizeExcelHeader(alias));
+		}
+
+		for (Cell cell : headerRow) {
+			String header = normalizeExcelHeader(getCellValue(cell, formatter));
+			if (normalizedAliases.contains(header)) {
+				return cell.getColumnIndex();
+			}
+		}
+		return -1;
+	}
+
+	private String normalizeExcelHeader(String value) {
+		return Objects.toString(value, "")
+				.replaceAll("[\\s_\\-./()\\[\\]]", "")
+				.toUpperCase();
+	}
+
 
 	private String getCellValue(Cell cell, DataFormatter formatter) {
 		if (cell == null) {
 			return "";
 		}
 		return formatter.formatCellValue(cell).trim();
+	}
+
+	private void applyExcelCarSpec(Map<String, Object> row, UserDto user) {
+		String carName = Objects.toString(row.get("CAR_NM"), "").trim();
+		if (carName.isEmpty()) {
+			throw new BusinessException("\uCC28\uBA85 \uC5C6\uC74C");
+		}
+
+		Map<String, Object> carSpec = getCarSpec(user.getCOMPANY_ID(), carName);
+		row.put("CAR_NM", carName);
+		row.put("VH_TY_CD", isYn(carSpec.get("MULTI_PURPOSE_YN")) ? "3" : "");
+	}
+
+	private boolean isYn(Object value) {
+		return "Y".equalsIgnoreCase(Objects.toString(value, "").trim());
 	}
 
     /**
@@ -419,6 +534,13 @@ public class NewcarService {
 		for (int i = 0; i < rows.size(); i++) {
 			Map<String, Object> row = rows.get(i);
 			List<String> errors = validateExcelRow(row, excelCarIds, excelLinkId, dlvMap, suMap);
+			if (errors.isEmpty()) {
+				try {
+					applyExcelCarSpec(row, user);
+				} catch (BusinessException e) {
+					errors.add(e.getMessage());
+				}
+			}
 			if (!errors.isEmpty()) {
 				errorList.add(Map.of("row", i + 2, "carIdNo", row.get("CARID_NO"), "errors", errors));
 			}
@@ -675,6 +797,8 @@ public class NewcarService {
 	    // =========================
 	    dsNewCar.put("CARID_NO", row.get("CARID_NO"));
 	    //dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));									  // 대표소유자명 공란
+	    dsNewCar.put("CAR_NM", row.get("CAR_NM"));
+	    dsNewCar.put("VH_TY_CD", row.get("VH_TY_CD"));
 	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
 	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 						   // 등록일자
 	    dsNewCar.put("STAMP_GB", "TOTAL"); 			  	 	 					   // 인지세
@@ -727,11 +851,11 @@ public class NewcarService {
 		    phone = parts[3];
 		}
 
-	dsCarNoDetach.put("DELIVERY_ADDR", address);
-	dsCarNoDetach.put("DELIVERY_ADDR_DT", detailAddress);
-	dsCarNoDetach.put("RECEIVE_NM", manager);
-	dsCarNoDetach.put("RECEIVE_TEL_NO", phone);
-	dsCarNoDetach.put("HOLE_YN", "02");  // 비천공
+		dsCarNoDetach.put("DELIVERY_ADDR", address);
+		dsCarNoDetach.put("DELIVERY_ADDR_DT", detailAddress);
+		dsCarNoDetach.put("RECEIVE_NM", manager);
+		dsCarNoDetach.put("RECEIVE_TEL_NO", phone);
+		dsCarNoDetach.put("HOLE_YN", "02");  // 비천공
 	    dsCarNoDetach.put("SEAL_YN", "02");  // 비봉인
 
 	    // =========================
@@ -820,6 +944,12 @@ public class NewcarService {
 		        row.put("PAY_ST", "N");
 
 		        int amt = 0;
+
+		        // 로그인 회사의 신규등록 서비스 설정에서 등록수수료 가져옴.
+		        if ("FEE".equals(kd)) {
+		            amt = mWorkCd == null ? 0 : commonUtil.toInt(mWorkCd.get("FEE"));
+		            logger.info("등록수수료 : {}", amt);
+		        }
 
 		        // 인지세
 		        if("INJI".equals(kd)) {
@@ -925,9 +1055,6 @@ public class NewcarService {
 			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
 			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
 
-		    // 처리상태
-		    String procSt = String.valueOf(mService.get("PROC_ST"));
-
 		    // 데이터 병합
 		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
 
@@ -936,13 +1063,20 @@ public class NewcarService {
 
 		    // 서비스번호
 		    String serviceId = (String) input.get("SERVICE_ID");
+		    
+		    // 처리상태
+		    String procSt = String.valueOf(mService.get("PROC_ST"));
+		    // 현재 DB 처리상태 (Update 건만 조회)
+		    String beforeProcSt = "";
+
+		    if (!commonUtil.isEmpty(serviceId)) {
+		        Map<String, Object> resultProc = common.select(input, "selectProcSt"); // 상태 조회
+		        beforeProcSt = (String) resultProc.get("PROC_ST");
+		    }
 
 			// 공동소유자 데이터 정리 (하이픈, 공백, 줄바꿈, 쉼표 제거)
 		    normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
             normalizeTaxReceipt(mTaxReceipt);
-
-		    logger.info("lOwnerInfoList >>> " + lOwnerInfoList);
-		    logger.info("lOwnerInfoList1 >>> " + lOwnerInfoList1);
 
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
@@ -958,6 +1092,14 @@ public class NewcarService {
 		    result.put("MESSAGE", "저장완료");
 		    result.put("RESULT_CD", "0");
 
+		    logger.info("DB PROC_ST: {}", beforeProcSt);
+			logger.info("REQUEST PROC_ST: {}", procSt);
+			
+		    // 다른 상태에서 신청대기(W_REQ)로 변경되는 경우 병합 PDF 생성
+		    if (!"W_REQ".equals(beforeProcSt) && "W_REQ".equals(procSt)) {
+		        attachService.mergePdf(serviceId);
+		    }
+		    
 		    // 신청 여부 확인
 		    // 신청 상태: S_WAIT(심사대기), P_REQ(납부요청)
 		    boolean isRequest = "S_WAIT".equals(procSt)|| "P_REQ".equals(procSt);
@@ -1630,189 +1772,8 @@ public class NewcarService {
 	    }
 
 	}
-    /**
-     * WA 신규등록 첨부파일 조회
-     */
-    public List<Map<String, Object>> getWaNewcarAttachFiles(String serviceId) {
-
-        String cleanServiceId = Objects.toString(serviceId, "").trim();
-
-        if (cleanServiceId.isBlank()) {
-            throw new BusinessException("접수번호가 없습니다.", 400);
-        }
-
-        Map<String, Object> param = new HashMap<>();
-        param.put("SERVICE_ID", cleanServiceId);
-        param.put("GUBUN", WA_ATTACH_GUBUN);
-
-        List<Map<String, Object>> list = newcarMapper.getWaNewcarAttachFiles(param);
-
-        for (Map<String, Object> file : list) {
-            file.put("FILE_URL", buildWaAttachFileUrl(file));
-        }
-
-        return list;
-    }
-    
-	// IP나 HOST 구하기
-	public String getServerAddress(String sGubun) {
-		InetAddress ip = null;
-		try {
-		  ip = InetAddress.getLocalHost();
-		} catch (UnknownHostException e) {
-		  e.printStackTrace();
-		}
-		return ("IP".equals(sGubun) ? ip.getHostAddress() : ip.getHostName());
-	}
-    
-	/**
-	 * WA 신규등록 첨부파일 실제 저장 루트 경로
-	 */
-	private String getWaAttachUploadRoot() {
-
-	    String serverIp = getServerAddress("IP");
-
-	    // 운영 WAS2
-	    if ("10.109.111.40".equals(serverIp)) {
-	        return "/web/upload";
-	    }
-
-	    // 개발
-	    return "D:\\webapps\\DaCOS\\upload";
-	}
-
-	/**
-	 * WA 신규등록 첨부파일 실제 파일 경로
-	 */
-	public Path getWaAttachFilePath(String fileName) {
-	    return Paths.get(getWaAttachUploadRoot())
-	            .resolve(fileName)
-	            .normalize();
-	}
 	
-    /**
-     * WA 신규등록 첨부파일 업로드
-     */
-    @Transactional
-    public List<Map<String, Object>> uploadWaNewcarAttachFile(
-            String serviceId,
-            int seq,
-            MultipartFile file,
-            UserDto user
-    ) {
-
-        String cleanServiceId = Objects.toString(serviceId, "").trim();
-
-        if (cleanServiceId.isBlank()) {
-            throw new BusinessException("접수번호가 없습니다.", 400);
-        }
-
-        if (seq < 0 || seq > 3) {
-            throw new BusinessException("첨부서류 구분값이 올바르지 않습니다.", 400);
-        }
-
-        if (file == null || file.isEmpty()) {
-            throw new BusinessException("첨부파일이 없습니다.", 400);
-        }
-
-        if (file.getSize() > WA_ATTACH_MAX_SIZE) {
-            throw new BusinessException("첨부파일은 10MB 이하만 가능합니다.", 400);
-        }
-
-        String originalFileName = sanitizeOriginalFileName(file.getOriginalFilename());
-        String extension = getFileExtension(originalFileName);
-
-        String savedFileName =
-                cleanServiceId.replaceAll("[^a-zA-Z0-9가-힣]", "_")
-                        + "_"
-                        + seq
-                        + "_"
-                        + LocalDateTime.now().format(WA_ATTACH_FILE_TIME_FORMATTER)
-                        + extension;
-
-        try {
-        	Path uploadDir = Paths.get(getWaAttachUploadRoot());
-        	Files.createDirectories(uploadDir);
-
-        	Path savePath = uploadDir.resolve(savedFileName).normalize();
-            logger.info("[WA 첨부 업로드] serviceId={}, seq={}", cleanServiceId, seq);
-            logger.info("[WA 첨부 업로드] originalName={}", file.getOriginalFilename());
-            logger.info("[WA 첨부 업로드] contentType={}", file.getContentType());
-            logger.info("[WA 첨부 업로드] fileSize={}", file.getSize());
-            logger.info("[WA 첨부 업로드] savePath={}", savePath);
-            file.transferTo(savePath.toFile());
-            logger.info("[WA 첨부 업로드] savedFileSize={}", Files.size(savePath));
-
-        } catch (IOException e) {
-            logger.error("[NewcarService] WA 신규등록 첨부파일 저장 실패", e);
-            throw new BusinessException("첨부파일 저장 중 오류가 발생했습니다.", 500);
-        }
-
-        String loginId = user != null ? Objects.toString(user.getLOGIN_ID(), "") : "";
-
-        Map<String, Object> param = new HashMap<>();
-        param.put("SERVICE_ID", cleanServiceId);
-        param.put("SEQ", String.valueOf(seq));
-        param.put("ATCHFILE_NM", originalFileName);
-        param.put("ATCHSVRFILE_NM", savedFileName);
-        param.put("ATCHFILEPATH_NM", WA_ATTACH_PATH_NM);
-        param.put("GUBUN", WA_ATTACH_GUBUN);
-        param.put("INS_USER", loginId);
-        param.put("UPD_USER", loginId);
-
-        // SERVICE_ID + GUBUN + SEQ 기준 교체
-        newcarMapper.deleteWaNewcarAttachFile(param);
-        newcarMapper.insertWaNewcarAttachFile(param);
-
-        return getWaNewcarAttachFiles(cleanServiceId);
-    }
-
-    private String sanitizeOriginalFileName(String fileName) {
-
-        String value = Objects.toString(fileName, "").trim();
-
-        if (value.isBlank()) {
-            return "attach_file";
-        }
-
-        value = value.replace("\\", "/");
-
-        int lastSlashIndex = value.lastIndexOf("/");
-        if (lastSlashIndex >= 0) {
-            value = value.substring(lastSlashIndex + 1);
-        }
-
-        return value.replaceAll("[\\r\\n]", "");
-    }
-
-    private String getFileExtension(String fileName) {
-
-        String value = Objects.toString(fileName, "").trim();
-        int dotIndex = value.lastIndexOf(".");
-
-        if (dotIndex < 0) {
-            return "";
-        }
-
-        return value.substring(dotIndex).toLowerCase();
-    }
-
-    private String buildWaAttachFileUrl(Map<String, Object> file) {
-
-        String savedFileName = Objects.toString(file.get("ATCHSVRFILE_NM"), "").trim();
-
-        if (savedFileName.isBlank()) {
-            return "";
-        }
-
-        String encodedFileName = URLEncoder
-                .encode(savedFileName, StandardCharsets.UTF_8)
-                .replace("+", "%20");
-
-        return "/api/newcar/wa-attach-view?fileName=" + encodedFileName;
-    }
-    
-    
+   
 }
 
 

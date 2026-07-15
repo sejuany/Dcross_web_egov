@@ -1,8 +1,8 @@
-
+﻿
 /* =========================================================
  * Import
  * ========================================================= */
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -30,6 +30,12 @@ import {
     taxReceiptMap
 } from './WaNewcarInitial';
 
+// 파일 업로드 정책 가져오기
+import {
+    getAttachPolicy,
+    getNtaxAttachPolicy
+} from '../../../policy/attachPolicy';
+
 // 화면
 import CarInfo from './CarInfo';
 import ConfirmInfo from './ConfirmInfo';
@@ -40,9 +46,6 @@ import OwnerUserLease from './owner/OwnerUserLease';
 import OwnerRent from './owner/OwnerRent';
 // 상세 조회 화면
 import WaNewcarDetail from './WaNewcarDetail';
-// 첨부서류 모달
-import WaNewcarAttachModal from './WaNewcarAttachModal';
-import WaSendSmsModal from './WaSendSmsModal';
 
 // Style
 import '../../styles/wa.css';
@@ -56,7 +59,9 @@ import '../../styles/WaNewcarRequest.css';
 // 값이 있으면 기존값과 관계없이 적용
 const COMPANY_DEFAULT = {
 
-    WA001: {},
+    WA001: {
+		DLVGB: ['GWANG', 'DAEGU', 'DAEJE', 'BUSAN', 'SEOUL', 'SUWON', 'JEJU', 'HANAM', 'ILSAN', 'INPUT'],
+	},
 
     WB001: {
         dsNewCar: {
@@ -105,10 +110,14 @@ const REQUIRED_FIELDS = [
 
 // 상세조회 화면 표시 대상 상태
 const DETAIL_PROC_STATUS = ['REQ', 'S_REQ', 'RET', 'END'];
+
 // 신청 단계
-const REQUEST_STEPS = [ '소유자 정보 입력', '자동차 정보 입력', '신규등록 정보 입력', '최종 확인'];
-// 단계 제목
-const STEP_TITLES = { 1: '소유자 정보', 2: '자동차 정보', 3: '신규등록 정보', 4: '최종 확인' };
+const REQUEST_STEPS = [
+    { no: 1, title: '소유자 정보', label: '소유자 정보 입력' },
+    { no: 2, title: '자동차 정보', label: '자동차 정보 입력' },
+    { no: 3, title: '신규등록 정보', label: '신규등록 정보 입력' },
+    { no: 4, title: '최종 확인', label: '최종 확인' }
+];
 // 차량 구매 방식
 const OWNER_TYPE_OPTIONS = [
     {
@@ -199,6 +208,7 @@ const paymentColumnDefs = [
 		valueFormatter: p => p.value || '-'
 	}
 ];
+
 
 // 결제정보 총금액 계산
 const calculateTotalAmt = paymentList =>
@@ -354,7 +364,8 @@ const WaNewcarRequest = ({
     embedded = false,
     initialServiceId = '',
     onClose,
-    onSaved
+    onSaved,
+	stepMemory
 }) => {
 	
 /* =========================================================
@@ -381,6 +392,7 @@ const WaNewcarRequest = ({
 	const [dsWorkCp, setDsWorkCp] = useState({});
 	const [dsUserInfo, setDsUserInfo] = useState({});
 	const [codes, setCodes] = useState({});
+	
 
 	// 화면 상태 ===
 	// 소유자 유형 선택	
@@ -392,19 +404,18 @@ const WaNewcarRequest = ({
 
 	const [loading, setLoading] = useState(true);
 	const [saving, setSaving] = useState(false);
-	// 첨부서류 모달
-	const [attachModalOpen, setAttachModalOpen] = useState(false);
-	const [smsModalOpen, setSmsModalOpen] = useState(false);
 	
 	// 주소 기능 사용
 	const {
 	    handleAddressSelect,
-	    handleSameAddress
+	    handleSameAddress,
+	    handleClearAddress
 	} = useAddressHandler({
 	    dsNewCar,
 	    dsBaseList,
 	    setDsNewCar,
-	    setDsOwnerInfo
+	    setDsOwnerInfo,
+	    setDsCarNoDetach
 	});
 /* =========================================================
  * Ref
@@ -441,11 +452,28 @@ const WaNewcarRequest = ({
 
 	// 표시할 밑줄 위치
 	const current = hoverStep ?? step;
-	// 상세조회 화면 여부 = 상태가 DETAIL_PROC_STATUS에 포함되거나, JUDGE_ST가 빈값이 아닌 경우 
-	const isDetailPage = DETAIL_PROC_STATUS.includes(dsService.PROC_ST) || dsService.JUDGE_ST;
 	// 처리상태가 '입력'이고, 신규등록 구분이 '렌트'인 경우 특정 화면을 보여줌  
 	const isRentInput = dsService.PROC_ST === 'INPUT' && dsNewCar.TASK_CD === 'ADD';
-		
+	// 상세조회 화면 여부
+	const isDetailPage = useMemo(() => {
+	    if (DETAIL_PROC_STATUS.includes(dsService.PROC_ST)) {
+	        return true;
+	    }
+
+	    if (
+	        dsService.PROC_ST === 'W_REQ' &&
+	        dsUserInfo.MEMBER_GB === 'SU'
+	    ) {
+	        return true;
+	    }
+
+	    return Boolean(dsService.JUDGE_ST);
+	}, [
+	    dsService.PROC_ST,
+	    dsService.JUDGE_ST,
+	    dsUserInfo.MEMBER_GB
+	]);
+
 /* =========================================================
  * Effect
  * ========================================================= */
@@ -457,15 +485,22 @@ const WaNewcarRequest = ({
 		}
 
 		const loadCodes = async () => {
-			const codeData = await gf.getCodes(['SGB', 'PR_ST', 'JG_ST', 'NEWGB', 'DELIV', 'TASK', 
+			// 일반 화면코드와 공채 할인율 상세코드를 함께 가져옴.
+			const [codeData, detailCodeData] = await Promise.all([
+				gf.getCodes(['SGB', 'PR_ST', 'JG_ST', 'NEWGB', 'DELIV', 'TASK', 
 				'BOND', 'NTTCD', 'NTTGR', 'NTACD', 'NTWHO', 'STAGB', 'DLVGB', 'DLADD', 'REGGB', 
 				'NUMGB', 'CARM', 'FRTAX', 'GOVT', 'PAYME', 'PAYGB', 'INSUR', 'NUMST', 'IMPST',
 				'PAYKD', 'PAYME', 'PAYOP', 'PAYST', 'PAYTP', 'BANK', 'FUEL', 'CARUS', 'NHOLE', 
 				'NSEAL' 
+			]),
+				gf.getCodeDetails(['TUSE'])
 			]);
 
 			hasLoadedCodesRef.current = true;
-			setCodes(codeData);
+			setCodes({
+				...codeData,
+				TUSE: detailCodeData?.TUSE || []
+			});
 		};
 
 		loadCodes();
@@ -490,10 +525,59 @@ const WaNewcarRequest = ({
 		
 	}, [serviceId]);
 	
+	/**
+	 * 저장중인 화면(INPUT, SAV 등)은
+	 * 마지막으로 작업하던 진행단계를 복원한다.
+	 */
+	useEffect(() => {
+
+	    if (!dsService.SERVICE_ID) {
+	        return;
+	    }
+
+	    if (isDetailPage) {
+	        return;
+	    }
+
+	    const savedStep =
+	        stepMemory?.get(dsService.SERVICE_ID);
+
+	    if (savedStep) {
+	        setStep(savedStep);
+	    } else {
+	        setStep(1);
+	    }
+ 
+	}, [
+	    dsService.SERVICE_ID,
+		isDetailPage
+	]);
+	
+	// 첨부서류 필요 여부 확인
+	const checkAttachDocument = async () => {
+
+	    const needAttach =
+	        dsNewCar.REG_GB === 'F' ||          // 외국인
+	        Number(dsNewCar.RATIO_NO) < 100 || // 공동소유
+	        purchaseType === 'USER_LEASE';     // 이용자명의 리스
+
+	    if (needAttach) {
+	        await gf.alert(
+	            '해당 등록 건은 첨부서류가 필요합니다.\n 요청 전에 첨부바랍니다.'
+	        );
+	    }
+	};
+	
 	// 다음 눌렀을 때 다음 단계로 이동하도록 함
 	const handleNext = async (e) => {
 	    e.preventDefault();
-
+		
+		// SU 사용자가 최종 확인에서 요청
+		if (step === 4 && dsUserInfo.MEMBER_GB === 'SU') {
+		    await requestWaitProcess();
+		    return;
+		}
+		
 		// 이미 렌트 안내 화면인 경우
 		if (isRentInput) {
 		    onClose();
@@ -525,19 +609,80 @@ const WaNewcarRequest = ({
 
 	    switch (step) {
 	        case 1:
-	            setStep(2); // 자동차 정보 입력
+				// 첨부서류 필요 여부 알림창
+				await checkAttachDocument();
+	            changeStep(2); // 자동차 정보 입력
 	            break;
 
 	        case 2:
-	            setStep(3); // 신규등록 정보 입력
+	            changeStep(3); // 신규등록 정보 입력
 	            break;
 
 	        case 3:
-	            setStep(4); // 최종 확인
+	            changeStep(4); // 최종 확인
 	            break;
 
 	        default:
 	            break;
+	    }
+	};
+	
+	const handlePrev = async (e) => {
+		e.preventDefault();
+				
+		switch (step) {
+		    case 2:
+		        changeStep(1);
+		        break;
+
+		    case 3:
+		        changeStep(2);
+		        break;
+
+		    case 4:
+		        changeStep(3);
+		        break;
+
+		    default:
+		        break;
+		}
+	};
+	
+	/**
+	 * 진행단계 변경
+	 * - 상세조회 화면은 기억하지 않는다.
+	 * - 저장중인 화면만 SERVICE_ID별 마지막 단계를 기억한다.
+	 */
+	const changeStep = async (nextStep) => {
+		
+		// 1 → 2 이동 시 첨부서류 안내
+		if (step === 1 && nextStep === 2) {
+		    await checkAttachDocument();
+		}
+		
+	    try {
+	        // 현재 내용 저장
+	        await saveProcess(
+				null,
+				"SAV",
+				null,
+				null,
+				null,
+				true
+			);
+	    } catch (e) {
+	        console.error(e);
+	    } finally {
+	        // 저장 성공 여부와 관계없이 단계 이동
+	        setStep(nextStep);
+
+	        if (
+	            !isDetailPage &&
+	            dsService.SERVICE_ID &&
+	            stepMemory
+	        ) {
+	            stepMemory.set(dsService.SERVICE_ID, nextStep);
+	        }
 	    }
 	};
 	
@@ -590,20 +735,37 @@ const WaNewcarRequest = ({
 			setDsNewCar(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'service') {
 			setDsService(prev => ({ ...prev, [name]: v }));
-		} else if (dataset.type === 'owner') {
-			setDsOwnerInfo(prev => ({ ...prev, [name]: v }));
-		} else if (dataset.type === 'owner1') {
-			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'detach') {
 			setDsCarNoDetach(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'taxReceipt') {
 			setDsTaxReceipt(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'company') {
 			setDsCompanyInfo(prev => ({ ...prev, [name]: v }));
-		}
+		} else if (dataset.type === 'owner') {
+	
+			// 공동소유자 비율 변경 시 대표소유자 비율 자동 계산
+			if (name === 'DEBTOR_RATIO') {
+			    setDsOwnerInfo(prev => ({
+			        ...prev,
+			        DEBTOR_RATIO: v
+			    }));
+	
+			    setDsNewCar(prev => ({
+			        ...prev,
+			        RATIO_NO: String(100 - Number(v || 0))
+			    }));
+			} else {
+			    setDsOwnerInfo(prev => ({
+			        ...prev,
+			        [name]: v
+			    }));
+			}
+			
+		} else if (dataset.type === 'owner1') {
+			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
+		} 
 	};
 
-	
 	// 상세 조회 공통
 	const loadDetail = async (receiptNo, showLoading = true) => {
 		console.log('receiptNo >>' + receiptNo);
@@ -703,32 +865,27 @@ const WaNewcarRequest = ({
 		}
 	};
 	
-	// 주소 잘 저장 됐는지 확인 하는 용도 
-	useEffect(() => {
-	    console.log({
-	        ADDRESS: dsNewCar.ADDRESS,
-	        ADDRESS_DT: dsNewCar.ADDRESS_DT,
-	        POST_NO: dsNewCar.POST_NO,
-	        BUBJUNG_CD: dsNewCar.BUBJUNG_CD,
-	        RT_ACC_NM: dsNewCar.RT_ACC_NM,
-	        ADDR_INFO: dsNewCar.ADDR_INFO,
-
-	        BASE_ADDRESS: dsNewCar.BASE_ADDRESS,
-	        BASE_ADDRESS_DT: dsNewCar.BASE_ADDRESS_DT,
-	        BASE_POST_NO: dsNewCar.BASE_POST_NO,
-	        BASE_BUBJUNG_CD: dsNewCar.BASE_BUBJUNG_CD,
-	        RT_ACC_NO: dsNewCar.RT_ACC_NO,
-	        ADDR_INFO2: dsNewCar.ADDR_INFO2
-	    });
-	}, [dsNewCar]);
-	
 	// 저장
+	const normalizePaymentOptionFields = (newCar = {}) => {
+		const normalized = { ...newCar };
+		const exemptionTargetCode = String(normalized.NTAX_TRGET_CD ?? '').trim();
+
+		if (!exemptionTargetCode || exemptionTargetCode === '00') {
+			normalized.NTAX_APPLC_CD = '0';
+			normalized.NTAX_TRGET_GR_CD = '0';
+		}
+
+		normalized.CARD_YN = normalized.CARD_YN === 'Y' ? 'Y' : 'N';
+		return normalized;
+	};
 	const saveProcess = async (
 	    newDsNewCar = null,
 	    proc = "SAV",
 	    newDsPaymentList = null, // 사전조회 계산 결과 저장용
 		newDsOwnerInfo = null, 	// 공동소유자 정보 저장용
-		newDsService = null
+		newDsService = null,
+		silent = false,  // alert 안 띄우기 위해
+		newDsCarNoDetach = null
 	) => {
 		
 		const targetNewCar = newDsNewCar || dsNewCar;
@@ -743,10 +900,10 @@ const WaNewcarRequest = ({
 		// 파라미터가 있으면 계산된 최신 데이터 사용
 		let newDataSet = {
 		    dsService: newDsService ? { ...newDsService } : { ...dsService },
-		    dsNewCar: newDsNewCar ? { ...newDsNewCar } : { ...dsNewCar },
+		    dsNewCar: normalizePaymentOptionFields(newDsNewCar ? { ...newDsNewCar } : { ...dsNewCar }),
 			dsOwnerInfo: newDsOwnerInfo ? { ...newDsOwnerInfo } : { ...dsOwnerInfo },
 		    dsOwnerInfo1,
-		    dsCarNoDetach,
+			dsCarNoDetach: newDsCarNoDetach ? { ...newDsCarNoDetach } : { ...dsCarNoDetach },
             dsTaxReceipt,
 
 		    dsPaymentList: newDsPaymentList ? [...newDsPaymentList] : [...dsPaymentList]
@@ -757,12 +914,12 @@ const WaNewcarRequest = ({
 		    newDataSet.dsNewCar.REG_GB === 'B' &&
 		    Number(newDataSet.dsNewCar.BUY_AMT || 0) >= 80000000;
 
-		// 법인번호판이 아닌데 G 계열 번호판이면 필름(F)으로 변경
+		// 법인번호판이 아닌데 G 계열 번호판이면 전기(7)로 변경
 		if (
 		    !isCorpNumplate &&
 		    String(newDataSet.dsNewCar.NUMPLATE_GB).includes('G')
 		) {
-		    newDataSet.dsNewCar.NUMPLATE_GB = 'F';
+		    newDataSet.dsNewCar.NUMPLATE_GB = '7';
 		}
 		
 		// 숫자 데이터 하이픈(-), 쉼표(,) 등 제거 
@@ -783,11 +940,11 @@ const WaNewcarRequest = ({
 
 		log("저장 요청 데이터:");
 	    // 저장 실행
-	    await processService(newDataSet, proc);
+	    await processService(newDataSet, proc, silent);
 	};
 	
 
-	const processService = async (newDataSet, proc) => {
+	const processService = async (newDataSet, proc, silent) => {
 
 	    try {
 			
@@ -818,7 +975,7 @@ const WaNewcarRequest = ({
 					completeMsg = "저장되었습니다.";
 				}
 
-				if(proc !== "NUM_SAV") {
+				if(proc !== "NUM_SAV" && !silent) {
 					await gf.alert(completeMsg);
 				}
 				
@@ -1024,77 +1181,7 @@ const WaNewcarRequest = ({
 	    }
 	};
 
-	if (isDetailPage) {
-	    return (
-	        <WaNewcarDetail 
-				dsService={dsService}
-				dsNewCar={dsNewCar}
-				dsOwnerInfo={dsOwnerInfo}
-				dsOwnerInfo1={dsOwnerInfo1}
-				dsPaymentList={dsPaymentList}
-				paymentColumnDefs={paymentColumnDefs}
-				dsCarNoDetach={dsCarNoDetach}
-				dsCompanyInfo={dsCompanyInfo}
-				dsWorkCp={dsWorkCp}
-				dsUserInfo={dsUserInfo}
-				loading={loading}
-				gf={gf}
-			/>
-	    );
-	}
 	
-	// 주민번호, 외국인일 때
-	// 등본상 주소지에서 x 버튼 누르면, 화면에 안 보이는 소유자주소+사용본거지 주소 한 번에 지워지도록 함
-	const handleClearAddress = (type) => {
-
-	    const isCorp =
-	        dsNewCar.REG_GB === 'B' ||
-	        dsNewCar.REG_GB === 'C';
-
-	    setDsNewCar(prev => {
-
-	        const next = { ...prev };
-
-	        switch (type) {
-
-	            case 'ADDRESS':
-
-	                next.ADDRESS = '';
-	                //next.ADDRESS_DT = '';
-	                next.POST_NO = '';
-	                next.BUBJUNG_CD = '';
-	                next.RT_ACC_NM = '';
-	                next.ADDR_INFO = '';
-
-	                // 개인은 사용본거지도 같이 삭제
-	                if (!isCorp) {
-	                    next.BASE_ADDRESS = '';
-	                    //next.BASE_ADDRESS_DT = '';
-	                    next.BASE_POST_NO = '';
-	                    next.BASE_BUBJUNG_CD = '';
-	                    next.RT_ACC_NO = '';
-	                    next.ADDR_INFO2 = '';
-	                }
-	                break;
-
-	            case 'BASE_ADDRESS':
-
-	                next.BASE_ADDRESS = '';
-	                //next.BASE_ADDRESS_DT = '';
-	                next.BASE_POST_NO = '';
-	                next.BASE_BUBJUNG_CD = '';
-	                next.RT_ACC_NO = '';
-	                next.ADDR_INFO2 = '';
-	                break;
-
-	            default:
-	                break;
-	        }
-
-	        return next;
-	    });
-	};
-
     const handleTaxReceiptAddressSelect = (type, addr) => {
         if (type !== 'ADDR') {
             return;
@@ -1120,7 +1207,222 @@ const WaNewcarRequest = ({
         }));
     };
 	
+	// 신청2 - SU가 요청 눌렀을 때 신청대기로 변경
+	const requestWaitProcess = async () => {
+		
+		// 저장 및 요청일 때만 요청할 수 있게 => 신청대기 변경
+		if(!['C_REQ', 'SAV'].includes(dsService.PROC_ST)) {
+			gf.alert('저장 및 요청 상태일 때만 요청 가능합니다.');
+		    return;
+		}
+		
+		// 필수 입력값 체크
+		const validMsg = await validateRequest();
+
+		if (validMsg) {
+			gf.alert(validMsg);
+			return;
+		}
+		
+		const ok = await gf.confirm('요청하시겠습니까?', '요청 확인');
+		
+		if (!ok) {
+		    return;
+		}
+
+	    const newDataSet = {
+	        dsService: {
+	            ...dsService,
+	            PROC_ST: 'W_REQ' // 신청대기
+	        },
+	        dsNewCar: { ...dsNewCar },
+	        dsOwnerInfo,
+	        dsOwnerInfo1,
+	        dsCarNoDetach,
+	        dsPaymentList: [...dsPaymentList]
+	    };
+
+		await processService(newDataSet, "REQ");
+	};
 	
+
+	// 신청 전 유효성 체크
+	const validateRequest = async () => {
+
+		// 필수 입력값 체크 
+		const requiredMsg = validateRequiredFields();
+
+		if (requiredMsg) {
+			return requiredMsg;
+		}
+		
+		// 서명 및 첨부파일 확인
+		const attachMsg = await validateAttachAndSign();
+
+		if (attachMsg) {
+		    return attachMsg;
+		}
+
+		if (gf.Check(dsNewCar.CARID_NO, '차대번호', 17)) {
+			return '차대번호를 확인해주세요.';
+		}
+
+		if (dsNewCar.RATIO_NO < 100) {
+			// TODO 대표소유자 비율이 100% 이하인경우에는 공동소유자가 존재해야한다.
+			// 대표소유자 비율 + 공동소유자 비율의 합이 100%가 되어야 한다.	(공동소유자 비율 0이상, 대표소유자 비율 100 이하 둘의 합이 100이 아닐경우)
+			if (dsOwnerInfo.DEBTOR_RATIO > 0 && dsOwnerInfo.DEBTOR_RATIO <= 100 && Number(dsNewCar.RATIO_NO) + Number(dsOwnerInfo.DEBTOR_RATIO) !== 100) {
+				return '대표소유자 + 공동소유자 비율을 확인해주세요 둘의 합은 100%이어야 합니다.';				
+			}
+			else {
+				// 공동소유자2명인 경우 총합이 100이 안되는지 확인
+				if (dsOwnerInfo.DEBTOR_RATIO > 0 && dsOwnerInfo.DEBTOR_RATIO <= 100 
+				 && dsOwnerInfo1.DEBTOR_RATIO > 0 && dsOwnerInfo1.DEBTOR_RATIO <= 100 
+				 && Number(dsNewCar.RATIO_NO) + Number(dsOwnerInfo.DEBTOR_RATIO) + Number(dsOwnerInfo1.DEBTOR_RATIO) !== 100) {
+					return '대표소유자 + 공동소유자1 + 공동소유자2 비율을 확인해주세요 둘의 합은 100%이어야 합니다.';
+				}
+				// 공동소유자 비율 합이 100%인경우 성명, 등록번호 주소체크
+				if (dsOwnerInfo.DEBTOR_NM === '' || dsOwnerInfo.DEBTOR_REG_NO === '' || dsOwnerInfo.DEBTOR_ADDR === '') {
+					return '공동소유자의 정보를 입력해주세요.';
+				}
+			}
+		}else {
+			// 대표소유자 비율이 100%인 경우 공동소유자 정보가 없어야 한다.
+			if (dsOwnerInfo.DEBTOR_RATIO > 0) {
+				return '대표소유자 비율이 100%인 경우 공동소유자 비율은 0%이어야 합니다.';
+			}
+			if (dsOwnerInfo.DEBTOR_NM || dsOwnerInfo.DEBTOR_REG_NO || dsOwnerInfo.DEBTOR_ADDR) {
+				return '대표소유자 비율이 100%인 경우 공동소유자 정보는 입력할 수 없습니다.';
+			}
+		}
+		
+		if (dsNewCar.NTAX_TRGET_CD === 'Y' && dsNewCar.NTAX_WHO === '') {
+			return '비과세대상자 정보를 입력해주세요.';
+		}
+		
+		return '';
+	};
+	
+	// 서명 및 첨부파일 업로드 여부 확인
+	const validateAttachAndSign = async () => {
+
+	    // 업로드된 첨부파일 조회
+	    const res = await axios.get('/api/newcar/wa-attach-files', {
+	        params: {
+	            serviceId: dsService.SERVICE_ID
+	        }
+	    });
+
+	    const attachFiles = res.data.list ?? [];
+
+	    // 전자서명 여부
+	    if (dsNewCar.SIGN_YN === 'Y' && dsNewCar.SIGN_FILE_YN !== 'Y') {
+	        return '전자서명을 완료해주세요.';
+	    }
+
+	    const uploadedCodes = new Set(
+	        attachFiles.map(file => file.CODE)
+	    );
+
+	    const attachPolicy = getAttachPolicy(dsNewCar);
+	    const ntaxPolicy = getNtaxAttachPolicy(dsNewCar);
+
+	    const requiredDocs = [
+	        ...attachPolicy.requiredDocs,
+	        ...ntaxPolicy.requiredDocs
+	    ];
+
+	    const hasMissing = requiredDocs.some(
+	        doc => !uploadedCodes.has(doc.code)
+	    );
+
+	    if (hasMissing) {
+	        return '전자서명 및 첨부파일 업로드를 완료해주세요.';
+	    }
+
+	    return '';
+	};
+	
+	// 필수 입력 정보 체크 
+	const validateRequiredFields = () => {
+
+		const emptyField = REQUIRED_FIELDS.find(
+			field => !dsNewCar[field.name]
+		);
+
+		if (emptyField) {
+			return `${emptyField.label}를(을) 입력해주세요.`;
+		}
+
+		return '';
+	}; 
+	
+	// ===================================================
+	// 상세정보 확인 페이지  
+	if (isDetailPage) {
+	    return (
+	        <WaNewcarDetail 
+				dsService={dsService}
+				dsNewCar={dsNewCar}
+				dsOwnerInfo={dsOwnerInfo}
+				dsOwnerInfo1={dsOwnerInfo1}
+				dsPaymentList={dsPaymentList}
+				paymentColumnDefs={paymentColumnDefs}
+				dsCarNoDetach={dsCarNoDetach}
+				dsCompanyInfo={dsCompanyInfo}
+				dsWorkCp={dsWorkCp}
+				dsUserInfo={dsUserInfo}
+				loading={loading}
+				gf={gf}
+				dsTaxReceipt={dsTaxReceipt}
+				saveProcess={saveProcess}
+				setDsCarNoDetach={setDsCarNoDetach}
+				dsPR_ST={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'PR_ST'
+			    )}
+				dsFUEL={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'FUEL'
+			    )}
+				dsNUMGB={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'NUMGB'
+			    )}
+				dsDLVGB={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'DLVGB'
+			    )}
+				dsBANK={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'BANK'
+			    )}
+				dsNTTCD={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'NTTCD'
+			    )}
+				dsNTTGR={gf.getCodeList(
+			        codes,
+			        COMPANY_DEFAULT,
+			        dsUserInfo.COMPANY_ID,
+			        'NTTGR'
+			    )}
+			/>
+	    );
+	}
+	
+	// 입력 페이지
 	return (
 		<div className="wa-request-page">
 		
@@ -1135,22 +1437,18 @@ const WaNewcarRequest = ({
 
 				{/* 진행 단계 */}
 				<div className="simple-step-wrap">
-					{REQUEST_STEPS.map((title, index) => {
-						const stepNo = index + 1;
-
-						return (
-							<div
-								key={title}
-								className={`simple-step ${step === stepNo ? 'active' : ''}`}
-								onMouseEnter={() => setHoverStep(stepNo)}
-								onMouseLeave={() => setHoverStep(null)}
-								onClick={() => setStep(stepNo)}
-							>
-								<div className="step-circle">{stepNo}</div>
-								<span>{title}</span>
-							</div>
-						);
-					})}
+					{REQUEST_STEPS.map(({ no, label }) => (
+					    <div
+					        key={no}
+					        className={`simple-step ${step === no ? 'active' : ''}`}
+					        onMouseEnter={() => setHoverStep(no)}
+					        onMouseLeave={() => setHoverStep(null)}
+					        onClick={() => changeStep(no)}
+					    >
+					        <div className="step-circle">{no}</div>
+					        <span>{label}</span>
+					    </div>
+					))}
 
 					<div
 						className="step-indicator"
@@ -1216,122 +1514,6 @@ const WaNewcarRequest = ({
 					</div>
 
 				</div>
-<<<<<<< .mine
-
-				<div className="wa-body">
-
-					{/* 현재 단계 제목 */}
-					<h2 className="wa-title">
-						{STEP_TITLES[step]}
-					</h2>
-
-					{/* 단계별 내용 */}
-					{step === 1 && (
-						<>
-							<span className="wa-bold-span1">해당하는 차량 구매 방식을 선택해주세요.</span>
-							{/* 소유자 유형 */}
-							<div className="wa-owner-tabs" role="tablist" aria-label="소유자 유형">
-								{OWNER_TYPE_OPTIONS.map(option => (
-									<button
-										key={option.value}
-										type="button"
-										className={purchaseType === option.value ? 'active' : ''}
-										onClick={() => handlePurchaseTypeSelect(option)}
-									>
-										{option.label}
-									</button>
-								))}
-							</div>
-							{/* 소유자 정보 입력 */}
-							<div className="wa-form-body">
-
-								{/* 개인 */}
-								{purchaseType === 'NORMAL' &&
-									<OwnerNormal
-										dsNewCar={dsNewCar}
-									    dsCarNoDetach={dsCarNoDetach}
-										setDsNewCar={setDsNewCar}
-										dsOwnerInfo={dsOwnerInfo}
-										setDsOwnerInfo={setDsOwnerInfo}
-										handleChange={handleChange}
-										onSelect={handleAddressSelect}
-										onSameChange={handleSameAddress}
-										onClear={handleClearAddress}
-										saveProcess={saveProcess}
-									/>
-								}
-
-								{/* 리스 */}
-								{purchaseType === 'LEASE' &&
-									<OwnerLease
-										dsNewCar={dsNewCar}
-										setDsNewCar={setDsNewCar}
-										dsCarNoDetach={dsCarNoDetach}
-										dsBaseList={dsBaseList}
-										setDsOwnerInfo={setDsOwnerInfo}
-										handleChange={handleChange}
-									/>
-								}
-
-								{/* 이용자명의 리스 */}
-								{purchaseType === 'USER_LEASE' &&
-									<OwnerUserLease
-										dsNewCar={dsNewCar}
-										setDsNewCar={setDsNewCar}
-										dsCarNoDetach={dsCarNoDetach}
-										dsBaseList={dsBaseList}
-										setDsOwnerInfo={setDsOwnerInfo}
-										handleChange={handleChange}
-									/>}
-
-								{/* 렌트 */}
-								{purchaseType === 'RENT' &&
-									<OwnerRent
-										dsNewCar={dsNewCar}
-										handleChange={handleChange}
-									/>
-								}
-								<hr className="wa-divider hr2" />
-							</div>
-						</>
-					)}
-
-					{/* 번호판 정보 입력 */}
-					{step === 2 &&
-						<CarInfo
-							dsNewCar={dsNewCar}
-							dsCarNoDetach={dsCarNoDetach}
-							handleChange={handleChange}
-						/>
-					}
-
-					{/* 신규등록 정보 */}
-					{step === 3 &&
-						<NewcarInfo
-							dsNewCar={dsNewCar}
-							dsPaymentList={dsPaymentList}
-							codes={codes}
-							handleChange={handleChange}
-							setDsNewCar={setDsNewCar}
-							dsTaxReceipt={dsTaxReceipt}
-                            setDsTaxReceipt={setDsTaxReceipt}
-                            onTaxReceiptAddressSelect={handleTaxReceiptAddressSelect}
-                            onTaxReceiptAddressClear={handleClearTaxReceiptAddress}
-							setDsPaymentList={setDsPaymentList}
-						/>
-					}
-
-					{/* 최종 확인 */}
-					{step === 4 &&
-						<ConfirmInfo
-							dsNewCar={dsNewCar}
-						/>
-					}
-					
-				</div>
-||||||| .r251
-=======
->>>>>>> .r258
 				
 				
 				<div className="wa-body">
@@ -1359,7 +1541,7 @@ const WaNewcarRequest = ({
 					    <>
 						{/* 현재 단계 제목 */}
 						<h2 className="wa-title">
-							{STEP_TITLES[step]}
+						    {REQUEST_STEPS[step - 1].title} 
 						</h2>
 	
 						{/* 단계별 내용 */}
@@ -1440,26 +1622,83 @@ const WaNewcarRequest = ({
 								dsNewCar={dsNewCar}
 								setDsNewCar={setDsNewCar}
 								dsCarNoDetach={dsCarNoDetach}
+								setDsCarNoDetach={setDsCarNoDetach}
+								codes={codes}
 								dsUserInfo={dsUserInfo}
 								handleChange={handleChange}
 								saveProcess={saveProcess}
+								dsDLVGB={gf.getCodeList(
+								        codes,
+								        COMPANY_DEFAULT,
+								        dsUserInfo.COMPANY_ID,
+								        'DLVGB'
+								    )}
+								onSelect={handleAddressSelect}
+								onClear={handleClearAddress}
 							/>
 						}
 	
 						{/* 신규등록 정보 */}
 						{step === 3 &&
 							<NewcarInfo
-								dsNewCar={dsNewCar}
-								dsPaymentList={dsPaymentList}
-								handleChange={handleChange}
+							dsService={dsService}
+							dsNewCar={dsNewCar}
+							dsPaymentList={dsPaymentList}
+							dsWorkCp={dsWorkCp}
+							codes={codes}
+							handleChange={handleChange}
+							setDsNewCar={setDsNewCar}
+							dsTaxReceipt={dsTaxReceipt}
+							setDsTaxReceipt={setDsTaxReceipt}
+							onTaxReceiptAddressSelect={handleTaxReceiptAddressSelect}
+							onTaxReceiptAddressClear={handleClearTaxReceiptAddress}
+							setDsPaymentList={setDsPaymentList}
 							/>
 						}
 	
 						{/* 최종 확인 */}
 						{step === 4 &&
 						    <ConfirmInfo
+								dsService={dsService}
 						        dsNewCar={dsNewCar}
-						        onOpenAttachModal={() => setAttachModalOpen(true)}
+								dsCarNoDetach={dsCarNoDetach}
+								setDsCarNoDetach={setDsCarNoDetach}
+								dsUserInfo={dsUserInfo}
+								saveProcess={saveProcess}
+								dsDLVGB={gf.getCodeList(
+							        codes,
+							        COMPANY_DEFAULT,
+							        dsUserInfo.COMPANY_ID,
+							        'DLVGB'
+							    )}
+								dsNUMGB={gf.getCodeList(
+							        codes,
+							        COMPANY_DEFAULT,
+							        dsUserInfo.COMPANY_ID,
+							        'NUMGB'
+							    )}
+								dsBANK={gf.getCodeList(
+							        codes,
+							        COMPANY_DEFAULT,
+							        dsUserInfo.COMPANY_ID,
+							        'BANK'
+							    )}
+								dsNTTCD={gf.getCodeList(
+							        codes,
+							        COMPANY_DEFAULT,
+							        dsUserInfo.COMPANY_ID,
+							        'NTTCD'
+							    )}
+								dsNTTGR={gf.getCodeList(
+							        codes,
+							        COMPANY_DEFAULT,
+							        dsUserInfo.COMPANY_ID,
+							        'NTTGR'
+							    )}
+								dsOwnerInfo={dsOwnerInfo}
+								dsTaxReceipt={dsTaxReceipt}
+								dsBaseList={dsBaseList}
+								dsPaymentList={dsPaymentList}
 						    />
 						}
 						
@@ -1473,7 +1712,8 @@ const WaNewcarRequest = ({
 							<button
 								type="button"
 								className="wa-action-btn wa-prev-btn"
-								disabled
+								disabled={saving}
+								onClick={handlePrev}
 							>
 								<ChevronLeft size={16} strokeWidth={2.5} />
 								이전
@@ -1487,7 +1727,11 @@ const WaNewcarRequest = ({
 							onClick={handleNext}
 						>
 							<span>
-								{purchaseType === 'RENT' ? '확인' : '다음'}
+								{
+									purchaseType === 'RENT' ? '확인' 
+									: (step === 4 && dsUserInfo.MEMBER_GB === 'SU') ? '요청' 
+									: '다음'
+								}
 							</span>
 						</button>
 	
@@ -1506,19 +1750,7 @@ const WaNewcarRequest = ({
 					
 					</div>
 			</div>
-			<WaNewcarAttachModal
-			    open={attachModalOpen}
-			    dsService={dsService}
-			    dsNewCar={dsNewCar}
-			    onClose={() => setAttachModalOpen(false)}
-			    onOpenSmsModal={() => setSmsModalOpen(true)}
-			/>
 
-			<WaSendSmsModal
-			    open={smsModalOpen}
-			    dsNewCar={dsNewCar}
-			    onClose={() => setSmsModalOpen(false)}
-			/>
 		</div>
 	);
 };

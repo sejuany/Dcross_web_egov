@@ -18,6 +18,7 @@ public class PaymentSearchRequest {
     private String TASK_CD;
     private String CAR_NO;
     private String MEMBER_ID;
+    private String MEMBER_GB;
     private String USER_NM;
     private String GOVT_ID;    
     private String PAY_TP;

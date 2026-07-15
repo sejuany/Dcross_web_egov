@@ -5,6 +5,7 @@ import { Search } from 'lucide-react';
 import AddressSearch from '../../common/AddressSearch';
 
 const JointOwner = ({
+	dsNewCar,
 	dsOwnerInfo,
 	setDsOwnerInfo,
 	handleChange,
@@ -12,7 +13,7 @@ const JointOwner = ({
 	onSelect,
 	onClear
 }) => {
-
+	
     // 공동소유자 등록번호 종류에 따라 입력항목을 변경한다.
     const isCorporate = dsOwnerInfo.DEBTOR_GB === 'B';
 
@@ -21,8 +22,6 @@ const JointOwner = ({
 
     // 외국인등록번호 선택 시 최종확인 단계의 첨부서류를 안내한다.
     const showForeignerGuide = dsOwnerInfo.DEBTOR_GB === 'F';
-	
-	const ownerNameRef = useRef(null);
 	
     return (
     	<>
@@ -41,7 +40,10 @@ const JointOwner = ({
 				                name="DEBTOR_RATIO"
 				                data-type="owner"
 				                value={dsOwnerInfo.DEBTOR_RATIO ?? ''}
-				                onChange={handleChange}
+								onChange={(e) => {
+								    console.log('input change');
+								    handleChange(e);
+								}}
 				                placeholder="공동"
 				            />
 							<span>공동명의자 비율</span>
@@ -51,8 +53,11 @@ const JointOwner = ({
 						<div className="wa-ratio-input">
 						    <input
 						        className="wa-input"
-						        value={100 - Number(dsOwnerInfo.DEBTOR_RATIO || 0)}
-						        readOnly
+								name="RATIO_NO"
+				                data-type="newcar"
+				                value={dsNewCar.RATIO_NO ?? ''}
+				                onChange={handleChange}
+						        readOnly 
 						    />
 						    <span>대표소유자 비율</span>
 						</div>
@@ -181,6 +186,7 @@ const JointOwner = ({
 				    placeholder='건물, 지번 또는 도로명 검색'
 				    type="DEBTOR_ADDR"
 				    detailName="DEBTOR_ADDR_DT"
+					postName="DEBTOR_ROAD_CD"
 				    dsNewCar={dsOwnerInfo}
 				    handleChange={handleChange}
 				    onSelect={onSelect}

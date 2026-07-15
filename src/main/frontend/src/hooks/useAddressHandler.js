@@ -16,7 +16,8 @@ const useAddressHandler = ({
     dsNewCar,
     dsBaseList,
     setDsNewCar,
-    setDsOwnerInfo
+    setDsOwnerInfo,
+    setDsCarNoDetach
 }) => {
 
 
@@ -59,6 +60,18 @@ const useAddressHandler = ({
 
 	        return;
 	    }
+		// 번호판 배송지
+		else if (type === 'DELIVERY_ADDR') {
+
+		    setDsCarNoDetach(prev => ({
+		        ...prev,
+		        DELIVERY_ADDR: addr.ADDR,
+		        DELIVERY_ADDR_DT: addr.ADDRESS_DT ?? addr.ADDR_DT ?? '',
+		        DELIVERY_POST_NO: addr.POST_NO
+		    }));
+
+		    return;
+		}
 
 	    const addrInfo = corp
 	        ? (addr.ROAD_CD ?? '') + 'þ' +
@@ -179,11 +192,74 @@ const useAddressHandler = ({
 	        return next;
 	    });
 	};
+	
+	// 주소 초기화
+	// 등본상 주소지에서 x 버튼 누르면, 화면에 안 보이는 소유자주소+사용본거지 주소 한 번에 지워지도록 함
+	const handleClearAddress = type => {
+
+	    const corp = isCorp(dsNewCar.REG_GB);
+
+	    // 번호판 배송지
+	    if (type === 'DELIVERY_ADDR') {
+	        setDsCarNoDetach(prev => ({
+	            ...prev,
+	            DELIVERY_ADDR: '',
+	            //DELIVERY_ADDR_DT: '',
+	            DELIVERY_POST_NO: '',
+	            RECEIVE_NM: '',
+	            RECEIVE_TEL_NO: ''
+	        }));
+	        return;
+	    }
+
+	    setDsNewCar(prev => {
+
+	        const next = { ...prev };
+
+			switch (type) {
+
+	            case 'ADDRESS':
+
+	                next.ADDRESS = '';
+	                //next.ADDRESS_DT = '';
+	                next.POST_NO = '';
+	                next.BUBJUNG_CD = '';
+	                next.RT_ACC_NM = '';
+	                next.ADDR_INFO = '';
+
+	                // 개인은 사용본거지도 같이 삭제
+	                if (!isCorp) {
+	                    next.BASE_ADDRESS = '';
+	                    //next.BASE_ADDRESS_DT = '';
+	                    next.BASE_POST_NO = '';
+	                    next.BASE_BUBJUNG_CD = '';
+	                    next.RT_ACC_NO = '';
+	                    next.ADDR_INFO2 = '';
+	                }
+	                break;
+
+	            case 'BASE_ADDRESS':
+
+	                next.BASE_ADDRESS = '';
+	                //next.BASE_ADDRESS_DT = '';
+	                next.BASE_POST_NO = '';
+	                next.BASE_BUBJUNG_CD = '';
+	                next.RT_ACC_NO = '';
+	                next.ADDR_INFO2 = '';
+	                break;
+	            default:
+	                break;
+	        }
+
+	        return next;
+	    });
+	};
 
 	return {
-	    handleAddressSelect,
-	    handleSameAddress,
-	    handleLeaseCompany
+		handleAddressSelect,
+		handleSameAddress,
+		handleLeaseCompany,
+		handleClearAddress
 	};
 };
 

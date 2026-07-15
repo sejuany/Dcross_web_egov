@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
 import {
     Calculator,
     CheckCircle2,
@@ -14,6 +15,18 @@ import CommonSelect from '../../../components/common/CommonSelect';
 import { gf } from '../../../utils/utils';
 import SplitInput from '../common/SplitInput';
 import AddressSearch from '../common/AddressSearch';
+import {
+    buildNewcarEstimateKey,
+    calculateNewcarEstimate,
+    calculateTotalFromRows,
+    formatAmount,
+    sortPaymentRows
+} from './newcarAmountCalculator';
+import {
+    buildCarSpecPatch,
+    isElectricBondLookupExemptArea,
+    resolveBondSearchCriteria
+} from './newcarCarSpec';
 
 const BOND_OPTIONS = [
     { value: 'SELL', label: '매도(할인)' },
@@ -358,67 +371,18 @@ const PAYMENT_LABELS = {
     SPARE: '예비비'
 };
 
-const PAYMENT_ORDER = ['ACQ', 'UREG', 'INJI', 'STAMP', 'BOND', 'BFEE', 'FEE', 'TNUM', 'UNUM', 'SPARE'];
-const ESTIMATE_PAYMENT_KINDS = ['ACQ', 'BOND', 'BFEE', 'FEE', 'INJI', 'STAMP'];
 
 const getCodeOptions = (codes, groupId, fallback = []) => {
     const optionList = codes?.[groupId];
     return Array.isArray(optionList) && optionList.length ? optionList : fallback;
 };
 
-const getNumber = (value) => Number(String(value ?? 0).replace(/,/g, '')) || 0;
-const formatAmount = (value) => getNumber(value).toLocaleString();
-
-const getPaymentAmount = (paymentList, payKd, fallback = 0) => {
-    const item = paymentList.find(row => row.PAY_KD === payKd);
-    const amount = item?.PAY_AMT ?? item?.PRE_PAY_AMT;
-    return amount === undefined || amount === null || amount === '' ? fallback : getNumber(amount);
-};
-
-const sortPaymentRows = (rows) => [...rows].sort((a, b) => {
-    const left = PAYMENT_ORDER.indexOf(a.PAY_KD);
-    const right = PAYMENT_ORDER.indexOf(b.PAY_KD);
-    return (left === -1 ? 999 : left) - (right === -1 ? 999 : right);
-});
-
-const buildPaymentRows = (paymentList) => {
-    const rows = Array.isArray(paymentList) ? paymentList.filter(row => row?.PAY_KD) : [];
-    const rowByKind = new Map(rows.map(row => [row.PAY_KD, row]));
-
-    const estimateRows = ESTIMATE_PAYMENT_KINDS.map(payKd => ({
-        PAY_KD: payKd,
-        VBANK_NO: '',
-        PAY_OP: 'Y',
-        PRE_PAY_AMT: 0,
-        PAY_AMT: 0,
-        PAY_ST: 'N',
-        PAY_DT: '',
-        ...(rowByKind.get(payKd) || {})
-    }));
-
-    const extraRows = rows.filter(row => !ESTIMATE_PAYMENT_KINDS.includes(row.PAY_KD));
-    return [...estimateRows, ...extraRows];
-};
-
-const calculateTotalFromRows = (paymentList, cardYn) => {
-    const rows = Array.isArray(paymentList) ? paymentList.filter(row => row?.PAY_KD) : [];
-
-    if (!rows.length) {
-        return null;
-    }
-
-    return rows.reduce((sum, row) => {
-        if (cardYn === 'Y' && row.PAY_KD === 'ACQ') {
-            return sum;
-        }
-
-        return sum + getNumber(row.PAY_AMT ?? row.PRE_PAY_AMT);
-    }, 0);
-};
 
 const NewcarInfo = ({
     dsNewCar = {},
+    dsService = {},
     dsPaymentList = [],
+    dsWorkCp = {},
     codes = {},
     handleChange,
     setDsNewCar,
@@ -457,21 +421,9 @@ const NewcarInfo = ({
     );
     const showFamilyRelationNumberNote = hasFamilyRelationDocument(selectedExemptionDocInfo);
 
-    const estimateKey = useMemo(() => [
-        dsNewCar.BUY_AMT ?? '',
-        dsNewCar.BOND_DC ?? '',
-        dsNewCar.CARD_YN ?? '',
-        dsNewCar.NTAX_WHO ?? '',
-        dsNewCar.NTAX_TRGET_CD ?? '',
-        dsNewCar.NTAX_TRGET_GR_CD ?? ''
-    ].join('|'), [
-        dsNewCar.BUY_AMT,
-        dsNewCar.BOND_DC,
-        dsNewCar.CARD_YN,
-        dsNewCar.NTAX_WHO,
-        dsNewCar.NTAX_TRGET_CD,
-        dsNewCar.NTAX_TRGET_GR_CD
-    ]);
+    // 예상금액 계산 기준 key 생성함.
+    // 주요 입력값 변경 시 재계산 안내 표시용으로 사용함.
+    const estimateKey = buildNewcarEstimateKey({ dsNewCar, dsWorkCp });
 
     const estimateDirty = Boolean(estimateSummary && estimateSummary.key !== estimateKey);
 
@@ -544,52 +496,106 @@ const NewcarInfo = ({
         return Promise.resolve();
     };
 
-    const getEstimateResult = () => {
-        const buyAmt = getNumber(dsNewCar.BUY_AMT);
-        const acqTax = Math.floor((buyAmt * 0.07) / 10) * 10;
-        const bondBuyAmt = Math.floor((buyAmt * 0.2) / 10) * 10;
-        const bond = Math.floor((buyAmt * 0.2 * 0.1) / 10) * 10;
-        const bondFee = Math.floor(((bondBuyAmt * 0.003) + 600) / 10) * 10;
-        const paymentRows = buildPaymentRows(dsPaymentList);
-        const fee = getPaymentAmount(paymentRows, 'FEE', 27500);
-        const stamp = getPaymentAmount(paymentRows, 'STAMP', 2500);
-        const inji = getPaymentAmount(paymentRows, 'INJI', 3000);
-        const isCardPay = dsNewCar.CARD_YN === 'Y';
-        const totalAmt = isCardPay
-            ? bond + bondFee + fee + stamp + inji
-            : acqTax + bond + bondFee + fee + stamp + inji;
+    // 금액 계산은 newcarAmountCalculator에서 처리함.
+    // 화면 컴포넌트는 계산 결과를 상태와 결제목록에 반영하는 역할만 담당함.
+    const getEstimateResult = (newCar = dsNewCar) => calculateNewcarEstimate({
+        dsNewCar: newCar,
+        dsService,
+        dsPaymentList,
+        dsWorkCp,
+        codes
+    });
 
-        const calculatedAmounts = {
-            ACQ: acqTax,
-            BOND: bond,
-            BFEE: bondFee,
-            FEE: fee,
-            INJI: inji,
-            STAMP: stamp
+    // 차명과 로그인 회사에 설정된 Maker로 TR_CAR_SPEC 차량제원 가져옴.
+    // 차량제원의 CAR_CC와 TR_NEWCAR.BASE_ADDRESS로 TM_BOND 공채 매입률을 이어서 가져옴.
+    const getCarSpecForEstimate = async () => {
+        const carName = String(dsNewCar.CAR_NM ?? '').trim();
+        const baseAddress = String(dsNewCar.BASE_ADDRESS ?? '').trim();
+
+        if (!carName) {
+            throw new Error('차량명을 입력해주세요.');
+        }
+
+        if (!baseAddress) {
+            throw new Error('사용본거지 주소를 입력해주세요.');
+        }
+
+        // 로그인 회사에 연결된 Maker와 차명이 같은 차량제원 한 건 가져옴.
+        const carSpecResponse = await axios.get('/api/newcar/car-spec', {
+            params: { carName }
+        });
+        const carSpec = carSpecResponse.data?.data;
+
+        if (!carSpec) {
+            throw new Error('차량제원 조회 결과가 없습니다.');
+        }
+
+        const carSpecPatch = buildCarSpecPatch(dsNewCar, carSpec);
+        const bondSearchCriteria = resolveBondSearchCriteria({
+            ...dsNewCar,
+            ...carSpecPatch
+        });
+
+        const fuelCode = String(carSpecPatch.FUEL_CD ?? '').trim().toLowerCase();
+        const maker = String(carSpecPatch.CAR_SPEC_MAKER ?? '').replace(/\s+/g, '').toUpperCase();
+        const electricVehicle = ['e', 'q', 'r'].includes(fuelCode) || maker === 'POLESTAR';
+        const bondLookupExempt = electricVehicle && isElectricBondLookupExemptArea(baseAddress);
+
+        // 경기·부산·대구·경남 전기차는 프로시저처럼 TM_BOND 조회 전에 전액면제 처리함.
+        // 나머지 지역만 다목적형 지역 기준으로 공채값을 조회하고 TM_TAX는 항상 함께 가져옴.
+        const bondRateRequest = bondLookupExempt
+            ? Promise.resolve({
+                data: {
+                    data: {
+                        BOND_RATE: 0,
+                        AREA: bondSearchCriteria.area,
+                        BOND_GB: 'N',
+                        FULL_EXEMPT_YN: 'Y'
+                    }
+                }
+            })
+            : axios.get('/api/newcar/bond-rate', {
+                params: {
+                    baseAddress,
+                    carGb: bondSearchCriteria.carGb,
+                    baseValue: bondSearchCriteria.baseValue
+                }
+            });
+        const [bondRateResponse, taxInfoResponse] = await Promise.all([
+            bondRateRequest,
+            axios.get('/api/newcar/tax-info')
+        ]);
+        const bondRateInfo = bondRateResponse.data?.data;
+        const taxInfo = taxInfoResponse.data?.data;
+
+        if (!bondRateInfo || bondRateInfo.BOND_RATE === undefined || bondRateInfo.BOND_RATE === null) {
+            throw new Error('공채 매입률 조회 결과가 없습니다.');
+        }
+
+        if (!taxInfo) {
+            throw new Error('신규등록 세율정보 조회 결과가 없습니다.');
+        }
+
+        // 조회 기준값은 예상금액 계산에만 합치며 TR_NEWCAR 저장 필드에는 별도 매핑하지 않음.
+        const estimatePatch = {
+            ...carSpecPatch,
+            BOND_RATE: bondRateInfo.BOND_RATE,
+            BOND_AREA: bondRateInfo.AREA ?? '',
+            BOND_GB: bondRateInfo.BOND_GB ?? '',
+            BOND_FULL_EXEMPT_YN: bondRateInfo.FULL_EXEMPT_YN ?? 'N',
+            BOND_RATE_BASE1: bondRateInfo.BASE1 ?? '',
+            BOND_RATE_BASE2: bondRateInfo.BASE2 ?? '',
+            BOND_SEARCH_CAR_GB: bondSearchCriteria.carGb,
+            BOND_SEARCH_BASE_VALUE: bondSearchCriteria.baseValue,
+            TM_TAX_INFO: taxInfo
         };
 
-        const updatedPaymentList = paymentRows.map(row => (
-            Object.prototype.hasOwnProperty.call(calculatedAmounts, row.PAY_KD)
-                ? {
-                    ...row,
-                    PRE_PAY_AMT: calculatedAmounts[row.PAY_KD],
-                    PAY_AMT: calculatedAmounts[row.PAY_KD]
-                }
-                : row
-        ));
-
         return {
-            key: estimateKey,
-            buyAmt,
-            acqTax,
-            bond,
-            bondFee,
-            fee,
-            stamp,
-            inji,
-            isCardPay,
-            totalAmt,
-            updatedPaymentList
+            carSpecPatch: estimatePatch,
+            newCar: {
+                ...dsNewCar,
+                ...estimatePatch
+            }
         };
     };
 
@@ -645,17 +651,27 @@ const NewcarInfo = ({
         setEstimating(true);
 
         try {
-            await new Promise(resolve => setTimeout(resolve, 450));
-            const result = getEstimateResult();
+            const { carSpecPatch, newCar } = await getCarSpecForEstimate();
+            const result = getEstimateResult(newCar);
 
+            // 계산된 TR_PAYMENT 목록 반영함.
             setDsPaymentList?.(result.updatedPaymentList);
+            // 조회한 차량제원과 TR_NEWCAR 저장 대상 금액 필드 반영함.
             updateNewCar(prev => ({
                 ...prev,
+                ...carSpecPatch,
                 PREREG_AMT: result.totalAmt,
                 TOTAL_AMT: result.totalAmt,
-                BOND_AMT: result.bond
+                BOND_AMT: result.bond,
+                STANDARD_AMT: result.taxableStandard,
+                NTAX_APPLC_CD: result.ntaxApplyCode
             }));
             setEstimateSummary(result);
+        } catch (error) {
+            const message = error?.response?.data?.message
+                || error?.message
+                || '예상금액 기준정보 조회 중 오류가 발생했습니다.';
+            await showAlert(message);
         } finally {
             setEstimating(false);
         }
@@ -892,7 +908,48 @@ const NewcarInfo = ({
                                 취득세 카드납부 금액 {formatAmount(estimateSummary.acqTax)} 원
                             </div>
                         )}
+                        {estimateSummary.exemptionCode && (
+                            <div className={[
+                                'wa-acq-reduction',
+                                estimateSummary.exemptionApplied ? 'applied' : 'review'
+                            ].join(' ')}>
+                                <div className="wa-acq-reduction-title">
+                                    <span>{estimateSummary.exemptionName || '취득세 감면'}</span>
+                                    <strong>- {formatAmount(estimateSummary.acqReductionAmt)} 원</strong>
+                                </div>
+                                <p>
+                                    감면 전 {formatAmount(estimateSummary.grossAcqTax)} 원
+                                    {' / '}
+                                    납부 {formatAmount(estimateSummary.acqTax)} 원
+                                </p>
+                                {estimateSummary.exemptionReason && <p>{estimateSummary.exemptionReason}</p>}
+                                {estimateSummary.exemptionMissingRequirements.length > 0 && (
+                                    <p>확인 필요: {estimateSummary.exemptionMissingRequirements.join(', ')}</p>
+                                )}
+                            </div>
+                        )}
 
+                        {estimateSummary.electricVehicle && (
+                            <div className={[
+                                'wa-acq-reduction',
+                                estimateSummary.bondReliefApplied ? 'applied' : 'review'
+                            ].join(' ')}>
+                                <div className="wa-acq-reduction-title">
+                                    <span>전기차 공채 감면 · {estimateSummary.bondArea || '지역 확인'}</span>
+                                    <strong>- {formatAmount(estimateSummary.bondReductionAmt)} 원</strong>
+                                </div>
+                                <p>
+                                    {estimateSummary.bondValueType === 'RATE'
+                                        ? `매입률 ${(estimateSummary.bondRate * 100).toLocaleString()}%`
+                                        : `공채 기준금액 ${formatAmount(estimateSummary.bondValue)} 원`}
+                                    {' / '}
+                                    감면 전 {formatAmount(estimateSummary.bondGrossAmt)} 원
+                                    {' / '}
+                                    감면 후 {formatAmount(estimateSummary.bondBaseAmt)} 원
+                                </p>
+                                {estimateSummary.bondReliefReason && <p>{estimateSummary.bondReliefReason}</p>}
+                            </div>
+                        )}
                         <table className="wa-payment-table">
                             <thead>
                                 <tr>
@@ -1031,6 +1088,7 @@ const NewcarInfo = ({
                                             placeholder="건물, 지번 또는 도로명 검색"
                                             type="ADDR"
                                             detailName="ADDR_DT"
+											postName="POST_NO"
                                             data={dsTaxReceipt}
                                             dataType="taxReceipt"
                                             handleChange={handleChange}
@@ -1117,40 +1175,47 @@ const NewcarInfo = ({
                     </div>
                 </div>
 
-                <div className="wa-form-row">
-                    <label className="wa-form-label">환불정보</label>
+				<div className="wa-form-row">
+				    <label className="wa-form-label">환불 예금주</label>
 
-                    <div className="wa-form-control">
-                        <div className="wa-inline-group wa-refund-group">
-                            <CommonSelect
-                                className="wa-select"
-                                name="RT_BANK_CD"
-                                data-type="newcar"
-                                value={dsNewCar.RT_BANK_CD ?? ''}
-                                options={bankOptions}
-                                onChange={handleChange}
-                            />
+				    <div className="wa-form-control">
+				        <input
+				            className="wa-input"
+				            name="RETURN_NM"
+				            data-type="newcar"
+				            value={dsNewCar.RETURN_NM ?? ''}
+				            onChange={handleChange}
+				            placeholder="예금주"
+				        />
+				    </div>
+				</div>
 
-                            <input
-                                className="wa-input wa-flex"
-                                name="RETURN_NO"
-                                data-type="newcar"
-                                value={dsNewCar.RETURN_NO ?? ''}
-                                onChange={handleChange}
-                                placeholder="계좌번호 입력"
-                            />
+				<div className="wa-form-row">
+				    <label className="wa-form-label">환불 계좌</label>
 
-                            <input
-                                className="wa-input refund-owner"
-                                name="RETURN_NM"
-                                data-type="newcar"
-                                value={dsNewCar.RETURN_NM ?? ''}
-                                onChange={handleChange}
-                                placeholder="예금주"
-                            />
-                        </div>
-                    </div>
-                </div>
+				    <div className="wa-form-control">
+				        <div className="wa-inline-group wa-refund-group">
+				            <CommonSelect
+				                className="wa-select"
+				                name="RT_BANK_CD"
+				                data-type="newcar"
+				                value={dsNewCar.RT_BANK_CD ?? ''}
+				                options={bankOptions}
+				                onChange={handleChange}
+				            />
+
+				            <input
+				                className="wa-input wa-flex"
+				                name="RETURN_NO"
+				                data-type="newcar"
+				                value={dsNewCar.RETURN_NO ?? ''}
+				                onChange={handleChange}
+				                placeholder="계좌번호 입력"
+				            />
+				        </div>
+				    </div>
+				</div>
+
             </div>
         </div>
     );

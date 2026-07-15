@@ -18,6 +18,17 @@
     background:#fff;
 }
 
+.receipt-status{
+    min-height:240px;
+    padding-top:96px;
+    color:#555;
+    text-align:center;
+}
+
+.receipt-status-error{
+    color:#c62828;
+}
+
 .receipt-title-top{
     margin-bottom:6px;
     font-size:15px;

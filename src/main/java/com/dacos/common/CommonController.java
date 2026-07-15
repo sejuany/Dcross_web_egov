@@ -62,6 +62,22 @@ public class CommonController {
     }
     
     /**
+     * 토큰 중복 조회
+     * POST /api/common/tokenCheck
+     */
+    @PostMapping("/token/check")
+    public ResponseEntity<Map<String, Object>> tokenCheck(
+            @RequestBody Map<String, Object> param,
+            HttpSession session) {
+
+        AuthUtil.getLoginUser(session);
+
+        int result = comm.select(param, "selectTokenCnt");
+
+        return ResponseEntity.ok(ApiResponse.withKey("result", result));
+    }
+    
+    /**
      * 화면에서 바로 쿼리 조회 (단건 조회)
      * POST /api/common/query
      */

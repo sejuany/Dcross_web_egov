@@ -740,14 +740,27 @@ export const gf = {
 	    return Number(String(amount).replaceAll(',', '')).toLocaleString();
 	},
 	
-	// 코드관리 코드 갖고 오기
-	getCodeList: async (groupId, codeId) => {
-	    const res = await axios.post('/api/common/query', {
-	        QUERY_ID: 'selectCodeDetail',
-	        GROUP_ID: groupId,
-	        CODE_ID: codeId
-	    });
-	    return res.data.data.DETAIL_NM;
+	// 공통코드 목록 조회
+	// 회사별 정책에 따라 허용된 코드만 반환
+	getCodeList(codes, companyPolicy, companyId, codeId) {
+
+	    let list = codes[codeId] || [];
+
+	    const filterCodes =
+	        companyPolicy?.[companyId]?.[codeId];
+
+	    if (filterCodes) {
+
+	        list = list
+	            .filter(item => filterCodes.includes(item.CODE_ID))
+				// 쓴 순서대로 정렬
+	            .sort((a, b) =>
+	                filterCodes.indexOf(a.CODE_ID) -
+	                filterCodes.indexOf(b.CODE_ID)
+	            );
+	    }
+
+	    return list;
 	},
 };
 

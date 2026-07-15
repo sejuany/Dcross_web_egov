@@ -26,10 +26,10 @@ const useAddressSearch = ({
 
     // 주소 조회
     const handleSearch = async () => {
-
+		
         const oAddr = gf.createAddrParam(value);
 
-        if (!oAddr) {
+        if (!oAddr.ROAD_NM) {
             gf.alert('도로명 또는 지번 주소를 입력해주세요.');
             return;
         }

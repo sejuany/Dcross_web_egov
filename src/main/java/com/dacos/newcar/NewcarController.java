@@ -1,5 +1,9 @@
 package com.dacos.newcar;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -7,6 +11,10 @@ import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.Resource;
+import org.springframework.core.io.UrlResource;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -17,6 +25,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.dacos.attach.AttachService;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
@@ -25,16 +34,6 @@ import com.dacos.common.util.AuthUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 
 import jakarta.servlet.http.HttpSession;
-import java.net.URLEncoder;
-import java.nio.charset.StandardCharsets;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-
-import org.springframework.core.io.Resource;
-import org.springframework.core.io.UrlResource;
-import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 
 /**
  * 신차 등록 컨트롤러
@@ -49,11 +48,13 @@ public class NewcarController {
     private final NewcarService newcarService;
     private final CommonService commonService;
     private final NewcarPdfExtractService newcarPdfExtractService;
+    private final AttachService attachService;
 
-    public NewcarController(NewcarService newcarService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService) {
+    public NewcarController(NewcarService newcarService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService, AttachService attachService) {
         this.newcarService = newcarService;
         this.commonService = commonService;
         this.newcarPdfExtractService = newcarPdfExtractService;
+        this.attachService = attachService;
     }
     
     /**
@@ -201,6 +202,47 @@ public class NewcarController {
     
     
     /**
+     * 로그인 회사별 Maker와 차명 기준 차량제원 조회
+     * GET /api/newcar/car-spec?carName=...
+     */
+    @GetMapping("/car-spec")
+    public ResponseEntity<Map<String, Object>> getCarSpec(
+            @RequestParam("carName") String carName,
+            HttpSession session) {
+
+        // 로그인 회사코드로 조회 Maker를 결정해 다른 회사 Maker를 임의 조회하지 못하게 처리함.
+        UserDto user = AuthUtil.getLoginUser(session);
+        Map<String, Object> carSpec = newcarService.getCarSpec(user.getCOMPANY_ID(), carName);
+        return ResponseEntity.ok(ApiResponse.withKey("data", carSpec));
+    }
+
+    /**
+     * 사용본거지와 지역별 차량구분/비교값 기준 공채 매입률 조회함.
+     * GET /api/newcar/bond-rate?baseAddress=...&carGb=...&baseValue=...
+     */
+    @GetMapping("/bond-rate")
+    public ResponseEntity<Map<String, Object>> getBondRate(
+            @RequestParam("baseAddress") String baseAddress,
+            @RequestParam(value = "carGb", defaultValue = "e") String carGb,
+            @RequestParam(value = "baseValue", defaultValue = "0") double baseValue,
+            HttpSession session) {
+
+        // 로그인 세션 확인 후 TM_BOND의 현재 사용 가능한 매입률만 가져옴.
+        AuthUtil.getLoginUser(session);
+        Map<String, Object> bondRate = newcarService.getNewcarBondRate(baseAddress, carGb, baseValue);
+        return ResponseEntity.ok(ApiResponse.withKey("data", bondRate));
+    }
+    /**
+     * 신규등록 WORK_CD=010 기준 현재 세율정보 조회함.
+     * GET /api/newcar/tax-info
+     */
+    @GetMapping("/tax-info")
+    public ResponseEntity<Map<String, Object>> getTaxInfo(HttpSession session) {
+        AuthUtil.getLoginUser(session);
+        Map<String, Object> taxInfo = newcarService.getNewcarTaxInfo();
+        return ResponseEntity.ok(ApiResponse.withKey("data", taxInfo));
+    }
+    /**
      * 선택 가능한 번호판 목록 조회
      *  POST /api/newcar/numplateList
      */
@@ -308,45 +350,6 @@ public class NewcarController {
 	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
 	}
 	
-    /**
-     * WA 신규등록 첨부파일 조회
-     * GET /api/newcar/wa-attach-files?serviceId=...
-     */
-    @GetMapping("/wa-attach-files")
-    public ResponseEntity<Map<String, Object>> getWaNewcarAttachFiles(
-            @RequestParam("serviceId") String serviceId,
-            HttpSession session
-    ) {
-        logger.info("[NewcarController] WA 신규등록 첨부파일 조회 - serviceId: {}", serviceId);
-
-        AuthUtil.getLoginUser(session);
-
-        List<Map<String, Object>> list = newcarService.getWaNewcarAttachFiles(serviceId);
-
-        return ResponseEntity.ok(ApiResponse.withKey("list", list));
-    }
-
-    /**
-     * WA 신규등록 첨부파일 업로드
-     * POST /api/newcar/wa-attach-file
-     */
-    @PostMapping("/wa-attach-file")
-    public ResponseEntity<Map<String, Object>> uploadWaNewcarAttachFile(
-            @RequestParam("serviceId") String serviceId,
-            @RequestParam("seq") int seq,
-            @RequestParam("file") MultipartFile file,
-            HttpSession session
-    ) {
-        logger.info("[NewcarController] WA 신규등록 첨부파일 업로드 - serviceId: {}, seq: {}", serviceId, seq);
-
-        UserDto user = AuthUtil.getLoginUser(session);
-
-        List<Map<String, Object>> list =
-                newcarService.uploadWaNewcarAttachFile(serviceId, seq, file, user);
-
-        return ResponseEntity.ok(ApiResponse.withKey("list", list));
-    }
-	
 	/**
 	 * 채권 및 영수증 조회
 	 * GET /api/newcar/bond-info/{serviceId}
@@ -387,14 +390,56 @@ public class NewcarController {
         return result;
     }
     
-    
-    
+	/**
+	 *  첨부파일 목록 조회
+	 * GET /api/newcar/wa-attach-files?serviceId=...
+	 */
+	@GetMapping("/wa-attach-files")
+	public ResponseEntity<Map<String, Object>> getWaNewcarAttachFiles(
+	        @RequestParam("serviceId") String serviceId,
+	        HttpSession session) {
+	
+	    logger.info("[NewcarController] WA 신규등록 첨부파일 조회 - serviceId: {}", serviceId);
+	
+	    UserDto user = AuthUtil.getLoginUser(session);
+	
+	    List<Map<String, Object>> list =
+	    		attachService.getAttachFiles(serviceId, null, user);
+	
+	    return ResponseEntity.ok(ApiResponse.withKey("list", list));
+	}
+	
+	
     /**
-     * WA 신규등록 첨부파일 보기
+     * WA 신규등록 첨부파일 업로드
+     * POST /api/newcar/wa-attach-upload
+     */
+    @PostMapping("/wa-attach-upload")
+    public ResponseEntity<Map<String, Object>> uploadWaNewcarAttachFile(
+            @RequestParam("serviceId") String serviceId,
+            @RequestParam("code") String code,
+            @RequestParam("gubun") String gubun,
+            @RequestParam("file") MultipartFile file,
+            HttpSession session
+    ) {
+    	
+    	logger.info("[NewcarController] WA 신규등록 첨부파일 업로드 - serviceId: {}, code: {}, gubun: {}", serviceId, code, gubun);
+
+        UserDto user = AuthUtil.getLoginUser(session);
+
+        List<Map<String, Object>> list 
+        	= attachService.uploadAttachFile(serviceId, code, gubun, file, user, null);
+
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+	
+	
+    /**
+     * WA 신규등록 첨부파일 보기(실제 사진 불러오는 용도)
      * GET /api/newcar/wa-attach-view?fileName=...
      */
     @GetMapping("/wa-attach-view")
-    public ResponseEntity<Resource> viewWaNewcarAttachFile(
+    public ResponseEntity<Resource> viewAttachFile(
             @RequestParam("fileName") String fileName,
             HttpSession session
     ) throws Exception {
@@ -410,7 +455,7 @@ public class NewcarController {
             throw new BusinessException("잘못된 파일명입니다.", 400);
         }
 
-        Path filePath = newcarService.getWaAttachFilePath(cleanFileName);
+        Path filePath = attachService.getAttachFilePath(cleanFileName);
 
         if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
             throw new BusinessException("첨부파일을 찾을 수 없습니다.", 404);
@@ -434,7 +479,5 @@ public class NewcarController {
                 .body(resource);
     }
 }
-
-
 
 

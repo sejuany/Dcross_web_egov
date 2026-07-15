@@ -208,6 +208,7 @@ const createDefaultWorkPerms = () => ({
 
 function WaCompanyUserManage() {
     const gridRef = useRef(null);
+	const initializedKeyRef = useRef('');
     const { user } = useAuth();
 
     const [topbarHeight, setTopbarHeight] = useState(48);
@@ -298,8 +299,10 @@ function WaCompanyUserManage() {
     const loginInfo = useMemo(() => getLoginInfo(), [getLoginInfo]);
     const loginCompanyId = String(loginInfo.COMPANY_ID || '').trim().toUpperCase();
     const loginMemberGb = String(loginInfo.MEMBER_GB || '').trim().toUpperCase();
+	const loginBranchId = String(loginInfo.BRANCH_ID || '').trim();
 
-    const canManageUser = loginMemberGb === 'CA';
+	const canManageUser = loginMemberGb === 'CA' || loginMemberGb === 'BA';
+	const isBranchAdmin = loginMemberGb === 'BA';
 
     useEffect(() => {
         const updateTopbarHeight = () => {
@@ -348,15 +351,40 @@ function WaCompanyUserManage() {
 
             const list = response.data.list || response.data.data || [];
 
-            setBranchOptions([
-                { CODE_CD: '', CODE_NM: '전체' },
-                ...list,
-            ]);
+			if (isBranchAdmin) {
+			    const myBranch = list.find(item =>
+			        String(getValue(item, 'CODE_CD', 'codeCd')).trim() === loginBranchId
+			    );
+
+			    setBranchOptions(
+			        myBranch
+			            ? [myBranch]
+			            : [{ CODE_CD: loginBranchId, CODE_NM: loginBranchId }]
+			    );
+
+				setSearchForm(prev => {
+				    if (prev.BRANCH_ID === loginBranchId) {
+				        return prev;
+				    }
+
+				    return {
+				        ...prev,
+				        BRANCH_ID: loginBranchId,
+				    };
+				});
+
+			    return;
+			}
+
+			setBranchOptions([
+			    { CODE_CD: '', CODE_NM: '전체' },
+			    ...list,
+			]);
         } catch (error) {
             console.error('[WaCompanyUserManage] SPACE 목록 조회 실패:', error);
             setBranchOptions([{ CODE_CD: '', CODE_NM: '전체' }]);
         }
-    }, [loginCompanyId]);
+    }, [loginCompanyId, loginBranchId, isBranchAdmin]);
 
     const makeSearchPayload = useCallback((override = {}) => {
         const merged = {
@@ -371,7 +399,7 @@ function WaCompanyUserManage() {
 
         return {
             COMPANY_ID: loginCompanyId,
-            BRANCH_ID: merged.BRANCH_ID || '',
+            BRANCH_ID: isBranchAdmin ? loginBranchId : (merged.BRANCH_ID || ''),
             SANGSA_ID: '',
             MEMBER_NM: String(merged.MEMBER_NM || '').trim(),
             USE_YN: merged.USE_YN,
@@ -379,7 +407,7 @@ function WaCompanyUserManage() {
             ST_DATE: merged.MEMBER_NM ? '20170101' : compactDate(merged.ST_DATE),
             ED_DATE: compactDate(merged.ED_DATE),
         };
-    }, [loginCompanyId, searchForm]);
+    }, [loginCompanyId, loginBranchId, isBranchAdmin, searchForm]);
 
     const loadUserWork = async (targetUser) => {
         const defaultPerms = createDefaultWorkPerms();
@@ -497,24 +525,52 @@ function WaCompanyUserManage() {
         }
     }, [makeSearchPayload]);
 
-    const initPage = useCallback(async () => {
-        if (!user && !getStoredUser()) {
-            setUserList([]);
-            setSelectedIndex(-1);
-            setDetail(createEmptyDetail());
-            setWorkPerms(createDefaultWorkPerms());
-            setBranchWorkInfo({});
-            return;
-        }
+	const initPage = useCallback(async () => {
+	    if (!user && !getStoredUser()) {
+	        initializedKeyRef.current = '';
 
-        if (!loginCompanyId) {
-            alert('로그인 회원사 정보를 확인할 수 없습니다.');
-            return;
-        }
+	        setUserList([]);
+	        setSelectedIndex(-1);
+	        setDetail(createEmptyDetail());
+	        setWorkPerms(createDefaultWorkPerms());
+	        setBranchWorkInfo({});
+	        return;
+	    }
 
-        await loadBranchOptions();
-        await handleSearch();
-    }, [handleSearch, loadBranchOptions, loginCompanyId, user]);
+	    if (!loginCompanyId) {
+	        alert('로그인 회원사 정보를 확인할 수 없습니다.');
+	        return;
+	    }
+
+	    const initKey = [
+	        loginCompanyId,
+	        loginMemberGb,
+	        loginBranchId,
+	        isBranchAdmin ? 'BA' : 'OTHER'
+	    ].join('|');
+
+	    if (initializedKeyRef.current === initKey) {
+	        return;
+	    }
+
+	    initializedKeyRef.current = initKey;
+
+	    await loadBranchOptions();
+
+	    await handleSearch(
+	        isBranchAdmin
+	            ? { BRANCH_ID: loginBranchId }
+	            : {}
+	    );
+	}, [
+	    handleSearch,
+	    loadBranchOptions,
+	    loginCompanyId,
+	    loginMemberGb,
+	    loginBranchId,
+	    isBranchAdmin,
+	    user
+	]);
 
     useEffect(() => {
         initPage();
@@ -588,6 +644,7 @@ function WaCompanyUserManage() {
     };
 
     const handleReload = async () => {
+		initializedKeyRef.current = '';
         setUserList([]);
         setSelectedIndex(-1);
         setDetail(createEmptyDetail());
@@ -910,6 +967,7 @@ function WaCompanyUserManage() {
                                 name="BRANCH_ID"
                                 value={searchForm.BRANCH_ID}
                                 onChange={handleSearchChange}
+								disabled={isBranchAdmin}
                             >
                                 {(branchOptions.length > 0 ? branchOptions : [{ CODE_CD: '', CODE_NM: '전체' }]).map(item => (
                                     <option

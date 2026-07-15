@@ -1,0 +1,172 @@
+@charset "UTF-8";
+
+/* =========================================================
+ * Customer Layout
+========================================================= */
+
+#root:has(.wa-shell) {
+    min-width: 0;
+}
+
+body.customer-body-page {
+    overflow-y: auto !important;
+}
+
+body.customer-body-page #root {
+    min-height: 100vh !important;
+}
+
+.customer-layout {
+    width: 100vw;
+    min-height: 100vh;
+
+    display: flex;
+    flex-direction: column;
+}
+
+.customer-body {
+     width: 100%;
+    flex: 1;
+
+    margin-top: 65px;
+    min-height: calc(100vh - 65px);
+
+    display: flex;
+    flex-direction: column;
+}
+
+.customer-page {
+    width: 100%;
+    flex: 1;
+
+    display: flex;
+    justify-content: center;
+    align-items: flex-start;
+
+    padding: 32px 16px;
+
+    box-sizing: border-box;
+}
+
+/* =========================================================
+ * Header
+========================================================= */
+
+.customer-header {
+	/*숨기기*/
+	display: none;
+	width: 100%;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 1000;
+
+    height: 65px;
+
+    background: #fff;
+    border-bottom: 1px solid #d5d5d5;
+}
+
+.customer-logo {
+    width: 150px;
+    height: 65px;
+
+    margin-left: 25px;
+
+    background: url('../../../public/logo_navy_horizontal.png') no-repeat center;
+    background-size: 100% auto;
+}
+
+/* =========================================================
+ * Footer
+========================================================= */
+
+.customer-footer {
+	width: 100%;
+    padding: 48px 16px;
+
+    background: #2b3340;
+    color: #d8d8d8;
+
+    border-top: 1px solid #333;
+}
+
+.customer-footer-top {
+    margin-bottom: 24px;
+    text-align: center;
+}
+
+.customer-footer-link {
+    color: #d8d8d8;
+    font-weight: 600;
+    text-decoration: none;
+}
+
+.customer-footer-link:hover {
+    color: #ffffff;
+    text-decoration: underline;
+}
+
+.customer-footer-main {
+    max-width: 900px;
+    margin: 0 auto;
+
+    display: flex;
+    justify-content: space-between;
+    gap: 32px;
+    flex-wrap: wrap;
+}
+
+.customer-footer-info,
+.customer-footer-copy,
+.customer-footer-contact {
+    flex: 1 1 220px;
+    min-width: 220px;
+}
+
+.customer-footer p,
+.customer-footer a {
+    margin: 6px 0;
+
+    color: #d8d8d8;
+    font-size: 14px;
+    text-decoration: none;
+}
+
+.customer-footer-contact a {
+    font-size: 18px;
+    font-weight: 600;
+}
+
+/* =========================================================
+ * Responsive
+========================================================= */
+
+@media (max-width: 1024px) {
+
+    .customer-page {
+        padding: 24px 16px;
+    }
+
+}
+
+@media (max-width: 768px) {
+
+    .customer-page {
+        padding: 20px 12px;
+    }
+
+    .customer-footer-main {
+        display: block;
+        text-align: center;
+    }
+
+    .customer-footer-info,
+    .customer-footer-copy,
+    .customer-footer-contact {
+        margin-bottom: 20px;
+    }
+
+}
+

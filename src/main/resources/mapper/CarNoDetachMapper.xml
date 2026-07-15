@@ -211,6 +211,11 @@
 	        <if test="CUSTOMER_NM != null and CUSTOMER_NM != ''">
 	            CUSTOMER_NM = #{CUSTOMER_NM},
 	        </if>
+	        
+	        <if test="TOKEN != null and TOKEN != ''">
+	            TOKEN = #{TOKEN},
+	        </if>
+	        
 			UPD_DATE = SYSDATE
 	    </set>
 	

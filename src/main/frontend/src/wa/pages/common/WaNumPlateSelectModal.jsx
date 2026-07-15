@@ -10,15 +10,20 @@ const WaNumPlateSelectModal = ({
 	dsService, dsNewCar, dsCarNoDetach, dsUserInfo
  }) => {
 	
+	// 차종
     const [carType, setCarType] = useState('SEDAN');
+	// 번호판 조회 조건
+	const [searchType, setSearchType] = useState('RANDOM');
+	// 끝자리
     const [condition, setCondition] = useState('NOT');
 	const [keyword, setKeyword] = useState('');
 	const [list, setList] = useState([]);
 	const [selected, setSelected] = useState('');
 	const [tel, setTel] = useState('');
 	const preCarNoRef = useRef(''); // ref 내부 기억용
-	
-	const isUserWa = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
+
+	// 폴스타
+	const isUserWa001 = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
 	
 	// 모달 열릴 때 초기 조회
 	useEffect(() => {
@@ -29,9 +34,10 @@ const WaNumPlateSelectModal = ({
 	const fetchList = async() => {
 		
 		let assignCd = '';
-			
-		// 폴스타인 경우 지점코드 1로 들어가도록 설정
-		if(isUserWa) {
+		
+		// 폴스타
+		if(isUserWa001) {
+			// 지점코드 1로 들어가도록 설정
 			assignCd = dsUserInfo.COMPANY_ID + '1'; 
 		}
 		// 나머지는 회원사 코드 + 지점코드
@@ -88,7 +94,7 @@ const WaNumPlateSelectModal = ({
 			LIMIT: '10',
 			NUM_KIND: dsNewCar.NUMPLATE_GB,
 			GOVT_ID: dsService.GOVT_ID,
-			CONDITION: 'DEL'
+			CONDITION: 'NOT'
 		};
 		
 		// 미사용 번호판 상태복구
@@ -99,17 +105,18 @@ const WaNumPlateSelectModal = ({
 
 	const resetModal = () => {
 
-	    // 조건 초기화
-	    setCarType('SEDAN');
-	    setCondition('NOT');
+		// 조건 초기화
+		setCarType('SEDAN');
+		setSearchType('RANDOM');
+		setCondition('NOT');
 
-	    // 입력값 초기화
-	    setKeyword('');
-	    setSelected('');
-	    setList([]);
+		// 입력값 초기화
+		setKeyword('');
+		setSelected('');
+		setList([]);
 
-	    // ref 초기화
-	    preCarNoRef.current = '';
+		// ref 초기화
+		preCarNoRef.current = '';
 	};
 	
 	// 모달창 닫기
@@ -146,7 +153,7 @@ const WaNumPlateSelectModal = ({
 		    NUM_KIND: dsNewCar.NUMPLATE_GB,
 		    HOLE_YN: dsCarNoDetach.HOLE_YN,
 		    SEAL_YN: dsCarNoDetach.SEAL_YN,
-			CONDITION: 'DEL',
+			CONDITION: condition,
 			LIMIT: '10'
 		};
 		
@@ -215,7 +222,13 @@ const WaNumPlateSelectModal = ({
 			    gf.alert(res.data.message);
 				return;
 			}
-
+			
+			// 선택한 번호판은 제외 
+			preCarNoRef.current = preCarNoRef.current
+			    .split(',')
+			    .filter(no => no !== selected)
+			    .join(',');
+				
 			// 화면에 있는 번호판들 미사용처리
 			await releaseNumplate();
 
@@ -256,7 +269,7 @@ const WaNumPlateSelectModal = ({
 			    TEXT: `선택 가능한 차량번호 : ${preCarNoRef.current}`
 			});
 			
-			alert('전송 완료');
+			gf.alert('차량번호 전송 완료', '차량번호');
 			
 		}
 		
@@ -271,6 +284,12 @@ const WaNumPlateSelectModal = ({
 	};
 	
 	const carKdNumChange = (str) => {
+		
+		// 폴스타는 무조건 승용차
+		if(isUserWa001) {
+			return '70';
+		}
+		
 	    switch (str) {
 	        case 'VAN': // 승합차 
 				return '80';
@@ -311,9 +330,56 @@ const WaNumPlateSelectModal = ({
 	                {/* 검색영역 */}
 	                <div className="numplate-search-wrap">
 						
-						{/* 차종 - 폴스타는 무조건 승용으로 들어가도록 설정 */}
-						{ !isUserWa &&(
+						{ isUserWa001 ? (
 							<>
+								{/* 번호판 조회 조건 */}
+								<div className="search-row">
+								    <label>조건</label>
+
+								    <select
+										value={searchType}
+									    onChange={e => {
+									        const value = e.target.value;
+
+									        setSearchType(value);
+
+									        if (value === 'RANDOM') {
+									            setCondition('NOT');
+									        }
+									    }}
+									>
+								        <option value="RANDOM">무작위</option>
+								        <option value="LAST">끝자리 선택</option>
+								    </select>
+								</div>
+
+								{/* 끝자리 선택 */}
+								{searchType === 'LAST' && (
+								    <div className="search-row">
+								        <label>끝자리</label>
+
+										<select
+											value={condition}
+										    onChange={e => setCondition(e.target.value)}
+										>
+										    <option value="NOT">무작위</option>
+											<option value="00">끝자리 0</option>
+										    <option value="01">끝자리 1</option>
+										    <option value="02">끝자리 2</option>
+										    <option value="03">끝자리 3</option>
+										    <option value="04">끝자리 4</option>
+										    <option value="05">끝자리 5</option>
+											<option value="06">끝자리 6</option>
+											<option value="07">끝자리 7</option>
+											<option value="08">끝자리 8</option>
+											<option value="09">끝자리 9</option>
+										</select>
+								    </div>
+								)}
+							</>
+						):(
+							<>
+								{/* 차종 - 폴스타 아닌 경우만 차종 선택, 폴스타는 승용 */}
 								<div className="search-row">
 								    <label>차종</label>
 	
@@ -325,6 +391,7 @@ const WaNumPlateSelectModal = ({
 								        <option value="VAN">승합</option>
 								    </select>
 								</div>
+								
 							</>
 						)}
 						

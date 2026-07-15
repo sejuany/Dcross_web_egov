@@ -169,6 +169,7 @@
     border:1px solid #e5e7eb;
     border-radius:12px;
     background:#fff;
+    table-layout:fixed;
 }
 
 .wa-payment-table thead th{
@@ -193,17 +194,24 @@
 }
 
 /* 결제종류 */
-.wa-payment-table tbody td:first-child{
-    width:240px;
-    font-weight:600;
+.wa-payment-table th:first-child,
+.wa-payment-table td:first-child{
+    width:34%;
+    text-align:center;
 }
 
-/* 금액 */
-.wa-payment-table tbody td:nth-child(2),
-.wa-payment-table tbody td:nth-child(3){
-    width:180px;
-    text-align:right;
-    font-variant-numeric:tabular-nums;
+/* 예상금액 */
+.wa-payment-table th:nth-child(2),
+.wa-payment-table td:nth-child(2){
+    width:33%;
+    text-align:center;
+}
+
+/* 최종금액 */
+.wa-payment-table th:nth-child(3),
+.wa-payment-table td:nth-child(3){
+    width:33%;
+    text-align:center;
 }
 
 /* 마우스 오버 */

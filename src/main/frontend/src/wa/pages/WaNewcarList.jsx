@@ -279,6 +279,12 @@ const WaNewcarList = () => {
 	// 더블클릭 했을 때 해당 건으로 들어가기 위해
 	const [clickTimer, setClickTimer] = useState(null);
 
+	// SERVICE_ID별 진행단계 기억
+	// - 신규등록현황 화면이 살아있는 동안만 유지되는 휘발성 데이터
+	// - 목록 재조회 시 clear()
+	// - 로그아웃 또는 화면 종료 시 자동 초기화
+	const stepMemoryRef = useRef(new Map());
+	
 	const handleRowClick = (row) => {
 	    if (clickTimer) {
 	        clearTimeout(clickTimer);
@@ -437,6 +443,9 @@ const WaNewcarList = () => {
     const fetchNewCarList = useCallback(async (filters) => {
         setLoading(true);
         setErrorMessage('');
+		
+		// 목록을 다시 조회하면 이전에 기억한 진행단계 모두 초기화
+		stepMemoryRef.current.clear();
 
         try {
             const response = await axios.post('/api/newcar/wa-list', buildSearchPayload(filters), { withCredentials: true });
@@ -1180,6 +1189,7 @@ const WaNewcarList = () => {
                             <WaNewcarRequest
                                 embedded
                                 initialServiceId={activeRequest.serviceId}
+								stepMemory={stepMemoryRef.current}
                                 onClose={handleCloseRequestFrame}
                                 onSaved={handleRequestSaved}
                             />

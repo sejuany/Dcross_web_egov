@@ -156,6 +156,15 @@
 	    ORDER BY TO_NUMBER(ORDER_NO)
 	
 	</select>
+	
+	<select id="selectTokenCnt" parameterType="map" resultType="int">
+	    
+	    SELECT COUNT(*)
+      FROM TR_CARNO_DETACH
+     WHERE TOKEN = #{TOKEN}
+       AND SERVICE_ID <![CDATA[<>]]> #{SERVICE_ID}
+	
+	</select>
 
 	<!-- 가상계좌 생성-->
 	<select id="processVBank" statementType="CALLABLE" parameterType="map">

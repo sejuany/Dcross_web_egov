@@ -30,6 +30,15 @@ public interface NewcarMapper {
      * @return 상세 정보 (Map으로 반환하여 모든 컬럼 포함)
      */
     Map<String, Object> getNewCarDetail(String serviceId);
+    /** 회사별 Maker와 차량명 기준 차량제원 조회함 */
+    Map<String, Object> getCarSpec(
+            @Param("maker") String maker,
+            @Param("carName") String carName);
+    /** 사용본거지와 차량구분/배기량에 맞는 유효 공채 매입률 조회함 */
+    Map<String, Object> getBondRate(
+            @Param("baseAddress") String baseAddress,
+            @Param("carGb") String carGb,
+            @Param("baseValue") double baseValue);
     
     /** 다건 상태 변경 */
     int updateProcSt(@Param("SERVICE_IDS") List<String> serviceIds, @Param("PROC_ST") String procSt);
@@ -62,12 +71,4 @@ public interface NewcarMapper {
 	
 	int updateBpayYn(Map<String, Object> param);
 	
-	/** WA 신규등록 첨부파일 조회 */
-	List<Map<String, Object>> getWaNewcarAttachFiles(Map<String, Object> param);
-
-	/** WA 신규등록 첨부파일 기존 건 삭제 */
-	int deleteWaNewcarAttachFile(Map<String, Object> param);
-
-	/** WA 신규등록 첨부파일 등록 */
-	int insertWaNewcarAttachFile(Map<String, Object> param);
 }

@@ -9,6 +9,7 @@ import SignupTerm from './components/member/SignupTerm';
 import SignForm from './components/member/SignForm';
 import WaRoutes from './wa/WaRoutes';
 import WaErpRedirect from './wa/auth/WaErpRedirect';
+import CustomerRoutes from './customer/CustomerRoutes';
 import './App.css';
 import CommonPopupProvider from './components/common/CommonPopupProvider';
 
@@ -23,6 +24,8 @@ function App() {
             <Route path="/wa/*" element={<WaRoutes />} />
             <Route path="/signup" element={<SignupTerm />} />
             <Route path="/signup-form" element={<SignForm />} />
+			{/* 고객용 업로드 페이지 */}
+			<Route path="/customer/*" element={<CustomerRoutes />} />
 
             <Route
               path="/*"

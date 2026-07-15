@@ -11,7 +11,7 @@
     "ag-grid-community": "^35.1.0",
     "ag-grid-react": "^35.1.0",
     "axios": "^1.13.6",
-    "html2pdf.js": "^0.14.0",
+    "html2pdf.js": "^0.10.1",
     "http-proxy-middleware": "^3.0.5",
     "lucide-react": "^0.563.0",
     "react": "^19.2.4",
@@ -19,6 +19,7 @@
     "react-modal": "^3.16.3",
     "react-router-dom": "^7.13.0",
     "react-scripts": "5.0.1",
+    "react-signature-canvas": "^1.1.0-alpha.2",
     "web-vitals": "^2.1.4"
   },
   "scripts": {

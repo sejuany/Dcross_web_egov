@@ -1,14 +1,17 @@
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
 import { X, FileText, Mail } from 'lucide-react';
 import '../../styles/WaNewcarRequest.css';
 
-const ATTACH_DOCS = [
-    { seq: 0, key: 'FOREIGN_ID', label: '외국인 등록증' },
-    { seq: 1, key: 'DISABILITY_CERT', label: '장애인 증명서(복지카드)' },
-    { seq: 2, key: 'RESIDENT_CERT', label: '주민등록등본' },
-    { seq: 3, key: 'FAMILY_CERT', label: '가족관계증명서' },
-];
+// 문자전송 모달
+import WaSendSmsModal from './WaSendSmsModal';
+
+// 파일 업로드 정책 가져오기
+import {
+    getAttachPolicy,
+    getNtaxAttachPolicy
+} from '../../../policy/attachPolicy';
+
 
 const getValue = (row, ...keys) => {
     if (!row) return '';
@@ -30,28 +33,78 @@ const WaNewcarAttachModal = ({
     open,
     dsService,
     dsNewCar,
+	dsCarNoDetach,
+	setDsCarNoDetach,
+	dsUserInfo,
     onClose,
     onOpenSmsModal,
+	saveProcess
 }) => {
     const fileInputRefs = useRef({});
     const [attachFiles, setAttachFiles] = useState([]);
     const [loading, setLoading] = useState(false);
-    const [uploadingSeq, setUploadingSeq] = useState(null);
-
+    // 파일 업로드 코드 
+	const [uploadingCode, setUploadingCode] = useState(null);
+	// 지방세 감면 신청서 서명 여부
+	const [signed, setSigned] = useState(false);
+	// 문자 전송 모달  
+	const [smsModalOpen, setSmsModalOpen] = useState(false);
+	// 서비스 아이디 
     const serviceId = dsService?.SERVICE_ID || dsService?.serviceId || '';
+	
+	
+	// 일반 첨부 정책
+	const attachPolicy = useMemo(
+	    () => getAttachPolicy(dsNewCar),
+	    [dsNewCar]
+	);
+	
+	// 소유자 확인 서류 리스트(화면용) 
+	const ownerDocs = useMemo(
+	    () => attachPolicy.requiredDocs,
+	    [attachPolicy]
+	);
 
-    const attachFileMap = useMemo(() => {
-        const map = {};
+	// 비과세 정책
+	const ntaxPolicy = useMemo(
+	    () => getNtaxAttachPolicy(dsNewCar),
+	    [dsNewCar]
+	);
+	
+	// 감면 서류 리스트(화면용)
+	const ntaxDocs = useMemo(
+	    () => ntaxPolicy.requiredDocs,
+	    [ntaxPolicy]
+	);
 
-        attachFiles.forEach(file => {
-            const seq = String(getValue(file, 'SEQ', 'seq'));
-            map[seq] = file;
-        });
+	// 화면에 보여줄 전체 서류(순서 유지용)
+	const displayDocs = useMemo(
+	    () => [...ownerDocs, ...ntaxDocs].sort((a, b) => a.seq - b.seq),
+	    [ownerDocs, ntaxDocs]
+	);
 
-        return map;
-    }, [attachFiles]);
+	// 코드별 업로드 파일 조회용 Map 생성
+	const attachFileMap = useMemo(() => {
+	    const map = {};
 
-    const loadAttachFiles = async () => {
+	    attachFiles.forEach(file => {
+	        const code = getValue(file, 'CODE', 'code');
+		
+	        if (code) {
+	            map[code] = file;
+	        }
+	    });
+
+	    return map;
+	}, [attachFiles]);
+
+	// 전자서명 완료 여부
+	const hasSign = useMemo(() => {
+	    return attachFiles.some(file => file.CODE === 'SIGN');
+	}, [attachFiles]);
+	
+	// 첨부파일 목록 조회
+	const loadAttachFiles = useCallback(async () => {
         if (!serviceId) {
             setAttachFiles([]);
             return;
@@ -69,35 +122,39 @@ const WaNewcarAttachModal = ({
                 : [];
 
             setAttachFiles(list);
+			
+
+			console.log("attachFiles", list);
+			console.log("attachFiles.length", list.length);
         } catch (error) {
             console.error('[WaNewcarAttachModal] 첨부파일 조회 실패:', error);
             alert('첨부파일 조회 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
         }
-    };
+    }, [serviceId]);
 
-    useEffect(() => {
-        if (!open) {
-            return;
-        }
-
-        loadAttachFiles();
-    }, [open, serviceId]);
+	// 팝업이 열리면 첨부파일 조회
+	useEffect(() => {
+	    if (!open) return;
+	    loadAttachFiles();
+	}, [open, loadAttachFiles]);
 
     if (!open) {
         return null;
     }
 
-    const handleSelectFile = (seq) => {
+	// 파일 선택창 열기
+    const handleSelectFile = (code) => {
         if (!serviceId) {
             alert('저장 후 첨부파일을 등록할 수 있습니다.');
             return;
         }
 
-        fileInputRefs.current[seq]?.click();
+        fileInputRefs.current[code]?.click();
     };
 
+	// 첨부파일 업로드
     const handleFileChange = async (doc, event) => {
         const file = event.target.files?.[0];
 
@@ -114,13 +171,17 @@ const WaNewcarAttachModal = ({
 
         const formData = new FormData();
         formData.append('serviceId', serviceId);
-        formData.append('seq', doc.seq);
+        //formData.append('seq', doc.seq);
+		// req 대신 파일 코드명을 보낸다
+		// ex. {서비스아이디}_{파일코드명}.{확장자}
+		formData.append('code', doc.code);
+		formData.append('gubun', doc.gubun);
         formData.append('file', file);
 
-        setUploadingSeq(doc.seq);
+        setUploadingCode(doc.code);
 
         try {
-            const res = await axios.post('/api/newcar/wa-attach-file', formData, {
+            const res = await axios.post('/api/newcar/wa-attach-upload', formData, {
                 headers: {
                     'Content-Type': 'multipart/form-data',
                 },
@@ -141,10 +202,11 @@ const WaNewcarAttachModal = ({
 
             alert(message);
         } finally {
-            setUploadingSeq(null);
+            setUploadingCode(null);
         }
     };
 
+	// 업로드된 파일 열기
     const handleOpenFile = (file) => {
         const fileUrl = getValue(file, 'FILE_URL', 'fileUrl');
 
@@ -155,26 +217,27 @@ const WaNewcarAttachModal = ({
         window.open(fileUrl, '_blank');
     };
 
+	// 첨부파일 썸네일 표시
     const renderThumb = (doc) => {
-        const file = attachFileMap[String(doc.seq)];
+        const file = attachFileMap[doc.code];
         const fileUrl = getValue(file, 'FILE_URL', 'fileUrl');
         const fileName = getValue(file, 'ATCHFILE_NM', 'atchFileNm');
 
-        if (fileUrl && isImageFile(fileName)) {
-            return (
-                <img
-                    src={fileUrl}
-                    alt={doc.label}
-                    className="wa-attach-preview-img"
-                />
-            );
-        }
+		if (!fileUrl) {
+		    return <FileText size={28} />;
+		}
 
-        if (fileUrl) {
-            return <FileText size={28} />;
-        }
+		if (isImageFile(fileName)) {
+		    return (
+		        <img
+		            src={fileUrl}
+		            alt={doc.name}
+		            className="wa-attach-preview-img"
+		        />
+		    );
+		}
 
-        return <FileText size={28} />;
+		return <FileText size={28} />;
     };
 
     return (
@@ -196,33 +259,61 @@ const WaNewcarAttachModal = ({
 
                 <div className="wa-attach-modal-body single">
                     <section className="wa-attach-doc-section">
-                        <div className="wa-attach-doc-line">
-                            <span className="wa-attach-doc-label">소유자 확인 서류</span>
-                            <span className="wa-attach-doc-state">외국인 등록증</span>
-                            <span className="wa-attach-doc-check">✓</span>
-                        </div>
+		
+						{// 제출해야 하는 서류 목록
+						 displayDocs.map((doc, index) => {
+	
+							// 현재 서류 업로드 여부
+						    const file = attachFileMap[doc.code];
+						    const hasFile = !!file;
+							// 이전 서류(감면 서류 제목 출력용)
+						    const prevDoc = displayDocs[index - 1];
+	
+						    return (
+						        <div
+						            key={doc.code}
+						            className={`wa-attach-doc-line ${hasFile ? 'uploaded' : ''}`}
+						        >
+						            <span className="wa-attach-doc-label">
+						                {index === 0 && '소유자 확인 서류'}
+	
+						                {index > 0 &&
+						                    doc.gubun === 'MERGE' &&
+						                    prevDoc?.gubun !== 'MERGE' &&
+						                    '감면 증빙 서류'}
+						            </span>
+	
+						            <span className="wa-attach-doc-state">
+						                {doc.name}
+						            </span>
+	
+						            <span className="wa-attach-doc-check">
+						                {hasFile && '✓'}
+						            </span>
+									
+						        </div>
+						    );
+						})}
+						
+						{/* 감면 증빙 안내 */}
+						{ntaxDocs.length > 0 && (
+							<div
+							    className={`wa-attach-doc-line sub ${hasSign ? 'uploaded' : 'blue'}`}
+							>
+							    <span></span>
 
-                        <div className="wa-attach-doc-line">
-                            <span className="wa-attach-doc-label">감면 증빙 서류</span>
-                            <span className="wa-attach-doc-state">장애인 증명서(복지카드)</span>
-                            <span className="wa-attach-doc-check">✓</span>
-                        </div>
+							    <span className="wa-attach-doc-state">
+							        지방세 감면 신청사항 확인 서명 필요
+							    </span>
 
-                        <div className="wa-attach-doc-line sub">
-                            <span></span>
-                            <span>주민등록등본</span>
-                        </div>
-
-                        <div className="wa-attach-doc-line sub blue">
-                            <span></span>
-                            <strong>가족관계증명서(상세) {'{주민번호 표시, 3개월 이내 발급분}'}</strong>
-                        </div>
-
-                        <div className="wa-attach-doc-line sub blue">
-                            <span></span>
-                            <strong>자동차 감면 신청서류 확인 사항 필요</strong>
-                        </div>
-
+							    <span className="wa-attach-doc-check">
+							        {hasSign && '✓'}
+							    </span>
+							</div>
+						)}
+						
+						<hr className="wa-divider upload" />
+						
                         <p className="wa-attach-guide">
                             ※ 첨부는 사진을 클릭하여 업로드할 수 있습니다.
                         </p>
@@ -234,16 +325,18 @@ const WaNewcarAttachModal = ({
                         )}
 
                         <div className="wa-attach-doc-grid">
-                            {ATTACH_DOCS.map((doc) => {
-                                const file = attachFileMap[String(doc.seq)];
+                            {// 첨부파일 업로드 영역
+							 displayDocs.map((doc) => {
+								
+                                const file = attachFileMap[doc.code];
                                 const fileName = getValue(file, 'ATCHFILE_NM', 'atchFileNm');
                                 const hasFile = !!file;
 
                                 return (
-                                    <div className="wa-attach-doc-card" key={doc.key}>
+                                    <div className="wa-attach-doc-card" key={doc.code}>
                                         <input
                                             ref={(el) => {
-                                                fileInputRefs.current[doc.seq] = el;
+												fileInputRefs.current[doc.code] = el;
                                             }}
                                             type="file"
                                             accept="image/*,.pdf"
@@ -253,12 +346,12 @@ const WaNewcarAttachModal = ({
                                         <button
                                             type="button"
                                             className={`wa-attach-doc-thumb ${hasFile ? 'has-file' : ''}`}
-                                            onClick={() => hasFile ? handleOpenFile(file) : handleSelectFile(doc.seq)}
+                                            onClick={() => hasFile ? handleOpenFile(file) : handleSelectFile(doc.code)}
                                         >
                                             {renderThumb(doc)}
                                         </button>
 
-                                        <strong>{doc.label}</strong>
+                                        <strong>{doc.name}</strong>
 
                                         {hasFile && (
                                             <span
@@ -272,30 +365,37 @@ const WaNewcarAttachModal = ({
                                         <button
                                             type="button"
                                             className="wa-attach-file-btn"
-                                            onClick={() => handleSelectFile(doc.seq)}
-                                            disabled={uploadingSeq === doc.seq}
+											onClick={() => handleSelectFile(doc.code)}
+                                            disabled={uploadingCode === doc.code}
                                         >
-                                            {uploadingSeq === doc.seq ? '업로드중' : hasFile ? '파일변경' : '파일첨부'}
+                                            {uploadingCode === doc.code ? '업로드중' : hasFile ? '파일변경' : '파일첨부'}
                                         </button>
                                     </div>
                                 );
                             })}
 
-                            <div className="wa-attach-doc-card empty-card">
-                                <div className="wa-attach-doc-thumb empty">
-                                    첨부
-                                </div>
-                            </div>
                         </div>
-
-                        <button
-                            type="button"
-                            className="wa-attach-link-btn"
-                            onClick={onOpenSmsModal}
-                        >
-                            <Mail size={16} />
-                            관련 신청서 서명 및 파일업로드 링크 문자 발송
-                        </button>
+						<div className="wa-attach-btn-div">
+							<button
+	                            type="button"
+	                            className="wa-attach-link-btn"
+								onClick={() => setSmsModalOpen(true)}
+	                        >
+	                            <Mail size={16} />
+	                            관련 신청서 서명 및 파일업로드 링크 문자 발송
+	                        </button>
+						</div>
+                        
+						<WaSendSmsModal
+							dsService={dsService}
+						    dsNewCar={dsNewCar}
+							dsCarNoDetach={dsCarNoDetach}
+							setDsCarNoDetach={setDsCarNoDetach}
+							dsUserInfo={dsUserInfo}
+							saveProcess={saveProcess}
+						    open={smsModalOpen}
+						    onClose={() => setSmsModalOpen(false)}
+						/>
                     </section>
                 </div>
             </div>

@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.dacos.auth.dto.UserDto;
 import com.dacos.payment.dto.PaymentSearchRequest;
 import com.dacos.payment.mapper.PaymentMapper;
 
@@ -29,15 +30,33 @@ public class PaymentService {
         return paymentMapper.getPayInfoList(request);
     }
 
-    public List<Map<String, Object>> getWaPayInfoList(PaymentSearchRequest request) {
+    public List<Map<String, Object>> getWaPayInfoList(PaymentSearchRequest request, UserDto user) {
         logger.info("[PaymentService] WA 납부현황 조회");
+        applyWaAccessScope(request, user);
         return paymentMapper.getWaPayInfoList(request);
     }
 
-    public List<Map<String, Object>> getWaPayMemberList(PaymentSearchRequest request) {
+    public List<Map<String, Object>> getWaPayMemberList(PaymentSearchRequest request, UserDto user) {
         logger.info("[PaymentService] WA 납부현황 담당SP 조회");
+        applyWaAccessScope(request, user);
         return paymentMapper.getWaPayMemberList(request);
     }
+    private void applyWaAccessScope(PaymentSearchRequest request, UserDto user) {
+        String companyId = normalize(user.getCOMPANY_ID());
+        String memberGb = normalize(user.getMEMBER_GB());
+
+        request.setCOMPANY_ID(companyId);
+        request.setMEMBER_GB(memberGb);
+
+        if ("WA001".equals(companyId) && ("BA".equals(memberGb) || "SU".equals(memberGb))) {
+            request.setBRANCH_ID(normalize(user.getBRANCH_ID()));
+        }
+    }
+
+    private String normalize(String value) {
+        return value == null ? "" : value.trim().toUpperCase();
+    }
+
     public List<Map<String, Object>> getTvbankList(PaymentSearchRequest request) {
         logger.info("[PaymentService] 통합가상계좌 조회");
         return paymentMapper.getTvbankList(request);

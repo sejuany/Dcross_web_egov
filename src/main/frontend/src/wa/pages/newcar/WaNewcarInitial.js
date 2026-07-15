@@ -33,15 +33,23 @@ export const initialDsNewCar = {
 	MADE_DT: '',
 	MADE_YY: '',
 	CAR_KD: '',
+	// 예상금액 계산에 필요한 차량 제원
+	CAR_KD_CD: '',
+	CAR_CC: '',
+	GETIN_NO: '',
+	LOW_POLLUTION_YN: '',
 	CAR_NM: '',
 	FM_NM: '',
 	SPMNNO: '',
 	FUEL_CD: 'e',
+	MULTI_PURPOSE_YN: 'N',
 	COLOR_GB: '',
 	CAR_US: '2',
 	LAST_DT: '',
 	GOVT_TX: '',
 	REGIST_DATE: '',
+	GETIN_NO: '',
+	CAR_CC: '',
 
 	// 번호판
 	NUMPLATE_GB: '7',
@@ -82,6 +90,8 @@ export const initialDsNewCar = {
 	// 금액
 	BUY_AMT: 0,
 	TOTAL_AMT: 0,
+	// 표준과세금액, 없으면 BUY_AMT 기준으로 계산함
+	STANDARD_AMT: 0,
 	RT_AMT: 0,
 
 	// 채권
@@ -174,6 +184,7 @@ export const initialCarNoDetach = {
 	RENT_RECEIVE_YN: '',
 	HOLE_YN: '02',
 	SEAL_YN: '02',
+	TOKEN: ''
 };
 
 export const initialDsPaymentList = [
@@ -273,7 +284,8 @@ export const initialDsCarNoDetach = {
     STATUS_SMS_NO: '',
     NUM_MEMO_TX: '',
     HOLE_YN: '02',
-    SEAL_YN: '02'
+    SEAL_YN: '02',
+	TOKEN: ''
 };
 
 // ===== 매핑 =====
@@ -307,6 +319,11 @@ export const newCarMap = {
 	MADE_DT: 'MADE_DT',
 	MADE_YY: 'MADE_YY',
 	CAR_KD: 'CAR_KD',
+	// 계산 모듈에서 취득세율 판단에 사용함
+	CAR_KD_CD: 'CAR_KD_CD',
+	CAR_CC: 'CAR_CC',
+	GETIN_NO: 'GETIN_NO',
+	LOW_POLLUTION_YN: 'LOW_POLLUTION_YN',
 	CAR_NM: 'CAR_NM',
 	FM_NM: 'FM_NM',
 	SPMNNO: 'SPMNNO',
@@ -316,6 +333,8 @@ export const newCarMap = {
 	LAST_DT: 'LAST_DT',
 	GOVT_TX: 'GOVT_TX',
 	REGIST_DATE: 'REGIST_DATE',
+	GETIN_NO: 'GETIN_NO',
+	CAR_CC: 'CAR_CC',
 	// 번호판
 	NUMPLATE_GB: 'NUMPLATE_GB',
 	IMSINUM_YN: 'IMSINUM_YN',
@@ -352,6 +371,8 @@ export const newCarMap = {
 	// 금액
 	BUY_AMT: 'BUY_AMT',
 	TOTAL_AMT: 'TOTAL_AMT',
+	// 계산 모듈에서 과세표준 판단에 사용함
+	STANDARD_AMT: 'STANDARD_AMT',
 	RT_AMT: 'RT_AMT',
 
 	// 채권
@@ -398,7 +419,10 @@ export const newCarMap = {
 
 	// 계약
 	CONTRACTOR_NM: 'CONTRACTOR_NM',
-	CONTRACTOR_DT: 'CONTRACTOR_DT'
+	CONTRACTOR_DT: 'CONTRACTOR_DT',
+	
+	// 다목적 차량
+	VH_TY_CD: 'VH_TY_CD'
 };
 
 export const taxReceiptMap = {

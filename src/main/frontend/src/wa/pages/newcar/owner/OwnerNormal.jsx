@@ -6,7 +6,7 @@ import { gf } from '../../../../utils/utils';
 import SplitInput from '../../common/SplitInput';
 
 import '../../../styles/owner/OwnerNormal.css';
-import AddressSearch from '../../common/AddressSearch';
+import AddressSearch from '../../common/AddressSearch'; // 주소 입력
 
 import JointOwner from './JointOwner';
 
@@ -101,15 +101,16 @@ const OwnerPersonal = ({
 	            DEBTOR_ROAD_CD: ''
 	        };
 
-	        setDsNewCar(prev => ({
-	            ...prev,
+	        const nextNewCar = {
+	            ...dsNewCar,
 	            RATIO_NO: '100'
-	        }));
+	        };
 
+	        setDsNewCar(nextNewCar);
 	        setDsOwnerInfo(nextOwnerInfo);
 
 	        await saveProcess(
-	            null,
+	            nextNewCar,
 	            "SAV",
 	            null,
 	            nextOwnerInfo
@@ -251,6 +252,7 @@ const OwnerPersonal = ({
 				    }
 					type="ADDRESS"
 					detailName="ADDRESS_DT"
+					postName="POST_NO"
 				    dsNewCar={dsNewCar}
 				    handleChange={handleChange}
 					onSelect={onSelect}
@@ -266,6 +268,7 @@ const OwnerPersonal = ({
 					placeholder="자동차보험 가입 시 등록할 주소 입력 (건물, 지번 또는 도로명 검색)"
 					type="BASE_ADDRESS"
 					detailName="BASE_ADDRESS_DT"
+					postName="BASE_POST_NO"
 					dsNewCar={dsNewCar}
 					handleChange={handleChange}
 					onSelect={onSelect}
@@ -295,6 +298,7 @@ const OwnerPersonal = ({
 			{isJointOwnerOpen && (
 			    <div className="wa-joint-owner">
 			        <JointOwner
+						dsNewCar={dsNewCar}
 			            dsOwnerInfo={dsOwnerInfo}
 			            setDsOwnerInfo={setDsOwnerInfo}
 			            handleChange={handleChange}

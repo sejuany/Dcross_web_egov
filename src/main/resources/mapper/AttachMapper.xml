@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.dacos.attach.mapper.AttachMapper">
+	<!-- ============================================================ -->
+    <!-- 첨부파일 조회                                    -->
+    <!-- ============================================================ -->
+    <select id="getAttachFiles" parameterType="map" resultType="map">
+        SELECT
+               SERVICE_ID,
+               ATCHFILEPATH_NM,
+               ATCHFILE_NM,
+               SEQ,
+               ATCHSVRFILE_NM,
+               GUBUN,
+               INS_USER,
+               TO_CHAR(INS_DATE, 'YYYY-MM-DD HH24:MI:SS') AS INS_DATE,
+               UPD_USER,
+               TO_CHAR(UPD_DATE, 'YYYY-MM-DD HH24:MI:SS') AS UPD_DATE
+          FROM TR_ATTACH_FILE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+        <if test="GUBUN != null and GUBUN != ''">
+           AND GUBUN = #{GUBUN}
+		</if>
+		<if test="ATCHSVRFILE_NM != null and ATCHSVRFILE_NM != ''">
+		  AND ATCHSVRFILE_NM LIKE #{ATCHSVRFILE_NM} || '%'
+		</if>         	
+         ORDER BY TO_NUMBER(SEQ)
+    </select>
+	
+	<!-- ============================================================ -->
+    <!-- 첨부파일 등록                                    -->
+    <!-- ============================================================ -->
+    <insert id="insertAttachFile" parameterType="java.util.Map">
+        INSERT INTO TR_ATTACH_FILE (
+               SERVICE_ID,
+               ATCHFILEPATH_NM,
+               ATCHFILE_NM,
+               SEQ,
+               ATCHSVRFILE_NM,
+               GUBUN,
+               INS_USER,
+               INS_DATE,
+               UPD_USER,
+               UPD_DATE
+        ) VALUES (
+               #{SERVICE_ID},
+               #{ATCHFILEPATH_NM},
+               #{ATCHFILE_NM},
+               #{SEQ},
+               #{ATCHSVRFILE_NM},
+               #{GUBUN},
+               #{INS_USER},
+               SYSDATE,
+               #{UPD_USER},
+               SYSDATE
+        )
+    </insert>
+
+    <!-- ============================================================ -->
+    <!-- 첨부파일 삭제                                    -->
+    <!-- ============================================================ -->
+    <delete id="deleteAttachFile" parameterType="java.util.Map">
+        DELETE FROM TR_ATTACH_FILE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           <if test="GUBUN != null and GUBUN != ''">
+           AND GUBUN = #{GUBUN}
+           </if>
+           <if test="SEQ != null and SEQ != ''">
+           AND SEQ = #{SEQ}
+           </if>
+           <if test="ATCHSVRFILE_NM != null and ATCHSVRFILE_NM != ''">
+           AND ATCHSVRFILE_NM = #{ATCHSVRFILE_NM}
+           </if>
+    </delete>	
+
+</mapper>

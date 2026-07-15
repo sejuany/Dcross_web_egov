@@ -1,0 +1,624 @@
+@charset "UTF-8";
+
+/* =========================================================
+ * Common
+========================================================= */
+
+.customer-card {
+    width: min(700px, 100%);
+
+    padding: 28px;
+
+    background: #fff;
+
+    border: 1px solid #ececf3;
+    border-radius: 14px;
+
+    box-shadow: 0 4px 12px rgba(0, 0, 0, .06);
+}
+
+.customer-card h3 {
+    margin: 0 0 12px;
+
+    color: #102c57;
+
+    font-size: 28px;
+    font-weight: 700;
+}
+
+.customer-description {
+    margin: 0;
+
+    font-size: 15px;
+    line-height: 1.7;
+}
+
+.text-primary {
+    color: #009bfa;
+    font-weight: 600;
+}
+
+.customer-divider {
+    margin: 28px 0;
+
+    border: 0;
+    border-top: 1px dashed #d7d7d7;
+}
+
+/* =========================================================
+ * Form
+========================================================= */
+
+.customer-form-group {
+    margin-bottom: 22px;
+}
+
+.customer-form-group label {
+    display: block;
+
+    margin-bottom: 10px;
+
+    font-size: 15px;
+    line-height: 1.6;
+}
+
+.customer-input {
+    width: 100%;
+    height: 44px;
+
+    padding: 0 14px;
+
+    border: 1px solid #d5d9e2;
+    border-radius: 6px;
+
+    outline: none;
+
+    font-size: 15px;
+
+    transition: .2s;
+}
+
+.customer-input:focus {
+    border-color: #102c57;
+}
+
+/* =========================================================
+ * Button
+========================================================= */
+
+.customer-btn-group {
+    display: flex;
+
+    gap: 8px;
+
+    margin-top: 18px;
+}
+
+.customer-btn {
+        flex: 1;
+
+    min-height: 42px;
+    height: 42px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 6px;
+
+    font-size: 15px;
+
+    cursor: pointer;
+    transition: .2s;
+
+    white-space: nowrap;
+}
+
+.customer-btn-outline {
+    color: #102c57;
+    background: #fff;
+
+    border: 1px solid #102c57;
+}
+
+.customer-btn-outline:hover {
+    background: #f5f8fc;
+}
+
+.customer-btn-primary {
+    color: #fff;
+    background: #102c57;
+    border: 1px solid #102c57;
+    font-size: 14px;
+    padding: 0 15px;
+}
+
+.customer-btn-primary:hover {
+    background: #1a427f;
+}
+
+/* =========================================================
+ * Customer Sign
+========================================================= */
+
+.customer-sign-example {
+    margin-top: 12px;
+    padding: 18px;
+
+    background: #fafbfd;
+
+    border: 1px solid #cfd7e6;
+    border-radius: 10px;
+}
+
+.customer-sign-guide {
+    margin: 0 0 8px;
+
+    color: #666;
+
+    font-size: 14px;
+}
+
+.customer-example-title {
+    margin: 0 0 12px;
+
+    font-size: 18px;
+    font-weight: 700;
+}
+
+.customer-correct-sign {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+
+    margin-bottom: 28px;
+}
+
+.customer-correct-sign img {
+    width: 100%;
+    max-width: 240px;
+}
+
+.customer-correct-sign span {
+    margin-top: 8px;
+
+    font-size: 13px;
+}
+
+.customer-wrong-sign-wrap {
+    display: flex;
+
+    gap: 16px;
+}
+
+.customer-wrong-sign {
+    flex: 1;
+
+    text-align: center;
+}
+
+.customer-wrong-sign img {
+    width: 100%;
+}
+
+.customer-wrong-sign span {
+    display: block;
+
+    margin-top: 8px;
+
+    font-size: 13px;
+}
+
+.customer-sign-title {
+    margin: 18px 0 8px;
+
+    font-size: 15px;
+}
+
+
+.customer-sign-box {
+
+    width: 100%;
+    height: 220px;
+
+    overflow: hidden;
+
+    border: 1px dashed #cfcfcf;
+    border-radius: 8px;
+
+    background: #fff;
+}
+
+.customer-sign-canvas {
+
+    width: 100%;
+    height: 100%;
+
+    touch-action: none;
+}
+
+/* =========================================================
+ * Customer Upload
+========================================================= */
+
+.customer-upload-card {
+    width: min(500px, 100%);
+}
+
+.customer-upload-guide {
+    margin-top: 16px;
+    padding: 16px;
+
+    background: #f9fafc;
+
+    border-radius: 8px;
+
+    font-size: 14px;
+    line-height: 1.8;
+}
+
+.customer-upload-guide span {
+    color: #009bfa;
+    font-weight: 700;
+}
+
+.customer-upload-notice {
+    margin: 18px 0 24px;
+
+    color: #666;
+
+    font-size: 14px;
+    font-style: italic;
+    text-decoration: underline;
+}
+
+.customer-upload-list {
+    margin-top: 24px;
+
+    display: flex;
+    flex-direction: column;
+
+    gap: 10px;
+}
+
+.customer-upload-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+
+    gap: 16px;
+
+    padding: 12px 18px;
+
+    background: #f5f7fd;
+
+    border: 1px solid #d8dde7;
+    border-radius: 8px;
+}
+
+.customer-upload-preview {
+    width: 52px;
+    height: 52px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    flex-shrink: 0;
+
+    background: #fff;
+
+    border: 1px solid #ddd;
+
+    font-size: 11px;
+}
+
+.customer-upload-title {
+    flex: 1;
+
+    font-size: 16px;
+    font-weight: 600;
+}
+
+.customer-btn-upload {
+    width: 90px;
+    height: 36px;
+
+    color: #fff;
+    background: #478bf1;
+
+    border: none;
+    border-radius: 6px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+
+    transition: .2s;
+}
+
+.customer-btn-upload:hover {
+    background: #3579df;
+}
+
+.customer-upload-divider {
+    margin: 24px 0 18px;
+
+    border: 0;
+    border-top: 1px dashed #d9d9d9;
+}
+
+
+.text-primary {
+	color: #0D6EFD;
+	font-weight: 700;
+}
+
+
+/* =========================================================
+ * Customer re-Upload
+========================================================= */
+
+.customer-upload-item{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+
+    padding:12px 16px;
+    margin-bottom:12px;
+
+    border:1px solid #dbe4ef;
+    border-radius:10px;
+    background:#f8fbff;
+}
+
+.customer-upload-file{
+    display:flex;
+    align-items:center;
+    flex:1;
+    min-width:0;
+    gap:12px;
+}
+
+.customer-upload-thumb{
+    width:52px;
+    height:52px;
+
+    border-radius:6px;
+    border:1px solid #dbe4ef;
+
+    object-fit:cover;
+    cursor:pointer;
+}
+
+.customer-upload-name{
+    overflow:hidden;
+    text-overflow:ellipsis;
+    white-space:nowrap;
+
+    color:#334155;
+    font-size:15px;
+    font-weight:600;
+}
+
+.customer-btn-upload.outline{
+    background:#fff;
+    color:#2563eb;
+    border:1px solid #2563eb;
+}
+
+/* =========================================================
+ * 이미지 확대 모달 
+========================================================= */
+.customer-preview-backdrop{
+
+    position:fixed;
+    inset:0;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    background:rgba(0,0,0,.55);
+
+    z-index:99999;
+}
+
+.customer-preview-modal{
+
+    width:600px;
+    max-width:90vw;
+
+    padding:24px;
+
+    border-radius:12px;
+
+    background:#fff;
+
+    text-align:center;
+}
+
+.customer-preview-image{
+
+    max-width:100%;
+    max-height:70vh;
+
+    object-fit:contain;
+}
+
+.customer-preview-name{
+
+    margin:18px 0;
+
+    color:#64748b;
+    font-size:14px;
+}
+
+.customer-preview-backdrop{
+
+    position:fixed;
+    inset:0;
+
+    display:flex;
+    justify-content:center;
+    align-items:center;
+
+    background:rgba(0,0,0,.55);
+
+    z-index:99999;
+}
+
+.customer-preview-modal{
+
+    width:600px;
+    max-width:90vw;
+
+    padding:24px;
+
+    border-radius:12px;
+
+    background:#fff;
+
+    text-align:center;
+}
+
+.customer-preview-image{
+
+    max-width:100%;
+    max-height:70vh;
+
+    object-fit:contain;
+}
+
+.customer-preview-name{
+
+    margin:18px 0;
+
+    color:#64748b;
+    font-size:14px;
+}
+/* =========================================================
+ * Result
+========================================================= */
+
+.customer-result-card {
+    max-width: 500px;
+
+    text-align: center;
+
+    padding: 44px 36px 40px;
+}
+
+.customer-result-icon {
+
+    width: 58px;
+    height: 58px;
+
+    margin: 0 auto 24px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    border-radius: 50%;
+
+    background: #009BFA;
+    color: #fff;
+}
+
+.customer-result-title {
+
+    margin: 0;
+
+    color: #102C57;
+
+    font-size: 32px;
+    font-weight: 700;
+}
+
+.customer-result-divider {
+
+    width: 56px;
+
+    margin: 36px auto;
+
+    border: 0;
+    border-top: 1px dashed #d7d7d7;
+}
+
+.customer-result-description {
+
+    margin: 0;
+
+    color: #333;
+
+    font-size: 16px;
+    line-height: 1.9;
+}
+
+@media (max-width: 768px) {
+
+    .customer-result-card {
+
+        max-width: 100%;
+
+        padding: 32px 24px;
+    }
+
+    .customer-result-title {
+
+        font-size: 26px;
+    }
+
+    .customer-result-description {
+
+        font-size: 15px;
+    }
+}
+/* =========================================================
+ * Responsive
+========================================================= */
+
+@media (max-width: 768px) {
+
+    .customer-card {
+        padding: 20px;
+
+        border-radius: 10px;
+    }
+
+    .customer-card h3 {
+        font-size: 24px;
+    }
+
+    .customer-wrong-sign-wrap {
+        flex-direction: column;
+    }
+
+    .customer-upload-item {
+        flex-direction: column;
+        align-items: stretch;
+
+        gap: 12px;
+    }
+
+    .customer-upload-title {
+        flex: none;
+
+        font-size: 15px;
+    }
+
+    .customer-btn-upload {
+        width: 100%;
+    }
+
+    .customer-btn-group {
+        flex-direction: column;
+    }
+
+    .customer-btn {
+        width: 100%;
+    }
+
+}

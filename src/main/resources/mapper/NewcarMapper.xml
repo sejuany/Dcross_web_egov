@@ -1,9 +1,66 @@
-<?xml version="1.0" encoding="UTF-8"?>
+﻿<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.newcar.mapper.NewcarMapper">
-
+	<!-- 로그인 회사별 Maker와 차량명이 같은 차량제원 한 건 조회함 -->
+	<select id="getCarSpec" resultType="java.util.Map">
+		SELECT *
+		FROM (
+			SELECT
+				MAKER,
+				INITMODEL,
+				CAR_NM,
+				MADE_DT,
+				MADE_YY,
+				CAR_CC,
+				GETIN_NO,
+				CAR_KD,
+				CAR_KD_CD,
+				FM_NM,
+				FUEL_CD,
+				MULTI_PURPOSE_YN,
+				BUY_AMT
+			FROM TR_CAR_SPEC
+			WHERE REPLACE(UPPER(TRIM(MAKER)), ' ', '') = REPLACE(UPPER(TRIM(#{maker})), ' ', '')
+			AND REPLACE(UPPER(TRIM(CAR_NM)), ' ', '') = REPLACE(UPPER(TRIM(#{carName})), ' ', '')
+		)
+		WHERE ROWNUM = 1
+	</select>
+	<!-- 사용본거지 주소, 차량구분, 지역별 비교값 구간에 맞는 현재 공채 매입률 조회함 -->
+	<select id="getBondRate" resultType="java.util.Map">
+		SELECT *
+		FROM (
+			SELECT
+				AREA,
+				VALUE AS BOND_RATE,
+				BOND_GB,
+				CAR_GB,
+				BASE1,
+				BASE2,
+				START_DT,
+				END_DT
+			FROM TM_BOND
+			WHERE USE_YN = 'Y'
+			AND SYSDATE BETWEEN START_DT AND END_DT
+			AND LOWER(TRIM(CAR_GB)) = LOWER(TRIM(#{carGb}))
+			AND #{baseValue} &gt;= NVL(BASE1, 0)
+			AND #{baseValue} &lt; NVL(BASE2, 999999999)
+			AND (
+				TRIM(#{baseAddress}) LIKE TRIM(AREA) || '%'
+				OR (TRIM(AREA) = '강원도' AND TRIM(#{baseAddress}) LIKE '강원특별자치도%')
+				OR (TRIM(AREA) = '강원특별자치도' AND TRIM(#{baseAddress}) LIKE '강원도%')
+				OR (TRIM(AREA) = '전라북도' AND TRIM(#{baseAddress}) LIKE '전북특별자치도%')
+				OR (TRIM(AREA) = '전북특별자치도' AND TRIM(#{baseAddress}) LIKE '전라북도%')
+			)
+			ORDER BY
+				CASE WHEN UPPER(TRIM(BOND_GB)) = 'N' THEN 0 ELSE 1 END,
+				CASE WHEN TRIM(#{baseAddress}) LIKE TRIM(AREA) || '%' THEN 0 ELSE 1 END,
+				LENGTH(TRIM(AREA)) DESC,
+				START_DT DESC
+		)
+		WHERE ROWNUM = 1
+	</select>
 	<!-- ============================================================ -->
 	<!-- 신차 등록 목록 조회 (동적 SQL)                                -->
 	<!-- ============================================================ -->
@@ -328,6 +385,9 @@
         WHERE TS.WORK_CD = '010'
           AND TS.PROC_ST &lt;&gt; 'DEL'
           AND TS.COMPANY_ID = #{COMPANY_ID}
+        <if test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+            AND TS.BRANCH_ID = #{BRANCH_ID}
+        </if>
         <if test="START_DT != null and START_DT != '' and END_DT != null and END_DT != ''">
             <choose>
                 <when test="DATE_CD == 'JDGDT'">
@@ -578,7 +638,7 @@
 	           TO_CHAR(RENT_RECEIVE_YN_DT, 'YYYY-MM-DD HH24:MI:SS') AS RENT_RECEIVE_YN_DT,
 	           SONGJANG_NO,
 	           PKG_COMMON.FN_DECRYPT(STATUS_SMS_NO) AS STATUS_SMS_NO,
-	           RECEIVE_NM, CUSTOMER_NM, HOLE_YN, SEAL_YN
+	           RECEIVE_NM, CUSTOMER_NM, HOLE_YN, SEAL_YN, TOKEN
 	    FROM TR_CARNO_DETACH
 	    WHERE SERVICE_ID = #{SERVICE_ID}
 	</select>
@@ -646,8 +706,12 @@
                TO_CHAR(UPD_DATE, 'YYYY-MM-DD HH24:MI:SS') AS UPD_DATE
           FROM TR_ATTACH_FILE
          WHERE SERVICE_ID = #{SERVICE_ID}
+        <if test="GUBUN != null and GUBUN != ''">
            AND GUBUN = #{GUBUN}
-           AND SEQ IN ('0', '1', '2', '3')
+		</if>
+		<if test="ATCHSVRFILE_NM != null and ATCHSVRFILE_NM != ''">
+		  AND ATCHSVRFILE_NM = #{ATCHSVRFILE_NM}
+		</if>         	
          ORDER BY TO_NUMBER(SEQ)
     </select>
 	
@@ -789,6 +853,9 @@
 			</if>
 			<if test="CAR_NM != null">
 	            CAR_NM = #{CAR_NM},
+			</if>
+			<if test="VH_TY_CD != null">
+	            VH_TY_CD = #{VH_TY_CD},
 			</if>
 			<if test="OWNER_NM != null">
 	            OWNER_NM = #{OWNER_NM},
@@ -939,6 +1006,9 @@
 			</if>
 			<if test="NTAX_TRGET_GR_CD != null and NTAX_TRGET_GR_CD != ''">
 			    NTAX_TRGET_GR_CD = #{NTAX_TRGET_GR_CD},
+			</if>
+			<if test="NTAX_APPLC_CD != null and NTAX_APPLC_CD != ''">
+			    NTAX_APPLC_CD = #{NTAX_APPLC_CD},
 			</if>
 			<if test="INSURER_CD != null and INSURER_CD != ''">
 			    INSURER_CD = #{INSURER_CD},

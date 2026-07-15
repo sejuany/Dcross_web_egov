@@ -10,6 +10,7 @@ const AddressSearch = ({
 	type,
 	dsNewCar,
 	detailName,
+	postName,
 	handleChange,
 	onSelect,
 	onClear,
@@ -32,9 +33,13 @@ const AddressSearch = ({
 	const detailRef = useRef(null); 
 	
     return (
-        <div className="wa-form-row">
+        <div className="wa-form-row"
+			style={{ alignItems: 'flex-start' }}
+		>
 
-            <label className="wa-form-label">
+            <label className="wa-form-label"
+				   style={{ marginTop: '10px' }}
+			>
                 {label}
 				
 				{showSameCheckbox && (
@@ -218,16 +223,32 @@ const AddressSearch = ({
 
 				)}
 
-                {/* 상세주소 */}
-				<input
-					ref={detailRef}
-					className="wa-input"
-					name={detailName}
-					data-type={dataType}
-					value={formData[detailName] ?? ''}
-					onChange={handleChange}
-				    placeholder="상세주소 입력"
-				/>
+				<div className="wa-inline-group">
+
+				    <input
+				        ref={detailRef}
+				        className="wa-input wa-flex"
+						style={{ flex: 2 }}
+				        name={detailName}
+				        data-type={dataType}
+				        value={formData[detailName] ?? ''}
+				        onChange={handleChange}
+				        placeholder="상세주소 입력"
+				    />
+
+				    {postName && (
+				        <input
+				            className="wa-input"
+				            style={{ flex: 1 }}
+				            name={postName}
+				            data-type={dataType}
+				            value={formData[postName] ?? ''}
+							placeholder="우편번호"
+				            readOnly
+				        />
+				    )}
+
+				</div>
             </div>
 
         </div>

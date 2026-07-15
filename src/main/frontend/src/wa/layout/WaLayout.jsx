@@ -43,12 +43,26 @@ const WaLayout = () => {
     const companyMenuRef = useRef(null);
     const [companyMenuOpen, setCompanyMenuOpen] = useState(false);
 
-    const isCompanyAdmin = memberGb === 'CA' || memberGb === 'SA';
+	const canViewCompanyManage = memberGb === 'CA' || memberGb === 'SA';
+	const canViewCompanyUserManage = memberGb === 'CA' || memberGb === 'SA' || memberGb === 'BA';
+	const canViewCompanyMenu = canViewCompanyManage || canViewCompanyUserManage;
 
-    const isCompanyMenuActive = companyManageItems.some(item =>
-        location.pathname === item.to ||
-        location.pathname.startsWith(`${item.to}/`)
-    );
+	const visibleCompanyManageItems = companyManageItems.filter(item => {
+	    if (item.to === '/wa/company-manage') {
+	        return canViewCompanyManage;
+	    }
+
+	    if (item.to === '/wa/company-user-manage') {
+	        return canViewCompanyUserManage;
+	    }
+
+	    return false;
+	});
+	
+	const isCompanyMenuActive = visibleCompanyManageItems.some(item =>
+	    location.pathname === item.to ||
+	    location.pathname.startsWith(`${item.to}/`)
+	);
 
     useEffect(() => {
         const handleDocumentClick = (event) => {
@@ -88,7 +102,7 @@ const WaLayout = () => {
                             </NavLink>
                         ))}
 
-                        {isCompanyAdmin && (
+                        {canViewCompanyMenu && (
                             <div
                                 className="wa-top-nav-dropdown-wrap"
                                 ref={companyMenuRef}
@@ -107,7 +121,7 @@ const WaLayout = () => {
 
                                 {companyMenuOpen && (
                                     <div className="wa-top-nav-dropdown">
-                                        {companyManageItems.map(item => (
+                                        {visibleCompanyManageItems.map(item => (
                                             <NavLink
                                                 key={item.to}
                                                 to={item.to}

@@ -2,7 +2,9 @@ package com.dacos.auth;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -370,7 +372,7 @@ public class AuthService {
         if (workCp != null) {
             serviceInfo.put("GOVT_ID", workCp.get("GOVT_ID"));
         }
-
+        
         result.put("dsService", serviceInfo);
         result.put("dsCompanyInfo", companyInfo);
         result.put("dsBranchList", branchList);
@@ -378,6 +380,77 @@ public class AuthService {
         result.put("dsWorkCp", workCp);
 
         return result;
+    }
+    
+    
+    // 2026.07.09 아래 메소드 쓰려고 했는데 화면단에 창원, 본점 둘 다 갖고 가야해서 안 씀  
+    /**
+     * 리스사 지점 목록을 화면에 표시할 대표 지점만 남긴다.
+     *
+     * 우선순위
+     * 1. 창원 지점이 있으면 창원 선택
+     * 2. 창원이 없으면 본점 선택
+     * 3. 둘 다 없으면 최초 조회된 지점 선택
+     *
+     * BASE_NM에서 괄호를 제외한 이름(BMW, KB, NH...)을 기준으로 동일 리스사를 판단한다.
+     */
+	private List<Map<String, Object>> filterLeaseBaseList(List<Map<String, Object>> baseList) {
+	    Map<String, Map<String, Object>> result = new LinkedHashMap<>();
+	
+	    for (Map<String, Object> base : baseList) {
+	        String baseNm = String.valueOf(base.get("BASE_NM"));
+	        String leaseName = getLeaseName(baseNm);
+	
+	        Map<String, Object> selected = result.get(leaseName);
+	
+	        if (selected == null || isHigherPriority(baseNm, String.valueOf(selected.get("BASE_NM")))) {
+	            result.put(leaseName, base);
+	        }
+	    }
+	
+	    // 화면에는 리스사명만 사용하도록 BASE_NM 변경
+	    for (Map.Entry<String, Map<String, Object>> entry : result.entrySet()) {
+	        entry.getValue().put("BASE_NM", entry.getKey());
+	    }
+	
+	    return new ArrayList<>(result.values());
+	}
+	
+	private String getLeaseName(String baseNm) {
+	    int idx = baseNm.indexOf('(');
+	    return idx > -1 ? baseNm.substring(0, idx).trim() : baseNm;
+	}
+
+    /**
+     * 리스사 지점 우선순위를 비교한다.
+     * 창원 > 본점 > 기타 지점 순으로 우선순위를 적용한다.
+     */
+    private boolean isHigherPriority(String target, String current) {
+        String targetBranch = getBranchName(target);
+        String currentBranch = getBranchName(current);
+
+        if ("창원".equals(targetBranch) && !"창원".equals(currentBranch)) {
+            return true;
+        }
+
+        if ("본점".equals(targetBranch)
+                && !"창원".equals(currentBranch)
+                && !"본점".equals(currentBranch)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private String getBranchName(String baseNm) {
+        int start = baseNm.indexOf('(');
+        int end = baseNm.indexOf(')', start);
+
+        if (start == -1 || end == -1) {
+            return "";
+        }
+
+        return baseNm.substring(start + 1, end);
     }
 
     public Map<String, Object> toMap(UserDto user, String workCd) {

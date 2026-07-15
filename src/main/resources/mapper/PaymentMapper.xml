@@ -92,9 +92,16 @@
         <if test="COMPANY_ID != null and COMPANY_ID != ''">
           AND TS.COMPANY_ID = #{COMPANY_ID}
         </if>
-        <if test="BRANCH_ID != null and BRANCH_ID != ''">
-          AND TS.BRANCH_ID = #{BRANCH_ID}
-        </if>
+        <choose>
+          <when test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+            AND TS.BRANCH_ID = #{BRANCH_ID}
+          </when>
+          <otherwise>
+            <if test="BRANCH_ID != null and BRANCH_ID != ''">
+              AND TS.BRANCH_ID = #{BRANCH_ID}
+            </if>
+          </otherwise>
+        </choose>
         <if test="MEMBER_ID != null and MEMBER_ID != ''">
           AND (TS.MEMBER_ID = #{MEMBER_ID} OR TMD.LOGIN_ID = #{MEMBER_ID})
         </if>
@@ -188,9 +195,16 @@
         FROM TM_MEMBER_DT
         WHERE COMPANY_ID = #{COMPANY_ID}
           AND NVL(USE_YN, 'Y') = 'Y'
-        <if test="BRANCH_ID != null and BRANCH_ID != ''">
-          AND BRANCH_ID = #{BRANCH_ID}
-        </if>
+        <choose>
+          <when test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+            AND BRANCH_ID = #{BRANCH_ID}
+          </when>
+          <otherwise>
+            <if test="BRANCH_ID != null and BRANCH_ID != ''">
+              AND BRANCH_ID = #{BRANCH_ID}
+            </if>
+          </otherwise>
+        </choose>
         ORDER BY MEMBER_NM, LOGIN_ID
     </select>
     <!-- 납부현황 조회 -->
@@ -573,26 +587,29 @@
     
    	<!-- 세금 정보 조회 -->
 	<select id="getTmTax" parameterType="string" resultType="java.util.Map" >
-        SELECT
-	        WORK_CD,
-	        STAMP_PER,
-	        STAMP_AMT,
-	        REGIST_PER,
-	        REGIST_AMT,
-	        STAMP_BASE,
-	        REGIST_BASE,
-	        ACQ1_PER,
-	        ACQ2_PER,
-	        ACQ3_PER,
-	        ACQ210_PER,
-	        ACQ211_PER,
-	        ACQ0_PER         
-	    FROM
-	        TM_TAX         
-	    WHERE
-	        WORK_CD =  #{WORK_CD}
-	        AND sysdate between start_dt and end_dt         
-	        AND USE_YN = 'Y'
+        SELECT *
+        FROM (
+            SELECT
+                WORK_CD,
+                STAMP_PER,
+                STAMP_AMT,
+                REGIST_PER,
+                REGIST_AMT,
+                STAMP_BASE,
+                REGIST_BASE,
+                ACQ1_PER,
+                ACQ2_PER,
+                ACQ3_PER,
+                ACQ210_PER,
+                ACQ211_PER,
+                ACQ0_PER
+            FROM TM_TAX
+            WHERE WORK_CD = #{WORK_CD}
+            AND SYSDATE BETWEEN START_DT AND END_DT
+            AND USE_YN = 'Y'
+            ORDER BY START_DT DESC
+        )
+        WHERE ROWNUM = 1
 	</select>
 	
 	<select id="selectBondInfo_DBOND" parameterType="map" resultType="map" >
