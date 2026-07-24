@@ -46,10 +46,12 @@ import OwnerUserLease from './owner/OwnerUserLease';
 import OwnerRent from './owner/OwnerRent';
 // 상세 조회 화면
 import WaNewcarDetail from './WaNewcarDetail';
+import WaNoticeModal from '../common/WaNoticeModal';
 
 // Style
 import '../../styles/wa.css';
 import '../../styles/WaNewcarRequest.css';
+
 
 /* =========================================================
  * Constant
@@ -392,11 +394,13 @@ const WaNewcarRequest = ({
 	const [dsWorkCp, setDsWorkCp] = useState({});
 	const [dsUserInfo, setDsUserInfo] = useState({});
 	const [codes, setCodes] = useState({});
-	
+	const [noticeOpen, setNoticeOpen] = useState(false); // 서류 안내창
+	const [notice, setNotice] = useState(null); // 안내
+	const [nextStep, setNextStep] = useState(null);
 
 	// 화면 상태 ===
 	// 소유자 유형 선택	
-	const [purchaseType, setOwnerType] = useState('NORMAL');
+	const [purchaseType, setOwnerType] = useState('');
 	// 첫번째 진행단계 step 설정
 	const [step, setStep] = useState(1);
 	// hocer 했을 때 파란 선 움직이는 효과
@@ -406,17 +410,15 @@ const WaNewcarRequest = ({
 	const [saving, setSaving] = useState(false);
 	
 	// 주소 기능 사용
-	const {
-	    handleAddressSelect,
-	    handleSameAddress,
-	    handleClearAddress
-	} = useAddressHandler({
+	const address = useAddressHandler({
 	    dsNewCar,
 	    dsBaseList,
+	    dsOwnerInfo,
 	    setDsNewCar,
 	    setDsOwnerInfo,
 	    setDsCarNoDetach
 	});
+	
 /* =========================================================
  * Ref
  * 렌더링 없이 유지되는 값
@@ -525,6 +527,8 @@ const WaNewcarRequest = ({
 		
 	}, [serviceId]);
 	
+
+	
 	/**
 	 * 저장중인 화면(INPUT, SAV 등)은
 	 * 마지막으로 작업하던 진행단계를 복원한다.
@@ -553,20 +557,6 @@ const WaNewcarRequest = ({
 		isDetailPage
 	]);
 	
-	// 첨부서류 필요 여부 확인
-	const checkAttachDocument = async () => {
-
-	    const needAttach =
-	        dsNewCar.REG_GB === 'F' ||          // 외국인
-	        Number(dsNewCar.RATIO_NO) < 100 || // 공동소유
-	        purchaseType === 'USER_LEASE';     // 이용자명의 리스
-
-	    if (needAttach) {
-	        await gf.alert(
-	            '해당 등록 건은 첨부서류가 필요합니다.\n 요청 전에 첨부바랍니다.'
-	        );
-	    }
-	};
 	
 	// 다음 눌렀을 때 다음 단계로 이동하도록 함
 	const handleNext = async (e) => {
@@ -609,8 +599,6 @@ const WaNewcarRequest = ({
 
 	    switch (step) {
 	        case 1:
-				// 첨부서류 필요 여부 알림창
-				await checkAttachDocument();
 	            changeStep(2); // 자동차 정보 입력
 	            break;
 
@@ -653,12 +641,13 @@ const WaNewcarRequest = ({
 	 * - 상세조회 화면은 기억하지 않는다.
 	 * - 저장중인 화면만 SERVICE_ID별 마지막 단계를 기억한다.
 	 */
-	const changeStep = async (nextStep) => {
-		
-		// 1 → 2 이동 시 첨부서류 안내
-		if (step === 1 && nextStep === 2) {
-		    await checkAttachDocument();
-		}
+	const changeStep = async (nextStep, skipNotice = false) => {
+
+	    if (!skipNotice) {
+	        if (openNotice(step, nextStep)) {
+	            return;
+	        }
+	    }
 		
 	    try {
 	        // 현재 내용 저장
@@ -684,6 +673,33 @@ const WaNewcarRequest = ({
 	            stepMemory.set(dsService.SERVICE_ID, nextStep);
 	        }
 	    }
+	};
+	
+	const openNotice = (currentStep, nextStep) => {
+
+	    // 1 -> 2
+	    if (currentStep === 1 && nextStep === 2) {
+
+	        if (noticeCheck.items.length || noticeCheck.checks.length) {
+	            setNotice(noticeCheck);
+	            setNextStep(2);
+	            setNoticeOpen(true);
+	            return true;
+	        }
+	    }
+
+	    // 3 -> 4
+	    if (currentStep === 3 && nextStep === 4) {
+
+	        if (exemptionNotice.items.length || exemptionNotice.checks.length) {
+	            setNotice(exemptionNotice);
+	            setNextStep(4);
+	            setNoticeOpen(true);
+	            return true;
+	        }
+	    }
+
+	    return false;
 	};
 	
 	// 차량 구매 방식 정보 저장
@@ -815,7 +831,7 @@ const WaNewcarRequest = ({
 
 				setDsNewCar(result.dsNewCar);
 				
-				// 구매방식 선택
+				// 구매방식 선택: 값 없으면 아무것도 안 누른 상태로 뜸
 				if (result.dsNewCar.TASK_CD === 'LEASE' && result.dsNewCar.PROC_CD === 'I') {
 				    setOwnerType('LEASE'); // 리스
 				}
@@ -825,8 +841,8 @@ const WaNewcarRequest = ({
 				else if (result.dsNewCar.TASK_CD === 'ADD' && result.dsNewCar.PROC_CD === 'I') {
 				    setOwnerType('RENT'); // 렌트
 				}
-				else {
-				    setOwnerType('NORMAL'); // 현금-할부
+				else if (result.dsNewCar.TASK_CD === 'NORML' && result.dsNewCar.PROC_CD === 'I') {
+				    setOwnerType('NORMAL'); // 일반등록
 				}
 
 				setDsOwnerInfo(
@@ -878,6 +894,7 @@ const WaNewcarRequest = ({
 		normalized.CARD_YN = normalized.CARD_YN === 'Y' ? 'Y' : 'N';
 		return normalized;
 	};
+	
 	const saveProcess = async (
 	    newDsNewCar = null,
 	    proc = "SAV",
@@ -947,6 +964,9 @@ const WaNewcarRequest = ({
 	const processService = async (newDataSet, proc, silent) => {
 
 	    try {
+			
+			console.log("흠~~~");
+			console.log(newDataSet.dsOwnerInfo);
 			
 	        // 저장 요청
 	        const res = await axios.post('/api/newcar/process', newDataSet);
@@ -1356,6 +1376,107 @@ const WaNewcarRequest = ({
 		return '';
 	}; 
 	
+	// 서류 안내
+	const noticeCheck = useMemo(() => {
+
+	    const items = [];
+	    const checks = [];
+	    const footer = [];
+		
+		let normalCheck = false;
+		
+	    if (dsNewCar.REG_GB === 'F') {
+	        items.push('외국인등록증');
+			normalCheck = true;
+	    }
+		
+		if (dsOwnerInfo.DEBTOR_GB === 'F') {
+			
+			console.log(dsOwnerInfo.DEBTOR_GB);
+	        items.push('공동명의자 외국인등록증');
+			normalCheck = true;
+	    }
+
+		if (String(dsNewCar.RATIO_NO) !== '100') {
+			console.log("dsNewCar.RATIO_NO : "+ dsNewCar.RATIO_NO);
+	        items.push('공동명의 동의서');
+	        items.push('신분증 사본(대표소유자 및 공동명의자)');
+			normalCheck = true;
+	    }
+		
+		if (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C') {
+		    items.push('리스계약서');
+			checks.push('이용자명의 리스로 차량 등록 시 리스계약서가 필요합니다.\n최종확인 페이지에서 리스계약서를 제출해 주세요.');
+		}
+		
+		if(normalCheck) {
+			checks.push('해당 고객님은 서류 제출 대상자입니다.\n최종확인 페이지에서 위 서류를 제출해 주세요.');
+		}
+
+	    return {
+	        title: '서류 안내',
+	        items,
+	        checks,
+	        footer
+	    };
+
+	}, [dsNewCar, dsOwnerInfo]);
+	
+
+	const exemptionNotice = useMemo(() => {
+		const items = [];
+		const checks = [];
+		const footer = [];
+
+		let normalCheck = false;
+		console.log(dsOwnerInfo.DEBTOR_GB);
+
+		// 감면 대상
+		if (dsNewCar.NTAX_WHO === 'REPRE') {
+			items.push('감면 대상 : 대표소유자');
+			normalCheck = true;
+		}
+		else if (dsNewCar.NTAX_WHO === 'UNION') {
+			items.push('감면 대상 : 공동소유자');
+			normalCheck = true;
+		}
+	
+		// 감면 유형 
+		const nType = (codes.NTTCD || []).find(
+		    item => item.CODE_ID === dsNewCar.NTAX_TRGET_CD
+		);
+		
+		if (nType) {
+		    items.push(`감면 유형 : ${nType.CODE_NM}`);
+		}
+		
+		// 감면 등급
+		const nGrade = (codes.NTTGR || []).find(
+		    item => item.CODE_ID === dsNewCar.NTAX_TRGET_GR_CD
+		);
+		
+		if (nGrade) {
+		    items.push(`감면 유형 : ${nGrade.CODE_NM}`);
+		}
+		
+		// 기본 체크 문구
+		if(normalCheck) {
+			checks.push('위 정보를 확인하였으며, 해당 내용으로 감면을 신청합니다.');
+			checks.push('감면은 세대당 1대만 가능합니다. 기존 감면 차량은 판매 후 60일 이내 자진신고를 완료해야 새로운 감면 신청이 가능합니다.');
+		}
+		
+		footer.push(`감면 금액 : `);
+		footer.push(`필요 서류 : `);
+		
+		return {
+		    title: '서류 안내',
+		    items,
+		    checks,
+		    footer
+		};
+	}, [dsNewCar, dsOwnerInfo]);
+	
+	
 	// ===================================================
 	// 상세정보 확인 페이지  
 	if (isDetailPage) {
@@ -1573,10 +1694,9 @@ const WaNewcarRequest = ({
 											dsOwnerInfo={dsOwnerInfo}
 											setDsOwnerInfo={setDsOwnerInfo}
 											handleChange={handleChange}
-											onSelect={handleAddressSelect}
-											onSameChange={handleSameAddress}
-											onClear={handleClearAddress}
 											saveProcess={saveProcess}
+											
+											address={address}
 										/>
 									}
 	
@@ -1601,8 +1721,10 @@ const WaNewcarRequest = ({
 											dsBaseList={dsBaseList}
 											setDsOwnerInfo={setDsOwnerInfo}
 											handleChange={handleChange}
+											
+											address={address}
 										/>}
-	
+										
 									{/* 렌트 */}
 									{purchaseType === 'RENT' &&
 										<OwnerRent
@@ -1633,8 +1755,8 @@ const WaNewcarRequest = ({
 								        dsUserInfo.COMPANY_ID,
 								        'DLVGB'
 								    )}
-								onSelect={handleAddressSelect}
-								onClear={handleClearAddress}
+
+								address={address}
 							/>
 						}
 	
@@ -1750,7 +1872,21 @@ const WaNewcarRequest = ({
 					
 					</div>
 			</div>
+			
 
+
+			<WaNoticeModal
+			    open={noticeOpen}
+			    notice={notice}
+			    onClose={() => {
+			        setNoticeOpen(false);
+			        setNextStep(null);
+			    }}
+				onConfirm={() => {
+				    setNoticeOpen(false);
+				    changeStep(nextStep, true);
+				}}
+			/>
 		</div>
 	);
 };

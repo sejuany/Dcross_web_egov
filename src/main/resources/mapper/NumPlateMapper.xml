@@ -250,7 +250,7 @@
 	<select id="procedureNewCarAvailNumplateHole"
 	        parameterType="java.util.Map" statementType="CALLABLE">
 	
-	    { call PKG_COMMON.sp_NewCarAvailNumplateListHole(
+	    { call PKG_COMMON.sp_NewCarAvailNumplateHole2(
 	        #{SERVICE_ID, mode=IN, jdbcType=VARCHAR},
 	        #{PRE_CAR_NO, mode=IN, jdbcType=VARCHAR},
 	        #{CONDITION, mode=IN, jdbcType=VARCHAR},

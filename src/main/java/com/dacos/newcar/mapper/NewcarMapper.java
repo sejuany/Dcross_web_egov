@@ -71,4 +71,5 @@ public interface NewcarMapper {
 	
 	int updateBpayYn(Map<String, Object> param);
 	
+	Map<String, Object> getNumSearchInfo(); 
 }

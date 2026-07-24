@@ -1,5 +1,6 @@
 import  React, {useState} from 'react';
 
+import axios from 'axios';
 import { CalendarDays, CarFront, FileText, LoaderCircle, UserRound, Search } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useSearchParams } from 'react-router-dom';
@@ -36,12 +37,6 @@ const getPaymentRowClass = (payKd) => {
 
     return '';
 };
-
-// 등록증
-const handleRegistCert = () => {
-    gf.alert('준비중입니다.');
-};
-
 
 const WaNewcarDetail = ({
     dsService,
@@ -165,6 +160,45 @@ const WaNewcarDetail = ({
 	    }
 
 	    setReceiptModalOpen(true);
+	};
+	
+	// 등록증
+	const handleRegistCert = async () => {
+	    try {
+			
+			if (!dsService.JUDGE_DT) {
+		        gf.alert("등록이 완료되면 등록증 다운로드가 가능합니다.");
+		        return;
+		    }
+
+		    const judgeDt = dsService.JUDGE_DT
+		        .replace(/[^0-9]/g, '')   // 숫자만
+		        .slice(2);                // 앞의 20 제거 → 260715
+
+	        const response = await axios.get(
+	            `/api/newcar/carpaper/download?date=${judgeDt}&carNo=${encodeURIComponent(dsNewCar.CAR_NO)}`,
+	            {
+	                responseType: 'blob'
+	            }
+	        );
+
+	        const url = window.URL.createObjectURL(response.data);
+
+	        const link = document.createElement('a');
+	        link.href = url;
+	        link.download = `${dsNewCar.CAR_NO}.pdf`;
+	        link.click();
+
+	        window.URL.revokeObjectURL(url);
+
+	    } catch (error) {
+	        if (error.response?.status === 404) {
+	            gf.alert('해당 등록증 파일을 찾을 수 없습니다.');
+	            return;
+	        }
+
+	        gf.alert('등록증 다운로드 중 오류가 발생했습니다.');
+	    }
 	};
 					
     return (

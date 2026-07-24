@@ -76,7 +76,7 @@ export const NTAX_ATTACH_DOC = {
     // ===== 장애 =====
     DISABILITY_CERT: {
         code: 'DISABILITY_CERT',
-        name: '장애인증명서(복지카드)',
+        name: '장애인증명서 또는 장애인등록증(복지카드)',
         seq: 210,
         gubun: 'MERGE'
     },
@@ -106,7 +106,7 @@ export const NTAX_ATTACH_DOC = {
     // ===== 국가유공 / 보훈 =====
     PATRIOT_CERT: {
         code: 'PATRIOT_CERT',
-        name: '국가유공자증(증명서)',
+        name: '국가유공자증 또는 국가유공자증명서',
         seq: 410,
         gubun: 'MERGE'
     },
@@ -136,15 +136,8 @@ export const NTAX_ATTACH_DOC = {
     // ===== 교환자동차 =====
     DEFECT_CERT: {
         code: 'DEFECT_CERT',
-        name: '제작사 결함확인서',
+        name: '제작사의 결함확인서 공문 또는 자동차안전하자심의위원회 판정문',
         seq: 610,
-        gubun: 'MERGE'
-    },
-
-    VEHICLE_DEFECT_DECISION: {
-        code: 'VEHICLE_DEFECT_DECISION',
-        name: '자동차안전하자심의위원회 판정문',
-        seq: 620,
         gubun: 'MERGE'
     },
 
@@ -188,20 +181,6 @@ export const NTAX_ATTACH_DOC = {
         code: 'VEHICLE_REGISTRATION',
         name: '자동차등록증',
         seq: 730,
-        gubun: 'MERGE'
-    },
-
-    EXPORT_DECLARATION: {
-        code: 'EXPORT_DECLARATION',
-        name: '수출신고필증',
-        seq: 740,
-        gubun: 'MERGE'
-    },
-
-    BILL_OF_LADING: {
-        code: 'BILL_OF_LADING',
-        name: '선하증권(B/L)',
-        seq: 750,
         gubun: 'MERGE'
     },
 

@@ -154,10 +154,6 @@ const WaLayout = () => {
                             <LogOut size={14} />
                             <span>로그아웃</span>
                         </button>
-
-                        <button type="button" className="wa-mypage-button">
-                            마이페이지
-                        </button>
                     </div>
                 </div>
             </header>

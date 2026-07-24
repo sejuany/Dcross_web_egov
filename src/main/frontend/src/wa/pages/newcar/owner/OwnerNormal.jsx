@@ -18,9 +18,8 @@ const OwnerPersonal = ({
 	dsOwnerInfo,
 	setDsOwnerInfo,
     handleChange,
-	onSelect,
-	onClear,
-	saveProcess
+	saveProcess,
+	address
 }) => {
 /* =========================================================
  * State
@@ -58,6 +57,13 @@ const OwnerPersonal = ({
 	
 	};
 	
+	// 주소 기능 추가
+	const {
+	    handleLeaseCompany,
+	    handleAddressSelect,
+	    handleClearAddress,
+	} = address;
+
 	// 사용본거지 밑 체크 
 	const handleSameAddress = (e) => {
 
@@ -255,8 +261,8 @@ const OwnerPersonal = ({
 					postName="POST_NO"
 				    dsNewCar={dsNewCar}
 				    handleChange={handleChange}
-					onSelect={onSelect}
-					onClear={onClear}
+					onSelect={handleAddressSelect}
+					onClear={handleClearAddress}
 				/>
 			)}
 			
@@ -271,8 +277,8 @@ const OwnerPersonal = ({
 					postName="BASE_POST_NO"
 					dsNewCar={dsNewCar}
 					handleChange={handleChange}
-					onSelect={onSelect}
-					onClear={onClear}
+					onSelect={handleAddressSelect}
+					onClear={handleClearAddress}
 					showSameCheckbox
 					onSameChange={handleSameAddress}
 				/>
@@ -303,8 +309,8 @@ const OwnerPersonal = ({
 			            setDsOwnerInfo={setDsOwnerInfo}
 			            handleChange={handleChange}
 			            SplitInput={SplitInput}
-			            onSelect={onSelect}
-			            onClear={onClear}
+			            onSelect={handleAddressSelect}
+			            onClear={handleClearAddress}
 			        />
 			    </div>
 			)}

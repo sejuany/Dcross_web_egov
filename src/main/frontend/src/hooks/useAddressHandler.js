@@ -1,3 +1,5 @@
+import { useEffect, useState, useMemo, useCallback } from 'react';
+
 /* =========================================================
  * Hook > 신규등록 주소 처리
  *
@@ -11,15 +13,14 @@ const isCorp = regGb =>
     regGb === 'B' ||
     regGb === 'C';
 
-
 const useAddressHandler = ({
     dsNewCar,
     dsBaseList,
+	dsOwnerInfo,
     setDsNewCar,
     setDsOwnerInfo,
     setDsCarNoDetach
 }) => {
-
 
 	// 사용본거지 주소 저장
 	const setBaseAddress = (next, addr, corp) => {
@@ -154,10 +155,11 @@ const useAddressHandler = ({
 	// 리스사 선택 처리
 	const handleLeaseCompany = baseId => {
 
-	    const ownerBase = dsBaseList.find(item =>
-	        String(item.BASE_ID) === String(baseId)
-	    );
+		const ownerBase = dsBaseList.find(item => {
+		    return String(item.BASE_ID) === String(baseId);
+		});
 
+		
 	    if (!ownerBase) {
 	        return;
 	    }
@@ -171,32 +173,35 @@ const useAddressHandler = ({
 	    const useBase =
 	        baseList.find(item => item.BASE_NM.includes('(창원)')) ||
 	        ownerBase;
+			
+		// 리스사 선택
+		setDsNewCar(prev => ({
+		    ...prev,
+		    BASE_BRANCH_ID: ownerBase.BASE_ID
+		}));
 
-	    setDsNewCar(prev => {
-
-	        const next = {
-	            ...prev,
-	            BASE_BRANCH_ID: ownerBase.BASE_ID
-	        };
-
-	        // 소유자 주소 = 본점
-	        next.ADDRESS = ownerBase.ADDRESS;
-	        next.ADDRESS_DT = ownerBase.ADDRESS_DT;
-	        next.POST_NO = ownerBase.POST_NO;
-	        next.BUBJUNG_CD = ownerBase.BUBJUNG_CD;
-	        next.RT_ACC_NM = ownerBase.ROAD_CD;
-
-	        // 사용본거지 = 창원 우선
-	        setBaseAddress(next, useBase, isCorp(next.REG_GB));
-
-	        return next;
-	    });
+		// 이용자명의 리스(공동소유자) 주소 설정
+		setDsOwnerInfo(prev => {
+		    const next = {
+		    ...prev,
+			DEBTOR_NM: ownerBase.BASE_NM.replace(/\(.*\)$/, '').trim(),
+			DEBTOR_GB: "B",
+			DEBTOR_REG_NO: ownerBase.ROAD_NM,
+			DEBTOR_BIZ_NO: ownerBase.BIZ_NO,
+		    DEBTOR_ADDR: ownerBase.ADDRESS,
+		    DEBTOR_ADDR_DT: ownerBase.ADDRESS_DT,
+		    DEBTOR_ROAD_CD: ownerBase.POST_NO
+			};
+			
+			console.log(next);   // 여기서는 B가 찍힐 것
+			return next;
+		});
 	};
 	
 	// 주소 초기화
 	// 등본상 주소지에서 x 버튼 누르면, 화면에 안 보이는 소유자주소+사용본거지 주소 한 번에 지워지도록 함
 	const handleClearAddress = type => {
-
+		console.log("type : " + type);
 	    const corp = isCorp(dsNewCar.REG_GB);
 
 	    // 번호판 배송지

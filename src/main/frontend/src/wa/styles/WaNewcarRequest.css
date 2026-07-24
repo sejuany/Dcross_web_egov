@@ -2030,6 +2030,138 @@ hr.wa-divider.hr2 {
     background: #143b75;
 }
 
+/* =========================
+ * Notice Modal
+ * ========================= */
+
+.wa-notice-modal {
+    width: 520px;
+    max-width: 90vw;
+}
+
+.wa-notice-box {
+    background: #edf4ff;
+    padding: 14px 18px;
+    margin-bottom: 18px;
+}
+
+.wa-notice-list {
+    margin: 0;
+    padding-left: 20px;
+}
+
+.wa-notice-list li {
+    margin: 6px 0;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.wa-notice-check-area {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    margin-bottom: 20px;
+}
+
+.wa-notice-check {
+    display: flex;
+    align-items: flex-start;
+    gap: 10px;
+    cursor: pointer;
+    font-size: 14px;
+    line-height: 1.6;
+}
+
+.wa-notice-check input[type="checkbox"] {
+    margin-top: 2px;
+    width: 16px;
+    height: 16px;
+    flex-shrink: 0;
+}
+
+.wa-notice-check span {
+    white-space: pre-line;
+    font-size: 15px;
+    font-weight: 500;
+}
+
+.wa-notice-footer {
+    margin-top: 8px;
+    color: #1e63d6;
+    font-size: 14px;
+    font-weight: 600;
+    line-height: 1.7;
+}
+
+.wa-notice-footer-line + .wa-notice-footer-line {
+    margin-top: 4px;
+}
+
+.wa-notice-modal .wa-attach-btn-div {
+    display: flex;
+    justify-content: center;
+    gap: 16px;
+    margin-top: 24px;
+}
+
+.wa-notice-body {
+    padding: 18px 22px 22px;
+}
+
+.wa-notice-footer {
+	padding: 5px 20px;
+}
+
+/* 버튼 영역 */
+.wa-notice-modal .wa-attach-btn-div {
+    display: flex;
+    justify-content: center;
+    gap: 18px;
+    margin-top: 28px;
+}
+
+/* 공통 버튼 */
+.wa-notice-modal .wa-attach-btn-div button {
+    min-width: 88px;
+    height: 34px;
+    border-radius: 18px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: .15s;
+}
+
+/* 닫기 */
+.wa-notice-modal .wa-attach-cancel-btn {
+    background: #edf2f8;
+    border: 1px solid #9aa8bd;
+    color: #333;
+}
+
+.wa-notice-modal .wa-attach-cancel-btn:hover {
+    background: #e2e8f1;
+}
+
+/* 확인 */
+.wa-notice-modal .wa-attach-confirm-btn {
+    background: #163a73;
+    border: 1px solid #163a73;
+    color: #fff;
+}
+
+.wa-notice-modal .wa-attach-confirm-btn:hover {
+    background: #214b91;
+}
+
+/* 비활성 */
+.wa-notice-modal .wa-attach-confirm-btn:disabled {
+    background: #b8c3d4;
+    border-color: #b8c3d4;
+    cursor: not-allowed;
+}
+
+
+
 @media (max-width: 760px) {
     .wa-attach-modal {
         width: 96vw;

@@ -19,8 +19,8 @@ export const initialDsService = {
 
 export const initialDsNewCar = {
 	// 기본
-	TASK_CD: 'NORML',
-	PROC_CD: 'I',
+	TASK_CD: '',
+	PROC_CD: '',
 	CARID_NO: '',
 	CAR_NO: '',
 	

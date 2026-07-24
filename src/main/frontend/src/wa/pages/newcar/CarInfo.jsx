@@ -20,8 +20,8 @@ const CarInfo = ({
     handleChange,
     saveProcess,
 	dsDLVGB,
-	onSelect,
-	onClear
+	
+	address
 }) => {
 	
 	// 번호선택 모달창
@@ -34,7 +34,14 @@ const CarInfo = ({
 	    ['l', 'm', 'n', 'o', 'p'].includes(dsNewCar.FUEL_CD);
 	// 배송지 직접입력 여부
 	const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
+	
+	// 주소 기능 추가
+	const {
+	    handleAddressSelect,
+	    handleClearAddress
+	} = address;
 
+	
 	// 번호선택 버튼 눌렀을 때 체크
 	const handleOpenModal = async () => {
 		
@@ -262,8 +269,8 @@ const CarInfo = ({
 							data={dsCarNoDetach}
 						    dataType="detach"
 						    handleChange={handleChange}
-						    onSelect={onSelect}
-						    onClear={onClear}
+						    onSelect={handleAddressSelect}
+						    onClear={handleClearAddress}
 				        />
 				    </>
 				)}

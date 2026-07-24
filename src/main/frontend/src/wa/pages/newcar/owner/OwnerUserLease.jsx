@@ -8,18 +8,14 @@ import AddressSearch from '../../common/AddressSearch';
 // 분리 입력 (주민번호, 사업자번호, 휴대폰 등)
 import SplitInput from '../../common/SplitInput';
 
-// 주소 기능
-import useAddressHandler from '../../../../hooks/useAddressHandler'; 
-
 const OwnerUserLease = ({
 	dsNewCar,
-		setDsNewCar,
-		dsCarNoDetach,
-		dsBaseList,
-		setDsOwnerInfo,
-		handleChange,
-		onSelect,
-		onClear
+	setDsNewCar,
+	dsCarNoDetach,
+	dsBaseList,
+	setDsOwnerInfo,
+	handleChange,
+	address
 }) => {
 	// 외국인등록번호 선택 시 최종확인 단계에서 첨부해야 하는 서류를 안내한다.
 	const showForeignerGuide = dsNewCar.REG_GB === 'F';
@@ -36,8 +32,12 @@ const OwnerUserLease = ({
 	    '하나캐피탈'
 	];
 	// 주소 기능 추가
-	const { handleLeaseCompany } = useAddressHandler({ dsNewCar, dsBaseList, setDsNewCar, setDsOwnerInfo });
-
+	const {
+	    handleLeaseCompany,
+	    handleAddressSelect,
+	    handleClearAddress
+	} = address;
+	
 	// 계약자와 동일
 	const handleSameCustomer = (e) => {
 
@@ -56,7 +56,6 @@ const OwnerUserLease = ({
 	    setDsNewCar(prev => ({
 
 	        ...prev,
-
 	        BASE_ADDRESS: e.target.checked ? prev.ADDRESS : '',
 	        BASE_ADDRESS_DT: e.target.checked ? prev.ADDRESS_DT : '',
 	        BASE_POST_NO: e.target.checked ? prev.POST_NO : '',
@@ -319,7 +318,6 @@ const OwnerUserLease = ({
 			
 
 			{showAddress && (
-					
 				<AddressSearch
 				    label={isCorporate ? '본점 소재지' : '등본상 주소'}
 				    placeholder={
@@ -334,8 +332,10 @@ const OwnerUserLease = ({
 				    dsNewCar={dsNewCar}
 				    setDsNewCar={setDsNewCar}
 				    handleChange={handleChange}
-					onSelect={onSelect}
-					onClear={onClear}
+					
+					onSelect={handleAddressSelect}
+				    onClear={handleClearAddress}
+				    onSameChange={handleSameAddress}
 				/>
 			)}
 
@@ -351,10 +351,11 @@ const OwnerUserLease = ({
 				    dsNewCar={dsNewCar}
 				    setDsNewCar={setDsNewCar}
 				    handleChange={handleChange}
-					onSelect={onSelect}
-					onClear={onClear}
 					showSameCheckbox
-					onSameChange={handleSameAddress}
+					
+					onSelect={handleAddressSelect}
+				    onClear={handleClearAddress}
+				    onSameChange={handleSameAddress}
 				/>
 			)}
 			

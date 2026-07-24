@@ -5,6 +5,7 @@ import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -1680,39 +1681,68 @@ public class NewcarService {
 	    return !common.selectList(where, "selectDuplicateCarIdNO").isEmpty();
 	}
 
-	// 선택 가능한 번호판 조회
+	/**
+	 * 선택 가능한 번호판 조회
+	 *
+	 * 최초 조회 시 번호판 조회 패키지를 2회 호출하여
+	 * 총 20개의 번호판을 조회한 후 반환한다.
+	 */
 	@Transactional
 	public List<String> getNumplateList(Map<String, Object> param, UserDto user) {
 
+	    // 로그인 사용자 정보 설정
 	    param.put("LOGIN_ID", user.getLOGIN_ID());
 
-	    String taskCd = param.get("TASK_CD") != null
-					? param.get("TASK_CD").toString() : "";
+	    // 조회된 번호판 목록
+	    List<String> result = new ArrayList<>();
 
-	    logger.info("taskCd >>" + taskCd);
+	    // 번호판 조회 패키지를 2회 호출하여 총 20건 조회
+	    for (int i = 0; i < 2; i++) {
 
-	    // 증차배정
-	    if("ADD".equals(taskCd)) {
-		logger.info("ADD 들어옴");
-		common.call(param, "procedureNewCarAvailNumplateRent");
+	        // 번호판 조회 패키지 호출
+	        callNumplateProcedure(param);
+
+	        // 조회 결과를 목록에 추가
+	        mergeResult(result, (String) param.get("pReturn"));
+
+	        // 다음 조회 시 이미 조회한 번호판은 제외하도록 설정
+	        param.put("PRE_CAR_NO", String.join(",", result));
 	    }
 
-	    else {
-		logger.info("ADD 아님");
-		common.call(param, "procedureNewCarAvailNumplateHole");
+	    // 총 20개의 번호판 반환
+	    return result;
+	}
+
+	/**
+	 * 업무구분에 따라 번호판 조회 패키지를 호출한다.
+	 * - ADD : 증차배정 번호판 조회
+	 * - 그 외 : 일반 번호판 조회
+	 */
+	private void callNumplateProcedure(Map<String, Object> param) {
+
+	    String taskCd = Objects.toString(param.get("TASK_CD"), "");
+
+	    common.call(
+	        param,
+	        "ADD".equals(taskCd)
+	            ? "procedureNewCarAvailNumplateRent"
+	            : "procedureNewCarAvailNumplateHole"
+	    );
+	}
+
+	/**
+	 * 패키지에서 조회된 번호판을 결과 목록에 추가한다.
+	 */
+	private void mergeResult(List<String> result, String pReturn) {
+
+	    // 조회 결과가 없는 경우 종료
+	    if (pReturn == null || pReturn.isBlank()) {
+	        return;
 	    }
 
-	    String pReturn = String.valueOf(param.get("pReturn"));
-
-	    List<String> list = new ArrayList<>();
-
-	    if(pReturn != null && !pReturn.isBlank()) {
-
-		for(String s : pReturn.split("/")) {
-			list.add(s);
-		}
-	    }
-	    return list;
+	    Arrays.stream(pReturn.split("/"))
+	            .filter(s -> !s.isBlank())
+	            .forEach(result::add);
 	}
 
 	// 번호판 선택

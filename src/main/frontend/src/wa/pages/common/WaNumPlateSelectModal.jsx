@@ -22,6 +22,9 @@ const WaNumPlateSelectModal = ({
 	const [tel, setTel] = useState('');
 	const preCarNoRef = useRef(''); // ref 내부 기억용
 
+	// 최초 조회한 전체 번호판(20개)
+	const [cacheNumList, setCacheNumList] = useState([]);
+	
 	// 폴스타
 	const isUserWa001 = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
 	
@@ -31,7 +34,19 @@ const WaNumPlateSelectModal = ({
 	}, [isOpen])
 	
 	// 선택 가능한 번호판 조회
-	const fetchList = async() => {
+	const fetchList2 = async() => {
+
+		// 이미 최초 조회를 완료한 경우
+		// 서버를 호출하지 않고 조회한 20건 중 랜덤 10건만 표시
+		if (cacheNumList.length > 0) {
+
+		    const randomList = [...cacheNumList]
+		        .sort(() => Math.random() - 0.5)
+		        .slice(0, 10);
+
+		    setList(randomList);
+		    return;
+		}
 		
 		let assignCd = '';
 		
@@ -47,59 +62,160 @@ const WaNumPlateSelectModal = ({
 			
 		console.log("assignCd : " + assignCd);
 		
+		// 번호판 조회 조건
 		const dsWhere = {
-			SERVICE_ID: dsService.SERVICE_ID,
-			PRE_CAR_NO: preCarNoRef.current,
-			CAR_KD: carKdNumChange(carType),
-			NUM_KIND: dsNewCar.NUMPLATE_GB,
-			CARID_NO: dsNewCar.CARID_NO,
-			LIMIT: '10',
-			GOVT_ID: dsService.GOVT_ID,
-			CONDITION: condition,
-			WANT_CAR_NO: keyword,
-			ASSIGN_CD: assignCd,
-			TASK_CD: taskCd,
-			HOLE_YN: dsCarNoDetach.HOLE_YN,
-			SEAL_YN: dsCarNoDetach.SEAL_YN
+		    SERVICE_ID: dsService.SERVICE_ID,
+		    PRE_CAR_NO: preCarNoRef.current,
+		    CAR_KD: carKdNumChange(carType),
+		    NUM_KIND: dsNewCar.NUMPLATE_GB,
+		    CARID_NO: dsNewCar.CARID_NO,
+		    LIMIT: '10',
+		    GOVT_ID: dsService.GOVT_ID,
+		    CONDITION: condition,
+		    WANT_CAR_NO: keyword,
+		    ASSIGN_CD: assignCd,
+		    TASK_CD: taskCd,
+		    HOLE_YN: dsCarNoDetach.HOLE_YN,
+		    SEAL_YN: dsCarNoDetach.SEAL_YN
 		};
 		
+		// 최초 조회 시 패키지에서 20건 조회
 		const res = await axios.post('/api/newcar/numplateList', dsWhere);
 		
-		console.log(res.data);
-		console.log(typeof res.data);
-		
-		// 차량번호
+		// null 데이터 제거
 		const lData = (res.data || []).filter(
 		    no => String(no).toLowerCase() !== 'null'
 		);
 		
-		// 세팅
-		setList(lData);
-		// 조회된 차량번호
+		// 조회한 전체 번호판(20건) 저장
+		setCacheNumList(lData);
+
+		// 화면에는 랜덤 10건만 표시
+		setList(
+		    [...lData]
+		        .sort(() => Math.random() - 0.5)
+		        .slice(0, 10)
+		);
+		
+		// 번호판 상태 복구를 위해 조회한 전체 번호판 저장
+		preCarNoRef.current = lData.join(',');
+	};
+	
+
+	// 선택 가능한 번호판 조회
+	const fetchList = async() => {
+
+
+		// 이미 최초 조회를 완료한 경우
+		// 서버를 호출하지 않고 조회한 20건에서 조회
+		if (cacheNumList.length > 0) {
+
+		    let result = [];
+
+		    // 무작위
+		    if (condition === 'NOT') {
+
+		        result = [...cacheNumList]
+		            .sort(() => Math.random() - 0.5)
+		            .slice(0, 10);
+
+		    }
+		    // 끝자리 선택 (00 ~ 09)
+		    else if (/^\d{2}$/.test(condition)) {
+
+		        const lastNo = condition.charAt(1);
+
+		        result = cacheNumList.filter(no => no.endsWith(lastNo));
+
+		    }
+
+		    setList(result);
+		    return;
+		}
+		
+		let assignCd = '';
+		
+		// 폴스타
+		if(isUserWa001) {
+			// 지점코드 1로 들어가도록 설정
+			assignCd = dsUserInfo.COMPANY_ID + '1'; 
+		}
+		// 나머지는 회원사 코드 + 지점코드
+		else {
+			assignCd = `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
+		}
+			
+		console.log("assignCd : " + assignCd);
+		
+		// 번호판 조회 조건
+		const dsWhere = {
+		    SERVICE_ID: dsService.SERVICE_ID,
+		    PRE_CAR_NO: preCarNoRef.current,
+		    CAR_KD: carKdNumChange(carType),
+		    NUM_KIND: dsNewCar.NUMPLATE_GB,
+		    CARID_NO: dsNewCar.CARID_NO,
+		    LIMIT: '10',
+		    GOVT_ID: dsService.GOVT_ID,
+		    CONDITION: condition,
+		    WANT_CAR_NO: keyword,
+		    ASSIGN_CD: assignCd,
+		    TASK_CD: taskCd,
+		    HOLE_YN: dsCarNoDetach.HOLE_YN,
+		    SEAL_YN: dsCarNoDetach.SEAL_YN
+		};
+		
+		// 최초 조회 시 패키지에서 20건 조회
+		const res = await axios.post('/api/newcar/numplateList', dsWhere);
+		
+		// null 데이터 제거
+		const lData = (res.data || []).filter(
+		    no => String(no).toLowerCase() !== 'null'
+		);
+		
+		// 조회한 전체 번호판(20건) 저장
+		setCacheNumList(lData);
+
+		// 화면에는 랜덤 10건만 표시
+		setList(
+		    [...lData]
+		        .sort(() => Math.random() - 0.5)
+		        .slice(0, 10)
+		);
+		
+		// 번호판 상태 복구를 위해 조회한 전체 번호판 저장
 		preCarNoRef.current = lData.join(',');
 	};
 	
 	// 미사용 번호판 상태복구
-	const releaseNumplate = async ()=> {
-		
-		if (!preCarNoRef.current) {
-		    return;
-		}
+	const releaseNumplate = async () => {
 
-		const dsWhere = {
-			SERVICE_ID: dsService.SERVICE_ID,
-			PRE_CAR_NO: preCarNoRef.current,
-			CAR_KD: carKdNumChange(carType),
-			HOLE_YN: dsCarNoDetach.HOLE_YN,
-			LIMIT: '10',
-			NUM_KIND: dsNewCar.NUMPLATE_GB,
-			GOVT_ID: dsService.GOVT_ID,
-			CONDITION: 'NOT'
-		};
-		
-		// 미사용 번호판 상태복구
-		await axios.post('/api/newcar/numplateRelease', dsWhere);
-		
+	    if (!preCarNoRef.current) {
+	        return;
+	    }
+
+	    // 조회한 번호판(20건)
+	    const numList = preCarNoRef.current.split(',');
+
+	    // 10개씩 나누어 원복
+	    for (let i = 0; i < numList.length; i += 10) {
+
+	        const dsWhere = {
+	            SERVICE_ID: dsService.SERVICE_ID,
+	            PRE_CAR_NO: numList.slice(i, i + 10).join(','),
+	            CAR_KD: carKdNumChange(carType),
+	            HOLE_YN: dsCarNoDetach.HOLE_YN,
+	            LIMIT: '0',                     // 조회 없이 원복만 수행
+	            NUM_KIND: dsNewCar.NUMPLATE_GB,
+	            GOVT_ID: dsService.GOVT_ID,
+	            CONDITION: 'NOT'
+	        };
+
+	        await axios.post('/api/newcar/numplateRelease', dsWhere);
+	    }
+
+	    // 초기화
+	    preCarNoRef.current = '';
+	    setCacheNumList([]);
 	};
 	
 
@@ -115,7 +231,10 @@ const WaNumPlateSelectModal = ({
 		setSelected('');
 		setList([]);
 
-		// ref 초기화
+		// 조회한 번호판 초기화
+		setCacheNumList([]);
+
+		// 원복 대상 초기화
 		preCarNoRef.current = '';
 	};
 	
@@ -123,6 +242,9 @@ const WaNumPlateSelectModal = ({
 	const handleClose = async () => {
 
 	    try {
+			// 조회한 전체 번호판(20건) 상태 복구
+			preCarNoRef.current = cacheNumList.join(',');
+
 			// 미사용 번호판 상태복구
 	        await releaseNumplate();
 	    } catch (err) {
@@ -223,9 +345,8 @@ const WaNumPlateSelectModal = ({
 				return;
 			}
 			
-			// 선택한 번호판은 제외 
-			preCarNoRef.current = preCarNoRef.current
-			    .split(',')
+			// 선택한 번호판을 제외한 나머지 번호판만 상태 복구
+			preCarNoRef.current = cacheNumList
 			    .filter(no => no !== selected)
 			    .join(',');
 				
@@ -395,8 +516,6 @@ const WaNumPlateSelectModal = ({
 							</>
 						)}
 						
-
-
 	                    <div className="search-row search-row-input">
 	                        <label>번호</label>
 
@@ -417,14 +536,54 @@ const WaNumPlateSelectModal = ({
 	                        </div>
 	                    </div>
 	                </div>
+					
+					<div className="numplate-notice">
+					    <div className="notice-header">
+					        번호 조회 안내
+					    </div>
+
+					    <div className="notice-content">
+						
+					        <p>
+					            번호 조회는 <strong>총 2회</strong>까지 가능합니다.
+					        </p>
+
+					        <p>
+					            아래 조건에 해당하는 차량번호는 <strong className="gold-text">골드번호</strong>로
+					            분류됩니다.
+					        </p>
+
+					        <div className="notice-warning">
+					            골드번호 선택 후 신규등록 진행 중 다른 번호로 변경하는 경우,
+					            골드번호는 재사용이 불가하여 폐기 처리되며
+					            <strong> 폐번호판 비용이 추가 발생</strong>합니다.
+					        </div>
+
+					        <div className="notice-title">
+					            ■ 골드번호 조건
+					        </div>
+
+					        <ul>
+					            <li>뒷번호 연속 번호 (예: <b>1234</b>)</li>
+					            <li>뒷번호 동일 번호 (예: <b>5555</b>)</li>
+					            <li>뒷번호 2~3자리 동일 번호 (예: <b>1004</b>)</li>
+					        </ul>
+					    </div>
+					</div>
 
 	                {/* 목록 */}
 	                <div className="numplate-list-wrap">
-
-	                    <div className="list-header">
-	                        <span>번호 목록</span>
-	                        <span>총 {list.length}건</span>
-	                    </div>
+	
+						<div className="list-header">
+						    <div className="list-header-left">
+						        <span className="list-title">번호 목록</span>
+						        <span className="list-info">
+						        (번호판은 최대 2회 조회 가능하며, 이후에는 조회된 번호판 내에서만 선택할 수 있습니다.)
+						        </span>
+						    </div>
+	
+						    <span className="list-count">총 {list.length}건</span>
+						</div>
 
 	                    <div className="grid-box">
 	                        <table>

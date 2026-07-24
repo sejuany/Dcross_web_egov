@@ -1,9 +1,11 @@
 package com.dacos.newcar;
 
+import java.io.IOException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -13,6 +15,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
+import org.springframework.http.ContentDisposition;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
@@ -476,6 +479,43 @@ public class NewcarController {
         return ResponseEntity.ok()
                 .contentType(MediaType.parseMediaType(contentType))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
+                .body(resource);
+    }
+    
+    @GetMapping("/carpaper/download")
+    public ResponseEntity<Resource> download(
+    		@RequestParam("date") String date,
+    	    @RequestParam("carNo") String carNo) throws IOException {
+    	
+    	String serverIp = attachService.getServerAddress("IP");
+    	
+    	String sPath = "D:/pdf/Carpaper";
+    	
+		if ("10.109.111.40".equals(serverIp)) {
+			sPath = "/web/updownfiles/pdf/Carpaper";
+		}
+		
+        Path path = Paths.get(
+        		sPath,
+                date,
+                carNo + ".pdf"
+        );
+        
+        if (!Files.exists(path)) {
+            return ResponseEntity.notFound().build();
+        }
+
+        Resource resource = new UrlResource(path.toUri());
+
+        return ResponseEntity.ok()
+                .header(
+                    HttpHeaders.CONTENT_DISPOSITION,
+                    ContentDisposition.attachment()
+                            .filename(carNo + ".pdf", StandardCharsets.UTF_8)
+                            .build()
+                            .toString()
+                )
+                .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
 }

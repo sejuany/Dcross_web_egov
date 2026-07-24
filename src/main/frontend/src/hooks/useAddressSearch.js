@@ -59,6 +59,9 @@ const useAddressSearch = ({
     // 주소 선택
 	const handleSelect = (item) => {
 
+		console.log("들어옴");
+		console.log("type =", type);
+		
 		if (onSelect) {
 		    onSelect(type, {
 		        ADDR: item.ROAD_AD,

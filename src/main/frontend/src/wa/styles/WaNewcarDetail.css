@@ -129,6 +129,37 @@
     font-size:12px;
 }
 
+/**/
+.list-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 10px;
+}
+
+.list-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;              /* 번호 목록과 문구 간격 */
+}
+
+.list-title {
+    font-weight: 600;
+    color: #333;
+    white-space: nowrap;
+}
+
+.list-info {
+    font-size: 13px;
+    color: #2563eb;        /* 조금 차분한 파란색 */
+    font-weight: 500;
+    white-space: nowrap;
+}
+
+.list-count {
+    color: #333;
+    font-weight: 500;
+}
 
 /* =========================================================
  * File Button
