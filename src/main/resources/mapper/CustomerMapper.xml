@@ -9,6 +9,8 @@
                TOKEN,
                REG_GB,
                RATIO_NO,
+               MEMBER_ID,
+               OWNER_NM,
                TN.TASK_CD,
                TN.PROC_CD,
                NTAX_TRGET_CD,

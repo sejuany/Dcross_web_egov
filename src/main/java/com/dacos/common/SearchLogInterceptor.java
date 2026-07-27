@@ -21,6 +21,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import java.lang.reflect.Array;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
@@ -55,7 +56,7 @@ import java.util.StringJoiner;
 public class SearchLogInterceptor implements Interceptor {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchLogInterceptor.class);
-    private static final int CONDITION_MAX_LENGTH = 3900;
+    private static final int CONDITION_MAX_LENGTH = 1000;
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -81,6 +82,26 @@ public class SearchLogInterceptor implements Interceptor {
                 && !statement.getId().contains("!selectKey");
     }
 
+    private String limit(String text, int maxBytes) {
+        if (text == null) {
+            return null;
+        }
+
+        byte[] bytes = text.getBytes(StandardCharsets.UTF_8);
+
+        if (bytes.length <= maxBytes) {
+            return text;
+        }
+
+        int end = text.length();
+
+        while (text.substring(0, end).getBytes(StandardCharsets.UTF_8).length > maxBytes) {
+            end--;
+        }
+
+        return text.substring(0, end);
+    }
+    
     private void insertSearchLog(String queryId, Object parameter) {
         try {
             UserDto user = getSessionUser();
@@ -272,13 +293,6 @@ public class SearchLogInterceptor implements Interceptor {
                 || upperKey.contains("PASSWORD");
     }
 
-    private String limit(String value, int maxLength) {
-        if (value == null || value.length() <= maxLength) {
-            return value;
-        }
-
-        return value.substring(0, maxLength);
-    }
 
     @Override
     public Object plugin(Object target) {

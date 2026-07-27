@@ -25,10 +25,10 @@ const JointOwner = ({
 	
     return (
     	<>
-			{/* 공동명의 비율 */}
+			{/* 공동소유자 비율 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
-			        공동명의 비율
+			        공동소유자 비율
 			    </label>
 	
 			    <div className="wa-form-control">
@@ -37,16 +37,15 @@ const JointOwner = ({
 						<div className="wa-ratio-input">
 				            <input
 				                className="wa-input"
-				                name="DEBTOR_RATIO"
 				                data-type="owner"
+				                name="DEBTOR_RATIO"
 				                value={dsOwnerInfo.DEBTOR_RATIO ?? ''}
 								onChange={(e) => {
-								    console.log('input change');
 								    handleChange(e);
 								}}
 				                placeholder="공동"
 				            />
-							<span>공동명의자 비율</span>
+							<span>공동소유자 비율</span>
 						</div>
 			            <span>%</span>
 

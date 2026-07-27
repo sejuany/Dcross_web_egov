@@ -52,6 +52,8 @@ const WaNewcarDetail = ({
 	dsTaxReceipt,
 	saveProcess,
 	setDsCarNoDetach,
+	dsBaseList,
+	onClose,
 	dsPR_ST,
 	dsFUEL,
 	dsNUMGB,
@@ -123,6 +125,17 @@ const WaNewcarDetail = ({
 		        : dsTaxReceipt?.GUBUN === 'CASH'
 		            ? '현금영수증'
 		            : '없음';
+					
+	const ownerType =
+		    dsNewCar.PROC_CD === 'C'
+		            ? 'C'
+			   : dsNewCar.TASK_CD === 'LEASE'
+			        ? 'L'
+			            : dsNewCar.REG_GB === 'R' || dsNewCar.REG_GB === 'F'
+			                ? 'R'
+								: dsNewCar.REG_GB === 'B'
+								? 'B'
+				               		 : '';
 	
 	const handleDeliverySearch = () => {
 	    const songjangNo = (dsCarNoDetach?.SONGJANG_NO || '').replace(/-/g, '');
@@ -198,6 +211,31 @@ const WaNewcarDetail = ({
 	        }
 
 	        gf.alert('등록증 다운로드 중 오류가 발생했습니다.');
+	    }
+	};
+	
+	
+	const handleCancel = async () => {
+		const ok = await gf.confirm("등록을 취소하시겠습니까?");
+
+		if (!ok) return;
+		
+		// 등록취소 알림 띄우기
+		try {
+	        await axios.post("/api/common/procedure/board", {
+	            SERVICE_ID: dsService.SERVICE_ID,
+	            CONTENT_TX: "[신차사업] 등록 취소!! 관청에 확인 필요",
+	            GUBUN: "2"
+	        });
+
+	        gf.alert("등록 취소 요청이 완료되었습니다.");
+
+	        // 필요 시 화면 닫기
+	        // onClose();
+
+	    } catch (error) {
+	        console.error(error);
+	        gf.alert("등록 취소 중 오류가 발생했습니다.");
 	    }
 	};
 					
@@ -307,34 +345,137 @@ const WaNewcarDetail = ({
 				    <div className="wa-detail-grid two">
 
 				        <div className="wa-detail-col">
+							{/* 개인 */}
+						    {ownerType === 'R' && (
+								<>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">대표소유자명</span>
+					                <span>{dsNewCar.OWNER_NM || '-'}</span>
+					            </div>
+	
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">등록번호</span>
+					                <span>{dsNewCar.REG_NO || '-'}</span>
+					            </div>
+	
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">등본상 주소</span>
+					                <span>
+					                    {`${dsNewCar.BASE_ADDRESS || ''} ${dsNewCar.BASE_ADDRESS_DT || ''}`}
+					                </span>
+					            </div>
+	
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">대표소유비율</span>
+					                <span>{dsNewCar.RATIO_NO || '-'}%</span>
+					            </div>
+	
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">휴대폰번호</span>
+					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
+					            </div>
+								</>
+							)}
+							
+							{/* 법인 */}
+							{ownerType === 'B' && (
+								<>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">대표소유자 상호명</span>
+					                <span>{dsNewCar.OWNER_NM || '-'}</span>
+					            </div>
 
-				            <div className="wa-detail-row">
-				                <span className="wa-detail-name">대표소유자명</span>
-				                <span>{dsNewCar.OWNER_NM || '-'}</span>
-				            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">법인등록번호</span>
+					                <span>{dsNewCar.REG_NO || '-'}</span>
+					            </div>
 
-				            <div className="wa-detail-row">
-				                <span className="wa-detail-name">등록번호</span>
-				                <span>{dsNewCar.REG_NO || '-'}</span>
-				            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">사업자등록번호</span>
+					                <span>{dsNewCar.BIZ_NO || '-'}</span>
+					            </div>
 
-				            <div className="wa-detail-row">
-				                <span className="wa-detail-name">등본상 주소</span>
-				                <span>
-				                    {`${dsNewCar.BASE_ADDRESS || ''} ${dsNewCar.BASE_ADDRESS_DT || ''}`}
-				                </span>
-				            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">휴대폰번호</span>
+					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
+					            </div>
 
-				            <div className="wa-detail-row">
-				                <span className="wa-detail-name">대표소유비율</span>
-				                <span>{dsNewCar.RATIO_NO || '-'}%</span>
-				            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">본점 소재지</span>
+					                <span>
+					                    {`${dsNewCar.ADDRESS || ''} ${dsNewCar.ADDRESS_DT || ''}`}
+					                </span>
+					            </div>
 
-				            <div className="wa-detail-row">
-				                <span className="wa-detail-name">휴대폰번호</span>
-				                <span>{dsNewCar.MPHONE_NO || '-'}</span>
-				            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">사업장 주소</span>
+					                <span>
+					                    {`${dsNewCar.BASE_ADDRESS || ''} ${dsNewCar.BASE_ADDRESS_DT || ''}`}
+					                </span>
+					            </div>
+								</>
+							)}
+							
+							{/* 리스 */}
+							{ownerType === 'L' && (
+								<>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">리스사명</span>
+					                <span>{dsBaseList?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))?.BASE_NM || '-'}</span>
+					            </div>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">리스 계약자명</span>
+					                <span>{dsNewCar.OWNER_NM || '-'}</span>
+					            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">리스 계약자 등록번호</span>
+					                <span>{dsNewCar.REG_NO || '-'}</span>
+					            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">리스 계약자 휴대폰번호</span>
+					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
+					            </div>
+								</>
+							)}
 
+							{/* 이용자명의리스 */}
+							{ownerType === 'C' && (
+								<>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">리스사명</span>
+					                <span>{dsBaseList?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))?.BASE_NM || '-'}</span>
+					            </div>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">리스 종료일</span>
+					                <span>{dsNewCar.IMSIGV_DT || '-'}</span>
+					            </div>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">대표 소유자명</span>
+					                <span>{dsNewCar.OWNER_NM || '-'}</span>
+					            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">등록번호</span>
+					                <span>{dsNewCar.REG_NO || '-'}</span>
+					            </div>
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">휴대폰번호</span>
+					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
+					            </div>
+								<div className="wa-detail-row">
+					                <span className="wa-detail-name">등본상 주소/본점소재지</span>
+					                <span>
+					                    {`${dsNewCar.ADDRESS || ''} ${dsNewCar.ADDRESS_DT || ''}`}
+					                </span>
+					            </div>
+
+					            <div className="wa-detail-row">
+					                <span className="wa-detail-name">사용본거지(법인)</span>
+					                <span>
+					                    {`${dsNewCar.BASE_ADDRESS || ''} ${dsNewCar.BASE_ADDRESS_DT || ''}`}
+					                </span>
+					            </div>
+								</>
+							)}
 				        </div>
 						
 						{/* 공동소유자 */}
@@ -598,6 +739,25 @@ const WaNewcarDetail = ({
 				        ))}
 				    </tbody>
 				</table>
+				
+				{/* 하단 버튼 */}
+				<div className="wa-detail-bottom-btns">
+					<button
+	                    type="button"
+	                    className="wa-btn-primary"
+	                    onClick={onClose}
+	                >
+	                    닫기
+	                </button>
+
+				    <button
+				        type="button"
+				        className="wa-btn-secondary"
+				        onClick={handleCancel}
+				    >
+				        등록 취소
+				    </button>
+				</div>
 				
 				<WaNewcarAttachModal
 				    open={attachModalOpen}

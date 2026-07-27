@@ -30,7 +30,14 @@ const WaNumPlateSelectModal = ({
 	
 	// 모달 열릴 때 초기 조회
 	useEffect(() => {
-		if (isOpen) fetchList();
+		if (isOpen) {
+		    setList([]);
+		    setSelected('');
+		    setKeyword('');
+		    setCondition('NOT');
+		    setCacheNumList([]);
+		    preCarNoRef.current = '';
+		}
 	}, [isOpen])
 	
 	// 선택 가능한 번호판 조회
@@ -103,87 +110,155 @@ const WaNumPlateSelectModal = ({
 	
 
 	// 선택 가능한 번호판 조회
-	const fetchList = async() => {
+	// 처음은 서버 조회(20개)를 하고, 2번 이상부터는 캐시에서 조회 하도록 함 
+	const fetchList = async () => {
 
+	    // ======================================================
+	    // 캐시 조회
+	    // ======================================================
+	    if (cacheNumList.length > 0) {
 
-		// 이미 최초 조회를 완료한 경우
-		// 서버를 호출하지 않고 조회한 20건에서 조회
-		if (cacheNumList.length > 0) {
+	        // 번호 검색
+	        if (keyword.trim()) {
+	            setList(cacheNumList.filter(no => no === keyword.trim()));
+	            return;
+	        }
 
-		    let result = [];
+	        // 무작위
+	        if (condition === 'NOT') {
+	            setList(
+	                [...cacheNumList]
+	                    .sort(() => Math.random() - 0.5)
+	                    .slice(0, 10)
+	            );
+	            return;
+	        }
 
-		    // 무작위
-		    if (condition === 'NOT') {
+	        // 끝자리
+	        if (/^\d{2}$/.test(condition)) {
 
-		        result = [...cacheNumList]
-		            .sort(() => Math.random() - 0.5)
-		            .slice(0, 10);
+	            const lastNo = condition.charAt(1);
 
+	            const cacheResult = cacheNumList.filter(no =>
+	                no.endsWith(lastNo)
+	            );
+
+	            // 캐시에 있으면 랜덤 1개
+	            if (cacheResult.length > 0) {
+
+	                const randomNo =
+	                    cacheResult[Math.floor(Math.random() * cacheResult.length)];
+
+	                setList([randomNo]);
+	                return;
+	            }
+
+	            // 캐시에 없으면 아래 서버조회까지 내려감
+	        }
+	    }
+
+	    // ======================================================
+	    // 서버 조회
+	    // ======================================================
+
+	    let assignCd = '';
+
+	    if (isUserWa001) {
+	        assignCd = dsUserInfo.COMPANY_ID + '1';
+	    } else {
+	        assignCd = `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
+	    }
+
+	    const dsWhere = {
+	        SERVICE_ID: dsService.SERVICE_ID,
+	        PRE_CAR_NO: preCarNoRef.current,
+	        CAR_KD: carKdNumChange(carType),
+	        NUM_KIND: dsNewCar.NUMPLATE_GB,
+	        CARID_NO: dsNewCar.CARID_NO,
+	        LIMIT: '10',
+	        GOVT_ID: dsService.GOVT_ID,
+	        CONDITION: condition,
+	        WANT_CAR_NO: keyword,
+	        ASSIGN_CD: assignCd,
+	        TASK_CD: taskCd,
+	        HOLE_YN: dsCarNoDetach.HOLE_YN,
+	        SEAL_YN: dsCarNoDetach.SEAL_YN
+	    };
+
+	    const res = await axios.post('/api/newcar/numplateList', dsWhere);
+
+	    const lData = (res.data || []).filter(
+	        no => String(no).toLowerCase() !== 'null'
+	    );
+		
+		console.log(lData);
+
+	    // ======================================================
+	    // 최초 조회
+	    // ======================================================
+		if (cacheNumList.length === 0) {
+
+		    // 캐시는 항상 전체 저장
+		    setCacheNumList(lData);
+		    preCarNoRef.current = lData.join(',');
+
+		    // 끝자리 조회
+		    if (/^\d{2}$/.test(condition)) {
+
+		        if (lData.length > 0) {
+
+		            const randomNo =
+		                lData[Math.floor(Math.random() * lData.length)];
+
+		            setList([randomNo]);
+
+		        } else {
+		            setList([]);
+		        }
+
+		    } else {
+
+		        // 무작위 조회
+		        setList(
+		            [...lData]
+		                .sort(() => Math.random() - 0.5)
+		                .slice(0, 10)
+		        );
 		    }
-		    // 끝자리 선택 (00 ~ 09)
-		    else if (/^\d{2}$/.test(condition)) {
 
-		        const lastNo = condition.charAt(1);
-
-		        result = cacheNumList.filter(no => no.endsWith(lastNo));
-
-		    }
-
-		    setList(result);
 		    return;
 		}
-		
-		let assignCd = '';
-		
-		// 폴스타
-		if(isUserWa001) {
-			// 지점코드 1로 들어가도록 설정
-			assignCd = dsUserInfo.COMPANY_ID + '1'; 
-		}
-		// 나머지는 회원사 코드 + 지점코드
-		else {
-			assignCd = `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
-		}
-			
-		console.log("assignCd : " + assignCd);
-		
-		// 번호판 조회 조건
-		const dsWhere = {
-		    SERVICE_ID: dsService.SERVICE_ID,
-		    PRE_CAR_NO: preCarNoRef.current,
-		    CAR_KD: carKdNumChange(carType),
-		    NUM_KIND: dsNewCar.NUMPLATE_GB,
-		    CARID_NO: dsNewCar.CARID_NO,
-		    LIMIT: '10',
-		    GOVT_ID: dsService.GOVT_ID,
-		    CONDITION: condition,
-		    WANT_CAR_NO: keyword,
-		    ASSIGN_CD: assignCd,
-		    TASK_CD: taskCd,
-		    HOLE_YN: dsCarNoDetach.HOLE_YN,
-		    SEAL_YN: dsCarNoDetach.SEAL_YN
-		};
-		
-		// 최초 조회 시 패키지에서 20건 조회
-		const res = await axios.post('/api/newcar/numplateList', dsWhere);
-		
-		// null 데이터 제거
-		const lData = (res.data || []).filter(
-		    no => String(no).toLowerCase() !== 'null'
-		);
-		
-		// 조회한 전체 번호판(20건) 저장
-		setCacheNumList(lData);
 
-		// 화면에는 랜덤 10건만 표시
-		setList(
-		    [...lData]
-		        .sort(() => Math.random() - 0.5)
-		        .slice(0, 10)
-		);
-		
-		// 번호판 상태 복구를 위해 조회한 전체 번호판 저장
-		preCarNoRef.current = lData.join(',');
+	    // ======================================================
+	    // 끝자리 조회 (캐시에 없어서 서버를 탄 경우)
+	    // ======================================================
+	    if (/^\d{2}$/.test(condition)) {
+
+	        if (lData.length > 0) {
+
+	            const randomNo =
+	                lData[Math.floor(Math.random() * lData.length)];
+
+	            const nextCache = [...new Set([
+	                ...cacheNumList,
+	                randomNo
+	            ])];
+
+	            setCacheNumList(nextCache);
+
+	            preCarNoRef.current = nextCache.join(',');
+
+	            setList([randomNo]);
+
+	        } else {
+	            setList([]);
+	        }
+
+	        return;
+	    }
+
+	    // 번호 검색 등 기타
+	    setList(lData);
 	};
 	
 	// 미사용 번호판 상태복구
@@ -372,38 +447,6 @@ const WaNumPlateSelectModal = ({
 		
 	};
 	
-	const handleSendSMS = async () => {
-	    if (!tel || tel.length < 10) {
-	        alert('핸드폰 번호를 확인해주세요.');
-	        return;
-	    } 
-		const ok = await gf.confirm('차량번호를 전송하시겠습니까?');
-		if (!ok) {
-		    return;
-		}
-		
-		try {
-
-			await axios.post('/api/newcar/numplateSms', {
-			    PAY_HP_NO: tel.replaceAll('-', ''),
-				MSG_TYPE: '3',
-			    TEXT: `선택 가능한 차량번호 : ${preCarNoRef.current}`
-			});
-			
-			gf.alert('차량번호 전송 완료', '차량번호');
-			
-		}
-		
-		catch(e) {
-
-			console.error(e);
-
-			alert('[차량번호 전송] 처리 중 오류가 발생했습니다.');
-
-		}
-
-	};
-	
 	const carKdNumChange = (str) => {
 		
 		// 폴스타는 무조건 승용차
@@ -459,18 +502,21 @@ const WaNumPlateSelectModal = ({
 
 								    <select
 										value={searchType}
-									    onChange={e => {
-									        const value = e.target.value;
+										onChange={e => {
+										    const value = e.target.value;
 
-									        setSearchType(value);
+										    setSearchType(value);
 
-									        if (value === 'RANDOM') {
-									            setCondition('NOT');
-									        }
-									    }}
+										    if (value === 'RANDOM') {
+										        setCondition('NOT');
+										    } else {
+										        // 끝자리 선택으로 바뀌면 기본값 0
+										        setCondition('00');
+										    }
+										}}
 									>
-								        <option value="RANDOM">무작위</option>
-								        <option value="LAST">끝자리 선택</option>
+								        <option value="RANDOM">무작위(10개)</option>
+								        <option value="LAST">끝자리 선택(1개)</option>
 								    </select>
 								</div>
 
@@ -483,17 +529,16 @@ const WaNumPlateSelectModal = ({
 											value={condition}
 										    onChange={e => setCondition(e.target.value)}
 										>
-										    <option value="NOT">무작위</option>
-											<option value="00">끝자리 0</option>
-										    <option value="01">끝자리 1</option>
-										    <option value="02">끝자리 2</option>
-										    <option value="03">끝자리 3</option>
-										    <option value="04">끝자리 4</option>
-										    <option value="05">끝자리 5</option>
-											<option value="06">끝자리 6</option>
-											<option value="07">끝자리 7</option>
-											<option value="08">끝자리 8</option>
-											<option value="09">끝자리 9</option>
+											<option value="00">0</option>
+											<option value="01">1</option>
+											<option value="02">2</option>
+											<option value="03">3</option>
+											<option value="04">4</option>
+											<option value="05">5</option>
+											<option value="06">6</option>
+											<option value="07">7</option>
+											<option value="08">8</option>
+											<option value="09">9</option>
 										</select>
 								    </div>
 								)}
@@ -524,6 +569,11 @@ const WaNumPlateSelectModal = ({
 	                                value={keyword}
 	                                placeholder="번호를 입력하세요."
 	                                onChange={e => setKeyword(e.target.value)}
+									onKeyDown={(e) => {
+									        if (e.key === 'Enter') {
+									            fetchList();
+									        }
+								    }}
 	                            />
 
 	                            <button
@@ -609,32 +659,17 @@ const WaNumPlateSelectModal = ({
 	                                        </tr>
 	                                    ))
 	                                ) : (
-	                                    <tr>
-	                                        <td className="empty-row">
-	                                            조회 결과가 없습니다.
-	                                        </td>
-	                                    </tr>
+										<tr>
+										    <td className="empty-row">
+										        {cacheNumList.length === 0
+										            ? '조회 버튼을 눌러 차량번호를 조회해주세요.'
+										            : '조회 결과가 없습니다.'}
+										    </td>
+										</tr>
 	                                )}
 	                            </tbody>
 	                        </table>
 	                    </div>
-	                </div>
-
-	                {/* 문자전송 */}
-	                <div className="sms-row">
-	                    <input
-	                        value={tel}
-	                        placeholder="휴대폰번호 입력"
-	                        onChange={e => setTel(e.target.value)}
-	                    />
-
-	                    <button
-	                        type="button"
-	                        className="btn-send"
-	                        onClick={handleSendSMS}
-	                    >
-	                        전송
-	                    </button>
 	                </div>
 	            </div>
 

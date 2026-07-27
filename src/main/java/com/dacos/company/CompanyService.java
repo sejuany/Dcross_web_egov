@@ -1037,4 +1037,48 @@ public class CompanyService {
     private boolean isBlank(String value) {
         return value == null || value.trim().isEmpty();
     }
+    
+    @Transactional
+    public Map<String, Object> deleteCompanyManageBranch(Map<String, Object> request) {
+        logger.info("[CompanyService] 기업관리 지점 삭제 - companyId: {}, branchId: {}",
+                request.get("COMPANY_ID"),
+                request.get("BRANCH_ID")
+        );
+
+        String companyId = toStr(request.get("COMPANY_ID"));
+        String branchId = toStr(request.get("BRANCH_ID"));
+
+        if (isBlank(companyId)) {
+            throw new BusinessException("회원사 ID가 없습니다.", 400);
+        }
+
+        if (isBlank(branchId)) {
+            throw new BusinessException("SPACE ID가 없습니다.", 400);
+        }
+
+        int memberCount = companyMapper.countMemberByBranch(request);
+
+        if (memberCount > 0) {
+            throw new BusinessException("해당 SPACE에 등록된 사용자가 있어 삭제할 수 없습니다.", 400);
+        }
+
+        int sangsaCount = companyMapper.countSangsaByBranch(request);
+
+        if (sangsaCount > 0) {
+            throw new BusinessException("해당 SPACE에 등록된 영업팀이 있어 삭제할 수 없습니다.", 400);
+        }
+
+        int deleteCount = companyMapper.deleteCompanyManageBranch(request);
+
+        if (deleteCount <= 0) {
+            throw new BusinessException("삭제할 SPACE 정보를 찾을 수 없습니다.", 404);
+        }
+
+        Map<String, Object> result = new HashMap<>();
+        result.put("deleted", true);
+        result.put("COMPANY_ID", companyId);
+        result.put("BRANCH_ID", branchId);
+
+        return result;
+    }
 }

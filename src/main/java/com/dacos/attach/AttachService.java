@@ -1,5 +1,6 @@
 package com.dacos.attach;
 
+import java.awt.image.BufferedImage;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.InetAddress;
@@ -15,9 +16,18 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Stream;
-import java.awt.image.BufferedImage;
+
 import javax.imageio.ImageIO;
 
+import org.apache.pdfbox.Loader;
+import org.apache.pdfbox.io.IOUtils;
+import org.apache.pdfbox.multipdf.PDFMergerUtility;
+import org.apache.pdfbox.pdmodel.PDDocument;
+import org.apache.pdfbox.pdmodel.PDPage;
+import org.apache.pdfbox.pdmodel.PDPageContentStream;
+import org.apache.pdfbox.pdmodel.common.PDRectangle;
+import org.apache.pdfbox.pdmodel.graphics.image.JPEGFactory;
+import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
@@ -27,25 +37,26 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
-import org.apache.pdfbox.pdmodel.PDDocument;
-import org.apache.pdfbox.pdmodel.PDPage;
-import org.apache.pdfbox.pdmodel.PDPageContentStream;
-import org.apache.pdfbox.pdmodel.common.PDRectangle;
-import org.apache.pdfbox.pdmodel.graphics.image.JPEGFactory;
-import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 
 import com.dacos.attach.mapper.AttachMapper;
+import com.dacos.attach.pdf.LocalTaxExemptionPdfCreator;
+import com.dacos.attach.pdf.PdfExemptionDto;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.BusinessException;
+import com.dacos.common.CommonRepository;
 import com.dacos.customer.CustomerService;
+
+import lombok.RequiredArgsConstructor;
 
 
 /**
  * 신차 등록 서비스
  * - getNewCarList: Map으로 반환하여 컬럼명 그대로 프론트에 전달 (직렬화 문제 방지)
  */
+@RequiredArgsConstructor
 @Service
 public class AttachService {
 
@@ -56,13 +67,9 @@ public class AttachService {
     
     private final AttachMapper attachMapper;
     private final CustomerService customerService;
+    private final CommonRepository common; // DB 접근 역할
     
-    public AttachService(AttachMapper attachMapper, CustomerService customerService) {
-        this.attachMapper = attachMapper;
-        this.customerService = customerService;
-    }
-
-	/**
+    /**
 	 * 첨부파일 목록 조회
 	 */
 	public List<Map<String, Object>> getAttachFiles(String serviceId, String token, UserDto user) {
@@ -108,7 +115,7 @@ public class AttachService {
 
 	        file.put("CODE", code);
 	    }
-
+	    logger.info("list>>"+list);
 	    return list;
 	}
     
@@ -521,17 +528,27 @@ public class AttachService {
      * - PDF 생성
      * *******************************************************************/
 	@Transactional
-	public void mergePdf(String serviceId) {
+	public void mergePdf(String serviceId, Map<String, Object> exemption) {
 	
 	    // 1. 병합 대상 조회
 	    List<Map<String, Object>> attachList = getMergeAttachFiles(serviceId);
 	
+	    if (attachList.isEmpty()) {
+	    	logger.info("병합 대상 첨부파일이 없어 PDF 생성을 건너뜁니다. serviceId={}", serviceId);
+	        return;
+	    }
+	    
 	    // 2. 병합할 실제 파일 조회
 	    List<Path> mergeFiles = getMergeFiles(attachList);
 	
-	    // 3. PDF 생성
-	    Path pdfPath = createMergePdf(serviceId, mergeFiles);
+	    // 3. PDF 생성 (첨부파일 없이 감면 신청서만 필요한 경우도 있음)
+	    Path pdfPath = createMergePdf(serviceId, mergeFiles, exemption);
 	
+	    if (pdfPath == null || Files.notExists(pdfPath)) {
+	        logger.warn("병합 PDF 생성 실패");
+	        return;
+	    }
+	    
 	    // 4. 서버 저장 및 DB 저장
 	    saveMergePdf(serviceId, pdfPath);
 	}
@@ -544,15 +561,13 @@ public class AttachService {
 	    Map<String, Object> param = new HashMap<>();
 	    param.put("SERVICE_ID", serviceId);
 	    param.put("GUBUN", "MERGE");
+	    // 첨부파일 없이 감면 신청서만 필요한 경우도 있어서 두번째 구분값을 넣음 
+	    param.put("GUBUN2", "SIGN");
 
 	    List<Map<String, Object>> attachList =
 	            attachMapper.getAttachFiles(param);
 
 	    logger.info("merge attach count={}", attachList.size());
-
-	    if (attachList.isEmpty()) {
-	        throw new BusinessException("병합할 첨부파일이 없습니다.", 400);
-	    }
 
 	    return attachList;
 	}
@@ -590,59 +605,92 @@ public class AttachService {
 	
 	/*
 	 * 3. PDF 생성
+	 * - 이미지(JPG/PNG)는 임시 PDF로 변환
+	 * - PDF는 그대로 사용
+	 * - 모든 PDF를 하나로 병합
 	 */
 	private Path createMergePdf(
 	        String serviceId,
-	        List<Path> mergeFiles) {
+	        List<Path> mergeFiles,
+	        Map<String, Object> exemption) {
 
 	    Path uploadRoot = Paths.get(getAttachUploadRoot());
-	    Path pdfPath = uploadRoot.resolve(serviceId + "_MERGE.pdf");
-	    
-	    try (PDDocument document = new PDDocument()) {
-		    
+	    Path pdfPath = uploadRoot.resolve(serviceId + "_감면신청서.pdf"); // 이름 설정
+
+	    // 이미지를 변환한 임시 PDF 목록
+	    List<Path> tempPdfList = new ArrayList<>();
+
+	    try {
+
 	    	// 1. 기존 PDF 삭제
-		    Files.deleteIfExists(pdfPath);
+	        Files.deleteIfExists(pdfPath);
 
-	        for (Path imagePath : mergeFiles) {
+	        PDFMergerUtility merger = new PDFMergerUtility();
+	        merger.setDestinationFileName(pdfPath.toString());
+	        
+	        // 감면신청서 PDF 생성에 필요한 데이터 조회
+	        Map<String, Object> pdfData =
+	                common.select(Map.of("SERVICE_ID", serviceId), "selectExemptionInfo");
 
-	            BufferedImage bufferedImage = ImageIO.read(imagePath.toFile());
+		     // 프론트에서 전달된 감면 정보 병합
+		     if (exemption != null && !exemption.isEmpty()) {
+		         pdfData.putAll(exemption);
+		     }
+	     
+		     Path signFile = null;
+	
+			  // 먼저 서명 파일 찾기
+			  for (Path file : mergeFiles) {
+			      String fileName = file.getFileName().toString().toUpperCase();
+	
+			      if (fileName.contains("_SIGN")) {
+			          signFile = file;
+			          break;
+			      }
+			  }
 
-	            if (bufferedImage == null) {
-	                throw new BusinessException(
-	                        "이미지 파일을 읽을 수 없습니다. : " + imagePath.getFileName()
-	                        , 500);
-	            }
+	        // 지방세 감면 신청서 추가
+		    addTaxExemptionPdf(merger, tempPdfList, pdfData, signFile);
+	        
+	        // 첨부파일 병합 시작
+	        for (Path file : mergeFiles) {
+	        	
+	        	logger.info("처리 : {}", file.getFileName());
 
-	            PDPage page = new PDPage(
-	                    new PDRectangle(
-	                            bufferedImage.getWidth(),
-	                            bufferedImage.getHeight()
-	                    )
-	            );
+	            String fileName = file.getFileName().toString().toLowerCase();
+	            
+	            try {
+	            	
+	            	// 서명파일은 병합 제외
+	            	if (fileName.contains("_sign")) {
+		                continue;
+		            }
 
-	            document.addPage(page);
+	                if (fileName.endsWith(".pdf")) {
 
-	            PDImageXObject pdImage = JPEGFactory.createFromImage(
-	                    document,
-	                    bufferedImage
-	            );
+	                    merger.addSource(file.toFile());
 
-	            try (PDPageContentStream contentStream =
-	                         new PDPageContentStream(document, page)) {
+	                } else {
 
-	                contentStream.drawImage(
-	                        pdImage,
-	                        0,
-	                        0,
-	                        bufferedImage.getWidth(),
-	                        bufferedImage.getHeight()
-	                );
+	                    Path tempPdf = createImagePdf(file);
+
+	                    tempPdfList.add(tempPdf);
+
+	                    merger.addSource(tempPdf.toFile());
+	                }
+
+	                logger.info("[PDF 병합] 추가 : {}", fileName);
+
+	            } catch (Exception e) {
+	                logger.error("[PDF 병합] 제외 : {}", fileName, e);
 	            }
 	        }
 
-	        document.save(pdfPath.toFile());
-
-	        logger.info("[PDF 병합] 생성 완료 : {}", pdfPath);
+	        logger.info("===== mergeDocuments 시작 =====");
+	        
+	        merger.mergeDocuments(IOUtils.createTempFileOnlyStreamCache());
+	        
+	        logger.info("===== mergeDocuments 완료 =====");
 
 	        return pdfPath;
 
@@ -650,14 +698,124 @@ public class AttachService {
 
 	        logger.error("[PDF 병합] 생성 실패", e);
 
-	        throw new BusinessException("병합 PDF 생성 중 오류가 발생했습니다.", 500);
+	        return null;
+	        
+	    } finally {
+
+	        for (Path temp : tempPdfList) {
+	            try {
+	                Files.deleteIfExists(temp);
+	            } catch (IOException ignore) {
+	            }
+	        }
 	    }
 	}
 	
+	// 지방세 감면 신청서 추가
+	private void addTaxExemptionPdf(
+	        PDFMergerUtility merger,
+	        List<Path> tempPdfList,
+	        Map<String, Object> pdfData,
+	        Path signFile) throws Exception {
+		
+		// PDF 생성에 필요한 데이터를 DTO로 변환
+	    PdfExemptionDto dto = new PdfExemptionDto();
+
+	    dto.setSERVICE_ID((String) pdfData.get("SERVICE_ID"));
+	    dto.setCAR_NO((String) pdfData.get("CAR_NO"));
+	    dto.setOWNER_NM((String) pdfData.get("OWNER_NM"));
+	    dto.setBIZ_NO((String) pdfData.get("BIZ_NO"));
+	    dto.setREQUEST_DT((String) pdfData.get("REQUEST_DT"));
+	    dto.setREG_NO((String) pdfData.get("REG_NO"));
+	    dto.setADDRESS((String) pdfData.get("ADDRESS"));
+	    dto.setADDRESS_DT((String) pdfData.get("ADDRESS_DT"));
+	    dto.setMPHONE_NO((String) pdfData.get("MPHONE_NO"));
+	    dto.setREASON((String) pdfData.get("REASON"));
+	    dto.setDOCUMENT((String) pdfData.get("DOCUMENT"));
+	    dto.setGOVT_NM((String) pdfData.get("GOVT_NM"));
+	    dto.setSIGN_DT((String) pdfData.get("SIGN_DT"));
+
+	    // 지방세 감면 신청서 PDF 생성
+	    LocalTaxExemptionPdfCreator creator = new LocalTaxExemptionPdfCreator();
+	    Path pdf = creator.create(dto, signFile);
+
+	    if (pdf != null && Files.exists(pdf)) {
+	        tempPdfList.add(pdf);
+	        merger.addSource(pdf.toFile());
+	    }
+	}
+	
+	// 병합 전 파일을 한번 열어서 정상인지 확인(PDF)
+	private boolean isValidPdf(Path file) {
+	
+	    try (PDDocument doc = Loader.loadPDF(file.toFile())) {
+	        return true;
+	    } catch (Exception e) {
+	        logger.warn("손상된 PDF : {}", file, e);
+	        return false;
+	    }
+	}
+	
+	// 병합 전 파일을 한번 열어서 정상인지 확인(이미지)
+	private boolean isValidImage(Path file) {
+
+	    try {
+	        return ImageIO.read(file.toFile()) != null;
+	    } catch (Exception e) {
+	        return false;
+	    }
+	}
+	
+	private Path createImagePdf(Path imagePath) throws IOException {
+
+	    BufferedImage image = ImageIO.read(imagePath.toFile());
+
+	    if (image == null) {
+	        throw new BusinessException(
+	                "지원하지 않는 이미지입니다 : " + imagePath.getFileName(),
+	                500
+	        );
+	    }
+
+	    Path tempPdf = Files.createTempFile("merge_", ".pdf");
+
+	    try (PDDocument document = new PDDocument()) {
+
+	        PDPage page = new PDPage(
+	                new PDRectangle(
+	                        image.getWidth(),
+	                        image.getHeight()
+	                )
+	        );
+
+	        document.addPage(page);
+
+	        PDImageXObject pdImage =
+	                JPEGFactory.createFromImage(document, image);
+
+	        try (PDPageContentStream stream =
+	                     new PDPageContentStream(document, page)) {
+
+	            stream.drawImage(
+	                    pdImage,
+	                    0,
+	                    0,
+	                    image.getWidth(),
+	                    image.getHeight()
+	            );
+	        }
+
+	        document.save(tempPdf.toFile());
+	    }
+
+	    return tempPdf;
+	}
 	
 	/*
 	 * DB 저장
 	 */
+
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	private void saveMergePdf(
 	        String serviceId,
 	        Path pdfPath) {

@@ -90,55 +90,63 @@ const AddressSearch = ({
 				</div>
 				
                 {/* 검색 결과 */}
-				{address.addressList.length > 0 && (
+				{address.searched && (
 
 				    <div className="wa-address-result">
-
-				        {address.currentList.map((item, idx) => (
-
-				            <div
-				                key={`${item.POST_NO}-${idx}`}
-				                className="wa-address-item"
-				            >
-
-				                <div className="wa-address-info">
-
-				                    <div className="wa-address-row">
-				                        <span className="label">우편번호 </span>
-				                        <span className="addr-span">{item.POST_NO}</span>
-				                    </div>
-
-				                    <div className="wa-address-row">
-				                        <span className="label">도로명 </span>
-				                        <span className="addr-span">{item.ROAD_AD}</span>
-				                    </div>
-
-				                    <div className="wa-address-row">
-				                        <span className="label">구주소 </span>
-				                        <span className="addr-span">{item.JIBUN_AD}</span>
-				                    </div>
-
-				                </div>
-
-				                <button
-				                    type="button"
-				                    className="wa-address-select-btn"
-
-									onClick={() => {
-									    address.handleSelect(item);
-
-									    setTimeout(() => {
-									        detailRef.current?.focus();
-									    }, 0);
-									}}
-				                >
-				                    선택
-				                </button>
-
-				            </div>
-
-				        ))}
-
+						{address.addressList.length === 0 ? (
+	
+						    <div className="wa-address-empty">
+						        조회 결과가 없습니다.
+						    </div>
+	
+						) : (
+							<>
+					        {address.currentList.map((item, idx) => (
+	
+					            <div
+					                key={`${item.POST_NO}-${idx}`}
+					                className="wa-address-item"
+					            >
+	
+					                <div className="wa-address-info">
+	
+					                    <div className="wa-address-row">
+					                        <span className="label">우편번호 </span>
+					                        <span className="addr-span">{item.POST_NO}</span>
+					                    </div>
+	
+					                    <div className="wa-address-row">
+					                        <span className="label">도로명 </span>
+					                        <span className="addr-span">{item.ROAD_AD}</span>
+					                    </div>
+	
+					                    <div className="wa-address-row">
+					                        <span className="label">구주소 </span>
+					                        <span className="addr-span">{item.JIBUN_AD}</span>
+					                    </div>
+	
+					                </div>
+	
+					                <button
+					                    type="button"
+					                    className="wa-address-select-btn"
+	
+										onClick={() => {
+										    address.handleSelect(item);
+	
+										    setTimeout(() => {
+										        detailRef.current?.focus();
+										    }, 0);
+										}}
+					                >
+					                    선택
+					                </button>
+	
+					            </div>
+	
+					        ))}
+							</>
+						)}
 						
 						{/* 페이징처리 */}
 						{address.totalPage > 1 && (() => {

@@ -2,7 +2,7 @@
 // * 주소검색 모달 전용
 // ====================================
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import axios from 'axios';
 
 import { gf } from '../utils/utils';
@@ -23,7 +23,16 @@ const useAddressSearch = ({
 
     // 조회중
     const [loading, setLoading] = useState(false);
-
+	
+	// 조회 결과
+	const [searched, setSearched] = useState(false);
+	
+	useEffect(() => {
+	    setSearched(false);
+	    setAddressList([]);
+	    setPage(1);
+	}, [value]);
+	
     // 주소 조회
     const handleSearch = async () => {
 		
@@ -43,6 +52,7 @@ const useAddressSearch = ({
             setAddressList(res.data.list || []);
             setPage(1);
 
+			setSearched(true);
         } catch (e) {
 
             console.error(e);
@@ -59,9 +69,6 @@ const useAddressSearch = ({
     // 주소 선택
 	const handleSelect = (item) => {
 
-		console.log("들어옴");
-		console.log("type =", type);
-		
 		if (onSelect) {
 		    onSelect(type, {
 		        ADDR: item.ROAD_AD,
@@ -76,7 +83,8 @@ const useAddressSearch = ({
 		} 
 
 	    setAddressList([]);
-
+		setSearched(false);
+		
 	};
 
     // Enter 조회
@@ -106,6 +114,7 @@ const useAddressSearch = ({
 
     return {
         loading,
+		searched,
         page,
         setPage,
         addressList,

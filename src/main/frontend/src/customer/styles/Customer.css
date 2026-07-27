@@ -25,11 +25,9 @@ body.customer-body-page #root {
 }
 
 .customer-body {
-     width: 100%;
+    width: 100%;
+    min-height: 100%;
     flex: 1;
-
-    margin-top: 65px;
-    min-height: calc(100vh - 65px);
 
     display: flex;
     flex-direction: column;

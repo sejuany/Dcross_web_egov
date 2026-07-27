@@ -262,6 +262,21 @@ public class CompanyController {
         Map<String, Object> result = companyService.saveCompanyManageBranch(request);
         return ResponseEntity.ok(ApiResponse.withKey("data", result));
     }
+    
+    /**
+     * 기업관리 지점 삭제 - POST /api/company/branch/manage/delete
+     */
+    @PostMapping("/company/branch/manage/delete")
+    public ResponseEntity<Map<String, Object>> deleteCompanyManageBranch(@RequestBody Map<String, Object> request) {
+        logger.info(
+                "[CompanyController] 기업관리 지점 삭제 요청 - companyId: {}, branchId: {}",
+                request.get("COMPANY_ID"),
+                request.get("BRANCH_ID")
+        );
+
+        Map<String, Object> result = companyService.deleteCompanyManageBranch(request);
+        return ResponseEntity.ok(ApiResponse.withKey("data", result));
+    }
 
     /**
      * 영업팀 수정 - POST /api/company/sangsa/update

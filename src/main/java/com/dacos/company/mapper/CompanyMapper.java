@@ -18,7 +18,7 @@ public interface CompanyMapper {
 
     /*
      * =====================================================
-     * CompanyManage 기업관리
+     * CompanyManage 기업관리insertCompanyManageBranch
      * =====================================================
      */
     List<Map<String, Object>> getCompanyManageOptions(CompanySearchRequest request);
@@ -98,6 +98,12 @@ public interface CompanyMapper {
     List<Map<String, Object>> getCompanyManageBranchList(Map<String, Object> param);
 
     String getNextBranchId(Map<String, Object> param);
+    
+    int countMemberByBranch(Map<String, Object> param);
+
+    int countSangsaByBranch(Map<String, Object> param);
+
+    int deleteCompanyManageBranch(Map<String, Object> param);
 
     int insertCompanyManageBranch(Map<String, Object> param);
 

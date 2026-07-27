@@ -228,7 +228,7 @@
 	    VALUES (
 	        #{SERVICE_ID}, #{WORK_CD}, #{COMPANY_ID}, #{ASSOCIATION_ID}, #{GOVT_ID},
 	        #{MEMBER_ID}, #{CAR_NO}, SYSDATE, #{PROC_ST}, #{BRANCH_ID},
-	        #{SANGSA_ID}, #{JUDGE_ST}, #{RETURN_TX}, #{MEMBER_ID}, #{AUTO_YN},
+	        #{SANGSA_ID}, #{JUDGE_ST}, #{RETURN_TX}, #{LOGIN_ID}, #{AUTO_YN},
 	        #{LINK_ID}
 	    )
 	</insert>

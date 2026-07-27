@@ -205,6 +205,8 @@ export const NTAX_POLICY = {
 
     // 국가유공자
     '01': {
+		NAME: '국가유공자',
+		AMOUNT: '취득세 100% 면제',
         REPRE: [
             NTAX_ATTACH_DOC.PATRIOT_CERT
         ],
@@ -217,6 +219,8 @@ export const NTAX_POLICY = {
 
     // 5.18 민주화운동
     '02': {
+		NAME: '취득세 100% 면제',
+		AMOUNT: '취득세 100% 면제',
         REPRE: [
             NTAX_ATTACH_DOC.PATRIOT_CERT
         ],
@@ -229,6 +233,8 @@ export const NTAX_POLICY = {
 
     // 고엽제
     '03': {
+		NAME: '고엽제 후유증 대상',
+		AMOUNT: '취득세 100% 면제',
         REPRE: [
             NTAX_ATTACH_DOC.AGENT_ORANGE_TARGET_CERT,
             NTAX_ATTACH_DOC.AGENT_ORANGE_CERT
@@ -243,6 +249,13 @@ export const NTAX_POLICY = {
 
     // 장애인
     '04': {
+		NAME: '장애인',
+		AMOUNT: [
+            '장애정도가 심한 장애인(기존 1급~3급 중증 장애인) 취득세 100% 면제',
+            '차량 1대만 가능',
+            '경증 장애인(기존 4급~6급)은 취득세 면제 대상 제외'
+        ].join('\n'),
+		
         REPRE: [
             NTAX_ATTACH_DOC.DISABILITY_CERT
         ],
@@ -255,6 +268,9 @@ export const NTAX_POLICY = {
 
     // 시각장애
     '05': {
+		NAME: '시각장애',
+		AMOUNT: '시각장애 중 기존 4급 취득세 100% 면제',
+		
         REPRE: [
             NTAX_ATTACH_DOC.DISABILITY_CERT
         ],
@@ -267,6 +283,8 @@ export const NTAX_POLICY = {
 
     // 다자녀(18세미만 3명이상)
 	'06': {
+		NAME: '다자녀(3자녀)',
+		AMOUNT: '취득세 140만원',
 	    REPRE: [
 	        NTAX_ATTACH_DOC.FAMILY_CERT,
 	        NTAX_ATTACH_DOC.RESIDENT_CERT
@@ -279,6 +297,8 @@ export const NTAX_POLICY = {
 	
 	// 2자녀(18세미만 2명이상)
 	'15': {
+		NAME: '다자녀(2자녀)',
+		AMOUNT: '취득세 70만원',
 		REPRE: [
 		    NTAX_ATTACH_DOC.FAMILY_CERT,
 		    NTAX_ATTACH_DOC.RESIDENT_CERT
@@ -291,6 +311,13 @@ export const NTAX_POLICY = {
 
     // 교환자동차
     '09': {
+		NAME: '교환자동차 감면',
+		AMOUNT: [
+            '교환받는 자동차의 취득세는 면제',
+            '새 차량의 세액이 기존 차량의 세액을 초과하면 초과분에 대해 취득세 부과',
+            '새 차 세액 < 기존 차 세액: 취득세 전액 면제',
+            '새 차 세액 > 기존 차 세액: 차액만큼 취득세 부과'
+        ].join('\n'),
         REPRE: [
             NTAX_ATTACH_DOC.DEFECT_CERT,
             NTAX_ATTACH_DOC.DEREGISTRATION_CERT,
@@ -301,6 +328,11 @@ export const NTAX_POLICY = {
 
     // 수출용중고차
     '11': {
+		NAME: '수출용중고자동차',
+		AMOUNT: [
+		    '산정된 취득세액 200만원 이하: 100% 면제',
+		    '산정된 취득세액 200만원 이상: 취득세 85% 감면'
+		].join('\n'),
         REPRE: [
             NTAX_ATTACH_DOC.BUSINESS_CERT,
             NTAX_ATTACH_DOC.SALES_CONTRACT,
@@ -311,12 +343,17 @@ export const NTAX_POLICY = {
 
     // 공동경비구역
     '12': {
-        REPRE: [],
+		NAME: '공동경비구역(JSA) 거주자',
+		AMOUNT: '취득세 100% 면제',
+		REPRE: [],
         UNION: []
     },
 
     // 비영리사업자
     '13': {
+		NAME: '비영리사업자',
+		AMOUNT: '취득세 100% 면제',
+		
         REPRE: [
             NTAX_ATTACH_DOC.UNIQUE_NUMBER_CERT,
             NTAX_ATTACH_DOC.OFFICIAL_VEHICLE_APPROVAL
@@ -326,6 +363,9 @@ export const NTAX_POLICY = {
 
     // 보훈보상대상자
     '14': {
+		NAME: '보훈보상대상자',
+		AMOUNT: '취득세의 50% 면제',
+		
         REPRE: [
             NTAX_ATTACH_DOC.PATRIOT_CONFIRM
         ],

@@ -1,7 +1,6 @@
 import React, { useEffect } from 'react';
 import { Outlet } from 'react-router-dom';
 
-import CustomerHeader from './CustomerHeader';
 import CustomerFooter from './CustomerFooter';
 
 const CustomerLayout = () => {
@@ -16,8 +15,6 @@ const CustomerLayout = () => {
 	
 	return (
 	    <div className="customer-layout">
-
-	        <CustomerHeader />
 
 			<div className="customer-body">
 

@@ -4,18 +4,11 @@ import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
-import java.time.ZoneId;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
-
 import com.dacos.customer.mapper.CustomerMapper;
-import com.dacos.newcar.mapper.NewcarMapper;
 
 /**
  * 신차 등록 서비스

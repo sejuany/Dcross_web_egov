@@ -8,10 +8,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.common.ApiResponse;
 
+@RestController
 @RequestMapping("/api/attach")
 public class AttachController {
 
@@ -28,12 +29,18 @@ public class AttachController {
      * POST /api/attach/merge-pdf
      */
     @PostMapping("/merge-pdf")
-    public ResponseEntity<?> mergePdf(@RequestParam String serviceId) {
+    public ResponseEntity<?> mergePdf(@RequestBody Map<String, Object> param) {
 
-        attachService.mergePdf(serviceId);
+        String serviceId = (String) param.get("SERVICE_ID");
+
+        Map<String, Object> exemption =
+                (Map<String, Object>) param.get("EXEMPTION");
+
+        attachService.mergePdf(serviceId, exemption);
 
         return ResponseEntity.ok(ApiResponse.withKey("result", true));
     }
+    
 }
 
 

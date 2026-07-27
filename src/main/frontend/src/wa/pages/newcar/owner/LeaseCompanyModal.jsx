@@ -12,6 +12,7 @@ const LeaseCompanyModal = ({
 	onClose
 }) => {
 	const [company, setCompany] = useState('');
+	const [directCompany, setDirectCompany] = useState(''); // 직접입력창
 	
 	// 리스사 목록 (본점만)
 	const leaseCompanies = useMemo(() => {
@@ -60,7 +61,14 @@ const LeaseCompanyModal = ({
 							<select
 							    className="wa-select"
 							    value={company}
-							    onChange={e => setCompany(e.target.value)}
+								onChange={e => {
+								    const value = e.target.value;
+								    setCompany(value);
+
+								    if (value !== 'INPUT') {
+								        setDirectCompany('');
+								    }
+								}}
 							>
 							    <option value="">선택</option>
 	
@@ -69,11 +77,34 @@ const LeaseCompanyModal = ({
 							            {company}
 							        </option>
 							    ))}
+								
+								<option value="INPUT">직접 입력</option>
 							</select>
 
                         </div>
-
+						
                     </div>
+					
+					{/* 리스사명 */}
+					{company === 'INPUT' && (
+		                <div className="wa-form-row">
+						
+		                    <label className="wa-form-label">
+		                        리스사명
+		                    </label>
+							<div className="wa-form-control">
+								
+								    <input
+								        type="text"
+								        className="wa-input"
+								        placeholder="리스사명을 입력해주세요."
+								        value={directCompany}
+								        onChange={e => setDirectCompany(e.target.value)}
+								    />
+							</div>
+							
+						</div>
+					)}
 
                 </div>
 

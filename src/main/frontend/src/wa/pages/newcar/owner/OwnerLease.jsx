@@ -33,6 +33,14 @@ const OwnerLease = ({
 	// 주소 기능 추가
 	const { handleLeaseCompany } = useAddressHandler({ dsNewCar, dsBaseList, setDsNewCar, setDsOwnerInfo });
 	
+	// 차량 구매방식 변경할 때마다 리스사 선택 지움 
+	useEffect(() => {
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        BASE_BRANCH_ID: ''
+	    }));
+	}, []);
+	
 	// 계약자와 동일
 	const handleSameCustomer = (e) => {
 
@@ -103,7 +111,6 @@ const OwnerLease = ({
 	    return list;
 
 	}, [leaseCompanies, currentCompany]);
-	
 	
     return (
         <>
@@ -234,19 +241,13 @@ const OwnerLease = ({
 						)}
 
 			        </div>
-
-					{showForeignerGuide && (
-					    <div className="wa-guide-text">
-					        *최종확인 페이지에서 외국인 등록증을 첨부하여 주십시오.
-					    </div>
-					)}
 			    </div>
 			</div>
 
 			{/* 휴대폰번호 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
-			        리스 계약자 등록번호
+			        리스 계약자 휴대폰번호
 			    </label>
 			    <div className="wa-form-control">
 			        <div className="wa-inline-group">

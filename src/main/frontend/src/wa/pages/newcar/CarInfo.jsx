@@ -20,7 +20,6 @@ const CarInfo = ({
     handleChange,
     saveProcess,
 	dsDLVGB,
-	
 	address
 }) => {
 	

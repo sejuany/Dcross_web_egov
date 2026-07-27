@@ -518,6 +518,24 @@ public class NewcarController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(resource);
     }
+    
+    /**
+     * 번호판 미사용 처리 
+     * POST /api/newcar/change-su
+     */
+    @PostMapping("/change-su")
+    public ResponseEntity<Map<String, Object>> updateChangeSu(
+            @RequestBody Map<String, Object> param,
+            HttpSession session) {
+
+    	// 세션 체크
+    	UserDto user = AuthUtil.getLoginUser(session);
+
+    	// 담당자 변경 처리
+    	newcarService.updateChangeSu(param, user);
+    	
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
 }
 
 

@@ -97,6 +97,47 @@ public class CommonService {
         return common.insert(smsParam, "insertSmsSend");
     }
 
+    // 전자서명 이력 생성
+    public int insertDsign(Map<String, Object> param) {
+    	Map<String, Object> dsignParam = new HashMap<>();
+    	
+
+    	dsignParam.put("SERVICE_ID", param.get("SERVICE_ID"));
+    	dsignParam.put("CAR_NO", param.get("CAR_NO"));
+    	dsignParam.put("WHO_CD", "GRANT");
+		dsignParam.put("PAY_HP_NO", "");
+		dsignParam.put("CONFIRM_NO", "");
+		
+		// 요청
+    	if("WSIGN".equals(param.get("DSIGN_GB")) 
+    			&& "REQ".equals(param.get("DSIGN_ST"))) {
+    		
+    		dsignParam.put("MEMBER_ID", param.get("INS_USER"));
+    		dsignParam.put("DSIGN_GB", "WSIGN");
+    		dsignParam.put("DSIGN_ST", "REQ");
+    		dsignParam.put("DSIGN_CD", "DSIST");
+    		
+    		String dsignTx = "위 내용으로 [" + param.get("CAR_NO") + "] 차량의 취득세 감면 신청에 동의하시면, "
+    				+ "서명란에 정자로 성명을 기재하여 주시기 바랍니다. "
+    				+ "해당 서명은 취득세 감면신청서에 포함됩니다.";
+    		
+    		dsignParam.put("DSIGN_TX", dsignTx);
+    	}
+    	
+    	// 완료
+    	else if("WSIGN".equals(param.get("DSIGN_GB")) 
+    			&& "END".equals(param.get("DSIGN_ST"))) {
+
+    		dsignParam.put("MEMBER_ID", "CUSTOMER");
+    		dsignParam.put("DSIGN_GB", "WSIGN");
+    		dsignParam.put("DSIGN_ST", "END");
+    		dsignParam.put("DSIGN_CD", "IDEST");
+    		dsignParam.put("DSIGN_TX", "");
+    	}
+    	
+    	return common.insert(dsignParam, "insertDsign"); 	
+    }
+    
     private String firstNonBlank(Map<String, Object> param, String... keys) {
         if (param == null || keys == null) {
             return "";
@@ -646,6 +687,12 @@ public class CommonService {
         }
         return conn.getInputStream();
     }
+    
+    public void procedureTmBoard(Map<String, Object> param) {
+	    common.call(
+	        param, "procedureAlarmMap"
+	    );
+	}
 	
 
 }

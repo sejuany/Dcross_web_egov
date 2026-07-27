@@ -17,12 +17,15 @@ export function getAttachPolicy(dsNewCar) {
     const docs = new Set();
 
     // ===== 비과세 =====
-    if (dsNewCar.NTAX_TRGET_CD !== '00') {
+    if (dsNewCar.NTAX_TRGET_CD && dsNewCar.NTAX_TRGET_CD !== '00') {
         signs.add(SIGN_DOC.SIGN);
     }
 
     // ===== 외국인 =====
-    if (dsNewCar.REG_GB === 'F') {
+	// 일반등록, 이용자명의리스만 해당
+    if ((dsNewCar.TASK_CD === 'NORML' || 
+		(dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')) && 
+		dsNewCar.REG_GB === 'F') {
         docs.add(ATTACH_DOC.FOREIGN_ID);
     }
 
@@ -41,6 +44,15 @@ export function getAttachPolicy(dsNewCar) {
         docs.add(ATTACH_DOC.LEASE_AGREEMENT);
     }
 
+/*	console.log(
+		{
+		        needSign: signs.size > 0,
+		        needUpload: docs.size > 0,
+		        requiredSigns: [...signs],
+		        requiredDocs: [...docs]
+		    }
+	);*/
+	
     return {
         needSign: signs.size > 0,
         needUpload: docs.size > 0,
@@ -54,7 +66,11 @@ export function getNtaxAttachPolicy(dsNewCar) {
 
     const docs = new Set();
 	
-	if (dsNewCar.NTAX_TRGET_CD === '00') {
+	
+	if (!dsNewCar.NTAX_TRGET_CD ||
+		dsNewCar.NTAX_TRGET_CD === '00' || 
+		[ '7', '8', '9', '10', '11', '12', '13', '14'].includes(dsNewCar.NTAX_TRGET_GR_CD)
+	) {
 	    return {
 	        needUpload: false,
 	        requiredDocs: []
@@ -95,6 +111,11 @@ export function getNtaxAttachPolicy(dsNewCar) {
 	    docs.add(NTAX_ATTACH_DOC.BASIC_CERT);
 	}
 
+/*	console.log({
+		    needUpload: docs.size > 0,
+		    requiredDocs: [...docs]
+		});*/
+		
 	return {
 	    needUpload: docs.size > 0,
 	    requiredDocs: [...docs]

@@ -469,37 +469,39 @@
 /* 등록번호 */
 .reg-no-row {
     width: 100%;
-    flex: none;
-    display: flex;
+    display: grid !important;
+    grid-template-columns: minmax(0, 1fr) 16px minmax(0, 1fr) 90px;
     align-items: center;
-    gap: 8px;
+    gap: 10px;
     padding: 0;
     box-sizing: border-box;
 }
 
-.reg-f {
-    width: 110px !important;
+.reg-no-row .reg-f,
+.reg-no-row .reg-b {
+    width: 100% !important;
+    min-width: 0 !important;
     max-width: none !important;
     height: 46px;
+    flex: none !important;
     text-align: center;
     border: 1px solid #dce3eb !important;
     border-radius: 10px !important;
+    box-sizing: border-box;
 }
 
-.reg-b {
-    width: 92px !important;
-    max-width: none !important;
-    height: 46px;
+.reg-no-row .dash {
     text-align: center;
-    border: 1px solid #dce3eb !important;
-    border-radius: 10px !important;
+    color: #64748b;
 }
 
-.masking {
-    color: #1d4ed8;
-    font-size: 13px;
-    letter-spacing: 0;
-    font-weight: 700;
+.reg-no-row .masking {
+    width: 90px;
+    color: #2563eb;
+    font-size: 15px;
+    letter-spacing: 4px;
+    font-weight: 800;
+    white-space: nowrap;
 }
 
 .dash {
@@ -973,29 +975,7 @@ select:disabled {
     background: #0f2338;
 }
 
-/* 등록번호 앞자리/뒷자리 폭 조정 */
-.reg-no-row {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-}
 
-.reg-no-row .reg-f {
-    width: 110px !important;
-    flex: 0 0 110px !important;
-}
-
-.reg-no-row .reg-b {
-    width: 58px !important;
-    flex: 0 0 58px !important;
-}
-
-.reg-no-row .masking {
-    margin-left: 2px;
-    color: #2563eb;
-    font-weight: 700;
-    letter-spacing: 2px;
-}
 
 @media (max-width: 860px) {
     .auth-info-box {
@@ -1021,4 +1001,110 @@ select:disabled {
     .btn-complete-login {
         width: 100%;
     }
+}
+
+/* 회원기본정보는 PC에서도 1줄 1항목으로 표시 */
+.member-basic-section .form-row,
+.member-basic-section .form-row.split {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    margin-bottom: 16px;
+}
+
+.member-basic-section .field {
+    width: 100% !important;
+}
+
+.member-basic-section .input-with-btn {
+    width: 100%;
+}
+
+/* =========================================================
+   회원기본정보 가독성 개선
+   ========================================================= */
+
+.member-basic-section {
+    margin-top: 30px;
+    padding: 24px 26px 28px;
+    background: #f8fafc;
+    border: 1px solid #dfe7f0;
+    border-radius: 16px;
+    box-sizing: border-box;
+}
+
+.member-basic-section .section-header {
+    margin-bottom: 22px;
+}
+
+.member-basic-section .form-row,
+.member-basic-section .form-row.split {
+    display: grid !important;
+    grid-template-columns: 1fr !important;
+    gap: 14px !important;
+    margin-bottom: 18px;
+}
+
+.member-basic-section .field {
+    width: 100% !important;
+}
+
+.member-basic-section .field input,
+.member-basic-section .field select {
+    background: #ffffff;
+}
+
+.member-basic-section .input-with-btn {
+    width: 100%;
+}
+
+
+.member-basic-section .radio-group label {
+    background: #ffffff;
+}
+
+.member-basic-section .radio-group label:has(input:checked) {
+    background: #f1f7ff;
+}
+
+/* 등록번호 - 앞자리는 적당한 폭, 뒷자리는 1글자용 */
+.member-basic-section .regist-field .reg-no-row {
+    width: 100% !important;
+    display: grid !important;
+    grid-template-columns: 220px 16px 64px auto !important;
+    align-items: center;
+    gap: 10px;
+    box-sizing: border-box;
+}
+
+.member-basic-section .regist-field .reg-no-row .reg-f {
+    width: 220px !important;
+    min-width: 220px !important;
+    max-width: 220px !important;
+    box-sizing: border-box;
+    text-align: center;
+}
+
+.member-basic-section .regist-field .reg-no-row .reg-b {
+    width: 64px !important;
+    min-width: 64px !important;
+    max-width: 64px !important;
+    box-sizing: border-box;
+    text-align: center;
+    padding-left: 0;
+    padding-right: 0;
+}
+
+.member-basic-section .regist-field .reg-no-row .dash {
+    text-align: center;
+    color: #64748b;
+}
+
+.member-basic-section .regist-field .reg-no-row .masking {
+    justify-self: start;
+    color: #2563eb;
+    font-size: 15px;
+    font-weight: 800;
+    letter-spacing: 4px;
+    white-space: nowrap;
 }

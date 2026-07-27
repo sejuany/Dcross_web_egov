@@ -46,8 +46,8 @@ const SPECIAL_MEMBER_GB_OPTIONS = [
 
 const WA001_SPECIAL_MEMBER_GB_OPTIONS = [
     { code: 'CA', name: 'Admin' },
-    { code: 'BA', name: 'Supersp' },
-    { code: 'SU', name: 'sp' },
+    { code: 'BA', name: 'Space 관리자' },
+    { code: 'SU', name: 'Sp' },
 ];
 
 const BRANCH_ONLY_SPECIAL_COMPANY_IDS = [
@@ -231,7 +231,6 @@ const SignForm = () => {
         passWd: '',
         passWdConfirm: '',
         memberNm: '',
-        telNo: '',
         mphoneNo: '',
         memberMail: '',
         loginGb: 'P',
@@ -381,7 +380,6 @@ const SignForm = () => {
             passWd: '',
             passWdConfirm: '',
             memberNm: '',
-            telNo: '',
             mphoneNo: '',
             memberMail: '',
             loginGb: 'P',
@@ -621,7 +619,6 @@ const SignForm = () => {
                 passWd: '',
                 passWdConfirm: '',
                 memberNm: '',
-                telNo: '',
                 mphoneNo: '',
                 memberMail: '',
             }));
@@ -832,7 +829,6 @@ const SignForm = () => {
         }
 
         const mphoneNo = formData.mphoneNo.trim();
-        const telNo = formData.telNo.trim();
 
         if (!mphoneNo) {
             gf.alert('휴대폰번호를 입력해주세요.');
@@ -841,16 +837,6 @@ const SignForm = () => {
 
         if (!/^\d+$/.test(mphoneNo)) {
             gf.alert('휴대폰번호는 숫자만 입력해주세요.');
-            return false;
-        }
-
-        if (!telNo) {
-            gf.alert('전화번호를 입력해주세요.');
-            return false;
-        }
-
-        if (!/^\d+$/.test(telNo)) {
-            gf.alert('전화번호는 숫자만 입력해주세요.');
             return false;
         }
 
@@ -963,7 +949,7 @@ const SignForm = () => {
             SANGSA_ID: sangsaId,
             MEMBER_NM: formData.memberNm.trim(),
             MEMBER_GB: memberGb,
-            TEL_NO: formData.telNo.trim(),
+			TEL_NO: '',
             MPHONE_NO: formData.mphoneNo.trim(),
             MEMBER_MAIL: isSpecialCompany ? formData.memberMail.trim() : '',
 
@@ -1289,7 +1275,7 @@ const SignForm = () => {
 
     const renderMemberBasicInfoSection = () => {
         return (
-            <section className="info-section">
+            <section className="info-section member-basic-section">
                 <div className="section-header">회원기본정보</div>
                 <div className="form-rows">
                     <div className="form-row split">
@@ -1365,125 +1351,110 @@ const SignForm = () => {
                                 disabled={!companySearched}
                             />
                         </div>
-
-                        <div className="field">
-                            <label className="req">전화번호</label>
-                            <input
-                                type="text"
-                                name="telNo"
-                                value={formData.telNo}
-                                onChange={handleChange}
-                                placeholder="'-' 제외 입력"
-                                disabled={!companySearched}
-                            />
-                        </div>
+						<div className="field">
+						    <label className={isSpecialForm ? 'req' : ''}>이메일</label>
+						    <input
+						        type="text"
+						        name="memberMail"
+						        value={formData.memberMail}
+						        onChange={handleChange}
+						        placeholder="example@email.com"
+						        disabled={!companySearched}
+						    />
+						</div>
                     </div>
 					
-					{isSpecialForm && (
-					    <div className="form-row">
-					        <div className="field special-email-field">
-					            <label className="req">이메일</label>
-					            <input
-					                type="text"
-					                name="memberMail"
-					                value={formData.memberMail}
-					                onChange={handleChange}
-					                className="special-email-input"
-					                placeholder="example@email.com"
-					                disabled={!companySearched}
-					            />
+
+					<div className="form-row">
+					    <div className="field">
+					        <label className="req auth-type-label">
+					            인증 구분
+					            <span className="auth-info-tooltip" tabIndex={0}>
+					                i
+					                <span className="auth-info-box">
+					                    로그인 시 사용할 인증 수단입니다.<br />
+					                    법인 공인인증서, 개인 공인인증서, 휴대폰 인증 중<br />
+					                    하나를 선택하는 항목입니다.
+					                </span>
+					            </span>
+					        </label>
+					        <div className="radio-group">
+					            <label>
+					                <input
+					                    type="radio"
+					                    name="loginGb"
+					                    value="C"
+					                    checked={formData.loginGb === 'C'}
+					                    onChange={handleChange}
+					                    disabled={!companySearched}
+					                />
+					                법인
+					            </label>
+					            <label>
+					                <input
+					                    type="radio"
+					                    name="loginGb"
+					                    value="P"
+					                    checked={formData.loginGb === 'P'}
+					                    onChange={handleChange}
+					                    disabled={!companySearched}
+					                />
+					                개인
+					            </label>
+					            <label>
+					                <input
+					                    type="radio"
+					                    name="loginGb"
+					                    value="H"
+					                    checked={formData.loginGb === 'H'}
+					                    onChange={handleChange}
+					                    disabled={!companySearched}
+					                />
+					                휴대폰
+					            </label>
 					        </div>
 					    </div>
-					)}
+					</div>
 
-                    <div className="form-row split">
-                        <div className="field">
-                            <label className="req auth-type-label">
-                                인증 구분
-                                <span className="auth-info-tooltip" tabIndex={0}>
-                                    i
-                                    <span className="auth-info-box">
-                                        로그인 시 사용할 인증 수단입니다.<br />
-                                        법인 공인인증서, 개인 공인인증서, 휴대폰 인증 중<br />
-                                        하나를 선택하는 항목입니다.
-                                    </span>
-                                </span>
-                            </label>
-                            <div className="radio-group">
-                                <label>
-                                    <input
-                                        type="radio"
-                                        name="loginGb"
-                                        value="C"
-                                        checked={formData.loginGb === 'C'}
-                                        onChange={handleChange}
-                                        disabled={!companySearched}
-                                    />
-                                    법인
-                                </label>
-                                <label>
-                                    <input
-                                        type="radio"
-                                        name="loginGb"
-                                        value="P"
-                                        checked={formData.loginGb === 'P'}
-                                        onChange={handleChange}
-                                        disabled={!companySearched}
-                                    />
-                                    개인
-                                </label>
-                                <label>
-                                    <input
-                                        type="radio"
-                                        name="loginGb"
-                                        value="H"
-                                        checked={formData.loginGb === 'H'}
-                                        onChange={handleChange}
-                                        disabled={!companySearched}
-                                    />
-                                    휴대폰
-                                </label>
-                            </div>
-                        </div>
+					<div className="form-row">
+					    <div className="field regist-field">
+					        <label className="req">등록번호</label>
 
-                        <div className="field">
-                            <label className="req">등록번호</label>
-
-                            {formData.loginGb === 'C' ? (
-                                <input
-                                    type="text"
-                                    name="registNo"
-                                    value={formatBizNo(companyInfo.bizNo)}
-                                    disabled={!companySearched}
-                                    readOnly
-                                />
-                            ) : (
-                                <div className="reg-no-row">
-                                    <input
-                                        type="text"
-                                        name="registNo"
-                                        value={formData.registNo}
-                                        onChange={handleChange}
-                                        className="reg-f"
-                                        placeholder="앞자리"
-                                        maxLength={6}
-                                        disabled={!companySearched}
-                                    />
-                                    <span className="dash">-</span>
-                                    <input
-                                        type="password"
-                                        name="registNoSecond"
-                                        value={formData.registNoSecond}
-                                        onChange={handleChange}
-                                        className="reg-b"
-                                        maxLength={1}
-                                        disabled={!companySearched}
-                                    />
-                                    <span className="masking">******</span>
-                                </div>
-                            )}
-                        </div>
-                    </div>
+					        {formData.loginGb === 'C' ? (
+					            <input
+					                type="text"
+					                name="registNo"
+					                value={formatBizNo(companyInfo.bizNo)}
+					                disabled={!companySearched}
+					                readOnly
+					            />
+					        ) : (
+					            <div className="reg-no-row">
+					                <input
+					                    type="text"
+					                    name="registNo"
+					                    value={formData.registNo}
+					                    onChange={handleChange}
+					                    className="reg-f"
+					                    placeholder="앞자리"
+					                    maxLength={6}
+					                    disabled={!companySearched}
+					                />
+					                <span className="dash">-</span>
+					                <input
+					                    type="password"
+					                    name="registNoSecond"
+					                    value={formData.registNoSecond}
+					                    onChange={handleChange}
+					                    className="reg-b"
+					                    maxLength={1}
+					                    disabled={!companySearched}
+					                />
+					                <span className="masking">******</span>
+					            </div>
+					        )}
+					    </div>
+					</div>
                 </div>
             </section>
         );

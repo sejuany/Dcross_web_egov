@@ -97,11 +97,21 @@ const WaSendSmsModal = ({
 		console.log(sText);
 		
 		try {
-
+			
+			// 1. 문자 발송
 			await axios.post('/api/newcar/numplateSms', {
 			    PAY_HP_NO: fullPhone,
 				MSG_TYPE: '3',
 			    TEXT: sText
+			});
+			
+			// 2. 전자서명 이력 생성
+			await axios.post('/api/common/insertDsign', {
+			    SERVICE_ID: dsService.SERVICE_ID,
+				CAR_NO: dsNewCar.REQ_CAR_NO,
+				DSIGN_GB: 'WSIGN',
+				DSIGN_ST: 'REQ',
+				INS_USER: dsUserInfo.MEMBER_ID
 			});
 			
 			gf.alert('문자 전송 완료', '파일 업로드 및 서명');

@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
+
 import {
     Calculator,
     CheckCircle2,
@@ -46,10 +47,8 @@ const FALLBACK_EXEMPTION_TARGETS = [
     { CODE_ID: '12', CODE_NM: '공동경비구역(JSA) 거주자' },
     { CODE_ID: '13', CODE_NM: '비영리사업자' },
     { CODE_ID: '14', CODE_NM: '보훈보상대상자' },
-    { CODE_ID: '18', CODE_NM: '다자녀2 + 장애인(중복감면)' },
-    { CODE_ID: '19', CODE_NM: '다자녀2 + 시각장애(중복감면)' },
-    { CODE_ID: '16', CODE_NM: '다자녀3 + 장애인(중복감면)' },
-    { CODE_ID: '17', CODE_NM: '다자녀3 + 시각장애(중복감면)' }
+    { CODE_ID: '18', CODE_NM: '다자녀2 + 경증장애인(중복감면)' },
+    { CODE_ID: '16', CODE_NM: '다자녀3 + 경증장애인(중복감면)' },
 ];
 
 const FALLBACK_EXEMPTION_WHO = [
@@ -58,14 +57,54 @@ const FALLBACK_EXEMPTION_WHO = [
 ];
 
 const FALLBACK_EXEMPTION_GRADES = [
-    { CODE_ID: '0', CODE_NM: '등급 없음' },
+    { CODE_ID: '0', CODE_NM: '미적용' },
     { CODE_ID: '1', CODE_NM: '1급' },
     { CODE_ID: '2', CODE_NM: '2급' },
     { CODE_ID: '3', CODE_NM: '3급' },
     { CODE_ID: '4', CODE_NM: '4급' },
     { CODE_ID: '5', CODE_NM: '5급' },
-    { CODE_ID: '6', CODE_NM: '6급' }
+    { CODE_ID: '6', CODE_NM: '6급' },
+    { CODE_ID: '7', CODE_NM: '7급' },
+    { CODE_ID: '8', CODE_NM: '8급' },
+    { CODE_ID: '9', CODE_NM: '9급' },
+    { CODE_ID: '10', CODE_NM: '10급' },
+    { CODE_ID: '11', CODE_NM: '11급' },
+    { CODE_ID: '12', CODE_NM: '12급' },
+    { CODE_ID: '13', CODE_NM: '13급' },
+    { CODE_ID: '14', CODE_NM: '14급' },
+    { CODE_ID: 'A', CODE_NM: '고도' },
+    { CODE_ID: 'B', CODE_NM: '중도' },
+    { CODE_ID: 'C', CODE_NM: '경도' },
+    { CODE_ID: 'D', CODE_NM: '적용' },
+    { CODE_ID: '01', CODE_NM: '중증장애' },
+    { CODE_ID: '05', CODE_NM: '경증장애' }
 ];
+
+const AUTO_APPLY_EXEMPTION_TARGET_CODES = new Set(['06', '09', '12', '13', '15']);
+
+const EXEMPTION_GRADE_CODES_BY_TARGET = {
+    '01': ['1', '2', '3', '4', '5', '6', '7'],
+    '02': ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14'],
+    '03': ['A', 'B', 'C'],
+    '04': ['01', '05', '1', '2', '3', '4', '5', '6'],
+    '05': ['01', '05', '1', '2', '3', '4', '5', '6'],
+    '06': ['D'],
+    '09': ['D'],
+    '12': ['D'],
+    '13': ['D'],
+    '14': ['1', '2', '3', '4', '5', '6', '7'],
+    '15': ['D']
+};
+
+const EXCLUDED_EXEMPTION_TARGET_NAMES = new Set([
+    '경상북도소상공인',
+    '3자녀+장애인(중복감면)',
+    '2자녀+장애인(중복감면)',
+    '미적용',
+    '이용자명의리스'
+]);
+
+const normalizeExemptionTargetName = (value) => String(value || '').replace(/\s+/g, '');
 
 const JOINT_OWNER_DOCUMENT_NOTE = '공동명의 신청시\n1. 주민등록등본\n2. 가족관계증명서';
 const FAMILY_RELATION_NUMBER_NOTE = '가족관계증명서는 주민번호 뒷번호 모두 표기 되어야 함';
@@ -209,10 +248,9 @@ const EXEMPTION_DOCUMENT_INFO = {
     },
     '12': {
         name: '공동경비구역(JSA) 거주자',
-        documents: [
-            "거주지 주소에 '대송동길'이 확인되면 구비서류 불필요"
-        ],
-        note: '조례사항으로 지자체마다 확인 필요'
+		documents: ['감면 신청서'],
+        note: ["거주지 주소가 파주 '대성동'으로 확인되면 감면신청서 외 구비서류 불필요"],
+        amount: '취득세 100% 면제',
     },
     '13': {
         name: '비영리사업자',
@@ -257,20 +295,6 @@ const EXEMPTION_DOCUMENT_INFO = {
         ].join('\n'),
         amount: '취득세 70만원 감면\n경증장애일 경우 공채 금액 감면'
     },
-    '19': {
-        name: '다자녀2 + 시각장애(중복감면)',
-        documents: [
-            '중복 감면 불가'
-        ],
-        note: [
-            '경증장애일 경우 공채감면',
-            '1. 감면신청서',
-            '2. 가족관계증명서',
-            '3. 주민등록등본',
-            '4. 장애인증명서 또는 복지카드'
-        ].join('\n'),
-        amount: '취득세 70만원 감면\n경증장애일 경우 공채 금액 감면'
-    },
     '16': {
         name: '다자녀3 + 장애인(중복감면)',
         documents: [
@@ -285,20 +309,7 @@ const EXEMPTION_DOCUMENT_INFO = {
         ].join('\n'),
         amount: '취득세 140만원 감면\n경증장애일 경우 공채 금액 감면'
     },
-    '17': {
-        name: '다자녀3 + 시각장애(중복감면)',
-        documents: [
-            '중복 감면 불가'
-        ],
-        note: [
-            '경증장애일 경우 공채감면',
-            '1. 감면신청서',
-            '2. 가족관계증명서',
-            '3. 주민등록등본',
-            '4. 장애인증명서 또는 복지카드'
-        ].join('\n'),
-        amount: '취득세 140만원 감면\n경증장애일 경우 공채 금액 감면'
-    }
+
 };
 
 const normalizeExemptionCode = (code) => {
@@ -400,16 +411,41 @@ const NewcarInfo = ({
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
 
     const exemptionTargetOptions = useMemo(
-        () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS),
-        [codes]
+        () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS)
+            .filter(item => (
+                !['11', '17', '19'].includes(item.CODE_ID)
+                && !EXCLUDED_EXEMPTION_TARGET_NAMES.has(normalizeExemptionTargetName(item.CODE_NM))
+            )),
+        	[codes]
     );
     const exemptionWhoOptions = useMemo(
         () => getCodeOptions(codes, 'NTWHO', FALLBACK_EXEMPTION_WHO),
         [codes]
     );
-    const exemptionGradeOptions = useMemo(
+    const allExemptionGradeOptions = useMemo(
         () => getCodeOptions(codes, 'NTTGR', FALLBACK_EXEMPTION_GRADES),
         [codes]
+    );
+    const exemptionGradeOptions = useMemo(() => {
+        const targetCode = String(dsNewCar.NTAX_TRGET_CD ?? '');
+        const allowedGradeCodes = EXEMPTION_GRADE_CODES_BY_TARGET[targetCode];
+
+        if (!allowedGradeCodes) {
+            return [];
+        }
+
+        const gradeByCode = new Map(
+            allExemptionGradeOptions.map(item => [String(item.CODE_ID), item])
+        );
+
+        return allowedGradeCodes
+            .map(code => gradeByCode.get(code))
+            .filter(Boolean);
+    }, [allExemptionGradeOptions, dsNewCar.NTAX_TRGET_CD]);
+    const isExemptionGradeDisabled = (
+        !dsNewCar.NTAX_TRGET_CD
+        || dsNewCar.NTAX_TRGET_CD === '00'
+        || AUTO_APPLY_EXEMPTION_TARGET_CODES.has(String(dsNewCar.NTAX_TRGET_CD))
     );
     const bankOptions = useMemo(
         () => getCodeOptions(codes, 'BANK', FALLBACK_BANKS),
@@ -432,6 +468,38 @@ const NewcarInfo = ({
             setIsExemptionOpen(true);
         }
     }, [hasExemption]);
+
+    useEffect(() => {
+        if (!setDsNewCar) {
+            return;
+        }
+
+        const targetCode = String(dsNewCar.NTAX_TRGET_CD ?? '');
+
+        if (!targetCode || targetCode === '00') {
+            return;
+        }
+
+        const allowedGradeCodes = exemptionGradeOptions.map(item => String(item.CODE_ID));
+        const currentGradeCode = String(dsNewCar.NTAX_TRGET_GR_CD ?? '');
+        const nextGradeCode = AUTO_APPLY_EXEMPTION_TARGET_CODES.has(targetCode)
+            ? (allowedGradeCodes[0] || '')
+            : (allowedGradeCodes.includes(currentGradeCode) ? currentGradeCode : '');
+
+        if (currentGradeCode === nextGradeCode) {
+            return;
+        }
+
+        setDsNewCar(prev => ({
+            ...prev,
+            NTAX_TRGET_GR_CD: nextGradeCode
+        }));
+    }, [
+        dsNewCar.NTAX_TRGET_CD,
+        dsNewCar.NTAX_TRGET_GR_CD,
+        exemptionGradeOptions,
+        setDsNewCar
+    ]);
 
     useEffect(() => {
         const nextReceiptType = dsTaxReceipt.GUBUN || '';
@@ -462,6 +530,39 @@ const NewcarInfo = ({
         }));
     }, [dsNewCar.MPHONE_NO, dsNewCar.PAY_HP_NO, dsNewCar.PROC_CD, dsNewCar.TASK_CD, setDsNewCar]);
 
+	// 사용본거지가 '대송동길'이면, 자동으로 공동경비구역(JSA) 거주자로 전환
+	useEffect(() => {
+
+	    const checkJsa = async () => {
+
+	        const baseAddr = dsNewCar.BASE_ADDRESS || '';
+
+	        if (
+	            baseAddr.includes('파주') &&
+	            baseAddr.includes('대성동길')
+	        ) {
+
+	            if (dsNewCar.NTAX_TRGET_CD !== '' && 
+					dsNewCar.NTAX_TRGET_CD !== '00' &&
+					dsNewCar.NTAX_TRGET_CD !== '12'
+				) {
+	                await gf.alert('공동경비구역(JSA) 거주자 대상으로 비과세 혜택을 받으실 수 있으니, 참고 바랍니다.');
+	                return;
+	            }
+
+	            setIsExemptionOpen(true);
+
+	            setDsNewCar(prev => ({
+	                ...prev,
+	                NTAX_TRGET_CD: '12'
+	            }));
+	        }
+	    };
+
+	    checkJsa();
+
+	}, [dsNewCar.BASE_ADDRESS]);
+		
     const updateNewCar = (updater) => {
         if (!setDsNewCar) {
             return;
@@ -804,6 +905,7 @@ const NewcarInfo = ({
                                         value={dsNewCar.NTAX_TRGET_GR_CD ?? ''}
                                         options={exemptionGradeOptions}
                                         onChange={handleChange}
+                                        disabled={isExemptionGradeDisabled}
                                     />
                                 </div>
 
@@ -967,7 +1069,11 @@ const NewcarInfo = ({
                                         <tr key={row.PAY_KD} className={isCardExcluded ? 'muted' : ''}>
                                             <td>{PAYMENT_LABELS[row.PAY_KD]}</td>
                                             <td>{formatAmount(amount)} 원</td>
-                                            <td>{isCardExcluded ? '카드납부' : '입금대상'}</td>
+                                            <td>{isCardExcluded
+											    ? '카드납부'
+											    : Number(amount) === 0
+											        ? '-'
+											        : '입금대상'}</td>
                                         </tr>
                                     );
                                 })}

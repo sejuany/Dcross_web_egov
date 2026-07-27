@@ -235,7 +235,7 @@ const CustomerUpload = () => {
 				<h3>추가 제출 서류</h3>
 	
 				<p className="customer-description">
-				    신규등록을 위해 필요한 서류를 등록해 주세요.
+				    감면을 위해 필요한 서류를 등록해 주세요.
 				</p>
 	
 				<div className="customer-upload-guide">

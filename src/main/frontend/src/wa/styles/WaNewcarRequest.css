@@ -514,8 +514,8 @@
 }
 
 .wa-form-sub-label input[type="checkbox"] {
-    appearance: none;
     -webkit-appearance: none;
+    appearance: none;
 
     width: 14px;
     height: 14px;
@@ -770,7 +770,7 @@ hr.wa-divider.hr2 {
 
     border: 0;
     border-radius: 8px;
-    background: #4f8cff;
+    background: #3b6df6;
     color: #fff;
     font-size: 15px;
     font-weight: 600;
@@ -843,6 +843,7 @@ hr.wa-divider.hr2 {
 
     font-size: 16px;
     font-weight: 700;
+    cursor: pointer;
 }
 
 .wa-title {
@@ -1875,12 +1876,55 @@ hr.wa-divider.hr2 {
 }
 
 /* =========================================================
+   재병합 버튼
+   ========================================================= */
+   
+.wa-attach-merge-btn {
+    height: 40px;
+    min-width: 150px;
+    padding: 0 18px;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    background: #ffffff;
+    border: 1px solid #2f6fed;
+    border-radius: 8px;
+
+    color: #2f6fed;
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: all .2s ease;
+}
+
+.wa-attach-merge-btn:hover {
+    background: #2f6fed;
+    color: #ffffff;
+}
+
+.wa-attach-merge-btn:active {
+    transform: scale(0.98);
+}
+
+.wa-attach-merge-btn:disabled {
+    opacity: .5;
+    cursor: not-allowed;
+}
+
+
+
+/* =========================================================
    문자 발송 버튼
    ========================================================= */
 
 .wa-attach-btn-div {
     display: flex;
     justify-content: center;
+    gap: 12px;
+    margin-top: 28px;   /* 부모로 이동 */
 }
 
 .wa-attach-link-btn {
@@ -1891,8 +1935,6 @@ hr.wa-divider.hr2 {
 
     width: min(420px, 100%);
     height: 42px;
-
-    margin-top: 28px;
 
     border: none;
     border-radius: 10px;

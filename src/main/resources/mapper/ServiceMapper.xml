@@ -67,6 +67,9 @@
 	                JUDGE_DT = SYSDATE,
 	            </if>
 	        </if>
+	        <if test="JUDGE_ST == ''">
+                JUDGE_DT = '',
+	        </if>
 	        <if test="PROC_ST != null and PROC_ST != ''">
 	            PROC_ST = #{PROC_ST},
 	        </if>

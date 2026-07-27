@@ -1,13 +1,14 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Download, RotateCcw, Search, Upload, WalletCards, X } from 'lucide-react';
+import { ClipboardCheck, Download, RotateCcw, Search, Upload, WalletCards, X, UsersRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from './newcar/WaNewcarRequest';
+import { gf } from '../../utils/utils'; // 공통 유틸 함수
 import '../styles/wa.css';
 
 const dateTypeFallbackOptions = [
-    { CODE_ID: 'REQDT', CODE_NM: '신청일자' },
+    { CODE_ID: 'REQDT', CODE_NM: '입력일자' },
     { CODE_ID: 'JDGDT', CODE_NM: '등록일자' },
     { CODE_ID: 'REGDT', CODE_NM: '등록예정일자' },
 ];
@@ -17,6 +18,19 @@ const processStatusFallbackOptions = [];
 
 const SEARCH_START_LIMIT_YEARS = 2;
 const DIRECT_REGISTRATION_PROCESS_CODE = 'DIRCT';
+const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
+    'REGIST_DATE',
+    'ATTACH_YN',
+    'CARD_YN',
+    'NTAX_YN',
+    'PAY_ST',
+    'BPAY_DT',
+    'PAY_DT',
+    'INS_DATE',
+    'JUDGE_DT',
+    'SEND_YN_DT',
+    'DELIVERY_ADDR'
+]);
 
 
 const plateDeliveryOptions = [
@@ -53,19 +67,21 @@ const headerActionButtons = [
 
 const gridActionButtons = [
     { key: 'apply', label: '신청', Icon: ClipboardCheck, variant: 'outline' },
-    { key: 'payment', label: '차량대금 납부', Icon: WalletCards, variant: 'outline' }
+    { key: 'payment', label: '차량대금 납부', Icon: WalletCards, variant: 'outline' },
+    { key: 'suChange', label: '담당자 변경', Icon: UsersRound , variant: 'outline' }
 ];
 
 const DEFAULT_MIN_COLUMN_WIDTH = 56;
 
 const columns = [
     { key: 'CHK', label: '', type: 'checkbox', width: 44, minWidth: 40, sortable: false },
-    { key: 'SEQ', label: '순번', width: 44, minWidth: 20, sortType: 'number' },
+    { key: 'SEQ', label: '순번', width: 44, minWidth: 20, sortable: false },
     { key: 'REGIST_DATE', label: '등록예정일자', width: 116, minWidth: 50, sortType: 'date' },
     { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 100, minWidth: 60 },
     { key: 'LINK_ID', label: '주문번호', width: 82, minWidth: 60 },
     { key: 'CARID_NO', label: '차대번호', width: 150, minWidth: 60 },
     { key: 'CAR_NO', label: '차량번호', width: 96, minWidth: 60 },
+    { key: 'CUSTOMER_NM', label: '계약자명', width: 120, minWidth: 60 },
     { key: 'OWNER_NM', label: '소유자명', width: 120, minWidth: 60 },
     { key: 'BUY_AMT', label: '공급가액', width: 102, minWidth: 60, sortType: 'number', className: 'number-cell' },
     { key: 'ATTACH_YN', label: '첨부서류', width: 65, minWidth: 60 },
@@ -79,7 +95,7 @@ const columns = [
     { key: 'SEND_YN_DT', label: '배송일자', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'SPACE', label: 'SPACE', width: 116, minWidth: 60 },
     { key: 'DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
-    { key: 'INS_USER', label: '담당SP명', width: 112, minWidth: 60 },
+    { key: 'MEMBER_ID', label: '담당SP명', width: 112, minWidth: 60 },
     { key: 'RETURN_TX', label: '비고', type: 'remark', width: 190, minWidth: 60, className: 'wide-text' }
 ];
 
@@ -121,7 +137,7 @@ const getInitialSearchDateRange = (memberGb) => {
     const normalizedMemberGb = String(memberGb || '').trim().toUpperCase();
     const today = getFormattedDateOffset(0);
 
-    if (normalizedMemberGb === 'SA') {
+    if (normalizedMemberGb === 'CA' || normalizedMemberGb === 'BA') {
         return {
             startDate: clampSearchStartDate(getFormattedDateOffset(-7)),
             endDate: today
@@ -247,20 +263,20 @@ const isDirectRegistrationRow = (row) =>
     toStringValue(row.DIRECT_YN) === 'Y';
 
 const createStatusCards = (rows) => [
-    { label: '정보입력', value: rows.filter(row => isStatusIn(row, ['SAV'])).length },
+    { label: '정보입력', value: rows.filter(row => isStatusIn(row, ['SAV','REQ'])).length },
     { label: '신청대기', value: rows.filter(row => isStatusIn(row, ['W_REQ'])).length },
-    { label: '인도금 납부중', value: rows.filter(row => isStatusIn(row, ['P_REQ'])).length},
+    { label: '인도금 납부중', value: rows.filter(row => isStatusIn(row, ['P_REQ','PREND','PBEND'])).length},
     { label: '인도금 납부완료', value: rows.filter(row => isStatusIn(row, ['P_END'])).length },
     { label: '등록 중', value: rows.filter(row => isStatusIn(row, ['S_REQ'])).length },
     { label: '등록 완료', value: rows.filter(row => isStatusIn(row, ['S_END'])).length },
     { label: '반려', value: rows.filter(isRejectRow).length, danger: true },
-    { label: '고객 직접 납부', value: rows.filter(row => toStringValue(row.DIRECT_YN) === 'Y').length, muted: true }
+    { label: '고객 직접 납부', value: rows.filter(row => isStatusIn(row, ['DIRCT'])).length , muted: true }
 ];
 
 const WaNewcarList = () => {
     const { user, logout } = useAuth();
     const memberGb = getUserMemberGb(user);
-    const canManageNewcarActions = memberGb === 'SA';
+    const canManageNewcarActions = memberGb === 'CA';
     const [codeListMap, setCodeListMap] = useState({});
     const [branchList, setBranchList] = useState([]);
     const [rawRows, setRawRows] = useState([]);
@@ -274,6 +290,9 @@ const WaNewcarList = () => {
     const [activeRequest, setActiveRequest] = useState(null);
     const [requestRows, setRequestRows] = useState([]);
     const [showRequestConfirm, setShowRequestConfirm] = useState(false);
+	const [showSuChangeModal, setShowSuChangeModal] = useState(false);
+	const [changeUser, setChangeUser] = useState("");
+	const [userList, setUserList] = useState([]);
     const fileInputRef = useRef(null);
     const searchStartLimitDate = getSearchStartLimitDate();
 	// 더블클릭 했을 때 해당 건으로 들어가기 위해
@@ -323,24 +342,29 @@ const WaNewcarList = () => {
             value: branch.BRANCH_ID,
             label: branch.BRANCH_NM
         }));
+        const availableSpaceOptions = branchOptions.length > 0 ? branchOptions : spaceFallbackOptions;
+        const selectableSpaceOptions = memberGb === 'CA'
+            ? availableSpaceOptions.filter(option => String(option.label || '').trim() !== '본점')
+            : availableSpaceOptions;
 
         return [
             { value: '', label: '전체' },
-            ...(branchOptions.length > 0 ? branchOptions : spaceFallbackOptions)
+            ...selectableSpaceOptions
         ];
-    }, [branchList]);
+    }, [branchList, memberGb]);
 
     const rows = useMemo(() => rawRows.map((row, index) => {
         const processStatus = formatCode('NPRST', row.NPROC_ST || row.PROC_ST);
         const paymentStatus = formatCode('PAYST', row.PAY_ST);
         const rowKey = toStringValue(row.SERVICE_ID) || `${row.LINK_ID || 'row'}-${index}`;
         const displayValues = {
-            SEQ: row.SEQ || index + 1,
+            SEQ: index + 1,
             REGIST_DATE: row.REGIST_DATE || '',
             PROC_ST: processStatus,
             LINK_ID: row.LINK_ID || '',
             CARID_NO: row.CARID_NO || '',
             CAR_NO: row.CAR_NO || '',
+            CUSTOMER_NM: row.CUSTOMER_NM || '',
             OWNER_NM: row.OWNER_NM || '',
             BUY_AMT: formatAmount(row.BUY_AMT),
             ATTACH_YN: formatYn(row.ATTACH_YN),
@@ -354,7 +378,7 @@ const WaNewcarList = () => {
             SEND_YN_DT: row.SEND_YN_DT || '',
             SPACE: row.SPACE || '',
             DELIVERY_ADDR: row.DELIVERY_ADDR || '',
-            INS_USER: row.INS_USER || '',
+            MEMBER_ID: row.MEMBER_ID || '',
             RETURN_TX: row.RETURN_TX || ''
         };
 
@@ -384,7 +408,7 @@ const WaNewcarList = () => {
             sendYnDT: displayValues.SEND_YN_DT,
             space: displayValues.SPACE,
             address: displayValues.DELIVERY_ADDR,
-            sp: displayValues.INS_USER,
+            sp: displayValues.MEMBER_ID,
             remark: displayValues.RETURN_TX
         };
     }), [formatCode, rawRows]);
@@ -555,7 +579,13 @@ const WaNewcarList = () => {
 
         exportRowsToXlsx({
             columns,
-            rows: sortedRows,
+            rows: sortedRows.map((row, index) => ({
+                ...row,
+                displayValues: {
+                    ...row.displayValues,
+                    SEQ: index + 1
+                }
+            })),
             fileName: `신규등록현황_${getFormattedDateOffset(0)}.xlsx`,
             sheetName: '신규등록현황',
             getCellValue: (row, column) => row.displayValues[column.key] ?? ''
@@ -629,7 +659,8 @@ const WaNewcarList = () => {
             const errorText = Array.isArray(errors) && errors.length
                 ? errors.map(error => `${error.row ?? ''}행: ${(error.errors || []).join(', ')}`).join('\n')
                 : '';
-            setErrorMessage(response.data?.message || response.data?.data?.message || errorText || '등록 실패');
+            const uploadErrorDetail = response.data?.message || response.data?.data?.message || errorText || '등록 실패';
+            setErrorMessage(`오류사항 수정 후 재업로드 부탁드립니다.\n${uploadErrorDetail}`);
         } catch (error) {
             console.error('WA 엑셀 업로드 실패:', error);
 
@@ -739,7 +770,10 @@ const WaNewcarList = () => {
 
                 return {
                     SERVICE_ID: row.SERVICE_ID,
-                    PROC_ST: nextStatus
+                    PROC_ST: nextStatus,
+					CAR_NO: row.REQ_CAR_NO,
+					SU_ID: row.SU_ID,
+					MPHONE_NO: row.MPHONE_NO
                 };
             });
 
@@ -767,6 +801,49 @@ const WaNewcarList = () => {
             setLoading(false);
         }
     };
+	
+	const handleSuChangeClick = async () => {
+	    setErrorMessage("");
+	    setNoticeMessage("");
+
+	    if (selectedRows.length === 0) {
+	        setErrorMessage("선택된 건이 없습니다.");
+	        return;
+	    }
+
+	    if (selectedRows.length > 1) {
+	        setErrorMessage("담당자 변경은 1건만 선택 가능합니다.");
+	        return;
+	    }
+
+		// 같은 지점 담당자 조회
+	    const res = await axios.post("/api/company/user/list", 		{
+		    MEMBER_GB: "SU",
+		    BRANCH_ID: selectedRows[0].BRANCH_ID
+		});
+		
+		
+		setUserList(res.data.list);
+	    setShowSuChangeModal(true);
+	};
+	
+	const handleSuChangeConfirm = async () => {
+	    if (!changeUser) {
+	        gf.alert("변경 담당자를 선택하세요.");
+	        return;
+	    }
+	    try {
+	        await axios.post("/api/newcar/change-su", {
+	            SERVICE_ID: selectedRows[0].SERVICE_ID,
+	            CHAGE_SU_ID: changeUser
+	        });
+	        gf.alert("담당자가 변경되었습니다.");
+	        setShowSuChangeModal(false);
+	        fetchNewCarList(searchFilters);
+	    } catch (e) {
+	        gf.alert("담당자 변경 중 오류가 발생했습니다.");
+	    }
+	};
 
     const handleGridActionClick = (actionKey) => {
         if (!canManageNewcarActions) {
@@ -780,7 +857,14 @@ const WaNewcarList = () => {
 
         if (actionKey === 'payment') {
             handlePaymentClick();
+            return;
         }
+		
+		if (actionKey === 'suChange') {
+            handleSuChangeClick();
+			return;
+        }
+		
     };
     const toggleAllRows = (checked) => {
         setSelectedRowKeys(checked ? rows.map(row => row.rowKey) : []);
@@ -882,7 +966,7 @@ const WaNewcarList = () => {
     }, [getColumnWidth]);
 
 
-    const renderGridCell = (row, column) => {
+    const renderGridCell = (row, column, rowIndex) => {
         if (column.type === 'checkbox') {
             return (
                 <input
@@ -894,12 +978,23 @@ const WaNewcarList = () => {
             );
         }
 
+        if (
+            isDirectRegistrationRow(row) &&
+            DIRECT_REGISTRATION_BLANK_COLUMN_KEYS.has(column.key)
+        ) {
+            return '';
+        }
+
         if (column.type === 'processStatus') {
             return <span className={`wa-grid-status ${getStatusClass(row.displayValues.PROC_ST, row.processStatusCode)}`}>{row.displayValues.PROC_ST}</span>;
         }
 
         if (column.type === 'remark') {
             return <span className={isRejectRow(row) ? 'wa-grid-danger' : ''}>{row.displayValues.RETURN_TX}</span>;
+        }
+
+        if (column.key === 'SEQ') {
+            return rowIndex + 1;
         }
 
         return row.displayValues[column.key] ?? '';
@@ -937,7 +1032,7 @@ const WaNewcarList = () => {
 	}, [activeRequest]);
 	
     return (
-        <div className={`wa-status-page${(activeRequest || showRequestConfirm) ? ' has-modal' : ''}`}>
+        <div className={`wa-status-page wa-newcar-list-page${(activeRequest || showRequestConfirm) ? ' has-modal' : ''}`}>
             <div className="wa-status-page-content" aria-hidden={(activeRequest || showRequestConfirm) ? 'true' : undefined}>
             <section className="wa-status-top-toolbar" aria-label="신규신청현황 조회 조건">
                 <section className="wa-status-period-panel" aria-label="조회 기간">
@@ -1112,14 +1207,14 @@ const WaNewcarList = () => {
                                 <tr>
                                     <td className="wa-status-empty" colSpan={columns.length} >조회된 데이터가 없습니다.</td>
                                 </tr>
-                            ) : sortedRows.map(row => (
+                            ) : sortedRows.map((row, rowIndex) => (
                                 <tr key={row.rowKey} className="wa-status-data-row"
 									onClick={() => handleRowClick(row)}
 									/*onDoubleClick={() => handleRowDoubleClick(row)} */
 									tabIndex={0} onKeyDown={event => event.key === 'Enter' && handleRowDoubleClick(row)}>
                                     {columns.map(column => (
                                         <td key={`${row.rowKey}-${column.key}`} className={column.className || undefined}>
-                                            {renderGridCell(row, column)}
+                                            {renderGridCell(row, column, rowIndex)}
                                         </td>
                                     ))}
                                 </tr>
@@ -1197,6 +1292,69 @@ const WaNewcarList = () => {
                     </section>
                 </div>
             )}
+			{showSuChangeModal && (
+			<div className="wa-request-modal-backdrop">
+			    <section className="wa-action-confirm-frame">
+			        <header className="wa-action-confirm-header">
+			            <strong>담당자 변경</strong>
+			        </header>
+			        <div className="wa-action-confirm-content">
+			            <div style={{marginBottom:10}}>
+			                {selectedRows[0]?.CARID_NO} 차량의<br/>
+			                담당자를 변경하시겠습니까?
+			            </div>
+			            <table style={{width:"100%"}}>
+			                <tbody>
+			                <tr>
+			                    <td style={{width:70}}>기존</td>
+			                    <td>{selectedRows[0]?.MEMBER_ID}</td>
+			                </tr>
+			                <tr>
+			                    <td>변경</td>
+			                    <td>
+									<select
+									    className="wa-su-change-select"
+									    value={changeUser}
+									    onChange={(e) => setChangeUser(e.target.value)}
+									>
+									    <option value="">선택</option>
+	
+									    {[...userList]
+									        .filter(user => user.MEMBER_NM !== selectedRows[0]?.MEMBER_ID)
+									        .sort((a, b) => a.MEMBER_NM.localeCompare(b.MEMBER_NM, 'ko'))
+									        .map(user => (
+									            <option
+									                key={user.LOGIN_ID}
+									                value={user.LOGIN_ID}
+									            >
+									                {user.MEMBER_NM}
+									            </option>
+									        ))
+									    }
+									</select>
+			                    </td>
+			                </tr>
+			                </tbody>
+			            </table>
+			        </div>
+			        <footer className="wa-action-confirm-footer">
+			            <button
+			                className="wa-status-action outline"
+			                onClick={()=>setShowSuChangeModal(false)}
+			            >
+			                닫기
+			            </button>
+			            <button
+			                className="wa-status-action primary"
+			                onClick={handleSuChangeConfirm}
+			            >
+			                확인
+			            </button>
+			        </footer>
+
+			    </section>
+			</div>
+			)}
         </div>
     );
 };

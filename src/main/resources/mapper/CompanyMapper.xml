@@ -664,7 +664,8 @@
             HJD_CD,
             HJD_NM,
             ROAD_CD,
-            ROAD_NM
+            ROAD_NM,
+            ADDR_INFO
         FROM TM_COMPANY_BASE
         WHERE COMPANY_ID = #{COMPANY_ID}
         ORDER BY
@@ -695,6 +696,20 @@
         WHERE COMPANY_ID = #{COMPANY_ID}
         ORDER BY WORK_CD
     </select>
+	    
+	<select id="countMemberByBranch" parameterType="java.util.Map" resultType="int">
+	    SELECT COUNT(1)
+	      FROM TM_MEMBER_DT
+	     WHERE COMPANY_ID = #{COMPANY_ID}
+	       AND BRANCH_ID = #{BRANCH_ID}
+	</select>
+	
+	<select id="countSangsaByBranch" parameterType="java.util.Map" resultType="int">
+	    SELECT COUNT(1)
+	      FROM TM_SANGSA
+	     WHERE COMPANY_ID = #{COMPANY_ID}
+	       AND BRANCH_ID = #{BRANCH_ID}
+	</select>
 
     <!-- 기업관리 회사 기본정보 수정 -->
     <update id="updateCompanyManageInfo" parameterType="java.util.Map">
@@ -716,12 +731,6 @@
             UPD_DATE = SYSDATE
         WHERE COMPANY_ID = #{COMPANY_ID}
     </update>
-
-    <!-- 기업관리 사용본거지 전체 삭제 -->
-    <delete id="deleteCompanyManageBaseAddr" parameterType="java.util.Map">
-        DELETE FROM TM_COMPANY_BASE
-        WHERE COMPANY_ID = #{COMPANY_ID}
-    </delete>
 
     <insert id="insertCompanyManageBaseAddr" parameterType="java.util.Map">
 	    INSERT INTO TM_COMPANY_BASE (
@@ -905,8 +914,6 @@
 	        SYSDATE
 	    )
 	</insert>
-	    
-
 
 	<update id="updateCompanyManageBranch"
 	        parameterType="java.util.Map">
@@ -1003,5 +1010,17 @@
         DELETE FROM TM_WORK_MB
         WHERE COMPANY_ID = #{COMPANY_ID}
           AND MEMBER_ID = #{MEMBER_ID}
+    </delete>
+    
+	<delete id="deleteCompanyManageBranch" parameterType="java.util.Map">
+	    DELETE FROM TM_BRANCH
+	     WHERE COMPANY_ID = #{COMPANY_ID}
+	       AND BRANCH_ID = #{BRANCH_ID}
+	</delete>
+    
+    <!-- 기업관리 사용본거지 전체 삭제 -->
+    <delete id="deleteCompanyManageBaseAddr" parameterType="java.util.Map">
+        DELETE FROM TM_COMPANY_BASE
+        WHERE COMPANY_ID = #{COMPANY_ID}
     </delete>
 </mapper>

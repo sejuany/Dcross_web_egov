@@ -59,7 +59,6 @@ const OwnerPersonal = ({
 	
 	// 주소 기능 추가
 	const {
-	    handleLeaseCompany,
 	    handleAddressSelect,
 	    handleClearAddress,
 	} = address;
@@ -86,8 +85,8 @@ const OwnerPersonal = ({
 	    if (isJointOwnerOpen) {
 
 	        const ok = await gf.confirm(
-	            '공동명의 정보를 삭제하시겠습니까? 확인을 누르면 공동명의 정보가 삭제 되며, 단독소유로 변경 됩니다.',
-	            '공동명의 삭제',
+	            '공동소유자 정보를 삭제하시겠습니까? 확인을 누르면 공동소유 정보가 삭제 되며, 단독소유로 변경 됩니다.',
+	            '공동소유자 삭제',
 	        );
 
 	        if (!ok) {
@@ -285,7 +284,7 @@ const OwnerPersonal = ({
 			)}
 		
 			
-		    {/* 공동명의 */}
+		    {/* 공동소유 */}
 			<button
 			    type="button"
 			    className={`wa-joint-btn ${isJointOwnerOpen ? 'active' : ''}`}

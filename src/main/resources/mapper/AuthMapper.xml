@@ -44,7 +44,7 @@
             MM.LOGIN_ID = #{userId}
             AND MM.USE_YN  = 'Y'
    			AND MD.USE_YN = 'Y'
-   			<!-- AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') --> <!-- 기존 더코어 사용 회사 로그인 가능 -->
+   			AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') <!-- 기존 더코어 사용 회사 로그인 가능 -->
     </select>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
@@ -135,7 +135,7 @@
 	</select>
 
 	<select id="selectMemberSuInfo" parameterType="string" resultType="java.util.Map">
-		SELECT COMPANY_ID, MEMBER_NM, LOGIN_ID
+		SELECT COMPANY_ID, MEMBER_NM, LOGIN_ID, BRANCH_ID
 		FROM TM_MEMBER_DT
 		WHERE MEMBER_GB = 'SU'
 		  AND COMPANY_ID = #{companyId}

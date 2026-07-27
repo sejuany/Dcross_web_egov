@@ -529,50 +529,50 @@ const WaCompanyManage = () => {
         }
     };
 
-    const handleDeleteBranch = async () => {
-        if (!canManageCompany) {
-            await alertMessage('SPACE 삭제 권한이 없습니다.');
-            return;
-        }
+	const handleDeleteBranch = async () => {
+	    if (!canManageCompany) {
+	        await alertMessage('SPACE 삭제 권한이 없습니다.');
+	        return;
+	    }
 
-        if (!branchInput.BRANCH_ID) {
-            await alertMessage('삭제할 SPACE을 선택해주세요.');
-            return;
-        }
+	    if (!branchInput.BRANCH_ID) {
+	        await alertMessage('삭제할 SPACE를 선택해주세요.');
+	        return;
+	    }
 
-        const ok = await confirmMessage('선택한 SPACE을 미사용 처리하시겠습니까?', '삭제');
+	    const ok = await confirmMessage(
+	        '선택한 SPACE를 실제 삭제하시겠습니까?\n\n삭제 후 복구할 수 없습니다.',
+	        '삭제'
+	    );
 
-        if (!ok) {
-            return;
-        }
+	    if (!ok) {
+	        return;
+	    }
 
-        setSaving(true);
+	    setSaving(true);
 
-        try {
-            const payload = {
-                ...branchInput,
-                COMPANY_ID: loginCompanyId,
-                USE_YN: 'N',
-                INS_USER: loginId,
-            };
+	    try {
+	        const response = await axios.post('/api/company/branch/manage/delete', {
+	            COMPANY_ID: loginCompanyId,
+	            BRANCH_ID: branchInput.BRANCH_ID,
+	            INS_USER: loginId,
+	        });
 
-            const response = await axios.post('/api/company/branch/manage/save', payload);
+	        if (!response.data.success) {
+	            await alertMessage(response.data.message || 'SPACE 삭제에 실패했습니다.');
+	            return;
+	        }
 
-            if (!response.data.success) {
-                await alertMessage(response.data.message || 'SPACE 삭제에 실패했습니다.');
-                return;
-            }
+	        await alertMessage('SPACE를 삭제했습니다.', '삭제');
 
-            await alertMessage('지점을 미사용 처리했습니다.', '삭제');
-
-            await loadBranchList();
-        } catch (error) {
-            console.error('[WaCompanyManage] 지점 삭제 실패:', error);
-            await alertMessage(error.response?.data?.message || 'SPACE 삭제 중 오류가 발생했습니다.');
-        } finally {
-            setSaving(false);
-        }
-    };
+	        await loadBranchList();
+	    } catch (error) {
+	        console.error('[WaCompanyManage] SPACE 삭제 실패:', error);
+	        await alertMessage(error.response?.data?.message || 'SPACE 삭제 중 오류가 발생했습니다.');
+	    } finally {
+	        setSaving(false);
+	    }
+	};
 
     const handleReload = async () => {
         await initPage();

@@ -1,8 +1,15 @@
-import React, {useState} from 'react';
+import React, { useState, useEffect } from 'react';
 import { ChevronRight, FileText } from 'lucide-react';
 
 // 첨부서류 모달
 import WaNewcarAttachModal from './WaNewcarAttachModal';
+
+// 파일 업로드 정책 가져오기
+import {
+    getAttachPolicy,
+    getNtaxAttachPolicy,
+	NTAX_POLICY
+} from '../../../policy/attachPolicy';
 
 const ConfirmInfo = ({
 	dsService,
@@ -19,16 +26,29 @@ const ConfirmInfo = ({
 	dsOwnerInfo,
 	dsTaxReceipt,
 	dsBaseList,
-	dsPaymentList
+	dsPaymentList,
+	onAttachClose,
+	onMoveStep
 }) => {
 	// 첨부서류 모달
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
+	const [showAttachButton, setShowAttachButton] = useState(false);
 	
 	// 첨부파일 버튼 보이는 조건
-	const showAttachButton =
-	    dsNewCar.REG_GB === 'F' || // 외국인
-	    Number(dsNewCar.RATIO_NO) !== 100 || // 공동소유자 있는 경우
-	    dsNewCar.NTAX_TRGET_CD !== '00'; // 비과세 대상자
+	useEffect(() => {
+
+	    // 일반 첨부 정책
+	    const attachPolicy = getAttachPolicy(dsNewCar);
+		
+	    // 비과세 첨부 정책
+	    const ntaxPolicy = getNtaxAttachPolicy(dsNewCar);
+		
+	    setShowAttachButton(
+	        attachPolicy.needSign || attachPolicy.needUpload || ntaxPolicy.needUpload
+	    );
+
+	}, [dsNewCar]);
+			
 		
 	const taxReciptNm =
 	    dsTaxReceipt?.GUBUN === 'TAX'
@@ -55,7 +75,8 @@ const ConfirmInfo = ({
 		        {/* 소유자 정보 */}
 				<div className="wa-confirm-card">
 
-				    <div className="wa-confirm-title">
+				    <div className="wa-confirm-title"
+						onClick={() => onMoveStep?.(1)}>
 				        소유자 정보
 				        <ChevronRight size={18} />
 				    </div>
@@ -215,7 +236,9 @@ const ConfirmInfo = ({
 		        {/* 자동차 정보 */}
 		        <div className="wa-confirm-card">
 		
-		            <div className="wa-confirm-title">
+		            <div className="wa-confirm-title"
+						 onClick={() => onMoveStep?.(2)}
+					>
 		                자동차 정보
 		                <ChevronRight size={18} />
 		            </div>
@@ -256,7 +279,9 @@ const ConfirmInfo = ({
 		        {/* 신규등록 정보 */}
 		        <div className="wa-confirm-card">
 		
-		            <div className="wa-confirm-title">
+		            <div className="wa-confirm-title"
+						onClick={() => onMoveStep?.(3)}
+					>
 		                신규등록 정보
 		                <ChevronRight size={18} />
 		            </div>
@@ -349,7 +374,10 @@ const ConfirmInfo = ({
 					dsCarNoDetach={dsCarNoDetach}
 					setDsCarNoDetach={setDsCarNoDetach}
 					saveProcess={saveProcess}
-				    onClose={() => setAttachModalOpen(false)}
+					onClose={() => {
+					    setAttachModalOpen(false);
+					    onAttachClose?.();
+					}}
 				/>
 		    </div>
         </>

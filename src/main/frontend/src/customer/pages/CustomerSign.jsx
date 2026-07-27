@@ -15,6 +15,8 @@ import { gf, log } from '../../utils/utils';
 // 정책 가져오기
 
 import {
+	getAttachPolicy,
+	getNtaxAttachPolicy,
 	SIGN_DOC
 } from '../../policy/attachPolicy';
 
@@ -28,15 +30,27 @@ const CustomerSign = () => {
 	const [searchParams] = useSearchParams();
 	// 토큰
 	let token = searchParams.get('t');
-	// 차량번호
-	const [carNo, setCarNo] = useState('');
-	// 서비스 아이디
-	const [serviceId, setServiceId] = useState('');
-	// 매니저 전화번호
-	const [managerTel, setManagerTel] = useState('');
+	const [info, setInfo] = useState({});
+	const [codes, setCodes] = useState({});
 	
+	// 공통코드 데이터 로딩
+	useEffect(() => {
+
+		const loadCodes = async () => {
+		    const result = await gf.getCodes(['NTTCD', 'NTTGR', 'NTACD', 'NTWHO']);
+		    setCodes(result);
+		};
+
+		loadCodes();
+	}, [setCodes]);
 	
-	log("token : " + token);
+	const nType = (codes.NTTCD || []).find(
+	    item => item.CODE_ID === info.NTAX_TRGET_CD
+	);
+
+	const nGrade = (codes.NTTGR || []).find(
+	    item => item.CODE_ID === info.NTAX_TRGET_GR_CD
+	);
 	
 	/* =========================================================
 	 * 화면 진입 시 데이터 조회
@@ -48,6 +62,7 @@ const CustomerSign = () => {
 
 	}, []);
 
+	
 	/* =========================================================
 	 * 신청 정보 조회
 	========================================================= */
@@ -79,10 +94,14 @@ const CustomerSign = () => {
 			    return;
 			}
 			
-			// 서명이 필요한 경우
-			setCarNo(info.CAR_NO);
-			setServiceId(info.SERVICE_ID);
-			setManagerTel(info.MANAGER_TEL ?? '');
+			console.log(info);
+
+			if (!info) {
+			    return;
+			}
+
+			setInfo(info);
+			console.log(info);
 	    }
 
 	    catch (e) {
@@ -99,6 +118,11 @@ const CustomerSign = () => {
 
 	};
 	
+	
+	// 일반 첨부 정책	
+	const attachPolicy = getAttachPolicy(info);
+	// 비과세 첨부 정책
+	const ntaxPolicy = getNtaxAttachPolicy(info);
 	
 	/* =========================================================
 	 * 사인 이벤트
@@ -145,7 +169,7 @@ const CustomerSign = () => {
 	    }
 
 	    const ok = await gf.confirm(
-	        "서명을 완료하시겠습니까?\n확인을 누르면 첨부파일 업로드 페이지로 이동합니다."
+	        "서명을 완료하시겠습니까?\n확인을 누르면 완료됩니다."
 	    );
 
 	    if (!ok) {
@@ -170,7 +194,8 @@ const CustomerSign = () => {
 
 		const formData = new FormData();
 
-		formData.append("serviceId", serviceId);
+		console.log("SERVICE_ID >>" + info.SERVICE_ID);
+		formData.append("serviceId", info.SERVICE_ID);
 		formData.append("code", SIGN_DOC.SIGN.code);
 		formData.append("gubun", SIGN_DOC.SIGN.gubun);
 		formData.append("file", file);
@@ -184,7 +209,22 @@ const CustomerSign = () => {
 			    }
 			});
 
-	        navigate(`/customer/CustomerUpload?t=${token}`);
+			// 2. 전자서명 이력 생성
+			await axios.post('/api/common/insertDsign', {
+			    SERVICE_ID: info.SERVICE_ID,
+				CAR_NO: info.CAR_NO,
+				DSIGN_GB: 'WSIGN',
+				DSIGN_ST: 'END',
+				INS_USER: info.LOGIN_ID
+			});
+			
+				
+			if(attachPolicy.needUpload || ntaxPolicy.needUpload) {
+		        navigate(`/customer/CustomerUpload?t=${token}`);
+			} else {
+				// 서명만
+				navigate(`/customer/CustomerResult?t=${token}&managerTel=${info.MANAGER_TEL}`);
+			}
 
 	    } catch (e) {
 
@@ -278,36 +318,28 @@ const CustomerSign = () => {
 
 	        <div className="customer-card">
 
-	            <h3>추가 제출 서류</h3>
+	            <h3>감면 서명</h3>
+				
+				<p className="customer-description">
+				    안녕하세요. 폴스타코리아 신규등록 대행업체입니다.
+				    <br /><br />
 
-	            <p className="customer-description">
-					안녕하세요. 폴스타코리아 신규등록 대행업체입니다.<br />
-	                감면 신청을 위해 <span className="text-primary">확인 서명</span> 부탁드립니다.<br />
-					관련 문의는 담당 스페셜리스트(<b>{managerTel}</b>)에게 연락 부탁드립니다.
-	            </p>
+				    감면자명 : <strong>{info.OWNER_NM}</strong><br />
+					감면대상 : <strong>{nType?.CODE_NM}</strong><br />
+					감면등급 : <strong>{nGrade?.CODE_NM || '-'}</strong>
+				    <br /><br />
 
-	            <hr className="customer-divider" />
+				    위 내용으로 <strong>[{info.CAR_NO}]</strong> 차량의 취득세 감면 신청에 동의하시면,
+				    아래 서명란에 정자로 성명을 기재하여 주시기 바랍니다.
+				    <br />
+				    해당 서명은 취득세 감면 신청서에 포함됩니다.
+				    <br /><br />
 
-	            {/* 신청인 */}
-	            <div className="customer-form-group">
-	                <label>
-	                    <b>[{carNo}]</b> 신청인의 성함을 입력해 주세요.
-	                </label>
-
-	                <input
-	                    className="customer-input"
-	                    type="text"
-	                    placeholder="홍길동"
-	                />
-	            </div>
+				    관련 문의는 담당 스페셜리스트<strong>({gf.formatPhoneNo(info.MANAGER_TEL)})</strong>에게 연락해 주시기 바랍니다.
+				</p>
 
 	            {/* 서명 */}
 	            <div className="customer-form-group">
-
-	                <label>
-	                    <b>[{carNo}]</b> 차량의 감면 신청을 위해 아래 서명란에 <b>정자로 서명</b>해 주세요.<br />
-						해당 서명은 감면신청서에 포함됩니다.
-	                </label>
 
 	                <div className="customer-sign-example">
 

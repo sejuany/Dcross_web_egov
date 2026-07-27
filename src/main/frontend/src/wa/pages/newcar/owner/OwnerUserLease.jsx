@@ -38,6 +38,14 @@ const OwnerUserLease = ({
 	    handleClearAddress
 	} = address;
 	
+	// 차량 구매방식 변경할 때마다 리스사 선택 지움 
+	useEffect(() => {
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        BASE_BRANCH_ID: ''
+	    }));
+	}, []);
+	
 	// 계약자와 동일
 	const handleSameCustomer = (e) => {
 

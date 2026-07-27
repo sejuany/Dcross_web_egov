@@ -2,7 +2,7 @@
 /* =========================================================
  * Import
  * ========================================================= */
-import React, { useEffect, useRef, useState, useMemo } from 'react';
+import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
 
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -33,13 +33,15 @@ import {
 // 파일 업로드 정책 가져오기
 import {
     getAttachPolicy,
-    getNtaxAttachPolicy
+    getNtaxAttachPolicy,
+	NTAX_POLICY
 } from '../../../policy/attachPolicy';
 
 // 화면
 import CarInfo from './CarInfo';
 import ConfirmInfo from './ConfirmInfo';
 import NewcarInfo from './NewcarInfo';
+import { calculateTotalFromRows } from './newcarAmountCalculator';
 import OwnerNormal from './owner/OwnerNormal';
 import OwnerLease from './owner/OwnerLease';
 import OwnerUserLease from './owner/OwnerUserLease';
@@ -102,12 +104,70 @@ const REQUIRED_FIELDS = [
     { name: 'NUMPLATE_GB', label: '번호판 종류' },
     { name: 'PAY_GB', label: '결제구분' },
     { name: 'BUY_AMT', label: '공급가액' },
-    { name: 'NTAX_TRGET_CD', label: '비과세대상' },
     { name: 'BOND_DC', label: '채권할인여부' },
     { name: 'RT_BANK_CD', label: '환급계좌 은행' },
     { name: 'RETURN_NO', label: '환급계좌번호' },
     { name: 'RETURN_NM', label: '환급예금주' }
 ];
+
+const NH_BOND_AREAS = new Set([
+    '울산광역시',
+    '강원도',
+    '강원특별자치도',
+    '경기도',
+    '경상북도',
+    '전라남도',
+    '전라북도',
+    '전북특별자치도',
+    '충청남도',
+    '충청북도',
+    '인천광역시',
+    '제주특별자치도'
+]);
+
+const resolveBondBankFields = (baseAddress, busanBond, bondDc) => {
+    if (String(bondDc || '').trim() === 'BUY') {
+        return { BOND_LINK_YN: 'N', BOND_BANK_CD: '' };
+    }
+
+    const normalizedAddress = String(baseAddress || '').trim().replace(/\s+/g, ' ');
+    const firstArea = normalizedAddress.split(' ')[0] || '';
+    const area = ['경상남도 함양군', '경상남도 창원시'].find(
+        candidate => normalizedAddress.startsWith(candidate)
+    ) || firstArea;
+
+    if (area === '서울특별시') {
+        return { BOND_LINK_YN: 'Y', BOND_BANK_CD: '088' };
+    }
+
+    if (['대구광역시', '경상남도 함양군', '경상남도 창원시', '경상남도'].includes(area)) {
+        return { BOND_LINK_YN: 'Y', BOND_BANK_CD: '011' };
+    }
+
+    if (NH_BOND_AREAS.has(area)) {
+        return { BOND_LINK_YN: 'Y', BOND_BANK_CD: '011' };
+    }
+
+    if (area === '세종특별자치시') {
+        return { BOND_LINK_YN: 'N', BOND_BANK_CD: '081' };
+    }
+
+    if (area === '광주광역시') {
+        return { BOND_LINK_YN: 'N', BOND_BANK_CD: '034' };
+    }
+
+    if (area === '대전광역시') {
+        return { BOND_LINK_YN: 'N', BOND_BANK_CD: '081' };
+    }
+
+    if (area === '부산광역시') {
+        return String(busanBond || '').trim() === 'N'
+            ? { BOND_LINK_YN: 'Y', BOND_BANK_CD: '004' }
+            : { BOND_LINK_YN: 'N', BOND_BANK_CD: '032' };
+    }
+
+    return { BOND_LINK_YN: 'N', BOND_BANK_CD: '' };
+};
 
 
 // 상세조회 화면 표시 대상 상태
@@ -212,10 +272,6 @@ const paymentColumnDefs = [
 ];
 
 
-// 결제정보 총금액 계산
-const calculateTotalAmt = paymentList =>
-    paymentList.reduce((sum, item) => sum + Number(item.PRE_PAY_AMT || 0), 0);
-
 // 번호판 종류에 따른 번호판대(TNUM) 금액 조회
 const getNumplateAmount = (companyId, numplateGb, paymentList) => {
 
@@ -239,7 +295,7 @@ const getNumplateResult = (companyId, newCar, paymentList) => {
     return {
         dsNewCar: {
             ...newCar,
-            TOTAL_AMT: calculateTotalAmt(dsPaymentList)
+            TOTAL_AMT: calculateTotalFromRows(dsPaymentList, newCar.CARD_YN) ?? 0
         },
         dsPaymentList
     };
@@ -431,6 +487,13 @@ const WaNewcarRequest = ({
 	const loadedReceiptNoRef = useRef('');
 	// 마지막 조회한 상세조회 구분값
 	const loadedDetailOpenKeyRef = useRef('');
+	
+	// 소유자 정보 입력(탭)
+	const ownerRef = useRef(null);
+	// 자동차 정보 입력(탭)
+	const deliveryRef = useRef(null);
+	// 신규등록 정보 입력(탭)
+	const paymentRef = useRef(null);
 
 	
 /* =========================================================
@@ -558,6 +621,133 @@ const WaNewcarRequest = ({
 	]);
 	
 	
+/* =========================================================
+ * 사인 및 첨부서류 관련
+ * ========================================================= */
+	const [attachReady, setAttachReady] = useState(false);
+
+	// 일반 첨부 정책	
+	const attachPolicy = useMemo(
+	    () => getAttachPolicy(dsNewCar),
+	    [dsNewCar]
+	);
+	// 비과세 첨부 정책
+	const ntaxPolicy = useMemo(
+	    () => getNtaxAttachPolicy(dsNewCar),
+	    [dsNewCar]
+	);
+	
+	// 사인 및 서류 필요한 상황 
+	const showAttach =
+	    attachPolicy.needSign || attachPolicy.needUpload || ntaxPolicy.needUpload;
+			
+	// 첨부 완료 여부 반환
+	const checkAttachReady = async () => {
+		console.log(showAttach);
+		// 첨부 및 전자서명 완료 여부 확인
+	    if (!showAttach) {
+	        return {
+	            ready: true,
+	            message: ''
+	        };
+	    }
+		console.log('SERVICE_ID', dsService.SERVICE_ID);
+		
+		if (!dsService.SERVICE_ID) {
+		    return {
+		        ready: false,
+		    };
+		}
+		
+		// 업로드된 첨부파일 조회
+	    const res = await axios.get('/api/newcar/wa-attach-files', {
+	        params: {
+	            serviceId: dsService.SERVICE_ID
+	        }
+	    });
+
+	    const attachFiles = res.data.list ?? [];
+		
+		// 업로드된 첨부파일 코드 목록
+	    const uploadedCodes = new Set(
+	        attachFiles.map(file => file.CODE)
+	    );
+		
+		// 필수 첨부파일 목록
+	    const requiredDocs = [
+	        ...attachPolicy.requiredDocs,
+	        ...ntaxPolicy.requiredDocs
+	    ];
+
+		// 필수 첨부파일 누락 여부
+	    const hasMissing = requiredDocs.some(
+	        doc => !uploadedCodes.has(doc.code)
+	    );
+		
+		// 전자서명 파일 존재 여부
+		const hasSignFile = uploadedCodes.has('SIGN');
+		
+		// 전자서명이 필요한데 없는 경우
+		if (attachPolicy.needSign && !hasSignFile) {
+	        return {
+	            ready: false,
+	            message: '전자서명을 완료해주세요.'
+	        };
+	    }
+		
+		// 필수 첨부파일이 없는 경우
+	    if (hasMissing) {
+	        return {
+	            ready: false,
+	            message: '첨부파일 업로드를 완료해주세요.'
+	        };
+	    }
+
+	    return {
+	        ready: true,
+	        message: ''
+	    };
+	};
+	
+	// 첨부 완료 여부 갱신(버튼에서 쓸 겨)
+	useEffect(() => {
+
+	    const load = async () => {
+	        const result = await checkAttachReady();
+	        setAttachReady(result.ready);
+	    };
+
+	    load();
+
+	}, [
+	    dsService.SERVICE_ID,
+	    showAttach
+	]);
+	
+/* =========================================================
+ * * Event
+ * ========================================================= */	
+	
+	// 비활성화 또는 다음 단계로 못 넘어가게 막음 
+	const isActionDisabled = () => {
+		
+	    if (saving) {
+	        return true;
+	    }
+		console.log("showAttach2 >>"+showAttach);
+	    if (showAttach && !attachReady && step === 4) {
+	        return true;
+	    }
+		
+	    // 추가 조건
+	    if (Number(dsOwnerInfo.DEBTOR_RATIO) >= 100) {
+	        return true;
+	    }
+	
+	    return false;
+	};
+	
+
 	// 다음 눌렀을 때 다음 단계로 이동하도록 함
 	const handleNext = async (e) => {
 	    e.preventDefault();
@@ -583,16 +773,37 @@ const WaNewcarRequest = ({
 				return;
 			}
 			
+			console.log("REQ_CAR_NO >>" + dsNewCar.REQ_CAR_NO);
+			
+			// 기존 번호 해제 API 호출
+			await axios.post('/api/newcar/updateNumplateUseYn', {
+			    serviceId: dsService.SERVICE_ID,
+			    carNo: dsNewCar.REQ_CAR_NO
+			});
+
+			// 상태 초기화
+			setDsNewCar(prev => ({ ...prev, REQ_CAR_NO: '' }));
+			
 			const newDsService = {
 			    ...dsService,
-			    PROC_ST: 'INPUT',
+			    PROC_ST: 'DIRCT',
 			    JUDGE_ST: '',
-				TASK_CD: 'ADD'
+				JUDGE_DT: '',
+				TASK_CD: 'ADD',
 			};
 
-			await saveProcess(
+			const success = await saveProcess(
 			    {...dsNewCar}, 'SAV', null, null, newDsService
 			);
+			
+			console.log(success); // true 또는 false
+			
+			if(success) {
+				// 부모 목록 재조회
+			    onSaved?.();
+				// 화면 닫기
+			    onClose?.();
+			}
 			
 			return;
 	    }
@@ -642,17 +853,59 @@ const WaNewcarRequest = ({
 	 * - 저장중인 화면만 SERVICE_ID별 마지막 단계를 기억한다.
 	 */
 	const changeStep = async (nextStep, skipNotice = false) => {
-
+		
+		if(Number(dsOwnerInfo.DEBTOR_RATIO) >= 100) {
+			await gf.alert('공동명의 비율은 100% 미만이어야 합니다', '공동소유 비율 확인');
+			return false;
+		}
+		
 	    if (!skipNotice) {
 	        if (openNotice(step, nextStep)) {
 	            return;
 	        }
 	    }
 		
+		let newCarForSave = null;
+		// 3 -> 4으로 넘어갈때 필수값들 확인하기
+	    if (step === 3 && nextStep === 4) {
+			// 필수 입력값 체크 
+			const requiredMsg = validateRequiredFields();
+
+			if (requiredMsg) {
+				gf.alert(requiredMsg);
+				return;
+			}
+
+					const busanBond = (
+				dsNewCar.BUSAN_BOND
+				?? dsNewCar.BUSAN_BOND_YN
+				?? dsWorkCp?.BUSAN_BOND
+				?? dsWorkCp?.BUSAN_BOND_YN
+				?? dsCompanyInfo?.BUSAN_BOND
+				?? dsCompanyInfo?.BUSAN_BOND_YN
+				?? ''
+			);
+			const bondBankFields = resolveBondBankFields(
+				dsNewCar.BASE_ADDRESS,
+				busanBond,
+				dsNewCar.BOND_DC
+			);
+
+			newCarForSave = {
+				...dsNewCar,
+				...bondBankFields
+			};
+
+			setDsNewCar(prev => ({
+				...prev,
+				...bondBankFields
+			}));
+	    }
+
 	    try {
 	        // 현재 내용 저장
 	        await saveProcess(
-				null,
+				newCarForSave,
 				"SAV",
 				null,
 				null,
@@ -675,11 +928,12 @@ const WaNewcarRequest = ({
 	    }
 	};
 	
+	// 서류안내 모달창
 	const openNotice = (currentStep, nextStep) => {
 
 	    // 1 -> 2
 	    if (currentStep === 1 && nextStep === 2) {
-
+			
 	        if (noticeCheck.items.length || noticeCheck.checks.length) {
 	            setNotice(noticeCheck);
 	            setNextStep(2);
@@ -691,35 +945,106 @@ const WaNewcarRequest = ({
 	    // 3 -> 4
 	    if (currentStep === 3 && nextStep === 4) {
 
-	        if (exemptionNotice.items.length || exemptionNotice.checks.length) {
-	            setNotice(exemptionNotice);
-	            setNextStep(4);
-	            setNoticeOpen(true);
-	            return true;
-	        }
+			if (
+			    exemptionNotice &&
+			    (exemptionNotice.items.length || exemptionNotice.checks.length)
+			) {
+			    setNotice(exemptionNotice);
+			    setNextStep(4);
+			    setNoticeOpen(true);
+			    return true;
+			}
 	    }
 
 	    return false;
 	};
 	
 	// 차량 구매 방식 정보 저장
-	const handlePurchaseTypeSelect = (option) => {
+	const handlePurchaseTypeSelect = async (option) => {
+		console.log("handlePurchaseTypeSelect");
+		
+		// 일반등록
+		// 업무 구분 변경시 초기화 될 정보  					
+	    if (((purchaseType === 'NORMAL' && ['LEASE', 'USER_LEASE'].includes(option.value))
+			|| (purchaseType === 'USER_LEASE' &&  ['LEASE', 'NORMAL'].includes(option.value))) 
+			&& (
+	            dsOwnerInfo.DEBTOR_GB ||
+	            dsOwnerInfo.DEBTOR_NM ||
+	            dsOwnerInfo.DEBTOR_REG_NO ||
+	            dsOwnerInfo.DEBTOR_BIZ_NO ||
+	            dsOwnerInfo.DEBTOR_RATIO
+	        )
+	    ) {
+			
+			if(purchaseType === 'NORMAL') {
+				const ok = await gf.confirm(
+				            '공동명의 정보를 삭제하시겠습니까?\n확인을 누르면 공동명의 정보가 삭제되며, 단독소유로 변경됩니다.',
+				            '공동명의 삭제'
+				        );	
 
-		console.log('handlePurchaseTypeSelect');
-		console.log('이전 REG_GB =', dsNewCar.REG_GB);
-		console.log(option);
+				if (!ok) {
+				    return;
+				}
+			}
+
+	        setDsOwnerInfo(prev => ({
+	            ...prev,
+	            DEBTOR_GB: '',
+	            DEBTOR_NM: '',
+	            DEBTOR_REG_NO: '',
+	            DEBTOR_BIZ_NO: '',
+	            DEBTOR_RATIO: '',
+	            DEBTOR_TEL_NO: '',
+	            DEBTOR_ADDR: '',
+	            DEBTOR_ADDR_DT: '',
+	            DEBTOR_ROAD_CD: ''
+	        }));
+
+	        // 대표소유자 비율도 단독소유로 변경
+	        setDsNewCar(prev => ({
+	            ...prev,
+	            RATIO_NO: '100',
+	        }));
+	    }
+		
+		if(['LEASE', 'USER_LEASE'].includes(purchaseType)) {
+			clearLeaseAddress();
+		}
+		
+        setDsNewCar(prev => ({
+            ...prev,
+            TASK_CD: option.taskCd,
+            PROC_CD: option.procCd
+        }));
 
 	    setOwnerType(option.value);
+	};
 
+	const clearLeaseAddress = () => {
 	    setDsNewCar(prev => ({
 	        ...prev,
-	        TASK_CD: option.taskCd,
-	        PROC_CD: option.procCd
+
+	        // 소유자 주소
+	        ADDRESS: '',
+	        ADDRESS_DT: '',
+	        POST_NO: '',
+	        BUBJUNG_CD: '',
+	        RT_ACC_NM: '',
+	        ADDR_INFO: '',
+
+	        // 사용본거지
+	        BASE_BRANCH_ID: '',
+	        BASE_ADDRESS: '',
+	        BASE_ADDRESS_DT: '',
+	        BASE_POST_NO: '',
+	        BASE_BUBJUNG_CD: '',
+	        RT_ACC_NO: '',
+	        ADDR_INFO2: ''
 	    }));
 	};
 	
 	// input 공통 핸들러
-	const handleChange = (e) => {
+	const handleChange = async (e) => {
 		const { name, value, dataset } = e.target;
 
 		let v = value;
@@ -758,25 +1083,55 @@ const WaNewcarRequest = ({
 		} else if (dataset.type === 'company') {
 			setDsCompanyInfo(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'owner') {
-	
-			// 공동소유자 비율 변경 시 대표소유자 비율 자동 계산
+
+		    // 공동소유자 비율 변경 시
 			if (name === 'DEBTOR_RATIO') {
+
+			    if (v === '') {
+			        setDsOwnerInfo(prev => ({
+			            ...prev,
+			            DEBTOR_RATIO: ''
+			        }));
+
+			        setDsNewCar(prev => ({
+			            ...prev,
+			            RATIO_NO: '100'
+			        }));
+			        return;
+			    }
+
+			    let ratio = Number(v);
+				
+				// 숫자가 아닌 경우 ex.NaN
+				if (Number.isNaN(ratio)) {
+				    ratio = 0;
+				}
+
+			    if (ratio < 0) {
+			        ratio = 0;
+			        await gf.alert("공동명의 비율은 0 이상이어야 합니다.", "공동명의 비율 확인");
+			    } else if (ratio >= 100) {
+			        ratio = 99;
+			        await gf.alert("공동명의 비율은 100 미만이어야 합니다.", "공동명의 비율 확인");
+			    }
+
 			    setDsOwnerInfo(prev => ({
 			        ...prev,
-			        DEBTOR_RATIO: v
+			        DEBTOR_RATIO: String(ratio)
 			    }));
-	
+
 			    setDsNewCar(prev => ({
 			        ...prev,
-			        RATIO_NO: String(100 - Number(v || 0))
+			        RATIO_NO: String(100 - ratio)
 			    }));
-			} else {
-			    setDsOwnerInfo(prev => ({
-			        ...prev,
-			        [name]: v
-			    }));
-			}
+				
+				return;
+			} 
 			
+	        setDsOwnerInfo(prev => ({
+	            ...prev,
+	            [name]: v
+	        }));
 		} else if (dataset.type === 'owner1') {
 			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
 		} 
@@ -894,6 +1249,7 @@ const WaNewcarRequest = ({
 		normalized.CARD_YN = normalized.CARD_YN === 'Y' ? 'Y' : 'N';
 		return normalized;
 	};
+
 	
 	const saveProcess = async (
 	    newDsNewCar = null,
@@ -957,16 +1313,13 @@ const WaNewcarRequest = ({
 
 		log("저장 요청 데이터:");
 	    // 저장 실행
-	    await processService(newDataSet, proc, silent);
+	    return await processService(newDataSet, proc, silent);
 	};
 	
 
 	const processService = async (newDataSet, proc, silent) => {
 
 	    try {
-			
-			console.log("흠~~~");
-			console.log(newDataSet.dsOwnerInfo);
 			
 	        // 저장 요청
 	        const res = await axios.post('/api/newcar/process', newDataSet);
@@ -1050,6 +1403,7 @@ const WaNewcarRequest = ({
 		
 		// 로딩 시작
 		const startTime = Date.now();
+		setLoading(true);
 
 		try {
 			
@@ -1261,6 +1615,23 @@ const WaNewcarRequest = ({
 	        dsCarNoDetach,
 	        dsPaymentList: [...dsPaymentList]
 	    };
+		
+		// 감면신청서 데이터 추가
+		if (attachPolicy.needSign) {
+
+		    const ntaxReason =
+		        NTAX_POLICY[dsNewCar.NTAX_TRGET_CD]?.NAME || '';
+
+		    const ntaxDocuments =
+		        (ntaxPolicy.requiredDocs || [])
+		            .map(doc => doc.name)
+		            .join(', ');
+
+		    newDataSet.dsExemption = {
+		        REASON: ntaxReason,
+		        DOCUMENT: ntaxDocuments
+		    };
+		}
 
 		await processService(newDataSet, "REQ");
 	};
@@ -1277,10 +1648,12 @@ const WaNewcarRequest = ({
 		}
 		
 		// 서명 및 첨부파일 확인
-		const attachMsg = await validateAttachAndSign();
+		const result = await checkAttachReady();
 
-		if (attachMsg) {
-		    return attachMsg;
+		setAttachReady(result.ready);
+
+		if (!result.ready) {
+		    return result.message;
 		}
 
 		if (gf.Check(dsNewCar.CARID_NO, '차대번호', 17)) {
@@ -1322,45 +1695,6 @@ const WaNewcarRequest = ({
 		return '';
 	};
 	
-	// 서명 및 첨부파일 업로드 여부 확인
-	const validateAttachAndSign = async () => {
-
-	    // 업로드된 첨부파일 조회
-	    const res = await axios.get('/api/newcar/wa-attach-files', {
-	        params: {
-	            serviceId: dsService.SERVICE_ID
-	        }
-	    });
-
-	    const attachFiles = res.data.list ?? [];
-
-	    // 전자서명 여부
-	    if (dsNewCar.SIGN_YN === 'Y' && dsNewCar.SIGN_FILE_YN !== 'Y') {
-	        return '전자서명을 완료해주세요.';
-	    }
-
-	    const uploadedCodes = new Set(
-	        attachFiles.map(file => file.CODE)
-	    );
-
-	    const attachPolicy = getAttachPolicy(dsNewCar);
-	    const ntaxPolicy = getNtaxAttachPolicy(dsNewCar);
-
-	    const requiredDocs = [
-	        ...attachPolicy.requiredDocs,
-	        ...ntaxPolicy.requiredDocs
-	    ];
-
-	    const hasMissing = requiredDocs.some(
-	        doc => !uploadedCodes.has(doc.code)
-	    );
-
-	    if (hasMissing) {
-	        return '전자서명 및 첨부파일 업로드를 완료해주세요.';
-	    }
-
-	    return '';
-	};
 	
 	// 필수 입력 정보 체크 
 	const validateRequiredFields = () => {
@@ -1376,7 +1710,7 @@ const WaNewcarRequest = ({
 		return '';
 	}; 
 	
-	// 서류 안내
+	// 서류 안내창
 	const noticeCheck = useMemo(() => {
 
 	    const items = [];
@@ -1385,7 +1719,9 @@ const WaNewcarRequest = ({
 		
 		let normalCheck = false;
 		
-	    if (dsNewCar.REG_GB === 'F') {
+	    if((dsNewCar.TASK_CD === 'NORML' || 
+			(dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')) && 
+			 dsNewCar.REG_GB === 'F') {
 	        items.push('외국인등록증');
 			normalCheck = true;
 	    }
@@ -1423,13 +1759,19 @@ const WaNewcarRequest = ({
 	}, [dsNewCar, dsOwnerInfo]);
 	
 
+	// 감면 안내창
 	const exemptionNotice = useMemo(() => {
+		
+		// 감면 안내가 필요 없으면 모달 자체를 띄우지 않음
+		if (!showAttach) {
+		    return null;
+		}
+		
 		const items = [];
 		const checks = [];
 		const footer = [];
 
 		let normalCheck = false;
-		console.log(dsOwnerInfo.DEBTOR_GB);
 
 		// 감면 대상
 		if (dsNewCar.NTAX_WHO === 'REPRE') {
@@ -1455,8 +1797,11 @@ const WaNewcarRequest = ({
 		    item => item.CODE_ID === dsNewCar.NTAX_TRGET_GR_CD
 		);
 		
-		if (nGrade) {
-		    items.push(`감면 유형 : ${nGrade.CODE_NM}`);
+		// 등급을 선택했고 실제 코드가 존재할 때만
+		if (dsNewCar.NTAX_TRGET_GR_CD &&
+		    dsNewCar.NTAX_TRGET_GR_CD !== '0' &&
+		    nGrade) {
+		    items.push(`감면 등급 : ${nGrade.CODE_NM}`);
 		}
 		
 		// 기본 체크 문구
@@ -1465,9 +1810,34 @@ const WaNewcarRequest = ({
 			checks.push('감면은 세대당 1대만 가능합니다. 기존 감면 차량은 판매 후 60일 이내 자진신고를 완료해야 새로운 감면 신청이 가능합니다.');
 		}
 		
-		footer.push(`감면 금액 : `);
-		footer.push(`필요 서류 : `);
+		if (
+			['04', '05'].includes(dsNewCar.NTAX_TRGET_CD)
+			&& ['4', '5', '6', '05'].includes(dsNewCar.NTAX_TRGET_GR_CD)
+		) {
+			checks.push('경증 장애인(기존 4~6급)은 공채 감면만 적용되며, 취득세 감면은 제외됩니다.');
+		}
 		
+		// 감면 정책
+		const policy = NTAX_POLICY[dsNewCar.NTAX_TRGET_CD];
+
+		if (policy) {
+
+		    // 감면 금액
+		    if (policy.AMOUNT) {
+		        footer.push(`감면 금액 : ${policy.AMOUNT}`);
+		    }
+
+		    // 필요 서류
+			const docs = policy[dsNewCar.NTAX_WHO] ?? [];
+
+			if (docs.length) {
+			    footer.push(
+			        `필요 서류 : ${docs.map(doc => doc.name).join(', ')}`
+			    );
+			}
+		}
+		
+	
 		return {
 		    title: '서류 안내',
 		    items,
@@ -1475,7 +1845,6 @@ const WaNewcarRequest = ({
 		    footer
 		};
 	}, [dsNewCar, dsOwnerInfo]);
-	
 	
 	// ===================================================
 	// 상세정보 확인 페이지  
@@ -1497,6 +1866,8 @@ const WaNewcarRequest = ({
 				dsTaxReceipt={dsTaxReceipt}
 				saveProcess={saveProcess}
 				setDsCarNoDetach={setDsCarNoDetach}
+				dsBaseList={dsBaseList}
+				onClose={onClose}
 				dsPR_ST={gf.getCodeList(
 			        codes,
 			        COMPANY_DEFAULT,
@@ -1719,6 +2090,7 @@ const WaNewcarRequest = ({
 											setDsNewCar={setDsNewCar}
 											dsCarNoDetach={dsCarNoDetach}
 											dsBaseList={dsBaseList}
+											dsOwnerInfo={dsOwnerInfo}
 											setDsOwnerInfo={setDsOwnerInfo}
 											handleChange={handleChange}
 											
@@ -1737,7 +2109,7 @@ const WaNewcarRequest = ({
 							</>
 						)}
 	
-						{/* 번호판 정보 입력 */}
+						{/* 자동차 정보 입력 */}
 						{step === 2 &&
 							<CarInfo
 								dsService={dsService}
@@ -1821,6 +2193,8 @@ const WaNewcarRequest = ({
 								dsTaxReceipt={dsTaxReceipt}
 								dsBaseList={dsBaseList}
 								dsPaymentList={dsPaymentList}
+								onAttachClose={() => reloadProcess(dsService.SERVICE_ID)}
+								onMoveStep={setStep}
 						    />
 						}
 						
@@ -1845,7 +2219,7 @@ const WaNewcarRequest = ({
 						<button
 							type="button"
 							className="wa-action-btn wa-confirm-btn"
-							disabled={saving}
+							disabled={isActionDisabled()}
 							onClick={handleNext}
 						>
 							<span>
@@ -1873,8 +2247,7 @@ const WaNewcarRequest = ({
 					</div>
 			</div>
 			
-
-
+			{/* 안내 모달 */}
 			<WaNoticeModal
 			    open={noticeOpen}
 			    notice={notice}

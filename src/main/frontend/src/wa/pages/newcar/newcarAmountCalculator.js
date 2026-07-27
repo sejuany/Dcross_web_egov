@@ -459,7 +459,13 @@ const resolveAcqTaxExemption = ({ dsNewCar, codes, grossAcqTax }) => {
 
     // JSA 거주자 항목은 엑셀에 감면율과 금액이 없어 자동 계산하지 않음.
     if (code === '12') {
-        return unchanged('지자체 조례 감면금액 확인 필요', ['JSA 관할 지자체 감면율 또는 감면금액']);
+		return buildExemptionResult({
+            code,
+            grossAcqTax,
+            payableAcqTax: 0,
+            reason: '공동경비구역(JSA) 거주자 취득세 전액면제 적용'
+        });
+	
     }
 
     // 비영리사업자는 관용차량 요건을 확인하고 선택한 것으로 보고 전액면제함.

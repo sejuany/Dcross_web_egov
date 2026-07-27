@@ -53,6 +53,13 @@ public class SchedulerService {
 
                 SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
                 String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
+                if (specialistPhone != null && !specialistPhone.contains("-")) {
+                    if (specialistPhone.length() == 11) {
+                        specialistPhone = specialistPhone.replaceAll("(\\d{3})(\\d{4})(\\d{4})", "$1-$2-$3");
+                    } else if (specialistPhone.length() == 10) {
+                        specialistPhone = specialistPhone.replaceAll("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
+                    }
+                }
                 String smsText = "";
                 
                 // WA로 시작하는 회사 문자 처리
@@ -150,7 +157,7 @@ public class SchedulerService {
                 try {
                     StringBuilder smsTextBuilder = new StringBuilder("[폴스타코리아 미입금 확인] ");
                     for (SchedulerDto target : targets) {
-                        smsTextBuilder.append(safeValue(target.getCUSTOMER_NM())).append(", ");
+                        smsTextBuilder.append(safeValue(target.getREQ_CAR_NO())).append(", ");
                     }
                     smsTextBuilder.append("고객의 등록비용이 아직 입금되지 않았습니다. 고객에게 입금 요청 부탁드립니다.");
                     String smsText = smsTextBuilder.toString();

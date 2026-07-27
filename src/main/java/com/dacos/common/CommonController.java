@@ -62,6 +62,23 @@ public class CommonController {
     }
     
     /**
+     * 전자서명 이력 생성 
+     * POST /api/common/insertDsign
+     */
+    @PostMapping("/insertDsign")
+    public ResponseEntity<Map<String, Object>> insertDsign(
+            @RequestBody Map<String, Object> param,
+            HttpSession session) {
+    	
+    	logger.info("[CommonController] 전자서명 이력 생성 >> param : {}", param);
+    	
+    	// 고객 페이지에선 세션 대신 토큰으로 접속해서 세션 체크를 하지 않는다. 
+        int result = commonService.insertDsign(param);
+
+        return ResponseEntity.ok(ApiResponse.withKey("result", result));
+    }
+    
+    /**
      * 토큰 중복 조회
      * POST /api/common/tokenCheck
      */
@@ -115,5 +132,13 @@ public class CommonController {
         
         throw new IllegalArgumentException("지원하지 않는 GUBUN : " + gubun);
     }
+    
+    @PostMapping("/procedure/board")
+    public void procedureTmBoard(
+            @RequestBody Map<String, Object> param, HttpSession session) {
+    	// 세션 체크
+ 		AuthUtil.getLoginUser(session);
 
+ 		commonService.procedureTmBoard(param);
+    }
 }

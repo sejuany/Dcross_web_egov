@@ -43,6 +43,8 @@ import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 import com.dacos.newcar.mapper.NewcarMapper;
 import com.dacos.payment.mapper.PaymentMapper;
+import com.dacos.scheduler.dto.SchedulerDto;
+import com.dacos.scheduler.mapper.SchedulerMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import lombok.RequiredArgsConstructor;
@@ -80,6 +82,7 @@ public class NewcarService {
     private final CommonRepository common; // DB 접근 역할
     private final CodeMapper codeMapper;
     private final AuthMapper authMapper;
+    private final SchedulerMapper schedulerMapper;
     private final AttachService attachService;
     
 
@@ -301,7 +304,7 @@ public class NewcarService {
     /**
      * 엑셀 검증 - 필수값, 형식, 중복 등
      */
-	private List<String> validateExcelRow(Map<String, Object> row, Set<String> excelCarIds, Set<String> excelLinkId, Map<String, String> dlvMap, Map<String, String> suMap) {
+	private List<String> validateExcelRow(Map<String, Object> row, Set<String> excelCarIds, Set<String> excelLinkId, Map<String, String> dlvMap, Map<String, Map<String, String>> suMap) {
 		List<String> errors = new ArrayList<>();
 		String registDate = Objects.toString(row.get("REGIST_DATE"), "").trim();
 
@@ -337,7 +340,7 @@ public class NewcarService {
 					errors.add("엑셀 내 중복된 차대번호");
 				}
 				// DB 중복 체크
-				if (isDuplicateCar(row)) {
+				if (isDuplicateCar2(row)) {
 					errors.add("이미 등록된 차대번호");
 				}
 			}
@@ -390,13 +393,14 @@ public class NewcarService {
 			errors.add("담당 Specialist 없음");
 		} else {
 			// 담당 SP확인
-			String suId = suMap.get(spaceNm);
-
-		    if (suId == null) {
+			if (!suMap.containsKey(spaceNm)) {
 		        errors.add("존재하지 않는 Specialist : " + spaceNm);
 		    } else {
-		        // 해당 SU login_id 넣어주기
-		        row.put("SPACE_ID", suId);
+		        // 해당 SU login_id, branch_id 넣어주기
+		    	Map<String, String> memberInfo = suMap.get(spaceNm);
+
+		    	row.put("SU_LOGIN_ID", memberInfo.get("LOGIN_ID"));
+		    	row.put("SU_BRANCH_ID", memberInfo.get("BRANCH_ID"));
 		    }
 		}
 
@@ -434,7 +438,7 @@ public class NewcarService {
 				row.put("SPACE_NM", getCellValue(excelRow.getCell(3), formatter));						//담당 Specialist명
 				row.put("LINK_ID", getCellValue(excelRow.getCell(5), formatter));						//주문번호
 				row.put("OWNER_NM", getCellValue(excelRow.getCell(6), formatter));						//소유자명
-				row.put("CAR_NM", getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"CAR_NM"));//차량번호
+				row.put("CAR_NM", getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"모델") + " " + getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"Engine")); //차명
 				row.put("CARID_NO", getCellValue(excelRow.getCell(11), formatter));						//차대번호
 				row.put("BUY_AMT", getCellValue(excelRow.getCell(28), formatter).replace(",", ""));		//공급가액
 				row.put("REGIST_DATE", getCellValue(excelRow.getCell(41), formatter).replace("-", "").replace(".", ""));	//등록일자
@@ -517,14 +521,21 @@ public class NewcarService {
 		List<Map<String, Object>> dlaCodes = codeMapper.findCodesByGroupId("DLADD");
 
 		Map<String, String> dlvMap = new HashMap<>();
-		Map<String, String> suMap = new HashMap<>();
+		Map<String, Map<String, String>> suMap = new HashMap<>();
 		Map<String, String> dlaMap = new HashMap<>();
 
 		for (Map<String, Object> code : dlvCodes) {
 			dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
 		}
 		for (Map<String, Object> code : suInfo) {
-			suMap.put(Objects.toString(code.get("MEMBER_NM"), "").trim(), Objects.toString(code.get("LOGIN_ID"), ""));
+			Map<String, String> memberInfo = new HashMap<>();
+		    memberInfo.put("LOGIN_ID", Objects.toString(code.get("LOGIN_ID"), ""));
+		    memberInfo.put("BRANCH_ID", Objects.toString(code.get("BRANCH_ID"), ""));
+
+		    suMap.put(
+		        Objects.toString(code.get("MEMBER_NM"), "").trim(),
+		        memberInfo
+		    );
 		}
 		for (Map<String, Object> code : dlaCodes) {
 			dlaMap.put(Objects.toString(code.get("CODE_ID"), "").trim(), Objects.toString(code.get("CODE_NM"), ""));
@@ -684,7 +695,7 @@ public class NewcarService {
 			if (!pdfCarIds.add(carIdNo)) {
 				errors.add("PDF 내 중복된 차대번호");
 			}
-			if (isDuplicateCar(row)) {
+			if (isDuplicateCar2(row)) {
 				errors.add("이미 등록된 차대번호");
 			}
 		}
@@ -791,7 +802,9 @@ public class NewcarService {
 	    dsService.put("WORK_CD", "010");
 	    dsService.put("PROC_ST", "C_REQ");
 	    dsService.put("LINK_ID", row.get("LINK_ID")); 							   // 주문번호
-	    dsService.put("MEMBER_ID", row.get("SPACE_ID"));							   // SU 담당자 login_id
+	    dsService.put("MEMBER_ID", row.get("SU_LOGIN_ID"));						   // SU 담당자 login_id
+	    dsService.put("BRANCH_ID", row.get("SU_BRANCH_ID"));						   // SU 담당자 branch_id
+	    dsService.put("LOGIN_ID", user.getLOGIN_ID());							   // CA 업로드한 사용자 login_id
 
 	    // =========================
 	    // NEWCAR
@@ -904,6 +917,31 @@ public class NewcarService {
 	        param.put("PROC_ST", procSt);
 	        if ("S_REQ".equals(procSt)) {
 	            param.put("JUDGE_ST", "S_REQ");
+	            
+	            SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(row.get("SU_ID").toString());
+                String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
+                if (specialistPhone != null && !specialistPhone.contains("-")) {
+                    if (specialistPhone.length() == 11) {
+                        specialistPhone = specialistPhone.replaceAll("(\\d{3})(\\d{4})(\\d{4})", "$1-$2-$3");
+                    } else if (specialistPhone.length() == 10) {
+                        specialistPhone = specialistPhone.replaceAll("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
+                    }
+                }
+                String smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
+                		+ "■ 신차 등록 접수 및 세제 혜택 유지 안내\n"
+                        + "고객님의 소중한 차량(" + safeValue(row.get("CAR_NO").toString()) + ") 등록 서류가 관청에 정상 접수되었습니다. 고객님께서 적용받으신 '취득세 감면 혜택'과 관련하여 필수 유의사항을 안내해 드립니다.\n\n"
+                        + "[취득세 감면 유지 유의사항]\n"
+                        + "감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해 주셔야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n\n"
+                        + "저공해 차량 등록 정보는 신규 등록 절차가 모두 완료된 후 전산에서 확인 가능합니다.\n\n"
+                        + "※ 본 메시지는 시스템 발신 전용으로 회신이 어렵습니다. 관련 문의 사항은 담당 스페셜리스트에게 문의해 주시면 자세히 안내해 드리겠습니다."
+                        + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone); 
+                
+                // 심사요청 문자 발송
+                param.put("PAY_HP_NO", row.get("MPHONE_NO").toString()); // 고객 연락처
+                param.put("TEXT", smsText);                   			 // 문자 내용
+                param.put("MSG_TYPE", "3");                  			 // 문자메세지 유형 1:SMS, 3:LMS
+
+                commonService.sendSms(param);
 	        }
 	        param.put("UPD_USER", user.getLOGIN_ID());
 
@@ -1047,11 +1085,13 @@ public class NewcarService {
 		    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
 		    Map<String, Object> mCarNoDetach = commonUtil.getMap(request, "dsCarNoDetach");
             Map<String, Object> mTaxReceipt = commonUtil.getMap(request, "dsTaxReceipt");
+            // 감면 신청서 정보
+            Map<String, Object> mExemption = commonUtil.getMap(request, "dsExemption");
 
 		    List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
 		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
 		    List<Map<String, Object>> lOwnerInfoList1 = commonUtil.getList(request, "dsOwnerInfo1");
-
+	    	
 			// 공동동소유자 컬럼명 변환
 			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
 			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
@@ -1096,9 +1136,14 @@ public class NewcarService {
 		    logger.info("DB PROC_ST: {}", beforeProcSt);
 			logger.info("REQUEST PROC_ST: {}", procSt);
 			
-		    // 다른 상태에서 신청대기(W_REQ)로 변경되는 경우 병합 PDF 생성
-		    if (!"W_REQ".equals(beforeProcSt) && "W_REQ".equals(procSt)) {
-		        attachService.mergePdf(serviceId);
+			// 감면신청서 생성 및 PDF 병합이 필요한 경우
+			if (
+			    !"W_REQ".equals(beforeProcSt)
+			    && "W_REQ".equals(procSt)
+			    && !commonUtil.isEmpty(mExemption)
+			) {
+		    	
+		        attachService.mergePdf(serviceId, mExemption);
 		    }
 		    
 		    // 신청 여부 확인
@@ -1681,6 +1726,12 @@ public class NewcarService {
 	    return !common.selectList(where, "selectDuplicateCarIdNO").isEmpty();
 	}
 
+	// 중복된 차대번호 조회 (엑셀업로드 시)
+	private boolean isDuplicateCar2(Map<String, Object> input) {
+	    var where = Map.of("CARID_NO", input.get("CARID_NO"));
+	    return !common.selectList(where, "selectDuplicateCarIdNO2").isEmpty();
+	}
+
 	/**
 	 * 선택 가능한 번호판 조회
 	 *
@@ -1771,15 +1822,16 @@ public class NewcarService {
 	    return ApiResponse.withKey("data", common.select(param, "selectBondInfo"));
 	}
 
+	// 번호판 상태 변경
 	public void updateNumplateUseYn(Map<String, Object> param, UserDto user) {
 
 		param.put("USE_YN", "N");
-	param.put("CAR_NO", param.get("carNo"));
-	param.put("LOGIN_ID", user.getLOGIN_ID());
-
-	System.out.println(param);
-	int result = common.update(param, "updateNumplateUseYn");
-
+		param.put("CAR_NO", param.get("carNo"));
+		param.put("LOGIN_ID", user.getLOGIN_ID());
+	
+		System.out.println(param);
+		int result = common.update(param, "updateNumplateUseYn");
+	
 		if(result < 1) {
 		    throw new BusinessException("번호판 미사용 처리 실패");
 		}
@@ -1803,6 +1855,26 @@ public class NewcarService {
 
 	}
 	
+	public void updateChangeSu(Map<String, Object> param, UserDto user) {
+
+		param.put("SERVICE_ID", param.get("SERVICE_ID"));
+		param.put("MEMBER_ID", param.get("CHAGE_SU_ID"));
+		param.put("UPD_USER", user.getLOGIN_ID());
+	
+		int result = common.update(param, "updateTrService");
+		
+		if(result < 1) {
+		    throw new BusinessException("담당자 변경 실패");
+		}
+	}
+	
+    private boolean isBlank(String value) {
+        return value == null || value.isBlank();
+    }
+
+    private String safeValue(String value) {
+        return value == null ? "" : value;
+    }
    
 }
 

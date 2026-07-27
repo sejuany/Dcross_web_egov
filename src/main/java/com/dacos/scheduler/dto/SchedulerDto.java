@@ -27,4 +27,5 @@ public class SchedulerDto {
     private String SPECIALIST_HP_NO;
     private String ACQ_VBANK_NO;
     private String ACQ_PAY_AMT;
+    private String REQ_CAR_NO;
 }

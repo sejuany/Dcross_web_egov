@@ -70,7 +70,9 @@
 	                ON A.ROAD_CD = TRIM(B.SIGUNGU_CD) || TRIM(B.ROAD_NO)
 	               AND A.EMD_SN = B.EMD_SN
 	             WHERE A.BUILDB_NO = #{BUILDB_NO}
-	
+	             <if test="SIDO_NM != null and SIDO_NM != ''">
+				   AND A.SIDO_NM = #{SIDO_NM}
+	             </if>
 		<choose>
 
 			<when test='"Y".equals(BUBJUNGRI_NM)'>
@@ -119,7 +121,9 @@
 	               AND A.EMD_SN = B.EMD_SN
 		             
 	             WHERE A.JIBUNB_NO = #{BUILDB_NO}
-	
+				 <if test="SIDO_NM != null and SIDO_NM != ''">
+				   AND A.SIDO_NM = #{SIDO_NM}
+	             </if>
 		<choose>
 
 			<when test='"Y".equals(BUBJUNGRI_NM)'>
@@ -174,9 +178,10 @@
 		)
 	}
 	</select>
+	
 	<!-- 문자 전송 -->
 	<insert id="insertSmsSendReal" parameterType="map">
-	    INSERT INTO MSG_QUEUE (
+	    INSERT INTO MSG_QUEUE@RDB_LINK (
 	        MSEQ,
 	        MSG_TYPE,
 	        DSTADDR,
@@ -196,8 +201,9 @@
 	    )
 	</insert>
 	
+	<!-- 문자 -->
 	<insert id="insertSmsSend" parameterType="map">
-	    INSERT INTO MSG_QUEUE (
+	    INSERT INTO MSG_QUEUE@RDB_LINK (
 	        MSEQ,
 	        MSG_TYPE,
 	        DSTADDR,
@@ -207,7 +213,7 @@
 	        REQUEST_TIME
 	    )
 	    VALUES (
-	        MSG_QUEUE_SEQ.NEXTVAL,
+	        MSG_QUEUE_SEQ.NEXTVAL@RDB_LINK,
 	        #{MSG_TYPE},
 	        #{PAY_HP_NO},
 	        '16886112',
@@ -215,7 +221,43 @@
 	        #{TEXT},
 	        SYSDATE
 	    )
-	</insert>	
+	</insert>
+	
+	<!-- 전자서명 -->
+	<insert id="insertDsign" parameterType="map">
+    INSERT INTO TR_DSIGN (
+        SERVICE_ID,
+        DSIGN_SEQ,
+        DSIGN_GB,
+        DSIGN_HP_GB,
+        DSIGN_HP_NO,
+        CONFIRM_NO,
+        DSIGN_ST,
+        DSIGN_DT,
+        INS_USER,
+        DSIGN_TX,
+        DSIGN_CD,
+        WHO_CD
+    )
+    VALUES (
+        #{SERVICE_ID},
+        (
+            SELECT NVL(MAX(DSIGN_SEQ) + 1, 1)
+            FROM TR_DSIGN
+            WHERE SERVICE_ID = #{SERVICE_ID}
+        ),
+        #{DSIGN_GB},
+        #{DSIGN_HP_GB},
+        PKG_COMMON.FN_ENCRYPT(#{DSIGN_HP_NO}),
+        #{CONFIRM_NO},
+        #{DSIGN_ST},
+        SYSDATE,
+        #{MEMBER_ID},
+        #{DSIGN_TX},
+        #{DSIGN_CD},
+        #{WHO_CD}
+    )
+</insert>
 
 	<!-- 로그 기록 -->
 	<insert id="insertCarDailyLog" parameterType="map">
@@ -254,5 +296,16 @@
 	        )
 	
 	</insert>
+	
+	<select id="procedureAlarmMap"
+	        parameterType="java.util.Map" statementType="CALLABLE">
+	
+	    { call Pkg_Common.sp_insertTmBoard(
+	        #{SERVICE_ID, mode=IN, jdbcType=VARCHAR},
+	        #{CONTENT_TX, mode=IN, jdbcType=VARCHAR},
+	        #{GUBUN, mode=IN, jdbcType=VARCHAR}
+	    ) }
+	
+	</select>
 
 </mapper>

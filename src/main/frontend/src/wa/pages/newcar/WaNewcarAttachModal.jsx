@@ -1,7 +1,11 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
 import axios from 'axios';
-import { X, FileText, Mail } from 'lucide-react';
+import { X, FileText, Mail, RefreshCw } from 'lucide-react';
 import '../../styles/WaNewcarRequest.css';
+
+// 용량 및 해상도 조절 
+import { compressImage } from '../../../utils/imageCompression';
+import { gf } from '../../../utils/utils';
 
 // 문자전송 모달
 import WaSendSmsModal from './WaSendSmsModal';
@@ -9,7 +13,8 @@ import WaSendSmsModal from './WaSendSmsModal';
 // 파일 업로드 정책 가져오기
 import {
     getAttachPolicy,
-    getNtaxAttachPolicy
+    getNtaxAttachPolicy,
+	NTAX_POLICY
 } from '../../../policy/attachPolicy';
 
 
@@ -45,8 +50,6 @@ const WaNewcarAttachModal = ({
     const [loading, setLoading] = useState(false);
     // 파일 업로드 코드 
 	const [uploadingCode, setUploadingCode] = useState(null);
-	// 지방세 감면 신청서 서명 여부
-	const [signed, setSigned] = useState(false);
 	// 문자 전송 모달  
 	const [smsModalOpen, setSmsModalOpen] = useState(false);
 	// 서비스 아이디 
@@ -58,6 +61,9 @@ const WaNewcarAttachModal = ({
 	    () => getAttachPolicy(dsNewCar),
 	    [dsNewCar]
 	);
+	
+	// 지방세 감면 신청서 서명 여부
+	const { needSign, needUpload } = attachPolicy;
 	
 	// 소유자 확인 서류 리스트(화면용) 
 	const ownerDocs = useMemo(
@@ -122,7 +128,6 @@ const WaNewcarAttachModal = ({
                 : [];
 
             setAttachFiles(list);
-			
 
 			console.log("attachFiles", list);
 			console.log("attachFiles.length", list.length);
@@ -169,16 +174,27 @@ const WaNewcarAttachModal = ({
             return;
         }
 
+		// 업로드 중 표시
+		setUploadingCode(doc.code);
+		
+		// 이미지 압축(PDF는 원본 사용)
+		const uploadFile = await compressImage(file);
+		
         const formData = new FormData();
         formData.append('serviceId', serviceId);
-        //formData.append('seq', doc.seq);
+		
 		// req 대신 파일 코드명을 보낸다
 		// ex. {서비스아이디}_{파일코드명}.{확장자}
 		formData.append('code', doc.code);
 		formData.append('gubun', doc.gubun);
-        formData.append('file', file);
 
-        setUploadingCode(doc.code);
+		// 압축된 파일 업로드
+		formData.append('file', uploadFile);
+		
+		console.log(uploadFile);
+		console.log(uploadFile instanceof File);
+		console.log(uploadFile.name);
+		console.log(uploadFile.type);
 
         try {
             const res = await axios.post('/api/newcar/wa-attach-upload', formData, {
@@ -240,6 +256,54 @@ const WaNewcarAttachModal = ({
 		return <FileText size={28} />;
     };
 
+	// PDF 재병합 버튼
+	const handleMergePdf = async () => {
+
+	    const ok = await gf.confirm(
+	        '감면신청서를 다시 생성하시겠습니까?',
+	        'PDF 재병합'
+	    );
+
+	    if (!ok) {
+	        return;
+	    }
+
+	    const startTime = Date.now();
+	    setLoading(true);
+
+	    try {
+
+	        let dsExemption = null;
+
+	        // 감면 신청서가 필요한 경우만 생성
+	        if (attachPolicy.needSign) {
+
+	            const ntaxReason =
+	                NTAX_POLICY[dsNewCar.NTAX_TRGET_CD]?.NAME || '';
+
+	            const ntaxDocuments =
+	                (ntaxPolicy.requiredDocs || [])
+	                    .map(doc => doc.name)
+	                    .join(', ');
+
+	            dsExemption = {
+	                REASON: ntaxReason,
+	                DOCUMENT: ntaxDocuments
+	            };
+	        }
+
+			await axios.post('/api/attach/merge-pdf', {
+			    SERVICE_ID: dsService.SERVICE_ID,
+			    EXEMPTION: dsExemption
+			});
+
+	        gf.alert('감면신청서를 다시 생성했습니다.');
+
+	    } finally {
+	        gf.loadingDelay(startTime, () => setLoading(false));
+	    }
+	};
+	
     return (
         <div className="wa-attach-modal-backdrop">
             <div className="wa-attach-modal">
@@ -296,7 +360,7 @@ const WaNewcarAttachModal = ({
 						})}
 						
 						{/* 감면 증빙 안내 */}
-						{ntaxDocs.length > 0 && (
+						{(ntaxDocs.length > 0 || needSign) && (
 							<div
 							    className={`wa-attach-doc-line sub ${hasSign ? 'uploaded' : 'blue'}`}
 							>
@@ -384,6 +448,18 @@ const WaNewcarAttachModal = ({
 	                            <Mail size={16} />
 	                            관련 신청서 서명 및 파일업로드 링크 문자 발송
 	                        </button>
+							
+
+							{(attachPolicy.needSign && ['END', 'REQ', 'W_REQ', 'S_REQ', 'S_END'].includes(dsService.PROC_ST)) && (
+								<button
+								    type="button"
+									className="wa-attach-merge-btn"
+								    onClick={handleMergePdf}
+								>
+								<RefreshCw size={15} style={{ marginRight: '3px' }} />
+								감면신청서 재병합
+								</button>
+							)}
 						</div>
                         
 						<WaSendSmsModal

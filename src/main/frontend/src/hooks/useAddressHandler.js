@@ -46,8 +46,11 @@ const useAddressHandler = ({
 
 	// 주소 선택 처리
 	const handleAddressSelect = (type, addr) => {
-
+		
+		// 법인이거나 사업자인 경우 
 	    const corp = isCorp(dsNewCar.REG_GB);
+		// 일반등록인 경우
+		const isNORML = dsNewCar.TASK_CD === 'NORML' ? true : false;
 
 	    // 공동명의 주소
 	    if (type === 'DEBTOR_ADDR') {
@@ -74,14 +77,16 @@ const useAddressHandler = ({
 		    return;
 		}
 
-	    const addrInfo = corp
-	        ? (addr.ROAD_CD ?? '') + 'þ' +
+		const addrInfo = corp ? (addr.ROAD_CD ?? '') + 'þ' +
 	          String(addr.BUBJUNG_CD ?? '').substring(0, 8) + '00þ' +
 	          (addr.HJD_CD ?? '') + 'þ' +
 	          (addr.JIHA_YN ?? '0') + 'þ' +
 	          (addr.BUILDB_NO ?? '0') + 'þ' +
-	          (addr.BUILDS_NO ?? '0') + 'þþ'
-	        : '';
+	          (addr.BUILDS_NO ?? '0') + 'þþ' : '';	
+		
+		addr.ADDR_INFO = addrInfo;
+			
+		console.log("addrInfo >>"+addrInfo);
 
 	    setDsNewCar(prev => {
 
@@ -145,7 +150,6 @@ const useAddressHandler = ({
 	            next.BASE_BUBJUNG_CD = '';
 	            next.RT_ACC_NO = '';
 	            next.ADDR_INFO2 = '';
-
 	        }
 
 	        return next;
@@ -170,6 +174,7 @@ const useAddressHandler = ({
 	        item.BASE_NM.includes(company)
 	    );
 
+		// 사용본거지는 창원 먼저
 	    const useBase =
 	        baseList.find(item => item.BASE_NM.includes('(창원)')) ||
 	        ownerBase;
@@ -179,23 +184,48 @@ const useAddressHandler = ({
 		    ...prev,
 		    BASE_BRANCH_ID: ownerBase.BASE_ID
 		}));
+		
+		console.log(useBase);
+
 
 		// 이용자명의 리스(공동소유자) 주소 설정
-		setDsOwnerInfo(prev => {
-		    const next = {
-		    ...prev,
-			DEBTOR_NM: ownerBase.BASE_NM.replace(/\(.*\)$/, '').trim(),
-			DEBTOR_GB: "B",
-			DEBTOR_REG_NO: ownerBase.ROAD_NM,
-			DEBTOR_BIZ_NO: ownerBase.BIZ_NO,
-		    DEBTOR_ADDR: ownerBase.ADDRESS,
-		    DEBTOR_ADDR_DT: ownerBase.ADDRESS_DT,
-		    DEBTOR_ROAD_CD: ownerBase.POST_NO
-			};
+		if (dsNewCar.PROC_CD === 'C') {
+			setDsOwnerInfo(prev => {
+			    const next = {
+			    ...prev,
+				DEBTOR_NM: ownerBase.BASE_NM.replace(/\(.*\)$/, '').trim(),
+				DEBTOR_GB: "B",
+				DEBTOR_REG_NO: ownerBase.ROAD_NM,
+				DEBTOR_BIZ_NO: ownerBase.BIZ_NO,
+			    DEBTOR_ADDR: ownerBase.ADDRESS,
+			    DEBTOR_ADDR_DT: ownerBase.ADDRESS_DT,
+			    DEBTOR_ROAD_CD: ownerBase.POST_NO
+				};
+				
+				return next;
+			});
+		}
+		
+		// 리스 주소 설정
+		else if (dsNewCar.PROC_CD === 'I') {
+			const addrInfo = useBase.ADDR_INFO ?? '';
 			
-			console.log(next);   // 여기서는 B가 찍힐 것
-			return next;
-		});
+		    setDsNewCar(prev => ({
+		        ...prev,
+
+		        // 소유자 주소 = 무조건 본점
+		        ADDRESS: ownerBase.ADDRESS,
+		        ADDRESS_DT: ownerBase.ADDRESS_DT,
+		        POST_NO: ownerBase.POST_NO,
+
+		        // 사용본거지 = 창원 우선, 없으면 본점
+		        BASE_ADDRESS: useBase.ADDRESS,
+		        BASE_ADDRESS_DT: useBase.ADDRESS_DT,
+		        BASE_POST_NO: useBase.POST_NO,
+		        ADDR_INFO2: addrInfo
+		    }));
+		}
+
 	};
 	
 	// 주소 초기화
