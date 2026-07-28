@@ -31,7 +31,7 @@ const WaHome = () => {
             <section className="wa-home-hero">
                 <div>
                     <h1>폴스타 신규등록 간편 업무</h1>
-                    <p>신차등록 신청부터 진행 현황 확인까지 WA001 전용 화면에서 처리합니다.</p>
+                    <p>신차등록 신청부터 진행 현황 확인까지 전용 화면에서 처리합니다.</p>
                 </div>
                 <Link className="wa-primary-link" to="/wa/newcar-request">
                     <ClipboardPlus size={18} />

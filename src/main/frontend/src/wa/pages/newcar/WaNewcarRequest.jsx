@@ -54,6 +54,35 @@ import WaNoticeModal from '../common/WaNoticeModal';
 import '../../styles/wa.css';
 import '../../styles/WaNewcarRequest.css';
 
+/**
+ * 신규등록 신청 화면의 전체 데이터 흐름
+ *
+ * 1. 최초 진입
+ *    - 접수번호가 없으면 initProcess()가 /api/newcar/init을 호출한다.
+ *    - 서버 기본값과 WaNewcarInitial.js의 초기값, 회사별 기본값을 병합해 화면 state를 만든다.
+ *
+ * 2. 기존 신청건 진입
+ *    - 목록 또는 라우터에서 SERVICE_ID를 받으면 loadDetail()이
+ *      /api/newcar/detail/{SERVICE_ID}를 호출해 저장된 신청 데이터를 다시 구성한다.
+ *
+ * 3. 사용자 입력
+ *    - 각 자식 화면은 input/select의 data-type으로 변경할 state를 지정한다.
+ *    - handleChange()가 data-type과 name을 읽어 dsService, dsNewCar,
+ *      공동소유자, 번호판 탈부착, 세금계산서 state 중 하나를 갱신한다.
+ *
+ * 4. 단계 이동 및 저장
+ *    - handleNext()/handlePrev() -> changeStep() 순서로 호출된다.
+ *    - changeStep()은 필요한 검증과 파생값 계산 후 saveProcess()를 호출한다.
+ *    - saveProcess()는 여러 state를 서버 요청 구조로 조합하고 processService()에 전달한다.
+ *    - processService()는 /api/newcar/process로 저장한 뒤 reloadProcess()를 호출하여
+ *      DB에 실제 저장된 값을 다시 조회하고 화면 state와 동기화한다.
+ *
+ * 5. 최종 요청
+ *    - 최종 확인 단계의 요청 버튼은 requestWaitProcess()를 호출한다.
+ *    - validateRequest()에서 필수값, 공동소유 비율, 첨부파일/서명을 확인한 뒤
+ *      PROC_ST를 W_REQ로 변경하여 /api/newcar/process에 요청한다.
+ */
+
 
 /* =========================================================
  * Constant
@@ -125,6 +154,11 @@ const NH_BOND_AREAS = new Set([
     '제주특별자치도'
 ]);
 
+/**
+ * 사용본거지와 채권 처리방식으로 TR_NEWCAR의 채권 연계 필드를 계산한다.
+ * 반환값은 3단계에서 4단계로 이동할 때 dsNewCar에 합쳐지고 바로 저장된다.
+ * 매입(BUY)은 은행 연계를 사용하지 않으므로 주소 판정보다 우선한다.
+ */
 const resolveBondBankFields = (baseAddress, busanBond, bondDc) => {
     if (String(bondDc || '').trim() === 'BUY') {
         return { BOND_LINK_YN: 'N', BOND_BANK_CD: '' };
@@ -281,7 +315,11 @@ const getNumplateAmount = (companyId, numplateGb, paymentList) => {
     return Number(dbAmount ?? companyPrice[numplateGb] ?? companyPrice.DEFAULT ?? 27500);
 };
 
-// 번호판 종류에 따른 번호판대 및 총금액 계산
+/**
+ * 번호판 종류에 따른 번호판대와 총액을 계산한다.
+ * 서버에서 받은 납부목록의 TNUM 행을 갱신하고, 변경된 목록을 기준으로
+ * calculateTotalFromRows()를 호출하여 TR_NEWCAR.TOTAL_AMT에 대응하는 값을 만든다.
+ */
 const getNumplateResult = (companyId, newCar, paymentList) => {
 
     const numplateAmt = getNumplateAmount(companyId, newCar.NUMPLATE_GB, paymentList);
@@ -430,25 +468,30 @@ const WaNewcarRequest = ({
  * State
  * 화면에서 사용하는 데이터
  * ========================================================= */
-	// 화면 데이터
-
-	// 목록에서 전달받은 SERVICE_ID를 최초 상태값으로 사용한다.
+	// 목록에서 전달받은 접수번호. 값이 있으면 신규 초기화 대신 상세조회 흐름을 탄다.
 	const [serviceId, setServiceId] = useState(initialServiceId);
-	
+
+	// TR_SERVICE 성격의 신청 공통정보: 처리상태, 주문번호, 회사/업무 구분 등을 보관한다.
 	const [dsService, setDsService] = useState(initialDsService);
+	// TR_NEWCAR 성격의 신규등록 본문: 소유자, 차량, 결제, 채권, 감면 정보를 보관한다.
 	const [dsNewCar, setDsNewCar] = useState(initialDsNewCar);
+	// 공동소유자 1, 2 정보. 대표소유자 비율과 합계가 100인지 최종 요청 전에 검증한다.
 	const [dsOwnerInfo, setDsOwnerInfo] = useState(initialOwnerInfo);
 	const [dsOwnerInfo1, setDsOwnerInfo1] = useState(initialOwnerInfo1);
+	// 번호판 탈부착/배송 관련 정보와 세금계산서 발행정보를 각각 독립 state로 관리한다.
 	const [dsCarNoDetach, setDsCarNoDetach] = useState(initialDsCarNoDetach);
 	const [dsTaxReceipt, setDsTaxReceipt] = useState(initialDsTaxReceipt);
 
-	// 조회 데이터
+	// 초기조회 또는 상세조회 API가 함께 내려주는 보조 데이터 목록이다.
 	const [dsBranchList, setDsBranchList] = useState(initialDsBranchList);
 	const [dsBaseList, setDsBaseList] = useState(initialDsBaseList);
+	// TR_PAYMENT 성격의 납부 항목 목록. 예상금액 계산과 총액 산출에도 사용한다.
 	const [dsPaymentList, setDsPaymentList] = useState([]);
+	// 회사 기본정보, 업무별 회사 설정, 로그인 사용자 정보는 조건 분기와 기본값에 사용한다.
 	const [dsCompanyInfo, setDsCompanyInfo] = useState({});
 	const [dsWorkCp, setDsWorkCp] = useState({});
 	const [dsUserInfo, setDsUserInfo] = useState({});
+	// 공통코드 그룹별 목록. CommonSelect와 코드명 표시에서 사용한다.
 	const [codes, setCodes] = useState({});
 	const [noticeOpen, setNoticeOpen] = useState(false); // 서류 안내창
 	const [notice, setNotice] = useState(null); // 안내
@@ -543,7 +586,11 @@ const WaNewcarRequest = ({
  * Effect
  * ========================================================= */
 
-	// 공통코드 데이터 로딩
+	/**
+	 * 화면 최초 1회 공통코드를 병렬 조회한다.
+	 * gf.getCodes()는 일반 코드그룹, gf.getCodeDetails()는 상세 조건이 있는 코드를 가져온다.
+	 * 조회 결과는 codes에 그룹 ID를 key로 저장되고 각 탭의 CommonSelect로 전달된다.
+	 */
 	useEffect(() => {
 		if (hasLoadedCodesRef.current) {
 			return;
@@ -571,7 +618,7 @@ const WaNewcarRequest = ({
 		loadCodes();
 	}, [setCodes]);
 	
-	// 부모에서 SERVICE_ID가 변경되면 현재 화면도 함께 변경한다.
+	// 부모 목록에서 다른 신청건을 선택하면 전달받은 SERVICE_ID를 상세조회 기준값으로 반영한다.
 	useEffect(() => {
 	    if (!initialServiceId) {
 	        return;
@@ -580,7 +627,7 @@ const WaNewcarRequest = ({
 	    setServiceId(initialServiceId);
 	}, [initialServiceId]);
 
-	// 전달받은 SERVICE_ID가 있으면 상세 데이터를 조회한다.
+	// serviceId가 바뀔 때마다 loadDetail()을 호출하여 해당 신청건의 모든 데이터셋을 재조회한다.
 	useEffect(() => {
 	    if (!serviceId) {
 	        return;
@@ -748,7 +795,12 @@ const WaNewcarRequest = ({
 	};
 	
 
-	// 다음 눌렀을 때 다음 단계로 이동하도록 함
+	/**
+	 * 하단의 다음/요청 버튼 진입점.
+	 * 1~3단계는 changeStep()으로 넘기고, 최종 확인 단계의 SU 요청은
+	 * requestWaitProcess()로 분기한다. 렌트 선택 건은 일반 단계 진행 대신
+	 * 직접등록 상태로 변경한 데이터를 saveProcess()에 전달한다.
+	 */
 	const handleNext = async (e) => {
 	    e.preventDefault();
 		
@@ -848,9 +900,13 @@ const WaNewcarRequest = ({
 	};
 	
 	/**
-	 * 진행단계 변경
-	 * - 상세조회 화면은 기억하지 않는다.
-	 * - 저장중인 화면만 SERVICE_ID별 마지막 단계를 기억한다.
+	 * 진행단계 변경과 현재 입력내용 저장을 한 번에 처리한다.
+	 *
+	 * - openNotice()가 안내 대상을 찾으면 실제 이동을 중단하고 모달을 먼저 연다.
+	 * - 3 -> 4 이동은 전체 필수값을 검사하고 채권은행 파생값을 계산한다.
+	 * - 파생값을 합친 newCarForSave를 saveProcess()에 직접 넘겨 React state의
+	 *   비동기 갱신 시점과 관계없이 같은 값이 DB에 저장되도록 한다.
+	 * - 상세조회 화면이 아니면 stepMemory에 마지막 작업 단계를 보관한다.
 	 */
 	const changeStep = async (nextStep, skipNotice = false) => {
 		
@@ -1043,7 +1099,20 @@ const WaNewcarRequest = ({
 	    }));
 	};
 	
-	// input 공통 핸들러
+	/**
+	 * 모든 탭의 input/select가 공유하는 변경 핸들러.
+	 *
+	 * 자식 컴포넌트는 name에 DB/데이터셋 필드명, data-type에 대상 state를 넣는다.
+	 * - newcar: dsNewCar
+	 * - service: dsService
+	 * - detach: dsCarNoDetach
+	 * - taxReceipt: dsTaxReceipt
+	 * - company: dsCompanyInfo
+	 * - owner / owner1: 공동소유자 state
+	 *
+	 * 차대번호 대문자 변환, 금액의 쉼표 제거, 대표/공동소유 비율 계산처럼
+	 * 단순 대입 외의 보정도 이 함수에서 수행한다.
+	 */
 	const handleChange = async (e) => {
 		const { name, value, dataset } = e.target;
 
@@ -1137,7 +1206,16 @@ const WaNewcarRequest = ({
 		} 
 	};
 
-	// 상세 조회 공통
+	/**
+	 * 저장된 신청건 상세조회.
+	 *
+	 * GET /api/newcar/detail/{SERVICE_ID}
+	 *   -> dsService, dsNewCar, 공동소유자, 결제목록, 번호판/세금계산서 정보,
+	 *      회사/업무/사용자 보조정보를 한 번에 받는다.
+	 *
+	 * 날짜 포맷을 정리한 뒤 mapData()로 서버 응답 필드를 화면 초기 구조에 맞추고,
+	 * getNumplateResult()로 번호판대와 총액을 다시 계산한 결과를 각 state에 넣는다.
+	 */
 	const loadDetail = async (receiptNo, showLoading = true) => {
 		console.log('receiptNo >>' + receiptNo);
 		
@@ -1236,7 +1314,11 @@ const WaNewcarRequest = ({
 		}
 	};
 	
-	// 저장
+	/**
+	 * 저장 전에 감면/카드 선택값을 DB 저장 규칙에 맞게 정규화한다.
+	 * 감면 대상이 없으면 감면 적용/등급 코드를 0으로 되돌리고,
+	 * 체크되지 않은 카드납부 값은 항상 N으로 저장한다.
+	 */
 	const normalizePaymentOptionFields = (newCar = {}) => {
 		const normalized = { ...newCar };
 		const exemptionTargetCode = String(normalized.NTAX_TRGET_CD ?? '').trim();
@@ -1250,7 +1332,19 @@ const WaNewcarRequest = ({
 		return normalized;
 	};
 
-	
+	/**
+	 * 현재 화면 state를 /api/newcar/process 요청 데이터셋으로 조립한다.
+	 *
+	 * 인자로 최신 계산 결과가 전달되면 state보다 인자값을 우선 사용한다.
+	 * 이 방식은 예상금액 계산이나 단계 이동 직후처럼 setState 반영을 기다리지 않고
+	 * 즉시 저장해야 할 때 사용한다.
+	 *
+	 * 처리 순서:
+	 * 1. dsService/dsNewCar/소유자/번호판/세금계산서/결제목록을 복사한다.
+	 * 2. 법인번호판 조건과 감면/카드 기본값을 보정한다.
+	 * 3. formatNumberData()로 하이픈과 금액 쉼표를 제거한다.
+	 * 4. 처리상태를 SAV로 정리한 뒤 processService()를 호출한다.
+	 */
 	const saveProcess = async (
 	    newDsNewCar = null,
 	    proc = "SAV",
@@ -1317,6 +1411,15 @@ const WaNewcarRequest = ({
 	};
 	
 
+	/**
+	 * 서버 저장 API를 호출하고 저장 결과를 화면에 반영한다.
+	 * POST /api/newcar/process는 proc 값과 dsService.PROC_ST에 따라
+	 * 신규 INSERT, 수정 UPDATE, 요청 상태변경 등을 서버에서 처리한다.
+	 *
+	 * 성공하면 최초 발급된 SERVICE_ID를 라우터 state에 기록하고,
+	 * reloadProcess()로 DB 값을 다시 조회한다. 따라서 저장 후 화면에는
+	 * 프런트의 임시값이 아니라 서버에서 확정된 값이 표시된다.
+	 */
 	const processService = async (newDataSet, proc, silent) => {
 
 	    try {
@@ -1398,7 +1501,12 @@ const WaNewcarRequest = ({
 	};
 	
 
-	// 새로고침: 탭은 유지하고 현재 화면 데이터만 다시 조회
+	/**
+	 * 저장 후 화면 데이터 동기화.
+	 * SERVICE_ID가 있으면 loadDetail()로 기존 건을 재조회하고,
+	 * 없으면 initProcess()로 신규 신청 기본값을 다시 구성한다.
+	 * 현재 step은 변경하지 않아 사용자가 보던 탭을 유지한다.
+	 */
 	const reloadProcess = async (targetServiceId = '') => {
 		
 		// 로딩 시작
@@ -1429,8 +1537,17 @@ const WaNewcarRequest = ({
 	};
 	
 
-	// 초기값 적용 순서
-	// DB 조회값 → newcarInitial.js 기본값 → COMPANY_DEFAULT(회사별 기본값)
+	/**
+	 * 신규 신청 화면 초기화.
+	 *
+	 * GET /api/newcar/init에서 로그인 사용자 기준 회사정보, 업무설정,
+	 * 지점/사용본거지 목록, 신규등록 기본 데이터와 초기 납부항목을 받는다.
+	 *
+	 * 병합 우선순위:
+	 * 1. 서버가 내려준 DB 기본값
+	 * 2. WaNewcarInitial.js의 화면 기본 구조와 누락 필드
+	 * 3. COMPANY_DEFAULT의 회사별 강제 기본값
+	 */
 	const initProcess = async () => {
 	    hasInitializedRef.current = true;
 	    loadedReceiptNoRef.current = '';
@@ -1581,7 +1698,11 @@ const WaNewcarRequest = ({
         }));
     };
 	
-	// 신청2 - SU가 요청 눌렀을 때 신청대기로 변경
+	/**
+	 * SU 사용자가 최종 확인 단계에서 요청할 때 실행한다.
+	 * validateRequest() 통과 후 PROC_ST를 W_REQ로 바꾸고,
+	 * 감면 전자서명이 필요한 경우 dsExemption 데이터도 함께 구성하여 저장 요청한다.
+	 */
 	const requestWaitProcess = async () => {
 		
 		// 저장 및 요청일 때만 요청할 수 있게 => 신청대기 변경
@@ -1637,7 +1758,12 @@ const WaNewcarRequest = ({
 	};
 	
 
-	// 신청 전 유효성 체크
+	/**
+	 * 최종 요청 전 전체 유효성 검사.
+	 * REQUIRED_FIELDS, 필수 첨부/전자서명, 차대번호 길이,
+	 * 대표·공동소유자 비율과 공동소유자 인적사항을 순서대로 확인한다.
+	 * 오류가 있으면 사용자에게 표시할 첫 번째 메시지를 반환한다.
+	 */
 	const validateRequest = async () => {
 
 		// 필수 입력값 체크 
@@ -1696,7 +1822,7 @@ const WaNewcarRequest = ({
 	};
 	
 	
-	// 필수 입력 정보 체크 
+	// REQUIRED_FIELDS 배열 순서대로 dsNewCar의 첫 번째 빈 값을 찾아 안내 문구를 만든다.
 	const validateRequiredFields = () => {
 
 		const emptyField = REQUIRED_FIELDS.find(
@@ -1847,7 +1973,7 @@ const WaNewcarRequest = ({
 	}, [dsNewCar, dsOwnerInfo]);
 	
 	// ===================================================
-	// 상세정보 확인 페이지  
+	// 처리상태가 상세조회 대상이면 편집 탭 대신 조회 전용 컴포넌트에 데이터셋을 전달한다.
 	if (isDetailPage) {
 	    return (
 	        <WaNewcarDetail 
@@ -1914,7 +2040,12 @@ const WaNewcarRequest = ({
 	    );
 	}
 	
-	// 입력 페이지
+	/**
+	 * 입력 화면 렌더링.
+	 * step에 따라 Owner 계열 컴포넌트, CarInfo, NewcarInfo, ConfirmInfo 중 하나를 보여준다.
+	 * 각 자식은 현재 데이터셋과 setter/handleChange를 받아 값을 수정하며,
+	 * 실제 서버 저장은 하단 버튼의 saveProcess() 또는 changeStep()에서 수행한다.
+	 */
 	return (
 		<div className="wa-request-page">
 		
