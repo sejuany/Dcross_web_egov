@@ -43,12 +43,9 @@
 }
 
 .wa-topbar-inner{
-    width:min(100%,1180px);
     min-height:48px;
-
     margin:0 auto;
     padding:0 22px;
-
     display:grid;
     grid-template-columns:auto minmax(0,1fr) auto;
     align-items:center;
