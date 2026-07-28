@@ -247,8 +247,9 @@ public class AuthController {
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
-        response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
-            return ResponseEntity.ok(response);
+        response.put("message", "회원가입 신청이 완료되었습니다.");
+
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/member/verify-password")
@@ -261,7 +262,7 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            response.put("message", "로그인 정보가 없습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -270,10 +271,10 @@ public class AuthController {
         if (verified) {
             session.setAttribute("MEMBER_EDIT_VERIFIED", true);
             response.put("success", true);
-            response.put("message", "鍮꾨?踰덊샇 ?뺤씤???꾨즺?섏뿀?듬땲??");
+            response.put("message", "비밀번호 확인이 완료되었습니다.");
         } else {
             response.put("success", false);
-            response.put("message", "鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎.");
+            response.put("message", "비밀번호가 일치하지 않습니다.");
         }
 
         return ResponseEntity.ok(response);
@@ -286,7 +287,7 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            response.put("message", "로그인 정보가 없습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -307,14 +308,14 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            response.put("message", "로그인 정보가 없습니다.");
             return ResponseEntity.ok(response);
         }
 
         Object verified = session.getAttribute("MEMBER_EDIT_VERIFIED");
         if (!(verified instanceof Boolean) || !((Boolean) verified)) {
             response.put("success", false);
-            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            response.put("message", "비밀번호 확인 후 수정할 수 있습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -323,8 +324,8 @@ public class AuthController {
         session.removeAttribute("MEMBER_EDIT_VERIFIED");
 
         response.put("success", true);
-        response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
-            return ResponseEntity.ok(response);
+        response.put("message", "회원정보가 수정되었습니다.");
+        return ResponseEntity.ok(response);
     }
 
     @PostMapping("/member/change-password")
@@ -337,7 +338,7 @@ public class AuthController {
 
         if (user == null) {
             response.put("success", false);
-            response.put("message", "휴대폰 본인인증 대기 정보가 유효하지 않습니다.");
+            response.put("message", "로그인 정보가 없습니다.");
             return ResponseEntity.ok(response);
         }
 
@@ -347,10 +348,10 @@ public class AuthController {
 
         if (changed) {
             response.put("success", true);
-            response.put("message", "鍮꾨?踰덊샇媛 蹂寃쎈릺?덉뒿?덈떎.");
+            response.put("message", "비밀번호가 변경되었습니다.");
         } else {
             response.put("success", false);
-            response.put("message", "?꾩옱 鍮꾨?踰덊샇媛 ?쇱튂?섏? ?딆뒿?덈떎.");
+            response.put("message", "현재 비밀번호가 일치하지 않습니다.");
         }
 
         return ResponseEntity.ok(response);

@@ -160,15 +160,15 @@ const ConfirmInfo = ({
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 계약자명</span>
-					                <strong>{dsNewCar.OWNER_NM}</strong>
+					                <strong>{dsOwnerInfo.DEBTOR_NM}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 계약자 등록번호</span>
-					                <strong>{dsNewCar.REG_NO}</strong>
+					                <strong>{dsOwnerInfo.DEBTOR_REG_NO}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 계약자 휴대폰번호</span>
-					                <strong>{dsNewCar.MPHONE_NO}</strong>
+					                <strong>{dsOwnerInfo.DEBTOR_TEL_NO}</strong>
 					            </div>
 								</>
 							)}

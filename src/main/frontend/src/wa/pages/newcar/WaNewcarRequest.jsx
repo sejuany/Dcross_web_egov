@@ -2122,8 +2122,10 @@ const WaNewcarRequest = ({
 	// 감면 안내창
 	const exemptionNotice = useMemo(() => {
 		
+		const isExempt = attachPolicy.needSign || ntaxPolicy.needUpload;
+		
 		// 감면 안내가 필요 없으면 모달 자체를 띄우지 않음
-		if (!showAttach) {
+		if (!isExempt) {
 		    return null;
 		}
 		

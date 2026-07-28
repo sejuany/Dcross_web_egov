@@ -426,19 +426,22 @@ const WaNewcarDetail = ({
 								<>
 								<div className="wa-detail-row">
 					                <span className="wa-detail-name">리스사명</span>
-					                <span>{dsBaseList?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))?.BASE_NM || '-'}</span>
+    								<span>{(dsBaseList
+										        ?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))
+										        ?.BASE_NM ?? ''
+										    ).replace(/\((본점|창원)\)$/, '')}</span>
 					            </div>
 								<div className="wa-detail-row">
 					                <span className="wa-detail-name">리스 계약자명</span>
-					                <span>{dsNewCar.OWNER_NM || '-'}</span>
+					                <span>{dsOwnerInfo.DEBTOR_NM || '-'}</span>
 					            </div>
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">리스 계약자 등록번호</span>
-					                <span>{dsNewCar.REG_NO || '-'}</span>
+					                <span>{dsOwnerInfo.DEBTOR_REG_NO || '-'}</span>
 					            </div>
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">리스 계약자 휴대폰번호</span>
-					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
+					                <span>{dsOwnerInfo.DEBTOR_TEL_NO || '-'}</span>
 					            </div>
 								</>
 							)}

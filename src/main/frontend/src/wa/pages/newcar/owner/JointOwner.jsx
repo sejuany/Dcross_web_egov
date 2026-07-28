@@ -179,6 +179,7 @@ const JointOwner = ({
 						<SplitInput
 						    value={dsOwnerInfo.DEBTOR_TEL_NO}
 						    lengths={[3, 4, 4]}
+							fixedValues={['010']}
 						    placeholders={['010', '1234', '5678']}
 						    onChange={value =>
 						        setDsOwnerInfo(prev => ({

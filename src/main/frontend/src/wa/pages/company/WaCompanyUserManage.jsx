@@ -933,7 +933,7 @@ function WaCompanyUserManage() {
             <div className="wum-page">
                 <div className="wum-header-card">
                     <div>
-                        <p className="wum-eyebrow">WA Company User Management</p>
+                        <p className="wum-eyebrow">Company User Management</p>
                         <h1>기업사용자관리</h1>
                         <p>현재 로그인한 회원사의 사용자 권한과 사용 상태를 관리합니다.</p>
                     </div>
