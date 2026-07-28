@@ -121,6 +121,8 @@ const WaPaymentReceipt = () => {
     const getPayAmount = payKind => paymentList
         .filter(item => item.PAY_KD === payKind)
         .reduce((sum, item) => sum + toAmount(item.PAY_AMT), 0);
+    const getElectronicPaymentNo = payKind => paymentList
+        .find(item => item.PAY_KD === payKind)?.VBANK_NO || '-';
 
     const taxAmounts = {
         acq: getPayAmount('ACQ'),
@@ -185,7 +187,7 @@ const WaPaymentReceipt = () => {
                                     (차대번호: {dsNewCar.CARID_NO || '-'})
                                 </span>
                             </div>
-                            <div>접수번호: {dsService.SERVICE_ID || serviceId}</div>
+                            {/* <div>접수번호: {dsService.SERVICE_ID || serviceId}</div> */}
                         </div>
 
                         <div className='receipt-total-section'>
@@ -193,6 +195,21 @@ const WaPaymentReceipt = () => {
                             <div className='receipt-total-value'>
                                 {formatAmount(finalSettlementAmount)}
                             </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className='receipt-payment-number-grid'>
+                    <div className='receipt-payment-number-card'>
+                        <div className='receipt-payment-number-label'>취득세 전자납부번호</div>
+                        <div className='receipt-payment-number-value'>
+                            {getElectronicPaymentNo('ACQ')}
+                        </div>
+                    </div>
+                    <div className='receipt-payment-number-card'>
+                        <div className='receipt-payment-number-label'>등록면허세 전자납부번호</div>
+                        <div className='receipt-payment-number-value'>
+                            {getElectronicPaymentNo('UREG')}
                         </div>
                     </div>
                 </div>
@@ -245,7 +262,7 @@ const WaPaymentReceipt = () => {
                 </div>
 
                 <div className='receipt-footer'>
-                    <div>전자납부번호로 각 세금 항목의 납부 여부를 확인할 수 있습니다.</div>
+                    {/*<div>전자납부번호로 각 세금 항목의 납부 여부를 확인할 수 있습니다.</div>*/}
                     <div>
                         취득세(등록면허세) 납부 확인은 위택스(www.wetax.go.kr)에서
                         전자납부번호로 확인 및 출력이 가능합니다.

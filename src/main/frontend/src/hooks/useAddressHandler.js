@@ -1,4 +1,6 @@
 import { useEffect, useState, useMemo, useCallback } from 'react';
+import axios from 'axios';
+import { gf } from '../utils/utils';
 
 /* =========================================================
  * Hook > 신규등록 주소 처리
@@ -22,6 +24,7 @@ const useAddressHandler = ({
     setDsCarNoDetach
 }) => {
 
+			
 	// 사용본거지 주소 저장
 	const setBaseAddress = (next, addr, corp) => {
 	    next.BASE_ADDRESS = addr.ADDRESS ?? addr.ADDR;
@@ -156,77 +159,120 @@ const useAddressHandler = ({
 	    });
 	};
 
+			
 	// 리스사 선택 처리
 	const handleLeaseCompany = baseId => {
 
-		const ownerBase = dsBaseList.find(item => {
-		    return String(item.BASE_ID) === String(baseId);
-		});
+	    const ownerBase = dsBaseList.find(item =>
+	        String(item.BASE_ID) === String(baseId)
+	    );
 
 		
 	    if (!ownerBase) {
 	        return;
 	    }
 
-	    const company = ownerBase.BASE_NM.replace(/\(.*\)$/, '').trim();
+	    const company = ownerBase.BASE_NM
+					.replace(/주식회사/g, '')
+			        .replace(/\(.*?\)/g, '')
+			        .trim();
 
 	    const baseList = dsBaseList.filter(item =>
 	        item.BASE_NM.includes(company)
 	    );
 
-		// 사용본거지는 창원 먼저
+	    // 사용본거지는 창원 먼저
 	    const useBase =
 	        baseList.find(item => item.BASE_NM.includes('(창원)')) ||
 	        ownerBase;
-			
-		// 리스사 선택
-		setDsNewCar(prev => ({
-		    ...prev,
-		    BASE_BRANCH_ID: ownerBase.BASE_ID
-		}));
-		
-		console.log(useBase);
 
+	    // 공통으로 변경되는 신규등록 정보
+	    const nextNewCar = {
+	        ...dsNewCar,
+	        BASE_BRANCH_ID: ownerBase.BASE_ID
+	    };
 
-		// 이용자명의 리스(공동소유자) 주소 설정
-		if (dsNewCar.PROC_CD === 'C') {
-			setDsOwnerInfo(prev => {
-			    const next = {
-			    ...prev,
-				DEBTOR_NM: ownerBase.BASE_NM.replace(/\(.*\)$/, '').trim(),
-				DEBTOR_GB: "B",
-				DEBTOR_REG_NO: ownerBase.ROAD_NM,
-				DEBTOR_BIZ_NO: ownerBase.BIZ_NO,
-			    DEBTOR_ADDR: ownerBase.ADDRESS,
-			    DEBTOR_ADDR_DT: ownerBase.ADDRESS_DT,
-			    DEBTOR_ROAD_CD: ownerBase.POST_NO
-				};
-				
-				return next;
-			});
-		}
-		
-		// 리스 주소 설정
-		else if (dsNewCar.PROC_CD === 'I') {
-			const addrInfo = useBase.ADDR_INFO ?? '';
-			
-		    setDsNewCar(prev => ({
-		        ...prev,
+	    // 이용자명의 리스(공동소유자)
+	    if (dsNewCar.PROC_CD === 'C') {
 
-		        // 소유자 주소 = 무조건 본점
-		        ADDRESS: ownerBase.ADDRESS,
-		        ADDRESS_DT: ownerBase.ADDRESS_DT,
-		        POST_NO: ownerBase.POST_NO,
+	        setDsNewCar(nextNewCar);
 
-		        // 사용본거지 = 창원 우선, 없으면 본점
-		        BASE_ADDRESS: useBase.ADDRESS,
-		        BASE_ADDRESS_DT: useBase.ADDRESS_DT,
-		        BASE_POST_NO: useBase.POST_NO,
-		        ADDR_INFO2: addrInfo
-		    }));
-		}
+	        // 직접입력
+	        if (company === '직접입력') {
 
+	            const nextOwnerInfo = {
+	                ...dsOwnerInfo
+	            };
+
+	            setDsOwnerInfo(nextOwnerInfo);
+
+	            return {
+	                dsNewCar: nextNewCar,
+	                dsOwnerInfo: nextOwnerInfo
+	            };
+	        }
+
+	        const nextOwnerInfo = {
+	            ...dsOwnerInfo,
+	            DEBTOR_NM: company,
+	            DEBTOR_GB: 'B',
+	            DEBTOR_REG_NO: ownerBase.ROAD_NM,
+	            DEBTOR_BIZ_NO: ownerBase.BIZ_NO,
+	            DEBTOR_ADDR: ownerBase.ADDRESS,
+	            DEBTOR_ADDR_DT: ownerBase.ADDRESS_DT,
+	            DEBTOR_ROAD_CD: ownerBase.POST_NO
+	        };
+
+	        setDsOwnerInfo(nextOwnerInfo);
+
+	        return {
+	            dsNewCar: nextNewCar,
+	            dsOwnerInfo: nextOwnerInfo
+	        };
+	    }
+
+	    // 일반 리스
+	    if (dsNewCar.PROC_CD === 'I') {
+
+	        const addrInfo = useBase.ADDR_INFO ?? '';
+
+	        // 직접입력
+	        if (company === '직접입력') {
+
+	            setDsNewCar(nextNewCar);
+
+	            return {
+	                dsNewCar: nextNewCar
+	            };
+	        }
+
+			console.log(nextNewCar);
+	        nextNewCar.OWNER_NM = company;
+	        nextNewCar.BIZ_NO = ownerBase.BIZ_NO ?? '';
+	        nextNewCar.REG_GB = 'B';
+	        nextNewCar.REG_NO = ownerBase.ROAD_NM;
+
+	        nextNewCar.ADDRESS = ownerBase.ADDRESS;
+	        nextNewCar.ADDRESS_DT = ownerBase.ADDRESS_DT;
+	        nextNewCar.POST_NO = ownerBase.POST_NO;
+			nextNewCar.RT_ACC_NM = ownerBase.ROAD_CD;
+			nextNewCar.BUBJUNG_CD = ownerBase.BUBJUNG_CD;
+
+			console.log(useBase);
+	        nextNewCar.BASE_ADDRESS = useBase.ADDRESS;
+	        nextNewCar.BASE_ADDRESS_DT = useBase.ADDRESS_DT;
+	        nextNewCar.BASE_POST_NO = useBase.POST_NO;
+			nextNewCar.RT_ACC_NO = useBase.ROAD_CD;
+	        nextNewCar.ADDR_INFO2 = addrInfo;
+
+	        setDsNewCar(nextNewCar);
+
+	        return {
+	            dsNewCar: nextNewCar
+	        };
+	    }
 	};
+
 	
 	// 주소 초기화
 	// 등본상 주소지에서 x 버튼 누르면, 화면에 안 보이는 소유자주소+사용본거지 주소 한 번에 지워지도록 함

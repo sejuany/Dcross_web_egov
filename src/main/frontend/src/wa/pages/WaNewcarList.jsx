@@ -150,8 +150,10 @@ const getInitialSearchDateRange = (memberGb) => {
     };
 };
 
-const getInitialSearchFilters = (memberGb = '') => {
+const getInitialSearchFilters = (memberGb = '', branchId = '') => {
     const dateRange = getInitialSearchDateRange(memberGb);
+    const normalizedMemberGb = String(memberGb || '').trim().toUpperCase();
+    const isSpaceFixed = ['BA', 'SU'].includes(normalizedMemberGb);
 
     return {
         dateType: dateTypeFallbackOptions[0].CODE_ID,
@@ -159,7 +161,7 @@ const getInitialSearchFilters = (memberGb = '') => {
         endDate: dateRange.endDate,
         processStatus: '',
         plateDeliveryStatus: '',
-        spaceType: '',
+        spaceType: isSpaceFixed ? branchId : '',
         registrationType: '',
         carKeyword: '',
         orderNo: '',
@@ -181,6 +183,13 @@ const getUserMemberGb = (user) => String(
     user?.member_gb ??
     ''
 ).trim().toUpperCase();
+const getUserBranchId = (user) => String(
+    user?.BRANCH_ID ??
+    user?.branch_ID ??
+    user?.branchId ??
+    user?.branch_id ??
+    ''
+).trim();
 
 const toYmd = (value) => String(value || '').replace(/-/g, '');
 
@@ -274,9 +283,11 @@ const createStatusCards = (rows) => [
 ];
 
 const WaNewcarList = () => {
-    const { user, logout } = useAuth();
-    const memberGb = getUserMemberGb(user);
-    const canManageNewcarActions = memberGb === 'CA';
+	const { user, logout } = useAuth();
+	const memberGb = getUserMemberGb(user);
+	const userBranchId = getUserBranchId(user);
+	const isSpaceFixed = ['BA', 'SU'].includes(memberGb);
+	const canManageNewcarActions = memberGb === 'CA';
     const [codeListMap, setCodeListMap] = useState({});
     const [branchList, setBranchList] = useState([]);
     const [rawRows, setRawRows] = useState([]);
@@ -284,7 +295,7 @@ const WaNewcarList = () => {
     const [loading, setLoading] = useState(false);
     const [errorMessage, setErrorMessage] = useState('');
     const [noticeMessage, setNoticeMessage] = useState('');
-    const [searchFilters, setSearchFilters] = useState(() => getInitialSearchFilters(memberGb));
+    const [searchFilters, setSearchFilters] = useState(() => getInitialSearchFilters(memberGb, userBranchId));
     const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
     const [columnWidths, setColumnWidths] = useState({});
     const [activeRequest, setActiveRequest] = useState(null);
@@ -333,25 +344,42 @@ const WaNewcarList = () => {
 
 
     const processStatusOptions = useMemo(
-        () => toSelectOptions(codeListMap.NPRST, processStatusFallbackOptions),
+        () => toSelectOptions(codeListMap.NPRST, processStatusFallbackOptions).map(option => (
+            option.value === 'P_END'
+                ? { ...option, label: '인도금 납부완료' }
+                : option
+        )),
         [codeListMap.NPRST]
     );
 
-    const spaceOptions = useMemo(() => {
-        const branchOptions = branchList.map(branch => ({
-            value: branch.BRANCH_ID,
-            label: branch.BRANCH_NM
-        }));
-        const availableSpaceOptions = branchOptions.length > 0 ? branchOptions : spaceFallbackOptions;
-        const selectableSpaceOptions = memberGb === 'CA'
-            ? availableSpaceOptions.filter(option => String(option.label || '').trim() !== '본점')
-            : availableSpaceOptions;
+	const spaceOptions = useMemo(() => {
+	    const branchOptions = branchList.map(branch => ({
+	        value: branch.BRANCH_ID,
+	        label: branch.BRANCH_NM
+	    }));
 
-        return [
-            { value: '', label: '전체' },
-            ...selectableSpaceOptions
-        ];
-    }, [branchList, memberGb]);
+	    const availableSpaceOptions = branchOptions.length > 0 ? branchOptions : spaceFallbackOptions;
+
+	    const selectableSpaceOptions = memberGb === 'CA'
+	        ? availableSpaceOptions.filter(option => String(option.label || '').trim() !== '본점')
+	        : availableSpaceOptions;
+
+	    if (isSpaceFixed) {
+	        const mySpace = selectableSpaceOptions.find(option => String(option.value) === String(userBranchId));
+
+	        return [
+	            {
+	                value: userBranchId,
+	                label: mySpace?.label || userBranchId || '내 SPACE'
+	            }
+	        ];
+	    }
+
+	    return [
+	        { value: '', label: '전체' },
+	        ...selectableSpaceOptions
+	    ];
+	}, [branchList, memberGb, isSpaceFixed, userBranchId]);
 
     const rows = useMemo(() => rawRows.map((row, index) => {
         const processStatus = formatCode('NPRST', row.NPROC_ST || row.PROC_ST);
@@ -450,19 +478,19 @@ const WaNewcarList = () => {
     const allRowsSelected = rows.length > 0 && rows.every(row => selectedRowKeySet.has(row.rowKey));
     const selectedRows = useMemo(() => rows.filter(row => selectedRowKeySet.has(row.rowKey)), [rows, selectedRowKeySet]);
 
-    const buildSearchPayload = useCallback((filters) => ({
-        WORK_CD: '010',
-        DATE_CD: filters.dateType,
-        START_DT: toYmd(clampSearchStartDate(filters.startDate)),
-        END_DT: toYmd(filters.endDate),
-        CAR_NO: filters.carKeyword.trim(),
-        LINK_ID: filters.orderNo.trim(),
-        CUSTOMER_NM: filters.ownerName.trim(),
-        PAY_GB: filters.registrationType,
-        PROC_ST: filters.processStatus,
-        NUM_PROC_ST: filters.plateDeliveryStatus,
-        SPACE_TYPE: filters.spaceType
-    }), []);
+	const buildSearchPayload = useCallback((filters) => ({
+	    WORK_CD: '010',
+	    DATE_CD: filters.dateType,
+	    START_DT: toYmd(clampSearchStartDate(filters.startDate)),
+	    END_DT: toYmd(filters.endDate),
+	    CAR_NO: filters.carKeyword.trim(),
+	    LINK_ID: filters.orderNo.trim(),
+	    CUSTOMER_NM: filters.ownerName.trim(),
+	    PAY_GB: filters.registrationType,
+	    PROC_ST: filters.processStatus,
+	    NUM_PROC_ST: filters.plateDeliveryStatus,
+	    SPACE_TYPE: isSpaceFixed ? userBranchId : filters.spaceType
+	}), [isSpaceFixed, userBranchId]);
 
     const fetchNewCarList = useCallback(async (filters) => {
         setLoading(true);
@@ -522,11 +550,11 @@ const WaNewcarList = () => {
             }
         };
 
-        const initialFilters = getInitialSearchFilters(memberGb);
-        setSearchFilters(initialFilters);
+		const initialFilters = getInitialSearchFilters(memberGb, userBranchId);
+		setSearchFilters(initialFilters);
 
-        fetchInitialData();
-        fetchNewCarList(initialFilters);
+		fetchInitialData();
+		fetchNewCarList(initialFilters);
 
         return () => {
             isMounted = false;
@@ -564,11 +592,11 @@ const WaNewcarList = () => {
         }));
     };
 
-    const handleReset = () => {
-        const nextFilters = getInitialSearchFilters(memberGb);
-        setSearchFilters(nextFilters);
-        fetchNewCarList(nextFilters);
-    };
+	const handleReset = () => {
+	    const nextFilters = getInitialSearchFilters(memberGb, userBranchId);
+	    setSearchFilters(nextFilters);
+	    fetchNewCarList(nextFilters);
+	};
 
     const handleExport = () => {
         if (rows.length === 0) {
@@ -999,6 +1027,24 @@ const WaNewcarList = () => {
 
         return row.displayValues[column.key] ?? '';
     };
+
+    const getGridCellClassName = (row, column) => {
+        const classNames = [column.className];
+
+        if (
+            column.key === 'ATTACH_YN'
+            && !isDirectRegistrationRow(row)
+            && toStringValue(row.ATTACH_YN) === 'Y'
+        ) {
+            classNames.push(
+                toStringValue(row.ATTACH_COMPLETE_YN) === 'Y'
+                    ? 'wa-attach-complete'
+                    : 'wa-attach-incomplete'
+            );
+        }
+
+        return classNames.filter(Boolean).join(' ') || undefined;
+    };
 	
 	// 모달 세로가 화면보다 커진 경우 상단 정렬
 	const frameRef = useRef(null);
@@ -1082,7 +1128,7 @@ const WaNewcarList = () => {
             <section className="wa-status-filter-panel" aria-label="검색 조건">
                 <label className="wa-status-field">
                     <span>SPACE 구분</span>
-                    <select name="spaceType" value={searchFilters.spaceType} onChange={handleFilterChange}>
+                    <select name="spaceType" value={searchFilters.spaceType} onChange={handleFilterChange}disabled={isSpaceFixed}>
                         {spaceOptions.map(option => (
                             <option key={option.value || 'ALL'} value={option.value}>{option.label}</option>
                         ))}
@@ -1213,7 +1259,7 @@ const WaNewcarList = () => {
 									/*onDoubleClick={() => handleRowDoubleClick(row)} */
 									tabIndex={0} onKeyDown={event => event.key === 'Enter' && handleRowDoubleClick(row)}>
                                     {columns.map(column => (
-                                        <td key={`${row.rowKey}-${column.key}`} className={column.className || undefined}>
+                                        <td key={`${row.rowKey}-${column.key}`} className={getGridCellClassName(row, column)}>
                                             {renderGridCell(row, column, rowIndex)}
                                         </td>
                                     ))}

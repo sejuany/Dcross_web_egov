@@ -233,6 +233,7 @@ const OwnerPersonal = ({
 						<SplitInput
 						    value={dsNewCar.MPHONE_NO}
 						    lengths={[3, 4, 4]}
+						    fixedValues={['010']}
 						    placeholders={['010', '1234', '5678']}
 						    onChange={value =>
 						        setDsNewCar(prev => ({
@@ -305,6 +306,7 @@ const OwnerPersonal = ({
 			        <JointOwner
 						dsNewCar={dsNewCar}
 			            dsOwnerInfo={dsOwnerInfo}
+						setDsNewCar={setDsNewCar}
 			            setDsOwnerInfo={setDsOwnerInfo}
 			            handleChange={handleChange}
 			            SplitInput={SplitInput}

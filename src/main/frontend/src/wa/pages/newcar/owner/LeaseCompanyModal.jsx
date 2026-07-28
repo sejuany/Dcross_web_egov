@@ -1,5 +1,5 @@
 import { X } from 'lucide-react';
-
+import axios from 'axios';
 import React, { useMemo, useState } from 'react';
 
 import '../../../styles/LeaseCompanyModal.css';
@@ -7,9 +7,14 @@ import '../../../styles/LeaseCompanyModal.css';
 
 // 그 외 캐피탈 선택 모달
 const LeaseCompanyModal = ({
+	dsService,
+	dsNewCar,
+	dsOwnerInfo,
 	dsBaseList,
 	onSelect,
-	onClose
+	onClose,
+	onSave,
+	handleChange
 }) => {
 	const [company, setCompany] = useState('');
 	const [directCompany, setDirectCompany] = useState(''); // 직접입력창
@@ -19,11 +24,33 @@ const LeaseCompanyModal = ({
 
 	    return dsBaseList
 	        .filter(item => item.BASE_NM.includes('(본점)'))
-	        .map(item =>
-	            item.BASE_NM.replace(/\(.*\)/, '').trim()
+			.map(item =>
+	            item.BASE_NM
+	                .replace(/\(.*?\)/, '')      // (본점) 제거
+	                .replace(/\s*주식회사$/, '') // 뒤의 '주식회사' 제거
+	                .trim()
 	        );
 
 	}, [dsBaseList]);
+	
+
+	// 신차사업팀에 직접입력일 때 알람 띄우기
+	const setBoard = async () => {
+		
+		try {
+			console.log(setBoard);
+			console.log(dsNewCar);
+			
+	        await axios.post("/api/common/procedure/board", {
+	            SERVICE_ID: dsService.SERVICE_ID,
+	            CONTENT_TX: "[신차사업] 리스사 직접입력 확인",
+	            GUBUN: "2"
+	        });
+
+	    } catch (error) {
+	        console.error(error);
+	    }
+	};
 	
     return (
 
@@ -85,8 +112,10 @@ const LeaseCompanyModal = ({
 						
                     </div>
 					
-					{/* 리스사명 */}
-					{company === 'INPUT' && (
+				{/* 리스사명 */}
+				{company === 'INPUT' 
+					&& (dsNewCar?.PROC_CD === 'I' || dsNewCar?.PROC_CD === 'C') && (
+					dsNewCar.PROC_CD === 'I' ? (
 		                <div className="wa-form-row">
 						
 		                    <label className="wa-form-label">
@@ -94,17 +123,42 @@ const LeaseCompanyModal = ({
 		                    </label>
 							<div className="wa-form-control">
 								
-								    <input
-								        type="text"
-								        className="wa-input"
-								        placeholder="리스사명을 입력해주세요."
-								        value={directCompany}
-								        onChange={e => setDirectCompany(e.target.value)}
-								    />
+							    <input
+							        type="text"
+							        className="wa-input"
+									name="OWNER_NM"
+									data-type="newcar"									    
+									value={dsNewCar.OWNER_NM ?? ''}
+									onChange={handleChange}
+									placeholder="리스사명을 입력해주세요."
+							    />
+									
 							</div>
 							
 						</div>
-					)}
+					) : (
+						<div className="wa-form-row">
+												
+		                    <label className="wa-form-label">
+		                        리스사명
+		                    </label>
+							<div className="wa-form-control">
+								
+							    <input
+							        type="text"
+							        className="wa-input"
+									name="DEBTOR_NM"
+									data-type="owner"									    
+									value={dsOwnerInfo.DEBTOR_NM ?? ''}
+									onChange={handleChange}
+									placeholder="리스사명을 입력해주세요."
+							    />
+									
+							</div>
+							
+						</div>
+					   )
+				)}
 
                 </div>
 
@@ -114,16 +168,37 @@ const LeaseCompanyModal = ({
 					<button
 					    type="button"
 					    className="wa-primary-btn"
-						onClick={() => {
+						onClick={async () => {
 
-						    const headOffice = dsBaseList.find(item =>
-						        item.BASE_NM.includes(company) &&
-						        item.BASE_NM.includes('(본점)')
-						    );
+							let headOffice;
+							
+							if (company === 'INPUT') {
+								
+								headOffice = dsBaseList.find(item =>item.BASE_NM.includes('직접입력'));
+								
+								// 신차사업팀에 직접입력일 때 알람 띄우기
+								await setBoard();
+								
+							} else {
+								headOffice = dsBaseList.find(item =>
+							        item.BASE_NM.includes(company) &&
+							        item.BASE_NM.includes('(본점)')
+							    );
+								
+							}
+							
+							const result = onSelect(headOffice.BASE_ID);
 
-						    onSelect(headOffice.BASE_ID);
+							await onSave(
+							    result?.dsNewCar ?? null,
+							    "SAV",
+							    null,
+							    result?.dsOwnerInfo ?? null,
+							    null,
+							    true
+							);
 
-						    onClose();
+							onClose();
 						}}
 					>
                         완료

@@ -1292,6 +1292,14 @@
     background-color: #ccffcc;
 }
 
+.wa-status-table td.wa-attach-complete {
+    background-color: #c5dbfb;
+}
+
+.wa-status-table td.wa-attach-incomplete {
+    background-color: #f7c8c8;
+}
+
 .wa-status-table tbody tr:hover {
     background: #f9fbff;
 }

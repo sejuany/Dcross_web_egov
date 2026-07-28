@@ -99,24 +99,78 @@ const getUserValue = (user, keys) => {
     return '';
 };
 
-const getUserCompanyId = (user) => getUserValue(user, ['COMPANY_ID', 'company_ID', 'companyId', 'company_id']).toUpperCase();
-const getUserCompanyName = (user) => getUserValue(user, ['COMPANY_NM', 'company_NM', 'companyNm', 'company_nm', 'COMPANY_NAME']);
-const getUserMemberGb = (user) => getUserValue(user, ['MEMBER_GB', 'member_GB', 'memberGb', 'member_gb']).toUpperCase();
+const getUserCompanyId = (user) => getUserValue(user, [
+    'COMPANY_ID',
+    'company_ID',
+    'companyId',
+    'company_id'
+]).toUpperCase();
+
+const getUserCompanyName = (user) => getUserValue(user, [
+    'COMPANY_NM',
+    'company_NM',
+    'companyNm',
+    'company_nm',
+    'COMPANY_NAME',
+    'companyName'
+]);
+
+const getUserMemberGb = (user) => getUserValue(user, [
+    'MEMBER_GB',
+    'member_GB',
+    'memberGb',
+    'member_gb'
+]).toUpperCase();
+
+const getUserBranchId = (user) => getUserValue(user, [
+    'BRANCH_ID',
+    'branch_ID',
+    'branchId',
+    'branch_id'
+]);
+
+const getUserLoginId = (user) => getUserValue(user, [
+    'LOGIN_ID',
+    'login_ID',
+    'loginId',
+    'login_id',
+    'MEMBER_ID',
+    'member_ID',
+    'memberId',
+    'member_id'
+]);
+
+const getUserMemberName = (user) => getUserValue(user, [
+    'MEMBER_NM',
+    'member_NM',
+    'memberNm',
+    'member_nm',
+    'USER_NM',
+    'userNm'
+]);
 
 // 최초 검색 조건을 생성함
 // 회사는 로그인 회사, 기간은 오늘 기준으로 설정하고 지점/담당SP/상태 조건은 전체로 시작함
-const getInitialSearchFilters = (user) => ({
-    companyId: getUserCompanyId(user),
-    branchId: '',
-    memberId: '',
-    dateType: dateTypeOptions[0].value,
-    startDate: getFormattedDateOffset(0),
-    endDate: getFormattedDateOffset(0),
-    processStatus: '',
-    paymentStatus: '',
-    carNo: ''
-});
+const getInitialSearchFilters = (user) => {
+    const memberGb = getUserMemberGb(user);
+    const branchId = getUserBranchId(user);
+    const loginId = getUserLoginId(user);
 
+    const isBranchFixed = ['BA', 'SU'].includes(memberGb);
+    const isMemberFixed = memberGb === 'SU';
+
+    return {
+        companyId: getUserCompanyId(user),
+        branchId: isBranchFixed ? branchId : '',
+        memberId: isMemberFixed ? loginId : '',
+        dateType: dateTypeOptions[0].value,
+        startDate: getFormattedDateOffset(0),
+        endDate: getFormattedDateOffset(0),
+        processStatus: '',
+        paymentStatus: '',
+        carNo: ''
+    };
+};
 // 검색값과 금액값을 안전하게 비교/표시하는 기본 변환 역할을 함
 const toStringValue = (value) => String(value ?? '').trim();
 const toYmd = (value) => toStringValue(value).replace(/-/g, '');
@@ -446,10 +500,17 @@ const createPaymentStatistics = (rows) => {
 
 const WaPayInfo = () => {
     const { user, logout } = useAuth();
-    const memberGb = getUserMemberGb(user);
-    const userCompanyId = getUserCompanyId(user);
-    const userCompanyName = getUserCompanyName(user) || userCompanyId;
-    const canSelectCompany = companySelectableMemberGbs.includes(memberGb);
+	const memberGb = getUserMemberGb(user);
+	const userCompanyId = getUserCompanyId(user);
+	const userCompanyName = getUserCompanyName(user) || userCompanyId;
+	const userBranchId = getUserBranchId(user);
+	const userLoginId = getUserLoginId(user);
+	const userMemberName = getUserMemberName(user) || userLoginId;
+
+	const canSelectCompany = companySelectableMemberGbs.includes(memberGb);
+
+	const isBranchFixed = ['BA', 'SU'].includes(memberGb);
+	const isMemberFixed = memberGb === 'SU';
 
     // 검색 조건, 목록 데이터, 정렬/컬럼, 통계 모달 상태를 관리함
     const [codeListMap, setCodeListMap] = useState({});
@@ -494,21 +555,47 @@ const WaPayInfo = () => {
         return options;
     }, [companyList, userCompanyId, userCompanyName]);
 
-    const branchOptions = useMemo(() => [
-        { value: '', label: '전체(SPACE)' },
-        ...normalizeBranchList(branchList).map(branch => ({
-            value: branch.BRANCH_ID,
-            label: branch.BRANCH_NM
-        }))
-    ], [branchList]);
+	const branchOptions = useMemo(() => {
+	    const normalizedBranches = normalizeBranchList(branchList);
 
-    const memberOptions = useMemo(() => [
-        { value: '', label: '전체' },
-        ...normalizeMemberList(memberList).map(member => ({
-            value: member.LOGIN_ID,
-            label: member.MEMBER_NM
-        }))
-    ], [memberList]);
+	    if (isBranchFixed) {
+	        const myBranch = normalizedBranches.find(branch => branch.BRANCH_ID === userBranchId);
+
+	        return [
+	            {
+	                value: userBranchId,
+	                label: myBranch?.BRANCH_NM || userBranchId || '내 SPACE'
+	            }
+	        ];
+	    }
+
+	    return [
+	        { value: '', label: '전체(SPACE)' },
+	        ...normalizedBranches.map(branch => ({
+	            value: branch.BRANCH_ID,
+	            label: branch.BRANCH_NM
+	        }))
+	    ];
+	}, [branchList, isBranchFixed, userBranchId]);
+
+	const memberOptions = useMemo(() => {
+	    if (isMemberFixed) {
+	        return [
+	            {
+	                value: userLoginId,
+	                label: userMemberName || userLoginId || '내 계정'
+	            }
+	        ];
+	    }
+
+	    return [
+	        { value: '', label: '전체' },
+	        ...normalizeMemberList(memberList).map(member => ({
+	            value: member.LOGIN_ID,
+	            label: member.MEMBER_NM
+	        }))
+	    ];
+	}, [memberList, isMemberFixed, userLoginId, userMemberName]);
 
     // API 원본 행을 그리드 표시값, 정렬값, XLSX 다운로드값 구조로 변환함
     // 금액/날짜/상태값은 화면에서 바로 사용할 수 있는 문자열로 보정함
@@ -592,18 +679,18 @@ const WaPayInfo = () => {
     }, 0), [columnWidths]);
 
     // 화면 검색 조건을 WA 납부현황 조회 API 파라미터로 변환함
-    const buildSearchPayload = useCallback((filters) => ({
-        WORK_CD: '010',
-        COMPANY_ID: filters.companyId || userCompanyId,
-        BRANCH_ID: filters.branchId,
-        MEMBER_ID: filters.memberId,
-        BASE_GUBUN: filters.dateType,
-        START_DT: toYmd(filters.startDate),
-        END_DT: toYmd(filters.endDate),
-        CAR_NO: filters.carNo.trim(),
-        PROC_ST: filters.processStatus,
-        PAY_STATUS: filters.paymentStatus
-    }), [userCompanyId]);
+	const buildSearchPayload = useCallback((filters) => ({
+	    WORK_CD: '010',
+	    COMPANY_ID: filters.companyId || userCompanyId,
+	    BRANCH_ID: isBranchFixed ? userBranchId : filters.branchId,
+	    MEMBER_ID: isMemberFixed ? userLoginId : filters.memberId,
+	    BASE_GUBUN: filters.dateType,
+	    START_DT: toYmd(filters.startDate),
+	    END_DT: toYmd(filters.endDate),
+	    CAR_NO: filters.carNo.trim(),
+	    PROC_ST: filters.processStatus,
+	    PAY_STATUS: filters.paymentStatus
+	}), [userCompanyId, isBranchFixed, userBranchId, isMemberFixed, userLoginId]);
     // 인증 만료 응답은 로그인 화면 이동으로 처리함
     const handleAuthError = useCallback(async (error) => {
         if (error.response?.status === 401 || error.response?.status === 403) {
@@ -690,7 +777,7 @@ const WaPayInfo = () => {
                     axios.post('/api/codes/list', { groupIds: ['SGB', 'NPRST', 'GOVT'] }, { withCredentials: true }),
                     axios.get('/api/companies', { params: companyParams, withCredentials: true }),
                     companyId ? fetchBranchOptions(companyId) : Promise.resolve([]),
-                    companyId ? fetchMemberOptions(companyId, '') : Promise.resolve([])
+                    companyId ? fetchMemberOptions(companyId, initialFilters.branchId) : Promise.resolve([])
                 ]);
 
                 if (!isMounted) return;
@@ -738,70 +825,83 @@ const WaPayInfo = () => {
     };
 
     // 회사 변경 시 지점/담당SP 선택값을 초기화하고 하위 목록을 재조회함
-    const handleCompanyChange = async (event) => {
-        const nextCompanyId = event.target.value;
+	const handleCompanyChange = async (event) => {
+	    const nextCompanyId = event.target.value;
+	    const nextBranchId = isBranchFixed ? userBranchId : '';
+	    const nextMemberId = isMemberFixed ? userLoginId : '';
 
-        setSearchFilters(prev => ({
-            ...prev,
-            companyId: nextCompanyId,
-            branchId: '',
-            memberId: ''
-        }));
-        setBranchList([]);
-        setMemberList([]);
+	    setSearchFilters(prev => ({
+	        ...prev,
+	        companyId: nextCompanyId,
+	        branchId: nextBranchId,
+	        memberId: nextMemberId
+	    }));
 
-        if (!nextCompanyId) {
-            return;
-        }
+	    setBranchList([]);
+	    setMemberList([]);
 
-        try {
-            const [nextBranchList, nextMemberList] = await Promise.all([
-                fetchBranchOptions(nextCompanyId),
-                fetchMemberOptions(nextCompanyId, '')
-            ]);
+	    if (!nextCompanyId) {
+	        return;
+	    }
 
-            setBranchList(nextBranchList || []);
-            setMemberList(nextMemberList || []);
-        } catch (error) {
-            console.error('WA 납부현황 회사 조건 변경 실패:', error);
+	    try {
+	        const [nextBranchList, nextMemberList] = await Promise.all([
+	            fetchBranchOptions(nextCompanyId),
+	            fetchMemberOptions(nextCompanyId, nextBranchId)
+	        ]);
 
-            if (await handleAuthError(error)) {
-                return;
-            }
+	        setBranchList(nextBranchList || []);
+	        setMemberList(nextMemberList || []);
+	    } catch (error) {
+	        console.error('WA 납부현황 회사 조건 변경 실패:', error);
 
-            setErrorMessage('회사 조건에 맞는 지점/담당SP 정보를 불러오지 못했습니다.');
-        }
-    };
+	        if (await handleAuthError(error)) {
+	            return;
+	        }
+
+	        setErrorMessage('회사 조건에 맞는 지점/담당SP 정보를 불러오지 못했습니다.');
+	    }
+	};
 
     // 지점 변경 시 담당SP 목록을 해당 지점 기준으로 재조회함
-    const handleBranchChange = async (event) => {
-        const nextBranchId = event.target.value;
-        const companyId = selectedCompanyId;
+	const handleBranchChange = async (event) => {
+	    if (isBranchFixed) {
+	        setSearchFilters(prev => ({
+	            ...prev,
+	            branchId: userBranchId,
+	            memberId: isMemberFixed ? userLoginId : prev.memberId
+	        }));
+	        return;
+	    }
 
-        setSearchFilters(prev => ({
-            ...prev,
-            branchId: nextBranchId,
-            memberId: ''
-        }));
-        setMemberList([]);
+	    const nextBranchId = event.target.value;
+	    const companyId = selectedCompanyId;
 
-        if (!companyId) {
-            return;
-        }
+	    setSearchFilters(prev => ({
+	        ...prev,
+	        branchId: nextBranchId,
+	        memberId: ''
+	    }));
 
-        try {
-            const nextMemberList = await fetchMemberOptions(companyId, nextBranchId);
-            setMemberList(nextMemberList || []);
-        } catch (error) {
-            console.error('WA 납부현황 지점 조건 변경 실패:', error);
+	    setMemberList([]);
 
-            if (await handleAuthError(error)) {
-                return;
-            }
+	    if (!companyId) {
+	        return;
+	    }
 
-            setErrorMessage('지점 조건에 맞는 담당SP 정보를 불러오지 못했습니다.');
-        }
-    };
+	    try {
+	        const nextMemberList = await fetchMemberOptions(companyId, nextBranchId);
+	        setMemberList(nextMemberList || []);
+	    } catch (error) {
+	        console.error('WA 납부현황 지점 조건 변경 실패:', error);
+
+	        if (await handleAuthError(error)) {
+	            return;
+	        }
+
+	        setErrorMessage('지점 조건에 맞는 담당SP 정보를 불러오지 못했습니다.');
+	    }
+	};
 
     // 오늘/1주일/1개월 빠른 기간 선택을 처리함
     const handleDateQuickRange = (startOffset) => {
@@ -820,7 +920,7 @@ const WaPayInfo = () => {
         try {
             const [nextBranchList, nextMemberList] = await Promise.all([
                 nextFilters.companyId ? fetchBranchOptions(nextFilters.companyId) : Promise.resolve([]),
-                nextFilters.companyId ? fetchMemberOptions(nextFilters.companyId, '') : Promise.resolve([])
+                nextFilters.companyId ? fetchMemberOptions(nextFilters.companyId, nextFilters.branchId) : Promise.resolve([])
             ]);
 
             setBranchList(nextBranchList || []);
@@ -1022,7 +1122,12 @@ const WaPayInfo = () => {
                                     <option key={option.value} value={option.value}>{option.label}</option>
                                 ))}
                             </select>
-                            <select name="branchId" value={searchFilters.branchId} onChange={handleBranchChange}>
+							<select
+							    name="branchId"
+							    value={searchFilters.branchId}
+							    onChange={handleBranchChange}
+							    disabled={isBranchFixed}
+							>
                                 {branchOptions.map(option => (
                                     <option key={option.value || 'ALL_BRANCH'} value={option.value}>{option.label}</option>
                                 ))}
@@ -1032,7 +1137,12 @@ const WaPayInfo = () => {
 
                     <label className="wa-status-field">
                         <span>담당SP명</span>
-                        <select name="memberId" value={searchFilters.memberId} onChange={handleFilterChange}>
+						<select
+						    name="memberId"
+						    value={searchFilters.memberId}
+						    onChange={handleFilterChange}
+						    disabled={isMemberFixed}
+						>
                             {memberOptions.map(option => (
                                 <option key={option.value || 'ALL_MEMBER'} value={option.value}>{option.label}</option>
                             ))}

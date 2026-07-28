@@ -603,6 +603,12 @@ hr.wa-divider.hr2 {
     border-radius:8px;
     background:#f5f7fb;
 }
+
+.addr-guide-box {
+	border: 1px solid #d5dce7;
+    border-radius: 8px;
+    margin-bottom: 10px;
+}
 /* =========================================================
  * Alert
  * ========================================================= */
@@ -2202,7 +2208,11 @@ hr.wa-divider.hr2 {
     cursor: not-allowed;
 }
 
-
+.wa-disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+    transition: opacity 0.2s ease;
+}
 
 @media (max-width: 760px) {
     .wa-attach-modal {

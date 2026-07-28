@@ -9,12 +9,15 @@ import AddressSearch from '../../common/AddressSearch';
 import SplitInput from '../../common/SplitInput';
 
 const OwnerUserLease = ({
+	dsService,
 	dsNewCar,
+	dsOwnerInfo,
 	setDsNewCar,
 	dsCarNoDetach,
 	dsBaseList,
 	setDsOwnerInfo,
 	handleChange,
+	onSave,
 	address
 }) => {
 	// 외국인등록번호 선택 시 최종확인 단계에서 첨부해야 하는 서류를 안내한다.
@@ -28,23 +31,15 @@ const OwnerUserLease = ({
 	const showAddress = Boolean(dsNewCar.REG_GB);
 	// 자주 사용하는 리스사
 	const LEASE_COMPANIES = [
-	    '우리금융캐피탈', '산은캐피탈', 'BNK캐피탈', 'NH농협캐피탈', 'KB캐피탈', '오릭스캐피탈',
-	    '하나캐피탈'
+	    '우리금융캐피탈', '산은캐피탈', '비엔케이캐피탈', '엔에이치농협캐피탈', '케이비캐피탈', '오릭스캐피탈', '하나캐피탈'
 	];
+	
 	// 주소 기능 추가
 	const {
 	    handleLeaseCompany,
 	    handleAddressSelect,
 	    handleClearAddress
 	} = address;
-	
-	// 차량 구매방식 변경할 때마다 리스사 선택 지움 
-	useEffect(() => {
-	    setDsNewCar(prev => ({
-	        ...prev,
-	        BASE_BRANCH_ID: ''
-	    }));
-	}, []);
 	
 	// 계약자와 동일
 	const handleSameCustomer = (e) => {
@@ -75,7 +70,6 @@ const OwnerUserLease = ({
 
 	// 현재 선택된 리스사
 	const currentCompany = useMemo(() => {
-
 	    const base = dsBaseList.find(item =>
 	        String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
 	    );
@@ -86,7 +80,7 @@ const OwnerUserLease = ({
 
 	    return {
 	        BASE_ID: base.BASE_ID,
-	        BASE_NM: base.BASE_NM.replace(/\(.*\)/, '').trim()
+	        BASE_NM: base.BASE_NM.replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim()
 	    };
 
 	}, [dsBaseList, dsNewCar.BASE_BRANCH_ID]);
@@ -98,10 +92,13 @@ const OwnerUserLease = ({
 	    return LEASE_COMPANIES
 	        .map(company => {
 
-	            const headOffice = dsBaseList.find(item =>
-	                item.BASE_NM.includes(company) &&
-	                item.BASE_NM.includes('(본점)')
-	            );
+				const headOffice = dsBaseList.find(item =>
+				    item.BASE_NM.includes('(본점)') &&
+				    (
+				        item.BASE_NM.includes(company) ||
+				        company.includes(item.BASE_NM.replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim())
+				    )
+				);
 
 	            return headOffice
 	                ? {
@@ -181,9 +178,14 @@ const OwnerUserLease = ({
 			{/* 그 외 캐피탈 선택 모달창 */}
 			{showLeaseModal && (
 				<LeaseCompanyModal
+					dsService={dsService}
+					dsNewCar={dsNewCar}
+					dsOwnerInfo={dsOwnerInfo}
 				    dsBaseList={dsBaseList}
 				    onSelect={baseId => handleLeaseCompany(baseId)}
 				    onClose={() => setShowLeaseModal(false)}
+					handleChange={handleChange}
+					onSave={onSave}
 				/>
 			)}
 
@@ -312,6 +314,7 @@ const OwnerUserLease = ({
 						<SplitInput
 						    value={dsNewCar.MPHONE_NO}
 						    lengths={[3, 4, 4]}
+						    fixedValues={['010']}
 						    placeholders={['010', '1234', '5678']}
 						    onChange={value =>
 						        setDsNewCar(prev => ({

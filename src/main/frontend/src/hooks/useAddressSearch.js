@@ -27,10 +27,14 @@ const useAddressSearch = ({
 	// 조회 결과
 	const [searched, setSearched] = useState(false);
 	
+	// 입력창에 아무것도 입력 안 하고 조회 하려고 할 때
+	const [showGuide, setShowGuide] = useState(false);
+	
 	useEffect(() => {
 	    setSearched(false);
 	    setAddressList([]);
 	    setPage(1);
+		setShowGuide(false);
 	}, [value]);
 	
     // 주소 조회
@@ -38,11 +42,14 @@ const useAddressSearch = ({
 		
         const oAddr = gf.createAddrParam(value);
 
-        if (!oAddr.ROAD_NM) {
-            gf.alert('도로명 또는 지번 주소를 입력해주세요.');
-            return;
-        }
+		if (!oAddr || !oAddr.ROAD_NM) {
+			gf.alert('주소를 입력한 후 조회해 주세요.');
+		    setShowGuide(true);
+		    return;
+		}
 
+		setShowGuide(false);
+		
         try {
 
             setLoading(true);
@@ -115,6 +122,7 @@ const useAddressSearch = ({
     return {
         loading,
 		searched,
+		showGuide,
         page,
         setPage,
         addressList,

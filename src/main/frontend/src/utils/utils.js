@@ -656,32 +656,35 @@ export const gf = {
 	// 전체 주소 넣고 조회하기 
 	createAddrParam(address) {
 
-		// 광역자치단체  
-		const SIDO_NM = gf.findSidoNm(address);
-		
+	    if (!address || !String(address).trim()) {
+	        return null;
+	    }
+
+	    // 광역자치단체  
+	    const SIDO_NM = gf.findSidoNm(address);
+
 	    // 공백 제거
-	    let inputAddr = address.replace(/\s/g, '');
-		
-		// 행정구역 제거하고 시작
-		const addr = gf.removeRegionAddress(inputAddr);
-		
-		console.log("addr : " + addr);
-		
+	    let inputAddr = String(address).replace(/\s/g, '');
+
+	    // 행정구역 제거하고 시작
+	    const addr = gf.removeRegionAddress(inputAddr);
+
+	    console.log("addr : " + addr);
+
 	    // 결과값
 	    let ROAD_NM = '';
 	    let BUILDB_NO = '';
 	    let BUILDS_NO = '';
 	    let BUBJUNGRI_NM = 'N';
 
-	    // 전체 주소에서 실제 검색 대상 추출
-	    // ex)
-		// · 길이름 + 건물번호 
-	    // 서울중구세종대로110 -> 세종대로110
-		// · 읍면동 + 번지
-	    // 경기도성남시분당구삼평동681-1 -> 삼평동681-1
-	    
-		// 도로명 패턴
-		const roadMatch = addr.match(
+	    // 도로명 패턴
+	    // 예)
+	    // 동대구로41
+	    // 우이천로304
+	    // 논현로11길18
+	    // 세종대로110
+	    // 뒤에 괄호가 붙어도 앞쪽 주소만 잡음
+	    const roadMatch = addr.match(
 	        /([가-힣0-9]+(?:대로|로|길))([0-9]+(?:-[0-9]+)?)/
 	    );
 
@@ -689,61 +692,61 @@ export const gf = {
 	    const jibunMatch = addr.match(
 	        /([가-힣0-9]+(?:읍|면|동|리))([0-9]+(?:-[0-9]+)?)/
 	    );
-		
-
-	    let targetAddr = '';
 
 	    // 도로명 우선
 	    if (roadMatch) {
-
-			targetAddr = roadMatch[0];
-
-			ROAD_NM = roadMatch[1];
-			BUILDB_NO = roadMatch[2];
-
+	        ROAD_NM = roadMatch[1];
+	        BUILDB_NO = roadMatch[2];
+	        BUBJUNGRI_NM = 'N';
 	    }
 
 	    // 지번
 	    else if (jibunMatch) {
-
-			targetAddr = jibunMatch[0];
-
 	        ROAD_NM = jibunMatch[1];
 	        BUILDB_NO = jibunMatch[2];
 
+	        if (ROAD_NM.endsWith('리')) {
+	            BUBJUNGRI_NM = 'Y';
+	        }
 	    }
 
-	    // 리 여부
-	    if (ROAD_NM.endsWith('리')) {
-	        BUBJUNGRI_NM = 'Y';
+	    if (!ROAD_NM || !BUILDB_NO) {
+	        console.log('[createAddrParam 실패]', {
+	            SIDO_NM,
+	            inputAddr,
+	            addr,
+	            ROAD_NM,
+	            BUILDB_NO,
+	            BUILDS_NO,
+	            BUBJUNGRI_NM
+	        });
+
+	        return null;
 	    }
 
 	    // 본번 / 부번 분리
 	    if (BUILDB_NO.includes('-')) {
-
 	        const splitNo = BUILDB_NO.split('-');
 
 	        BUILDB_NO = splitNo[0];
 	        BUILDS_NO = splitNo[1];
-
 	    }
-		
-		console.log({
-					SIDO_NM,
-			        ROAD_NM,
-			        BUILDB_NO,
-			        BUILDS_NO,
-			        BUBJUNGRI_NM
-			    });
+
+	    console.log({
+	        SIDO_NM,
+	        ROAD_NM,
+	        BUILDB_NO,
+	        BUILDS_NO,
+	        BUBJUNGRI_NM
+	    });
 
 	    return {
-			SIDO_NM,
+	        SIDO_NM,
 	        ROAD_NM,
 	        BUILDB_NO,
 	        BUILDS_NO,
 	        BUBJUNGRI_NM
 	    };
-		
 	},
 
 
@@ -777,11 +780,21 @@ export const gf = {
 		// 시/군/구 제거
 		while (/^[가-힣]+?(시|군|구)(?=[가-힣])/.test(inputAddr)) {
 
-		    inputAddr = inputAddr.replace(
-		        /^[가-힣]+?(시|군|구)/,
-		        ''
-		    );
+		    const match = inputAddr.match(/^([가-힣]+?(시|군|구))(?=[가-힣])/);
 
+		    if (!match) {
+		        break;
+		    }
+
+		    const removeText = match[1];
+		    const nextText = inputAddr.substring(removeText.length);
+
+		    // 동대구로41 같은 도로명을 "동대구" + "로41"로 잘라버리는 것 방지
+		    if (/^(로|길|대로)/.test(nextText)) {
+		        break;
+		    }
+
+		    inputAddr = inputAddr.substring(removeText.length);
 		}
 
 		// 시/군/구 제거 후 남은 읍/면 제거

@@ -12,12 +12,15 @@ import SplitInput from '../../common/SplitInput';
 import useAddressHandler from '../../../../hooks/useAddressHandler';
 
 const OwnerLease = ({
+	dsService,
 	dsNewCar,
 	setDsNewCar,
+	dsOwnerInfo,
 	dsCarNoDetach,
 	dsBaseList,
 	setDsOwnerInfo,
-	handleChange
+	handleChange,
+	onSave
 }) => {
 	// 외국인등록번호 선택 시 최종확인 단계에서 첨부해야 하는 서류를 안내한다.
 	const showForeignerGuide = dsNewCar.REG_GB === 'F';
@@ -27,26 +30,17 @@ const OwnerLease = ({
 	const [showLeaseModal, setShowLeaseModal] = useState(false);
 	// 자주 사용하는 리스사
 	const LEASE_COMPANIES = [
-	    '우리금융캐피탈', '산은캐피탈', 'BNK캐피탈', 'NH농협캐피탈', 'KB캐피탈', '오릭스캐피탈',
-	    '하나캐피탈'
+	    '우리금융캐피탈', '산은캐피탈', '비엔케이캐피탈', '엔에이치농협캐피탈', '케이비캐피탈', '오릭스캐피탈', '하나캐피탈'
 	];
 	// 주소 기능 추가
 	const { handleLeaseCompany } = useAddressHandler({ dsNewCar, dsBaseList, setDsNewCar, setDsOwnerInfo });
 	
-	// 차량 구매방식 변경할 때마다 리스사 선택 지움 
-	useEffect(() => {
-	    setDsNewCar(prev => ({
-	        ...prev,
-	        BASE_BRANCH_ID: ''
-	    }));
-	}, []);
-	
 	// 계약자와 동일
 	const handleSameCustomer = (e) => {
 
-	    setDsNewCar(prev => ({
+	    setDsOwnerInfo(prev => ({
 	        ...prev,
-	        OWNER_NM: e.target.checked
+	        DEBTOR_NM: e.target.checked
 	            ? (dsCarNoDetach.CUSTOMER_NM ?? '')
 	            : ''
 	    }));
@@ -55,7 +49,6 @@ const OwnerLease = ({
 
 	// 현재 선택된 리스사
 	const currentCompany = useMemo(() => {
-
 	    const base = dsBaseList.find(item =>
 	        String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
 	    );
@@ -66,7 +59,7 @@ const OwnerLease = ({
 
 	    return {
 	        BASE_ID: base.BASE_ID,
-	        BASE_NM: base.BASE_NM.replace(/\(.*\)/, '').trim()
+	        BASE_NM: base.BASE_NM.replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim()
 	    };
 
 	}, [dsBaseList, dsNewCar.BASE_BRANCH_ID]);
@@ -78,10 +71,13 @@ const OwnerLease = ({
 	    return LEASE_COMPANIES
 	        .map(company => {
 
-	            const headOffice = dsBaseList.find(item =>
-	                item.BASE_NM.includes(company) &&
-	                item.BASE_NM.includes('(본점)')
-	            );
+				const headOffice = dsBaseList.find(item =>
+				    item.BASE_NM.includes('(본점)') &&
+				    (
+				        item.BASE_NM.includes(company) ||
+				        company.includes(item.BASE_NM.replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim())
+				    )
+				);
 
 	            return headOffice
 	                ? {
@@ -111,7 +107,7 @@ const OwnerLease = ({
 	    return list;
 
 	}, [leaseCompanies, currentCompany]);
-	
+
     return (
         <>
             {/* 리스사 선택 */}
@@ -127,7 +123,7 @@ const OwnerLease = ({
 		
 						<select
 						    className="wa-select wa-flex"
-						    value={dsNewCar.BASE_BRANCH_ID ?? ''}
+						    value={String(dsNewCar.BASE_BRANCH_ID ?? '')}
 						    onChange={e => handleLeaseCompany(e.target.value)}
 						>
 						    <option value="">선택</option>
@@ -159,13 +155,17 @@ const OwnerLease = ({
 			{/* 그 외 캐피탈 선택 모달창 */}
 			{showLeaseModal && (
 				<LeaseCompanyModal
+					dsService={dsService}
+					dsNewCar={dsNewCar}
 				    dsBaseList={dsBaseList}
+					handleChange={handleChange}
 				    onSelect={baseId => handleLeaseCompany(baseId)}
 				    onClose={() => setShowLeaseModal(false)}
+					onSave={onSave}
 				/>
 			)}
 
-            {/* 이용자명 */}
+
 			<div className="wa-form-row">
 
 			    <div className="wa-form-label-wrap">
@@ -181,21 +181,20 @@ const OwnerLease = ({
 
 			    <div className="wa-form-control">
 
-			        <input
-			            className="wa-input"
-			            name="OWNER_NM"
-			            data-type="newcar"
-			            value={dsNewCar.OWNER_NM ?? ''}
-			            onChange={handleChange}
-			            placeholder="리스 계약자명을 입력하세요"
-			        />
+					<input
+	                    className="wa-input"
+	                    name="DEBTOR_NM"
+	                    data-type="owner"
+	                    value={dsOwnerInfo.DEBTOR_NM ?? ''}
+	                    onChange={handleChange}
+	                    placeholder="상호명을 입력하세요"
+	                />
 
 			    </div>
 
 			</div>
 			
 
-			{/* 등록번호 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
 			        리스 계약자 등록번호
@@ -204,9 +203,9 @@ const OwnerLease = ({
 			        <div className="wa-inline-group">
 						<select
 						    className="wa-select"
-						    name="REG_GB"
-						    data-type="newcar"
-						    value={dsNewCar.REG_GB ?? ''}
+						    name="DEBTOR_GB"
+						    data-type="owner"
+						    value={dsOwnerInfo.DEBTOR_GB ?? ''}
 						    onChange={handleChange}
 						>
 						    <option value="">선택</option>
@@ -215,26 +214,28 @@ const OwnerLease = ({
 						    <option value="C">사업자번호</option>
 						</select>
 
-						{dsNewCar.REG_GB === 'C' ? (
+						{dsOwnerInfo.DEBTOR_GB === 'C' ? (
 						    <SplitInput
-						        value={dsNewCar.BIZ_NO}
+								key={dsOwnerInfo.DEBTOR_GB}
+						        value={dsOwnerInfo.DEBTOR_BIZ_NO}
 						        lengths={[3, 2, 5]}
 						        placeholders={['123', '45', '67890']}
 						        onChange={value =>
-						            setDsNewCar(prev => ({
+						            setDsOwnerInfo(prev => ({
 						                ...prev,
-						                BIZ_NO: value
+						                DEBTOR_BIZ_NO: value
 						            }))
 						        }
 						    />
 						) : (
 						    <SplitInput
-						        value={dsNewCar.REG_NO}
+								key={dsOwnerInfo.DEBTOR_GB}
+						        value={dsOwnerInfo.DEBTOR_REG_NO}
 						        lengths={[6, 7]}
 						        onChange={value =>
-						            setDsNewCar(prev => ({
+						            setDsOwnerInfo(prev => ({
 						                ...prev,
-						                REG_NO: value
+						                DEBTOR_REG_NO: value
 						            }))
 						        }
 						    />
@@ -244,21 +245,21 @@ const OwnerLease = ({
 			    </div>
 			</div>
 
-			{/* 휴대폰번호 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
 			        리스 계약자 휴대폰번호
 			    </label>
 			    <div className="wa-form-control">
-			        <div className="wa-inline-group">
+					<div className="wa-inline-group">
 						<SplitInput
-						    value={dsNewCar.MPHONE_NO}
+						    value={dsOwnerInfo.DEBTOR_TEL_NO}
 						    lengths={[3, 4, 4]}
-						    placeholders={['010', '1234', '5678']}
+							fixedValues={['010']}
+							placeholders={['010', '1234', '5678']}
 						    onChange={value =>
-						        setDsNewCar(prev => ({
+						        setDsOwnerInfo(prev => ({
 						            ...prev,
-						            MPHONE_NO: value
+						            DEBTOR_TEL_NO: value
 						        }))
 						    }
 						/>

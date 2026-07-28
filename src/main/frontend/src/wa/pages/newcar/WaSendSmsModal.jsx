@@ -91,7 +91,7 @@ const WaSendSmsModal = ({
 		const sText = '안녕하세요. 폴스타코리아 주문번호 ' + dsService.LINK_ID + 
 		' 차량의 추가 제출서류를 준비하셔서 아래의 URL로 접속하신 후 업로드 바랍니다.\n' +
 		'※ 업로드 완료 후 담당 스페셜리스트에게 연락 바랍니다.\n' +
-		'담당 스페셜리스트 연락처 : ' + dsUserInfo.MPHONE_NO + '\r\n' +
+		'담당 스페셜리스트 : ' + formatPhoneNumber(dsUserInfo.MPHONE_NO) + '\r\n' +
 		url;
 		 
 		console.log(sText);
@@ -171,6 +171,24 @@ const WaSendSmsModal = ({
 	    }
 
 	    throw new Error('토큰 생성에 실패했습니다.');
+	};
+	
+	const formatPhoneNumber = (phone) => {
+	    if (!phone) return '';
+
+	    const onlyNumber = phone.replace(/\D/g, '');
+
+	    if (onlyNumber.length === 11) {
+	        // 01012345678 -> 010-1234-5678
+	        return onlyNumber.replace(/(\d{3})(\d{4})(\d{4})/, '$1-$2-$3');
+	    }
+
+	    if (onlyNumber.length === 10) {
+	        // 0111234567 또는 0101234567 -> 010-123-4567
+	        return onlyNumber.replace(/(\d{3})(\d{3})(\d{4})/, '$1-$2-$3');
+	    }
+
+	    return phone;
 	};
 
     return (

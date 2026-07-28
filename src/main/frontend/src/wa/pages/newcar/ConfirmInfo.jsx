@@ -151,7 +151,12 @@ const ConfirmInfo = ({
 						        <>
 					            <div className="wa-confirm-item">
 					                <span>리스사명</span>
-					                <strong>{dsBaseList?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))?.BASE_NM ?? ''}</strong>
+									<strong>
+									    {(dsBaseList
+									        ?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))
+									        ?.BASE_NM ?? ''
+									    ).replace(/\((본점|창원)\)$/, '')}
+									</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 계약자명</span>
@@ -173,7 +178,11 @@ const ConfirmInfo = ({
 						        <>
 					            <div className="wa-confirm-item">
 					                <span>리스사명</span>
-					                <strong>{dsBaseList?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))?.BASE_NM ?? ''}</strong>
+									<strong>
+									    {(dsBaseList?.find(
+									        item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
+									    )?.BASE_NM ?? '').replace(/\((본점|창원)\)$/, '')}
+									</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 종료일</span>

@@ -89,6 +89,28 @@ const AddressSearch = ({
 
 				</div>
 				
+				{address.showGuide && (
+				    <div className="addr-guide-box">
+
+				        <div className="guide-title">
+				            Tip
+				        </div>
+
+				        <div className="guide-item">
+				            <strong>전체 주소 검색 가능</strong>
+				            <p>서울특별시 중구 세종대로 110</p>
+				            <p>경기도 성남시 분당구 판교역로 166</p>
+				        </div>
+
+				        <div className="guide-item">
+				            <strong>간단 검색도 가능</strong>
+				            <p>판교역로 235</p>
+				            <p>호계동 898-0</p>
+				        </div>
+
+				    </div>
+				)}
+				
                 {/* 검색 결과 */}
 				{address.searched && (
 

@@ -66,6 +66,7 @@ const WaNewcarDetail = ({
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
 	const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 	const [searchParams] = useSearchParams();
+	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const serviceId = searchParams.get('serviceId');
 	
 	// 영수증
@@ -216,6 +217,7 @@ const WaNewcarDetail = ({
 	
 	
 	const handleCancel = async () => {
+		if (isCancelRequested) return;
 		const ok = await gf.confirm("등록을 취소하시겠습니까?");
 
 		if (!ok) return;
@@ -227,6 +229,9 @@ const WaNewcarDetail = ({
 	            CONTENT_TX: "[신차사업] 등록 취소!! 관청에 확인 필요",
 	            GUBUN: "2"
 	        });
+			
+			// 등록취소 요청 상태 저장
+	        setIsCancelRequested(true);
 
 	        gf.alert("등록 취소 요청이 완료되었습니다.");
 
@@ -754,8 +759,9 @@ const WaNewcarDetail = ({
 				        type="button"
 				        className="wa-btn-secondary"
 				        onClick={handleCancel}
+						disabled={isCancelRequested}
 				    >
-				        등록 취소
+				        {isCancelRequested ? "등록취소 요청완료" : "등록 취소"}
 				    </button>
 				</div>
 				

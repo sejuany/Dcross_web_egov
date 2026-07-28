@@ -7,6 +7,7 @@ import AddressSearch from '../../common/AddressSearch';
 const JointOwner = ({
 	dsNewCar,
 	dsOwnerInfo,
+	setDsNewCar,
 	setDsOwnerInfo,
 	handleChange,
 	SplitInput,
@@ -22,6 +23,20 @@ const JointOwner = ({
 
     // 외국인등록번호 선택 시 최종확인 단계의 첨부서류를 안내한다.
     const showForeignerGuide = dsOwnerInfo.DEBTOR_GB === 'F';
+	
+	// 대표소유자 주소와 동일한 경우 체크 
+	// 대표소유자 주소와 동일한 경우 체크
+	const handleSameAddress = (e) => {
+
+	    const checked = e.target.checked;
+
+	    setDsOwnerInfo(prev => ({
+	        ...prev,
+	        DEBTOR_ADDR: checked ? dsNewCar.BASE_ADDRESS : '',
+	        DEBTOR_ADDR_DT: checked ? dsNewCar.BASE_ADDRESS_DT : '',
+	        DEBTOR_ROAD_CD: checked ? dsNewCar.BASE_POST_NO : '',
+	    }));
+	};
 	
     return (
     	<>
@@ -190,6 +205,10 @@ const JointOwner = ({
 				    handleChange={handleChange}
 				    onSelect={onSelect}
 				    onClear={onClear}
+					
+					showSameCheckbox
+					onSameChange={handleSameAddress}
+					sameLabel='대표소유자 주소'
 				/>
 			)}
 			

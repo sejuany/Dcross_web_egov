@@ -1,4 +1,4 @@
-﻿
+﻿﻿﻿ 
 /* =========================================================
  * Import
  * ========================================================= */
@@ -83,7 +83,6 @@ import '../../styles/WaNewcarRequest.css';
  *      PROC_ST를 W_REQ로 변경하여 /api/newcar/process에 요청한다.
  */
 
-
 /* =========================================================
  * Constant
  * ========================================================= */
@@ -116,28 +115,13 @@ const COMPANY_NUMPLATE_PRICE = {
     }
 };
 
-// 화면 필수 입력 항목
-const REQUIRED_FIELDS = [
-    { name: 'TASK_CD', label: '업무구분' },
-    { name: 'CARID_NO', label: '차대번호' },
-    { name: 'REQ_CAR_NO', label: '차량번호' },
-    { name: 'REG_GB', label: '등록구분' },
-    { name: 'REG_NO', label: '등록번호' },
-    { name: 'OWNER_NM', label: '성명(상호)' },
-    { name: 'RATIO_NO', label: '소유비율' },
-    { name: 'MPHONE_NO', label: '휴대폰번호' },
-    { name: 'ADDRESS', label: '소유자 주소' },
-    { name: 'RT_ACC_NM', label: '소유자 성명' },
-    { name: 'BASE_ADDRESS', label: '사용본거지 주소' },
-    { name: 'RT_ACC_NO', label: '사용본거지 연락처' },
-    { name: 'NUMPLATE_GB', label: '번호판 종류' },
-    { name: 'PAY_GB', label: '결제구분' },
-    { name: 'BUY_AMT', label: '공급가액' },
-    { name: 'BOND_DC', label: '채권할인여부' },
-    { name: 'RT_BANK_CD', label: '환급계좌 은행' },
-    { name: 'RETURN_NO', label: '환급계좌번호' },
-    { name: 'RETURN_NM', label: '환급예금주' }
-];
+const isEmptyRequiredValue = (value) => (
+    value === null
+    || value === undefined
+    || String(value).trim() === ''
+);
+
+const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
 
 const NH_BOND_AREAS = new Set([
     '울산광역시',
@@ -672,7 +656,7 @@ const WaNewcarRequest = ({
  * 사인 및 첨부서류 관련
  * ========================================================= */
 	const [attachReady, setAttachReady] = useState(false);
-
+	
 	// 일반 첨부 정책	
 	const attachPolicy = useMemo(
 	    () => getAttachPolicy(dsNewCar),
@@ -690,7 +674,7 @@ const WaNewcarRequest = ({
 			
 	// 첨부 완료 여부 반환
 	const checkAttachReady = async () => {
-		console.log(showAttach);
+		
 		// 첨부 및 전자서명 완료 여부 확인
 	    if (!showAttach) {
 	        return {
@@ -734,6 +718,14 @@ const WaNewcarRequest = ({
 		// 전자서명 파일 존재 여부
 		const hasSignFile = uploadedCodes.has('SIGN');
 		
+		// 전자서명, 첨부파일 모두 누락
+		if (attachPolicy.needSign && !hasSignFile && hasMissing) {
+		    return {
+		        ready: false,
+		        message: '전자서명 및 첨부파일 업로드를 완료해주세요.'
+		    };
+		}
+		
 		// 전자서명이 필요한데 없는 경우
 		if (attachPolicy.needSign && !hasSignFile) {
 	        return {
@@ -770,31 +762,12 @@ const WaNewcarRequest = ({
 	    dsService.SERVICE_ID,
 	    showAttach
 	]);
-	
+
+
+
 /* =========================================================
  * * Event
  * ========================================================= */	
-	
-	// 비활성화 또는 다음 단계로 못 넘어가게 막음 
-	const isActionDisabled = () => {
-		
-	    if (saving) {
-	        return true;
-	    }
-		console.log("showAttach2 >>"+showAttach);
-	    if (showAttach && !attachReady && step === 4) {
-	        return true;
-	    }
-		
-	    // 추가 조건
-	    if (Number(dsOwnerInfo.DEBTOR_RATIO) >= 100) {
-	        return true;
-	    }
-	
-	    return false;
-	};
-	
-
 	/**
 	 * 하단의 다음/요청 버튼 진입점.
 	 * 1~3단계는 changeStep()으로 넘기고, 최종 확인 단계의 SU 요청은
@@ -903,16 +876,28 @@ const WaNewcarRequest = ({
 	 * 진행단계 변경과 현재 입력내용 저장을 한 번에 처리한다.
 	 *
 	 * - openNotice()가 안내 대상을 찾으면 실제 이동을 중단하고 모달을 먼저 연다.
-	 * - 3 -> 4 이동은 전체 필수값을 검사하고 채권은행 파생값을 계산한다.
+	 * - 앞으로 이동할 때 현재 탭부터 이동 직전 탭까지 단계별 필수값을 검사한다.
+	 * - 3 -> 4 이동은 검증 통과 후 채권은행 파생값을 계산한다.
 	 * - 파생값을 합친 newCarForSave를 saveProcess()에 직접 넘겨 React state의
 	 *   비동기 갱신 시점과 관계없이 같은 값이 DB에 저장되도록 한다.
 	 * - 상세조회 화면이 아니면 stepMemory에 마지막 작업 단계를 보관한다.
 	 */
 	const changeStep = async (nextStep, skipNotice = false) => {
-		
-		if(Number(dsOwnerInfo.DEBTOR_RATIO) >= 100) {
-			await gf.alert('공동명의 비율은 100% 미만이어야 합니다', '공동소유 비율 확인');
-			return false;
+
+		// 앞으로 이동할 때는 현재 탭부터 이동 직전 탭까지 순서대로 검사한다.
+		// 상단 단계 번호로 여러 단계를 건너뛰어도 중간 단계의 필수값을 빠뜨릴 수 없다.
+		if (nextStep > step) {
+			const validation = validateRequiredSteps(step, Math.min(nextStep - 1, 3));
+
+			if (validation.message) {
+				await gf.alert(validation.message);
+
+				if (validation.step !== step) {
+					setStep(validation.step);
+				}
+
+				return false;
+			}
 		}
 		
 	    if (!skipNotice) {
@@ -922,17 +907,9 @@ const WaNewcarRequest = ({
 	    }
 		
 		let newCarForSave = null;
-		// 3 -> 4으로 넘어갈때 필수값들 확인하기
+		// 3 -> 4로 넘어갈 때 주소와 채권 처리방식에 맞는 채권은행 값을 저장한다.
 	    if (step === 3 && nextStep === 4) {
-			// 필수 입력값 체크 
-			const requiredMsg = validateRequiredFields();
-
-			if (requiredMsg) {
-				gf.alert(requiredMsg);
-				return;
-			}
-
-					const busanBond = (
+			const busanBond = (
 				dsNewCar.BUSAN_BOND
 				?? dsNewCar.BUSAN_BOND_YN
 				?? dsWorkCp?.BUSAN_BOND
@@ -1017,31 +994,36 @@ const WaNewcarRequest = ({
 	
 	// 차량 구매 방식 정보 저장
 	const handlePurchaseTypeSelect = async (option) => {
-		console.log("handlePurchaseTypeSelect");
+		console.log(purchaseType);
 		
-		// 일반등록
-		// 업무 구분 변경시 초기화 될 정보  					
-	    if (((purchaseType === 'NORMAL' && ['LEASE', 'USER_LEASE'].includes(option.value))
-			|| (purchaseType === 'USER_LEASE' &&  ['LEASE', 'NORMAL'].includes(option.value))) 
-			&& (
-	            dsOwnerInfo.DEBTOR_GB ||
-	            dsOwnerInfo.DEBTOR_NM ||
-	            dsOwnerInfo.DEBTOR_REG_NO ||
-	            dsOwnerInfo.DEBTOR_BIZ_NO ||
-	            dsOwnerInfo.DEBTOR_RATIO
-	        )
-	    ) {
+		// 업무 구분 변경시 초기화 될 정보 (공동명의 테이블)		
+	    if (dsOwnerInfo.DEBTOR_NM ||
+			dsOwnerInfo.DEBTOR_GB ||
+	        dsOwnerInfo.DEBTOR_REG_NO ||
+	        dsOwnerInfo.DEBTOR_BIZ_NO ||
+	        dsOwnerInfo.DEBTOR_RATIO) {
+			
+			let msg_title;
+			let msg_text;
 			
 			if(purchaseType === 'NORMAL') {
-				const ok = await gf.confirm(
-				            '공동명의 정보를 삭제하시겠습니까?\n확인을 누르면 공동명의 정보가 삭제되며, 단독소유로 변경됩니다.',
-				            '공동명의 삭제'
-				        );	
-
+				msg_title = '공동명의 삭제';
+				msg_text = '공동명의 정보를 삭제하시겠습니까?\n확인을 누르면 공동명의 정보가 삭제되며, 단독소유로 변경됩니다.';
+			}
+			
+			else if(purchaseType === 'LEASE') {
+				msg_title = '리스 계약자 정보 삭제';
+				msg_text = '리스 계약자 정보를 삭제하시겠습니까?\n확인을 누르면 리스 계약자 정보가 삭제 됩니다.';
+			}
+			
+			if(purchaseType !== 'USER_LEASE') {
+				const ok = await gf.confirm(msg_text, msg_title);
+						
 				if (!ok) {
 				    return;
 				}
 			}
+
 
 	        setDsOwnerInfo(prev => ({
 	            ...prev,
@@ -1056,11 +1038,11 @@ const WaNewcarRequest = ({
 	            DEBTOR_ROAD_CD: ''
 	        }));
 
-	        // 대표소유자 비율도 단독소유로 변경
-	        setDsNewCar(prev => ({
-	            ...prev,
-	            RATIO_NO: '100',
-	        }));
+			// 대표소유자 비율도 단독소유로 변경
+			setDsNewCar(prev => ({
+			    ...prev,
+			    RATIO_NO: '100',
+			}));
 	    }
 		
 		if(['LEASE', 'USER_LEASE'].includes(purchaseType)) {
@@ -1152,7 +1134,6 @@ const WaNewcarRequest = ({
 		} else if (dataset.type === 'company') {
 			setDsCompanyInfo(prev => ({ ...prev, [name]: v }));
 		} else if (dataset.type === 'owner') {
-
 		    // 공동소유자 비율 변경 시
 			if (name === 'DEBTOR_RATIO') {
 
@@ -1173,12 +1154,12 @@ const WaNewcarRequest = ({
 				
 				// 숫자가 아닌 경우 ex.NaN
 				if (Number.isNaN(ratio)) {
-				    ratio = 0;
+				    ratio = '';
 				}
 
-			    if (ratio < 0) {
-			        ratio = 0;
-			        await gf.alert("공동명의 비율은 0 이상이어야 합니다.", "공동명의 비율 확인");
+			    if (ratio < 0 || ratio === 0) {
+			        ratio = '';
+			        await gf.alert("공동명의 비율은 1부터 입력이 가능합니다.", "공동명의 비율 확인");
 			    } else if (ratio >= 100) {
 			        ratio = 99;
 			        await gf.alert("공동명의 비율은 100 미만이어야 합니다.", "공동명의 비율 확인");
@@ -1697,7 +1678,7 @@ const WaNewcarRequest = ({
             POST_NO: ''
         }));
     };
-	
+
 	/**
 	 * SU 사용자가 최종 확인 단계에서 요청할 때 실행한다.
 	 * validateRequest() 통과 후 PROC_ST를 W_REQ로 바꾸고,
@@ -1712,7 +1693,7 @@ const WaNewcarRequest = ({
 		}
 		
 		// 필수 입력값 체크
-		const validMsg = await validateRequest();
+		const validMsg = await validateRequest(true);
 
 		if (validMsg) {
 			gf.alert(validMsg);
@@ -1734,6 +1715,7 @@ const WaNewcarRequest = ({
 	        dsOwnerInfo,
 	        dsOwnerInfo1,
 	        dsCarNoDetach,
+			dsTaxReceipt,
 	        dsPaymentList: [...dsPaymentList]
 	    };
 		
@@ -1760,17 +1742,21 @@ const WaNewcarRequest = ({
 
 	/**
 	 * 최종 요청 전 전체 유효성 검사.
-	 * REQUIRED_FIELDS, 필수 첨부/전자서명, 차대번호 길이,
+	 * 1~3단계 필수값, 필수 첨부/전자서명, 차대번호 길이,
 	 * 대표·공동소유자 비율과 공동소유자 인적사항을 순서대로 확인한다.
 	 * 오류가 있으면 사용자에게 표시할 첫 번째 메시지를 반환한다.
 	 */
-	const validateRequest = async () => {
+	const validateRequest = async (moveToInvalidStep = false) => {
 
-		// 필수 입력값 체크 
-		const requiredMsg = validateRequiredFields();
+		// 최종 요청에서는 1~3단계를 처음부터 다시 검사한다.
+		const requiredValidation = validateRequiredSteps(1, 3);
 
-		if (requiredMsg) {
-			return requiredMsg;
+		if (requiredValidation.message) {
+			if (moveToInvalidStep && requiredValidation.step) {
+				setStep(requiredValidation.step);
+			}
+
+			return requiredValidation.message;
 		}
 		
 		// 서명 및 첨부파일 확인
@@ -1786,7 +1772,11 @@ const WaNewcarRequest = ({
 			return '차대번호를 확인해주세요.';
 		}
 
-		if (dsNewCar.RATIO_NO < 100) {
+		if (
+			purchaseType === 'NORMAL'
+			&& Boolean(validateJointOwner())
+			&& dsNewCar.RATIO_NO < 100
+		) {
 			// TODO 대표소유자 비율이 100% 이하인경우에는 공동소유자가 존재해야한다.
 			// 대표소유자 비율 + 공동소유자 비율의 합이 100%가 되어야 한다.	(공동소유자 비율 0이상, 대표소유자 비율 100 이하 둘의 합이 100이 아닐경우)
 			if (dsOwnerInfo.DEBTOR_RATIO > 0 && dsOwnerInfo.DEBTOR_RATIO <= 100 && Number(dsNewCar.RATIO_NO) + Number(dsOwnerInfo.DEBTOR_RATIO) !== 100) {
@@ -1804,17 +1794,24 @@ const WaNewcarRequest = ({
 					return '공동소유자의 정보를 입력해주세요.';
 				}
 			}
-		}else {
+		} else if (purchaseType === 'NORMAL' && Boolean(validateJointOwner())) {
 			// 대표소유자 비율이 100%인 경우 공동소유자 정보가 없어야 한다.
 			if (dsOwnerInfo.DEBTOR_RATIO > 0) {
 				return '대표소유자 비율이 100%인 경우 공동소유자 비율은 0%이어야 합니다.';
 			}
+			
+			// 2026.07.28 리스계약자 정보, 이용자명의리스 일 때 정보가 들어가야 돼서 지움
+			/*
 			if (dsOwnerInfo.DEBTOR_NM || dsOwnerInfo.DEBTOR_REG_NO || dsOwnerInfo.DEBTOR_ADDR) {
 				return '대표소유자 비율이 100%인 경우 공동소유자 정보는 입력할 수 없습니다.';
-			}
+			}*/
 		}
 		
-		if (dsNewCar.NTAX_TRGET_CD === 'Y' && dsNewCar.NTAX_WHO === '') {
+		if (
+			dsNewCar.NTAX_TRGET_CD
+			&& dsNewCar.NTAX_TRGET_CD !== '00'
+			&& !dsNewCar.NTAX_WHO
+		) {
 			return '비과세대상자 정보를 입력해주세요.';
 		}
 		
@@ -1822,19 +1819,258 @@ const WaNewcarRequest = ({
 	};
 	
 	
-	// REQUIRED_FIELDS 배열 순서대로 dsNewCar의 첫 번째 빈 값을 찾아 안내 문구를 만든다.
-	const validateRequiredFields = () => {
+	const requireValue = (value, label) => (
+		isEmptyRequiredValue(value) ? `${label}를(을) 입력해주세요.` : ''
+	);
 
-		const emptyField = REQUIRED_FIELDS.find(
-			field => !dsNewCar[field.name]
-		);
+	const requireDigitLength = (value, length, label) => {
+		const requiredMessage = requireValue(value, label);
 
-		if (emptyField) {
-			return `${emptyField.label}를(을) 입력해주세요.`;
+		if (requiredMessage) {
+			return requiredMessage;
 		}
 
-		return '';
-	}; 
+		return onlyDigits(value).length === length
+			? ''
+			: `${label} ${length}자리를 정확히 입력해주세요.`;
+	};
+
+	// 휴대폰번호 입력란의 고정값인 010만 있는 경우는 미입력으로 처리한다.
+	const requirePhoneNumber = (value, label) => {
+		const digits = onlyDigits(value);
+
+		if (!digits || digits === '010') {
+			return `${label}를(을) 입력해주세요.`;
+		}
+
+		return digits.length === 11
+			? ''
+			: `${label}는 11자리로 입력해주세요.`;
+	};
+
+	const requireTextLength = (value, length, label) => {
+		const requiredMessage = requireValue(value, label);
+
+		if (requiredMessage) {
+			return requiredMessage;
+		}
+
+		return String(value).trim().length === length
+			? ''
+			: `${label} ${length}자리를 정확히 입력해주세요.`;
+	};
+
+	const validateJointOwner = () => {
+		if (purchaseType !== 'NORMAL') {
+			return '';
+		}
+
+		const representativeRatio = Number(dsNewCar.RATIO_NO);
+		const firstRatio = Number(dsOwnerInfo.DEBTOR_RATIO || 0);
+		const secondRatio = Number(dsOwnerInfo1.DEBTOR_RATIO || 0);
+		const hasFirstOwnerInfo = Boolean(
+			firstRatio
+			|| dsOwnerInfo.DEBTOR_NM
+			|| dsOwnerInfo.DEBTOR_REG_NO
+			|| dsOwnerInfo.DEBTOR_BIZ_NO
+			|| dsOwnerInfo.DEBTOR_ADDR
+		);
+		const hasSecondOwnerInfo = Boolean(
+			secondRatio
+			|| dsOwnerInfo1.DEBTOR_NM
+			|| dsOwnerInfo1.DEBTOR_REG_NO
+			|| dsOwnerInfo1.DEBTOR_BIZ_NO
+			|| dsOwnerInfo1.DEBTOR_ADDR
+		);
+
+		if (!Number.isFinite(representativeRatio) || representativeRatio < 0 || representativeRatio > 100) {
+			return '대표소유자 비율을 확인해주세요.';
+		}
+
+		if (representativeRatio === 100) {
+			return hasFirstOwnerInfo || hasSecondOwnerInfo
+				? '대표소유자 비율이 100%인 경우 공동소유자 정보를 입력할 수 없습니다.'
+				: '';
+		}
+
+		if (firstRatio <= 0) {
+			return '공동소유자1 비율을 입력해주세요.';
+		}
+
+		for (const [owner, ownerNo] of [[dsOwnerInfo, 1], [dsOwnerInfo1, 2]]) {
+			const ratio = Number(owner.DEBTOR_RATIO || 0);
+
+			if (ratio <= 0) {
+				continue;
+			}
+
+			const registrationNo = owner.DEBTOR_GB === 'C'
+				? owner.DEBTOR_BIZ_NO
+				: owner.DEBTOR_REG_NO;
+			const ownerMessage = (
+				requireValue(owner.DEBTOR_NM, `공동소유자${ownerNo} 성명`)
+				|| requireValue(owner.DEBTOR_GB, `공동소유자${ownerNo} 등록구분`)
+				|| requireValue(registrationNo, `공동소유자${ownerNo} 등록번호`)
+				|| requireValue(owner.DEBTOR_ADDR, `공동소유자${ownerNo} 주소`)
+			);
+
+			if (ownerMessage) {
+				return ownerMessage;
+			}
+		}
+
+		return representativeRatio + firstRatio + secondRatio === 100
+			? ''
+			: '대표소유자와 공동소유자 비율의 합은 100%이어야 합니다.';
+	};
+
+	const validateOwnerStep = () => {
+		let message = requireValue(purchaseType, '차량 구매 방식')
+			|| requireValue(dsNewCar.TASK_CD, '업무구분');
+
+		if (message) {
+			return message;
+		}
+
+		if (purchaseType === 'LEASE') {
+			const debtorRegistrationNo = dsOwnerInfo.DEBTOR_GB === 'C'
+				? dsOwnerInfo.DEBTOR_BIZ_NO
+				: dsOwnerInfo.DEBTOR_REG_NO;
+
+			return requireValue(dsNewCar.BASE_BRANCH_ID, '리스사')
+				|| requireValue(dsOwnerInfo.DEBTOR_NM, '리스 계약자명')
+				|| requireValue(dsOwnerInfo.DEBTOR_GB, '리스 계약자 등록구분')
+				|| requireValue(debtorRegistrationNo, '리스 계약자 등록번호')
+				|| requirePhoneNumber(dsOwnerInfo.DEBTOR_TEL_NO, '리스 계약자 휴대폰번호')
+				|| requireValue(dsNewCar.BASE_ADDRESS, '리스사 사용본거지 주소');
+		}
+
+		message = requireValue(dsNewCar.OWNER_NM, '대표소유자명')
+			|| requireValue(dsNewCar.REG_GB, '등록번호 구분')
+			|| requireDigitLength(dsNewCar.REG_NO, 13, '등록번호')
+			|| (purchaseType !== 'USER_LEASE'
+				? requirePhoneNumber(dsNewCar.MPHONE_NO, '휴대폰번호')
+				: '')
+			|| requireValue(dsNewCar.ADDRESS, '소유자 주소')
+			|| requireValue(dsNewCar.BASE_ADDRESS, '사용본거지 주소')
+			|| requireValue(dsNewCar.RATIO_NO, '대표소유자 비율');
+
+		if (message) {
+			return message;
+		}
+
+		if (dsNewCar.REG_GB === 'B') {
+			message = requireDigitLength(dsNewCar.BIZ_NO, 10, '사업자등록번호');
+		}
+
+		if (!message && purchaseType === 'USER_LEASE') {
+			message = requireValue(dsNewCar.BASE_BRANCH_ID, '리스사')
+				|| requireValue(dsNewCar.IMSIGV_DT, '리스 종료일');
+		}
+
+		return message || validateJointOwner();
+	};
+
+	const validateCarStep = () => {
+		const message = requireTextLength(dsNewCar.CARID_NO, 17, '차대번호')
+			|| requireValue(dsNewCar.CAR_NM, '차량명')
+			|| (Number(dsNewCar.BUY_AMT || 0) > 0 ? '' : '공급가액을 입력해주세요.')
+			|| requireValue(dsNewCar.NUMPLATE_GB, '번호판 종류')
+			|| requireValue(dsNewCar.REQ_CAR_NO, '차량번호')
+			|| requireValue(dsCarNoDetach.DELIVERY_GB, '번호판 배송지');
+
+		if (message) {
+			return message;
+		}
+
+		return dsCarNoDetach.DELIVERY_GB === 'INPUT'
+			? requireValue(dsCarNoDetach.DELIVERY_ADDR, '번호판 배송지 주소')
+			: '';
+	};
+
+	const validateRegistrationStep = () => {
+		let message = requireValue(dsNewCar.PAY_GB, '결제구분')
+			|| requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
+			|| requirePhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
+			|| requireValue(dsNewCar.RETURN_NM, '환불 예금주')
+			|| requireValue(dsNewCar.RT_BANK_CD, '환불 계좌 은행')
+			|| requireValue(dsNewCar.RETURN_NO, '환불 계좌번호');
+
+		if (message) {
+			return message;
+		}
+
+		const exemptionTargetCode = String(dsNewCar.NTAX_TRGET_CD || '');
+
+		if (exemptionTargetCode && exemptionTargetCode !== '00') {
+			message = requireValue(dsNewCar.NTAX_WHO, '감면 대상자')
+				|| requireValue(dsNewCar.NTAX_TRGET_GR_CD, '감면 등급');
+		}
+
+		if (!message && dsTaxReceipt.GUBUN === 'CASH') {
+			message = requirePhoneNumber(dsTaxReceipt.PHONE_NO, '현금영수증 휴대폰번호');
+		}
+
+		if (!message && dsTaxReceipt.GUBUN === 'TAX') {
+			message = requireDigitLength(dsTaxReceipt.REG_NO, 10, '세금계산서 등록번호')
+				|| requireValue(dsTaxReceipt.COMPANY_NM, '세금계산서 상호명')
+				|| requireValue(dsTaxReceipt.NAME, '세금계산서 대표자명')
+				|| requireValue(dsTaxReceipt.ADDR, '세금계산서 사업장주소')
+				|| requireValue(dsTaxReceipt.BUSINESS_TYPE, '세금계산서 업태')
+				|| requireValue(dsTaxReceipt.INDUSTRY_TYPE, '세금계산서 업종')
+				|| requireValue(dsTaxReceipt.MAIL1, '세금계산서 이메일주소');
+		}
+
+		return message;
+	};
+
+	const validateStepRequiredFields = (targetStep) => {
+		const validators = {
+			1: validateOwnerStep,
+			2: validateCarStep,
+			3: validateRegistrationStep
+		};
+		const message = validators[targetStep]?.() || '';
+
+		return { step: targetStep, message };
+	};
+
+	const validateRequiredSteps = (fromStep = 1, toStep = 3) => {
+		for (let targetStep = fromStep; targetStep <= toStep; targetStep += 1) {
+			const result = validateStepRequiredFields(targetStep);
+
+			if (result.message) {
+				return result;
+			}
+		}
+
+		return { step: null, message: '' };
+	};
+
+	// 요청 가능 여부 갱신1(버튼 비활성화용, css용)
+	const [requestDisabled, setRequestDisabled] = useState(false);
+	
+	// 요청 가능 여부 갱신2
+	useEffect(() => {
+
+	    const check = async () => {
+
+	        // 요청 가능 여부 확인
+	        const msg = await validateRequest();
+
+	        // 요청 불가 시 버튼 비활성화
+	        setRequestDisabled(!!msg);
+	    };
+
+	    check();
+
+	}, [
+	    dsNewCar,
+	    dsOwnerInfo,
+	    dsOwnerInfo1,
+	    dsService.SERVICE_ID,
+	    showAttach
+	]);
 	
 	// 서류 안내창
 	const noticeCheck = useMemo(() => {
@@ -1854,13 +2090,11 @@ const WaNewcarRequest = ({
 		
 		if (dsOwnerInfo.DEBTOR_GB === 'F') {
 			
-			console.log(dsOwnerInfo.DEBTOR_GB);
 	        items.push('공동명의자 외국인등록증');
 			normalCheck = true;
 	    }
 
 		if (String(dsNewCar.RATIO_NO) !== '100') {
-			console.log("dsNewCar.RATIO_NO : "+ dsNewCar.RATIO_NO);
 	        items.push('공동명의 동의서');
 	        items.push('신분증 사본(대표소유자 및 공동명의자)');
 			normalCheck = true;
@@ -2190,6 +2424,7 @@ const WaNewcarRequest = ({
 									{/* 현금/할부 */}
 									{purchaseType === 'NORMAL' &&
 										<OwnerNormal
+											dsService={dsService}
 											dsNewCar={dsNewCar}
 										    dsCarNoDetach={dsCarNoDetach}
 											setDsNewCar={setDsNewCar}
@@ -2205,18 +2440,22 @@ const WaNewcarRequest = ({
 									{/* 리스 */}
 									{purchaseType === 'LEASE' &&
 										<OwnerLease
+											dsService={dsService}
 											dsNewCar={dsNewCar}
 											setDsNewCar={setDsNewCar}
+											dsOwnerInfo={dsOwnerInfo}
 											dsCarNoDetach={dsCarNoDetach}
 											dsBaseList={dsBaseList}
 											setDsOwnerInfo={setDsOwnerInfo}
 											handleChange={handleChange}
+											onSave={saveProcess}
 										/>
 									}
 	
 									{/* 이용자명의 리스 */}
 									{purchaseType === 'USER_LEASE' &&
 										<OwnerUserLease
+											dsService={dsService}
 											dsNewCar={dsNewCar}
 											setDsNewCar={setDsNewCar}
 											dsCarNoDetach={dsCarNoDetach}
@@ -2224,6 +2463,7 @@ const WaNewcarRequest = ({
 											dsOwnerInfo={dsOwnerInfo}
 											setDsOwnerInfo={setDsOwnerInfo}
 											handleChange={handleChange}
+											onSave={saveProcess}
 											
 											address={address}
 										/>}
@@ -2346,12 +2586,13 @@ const WaNewcarRequest = ({
 								이전
 							</button>
 						)}
-					
+
 						<button
-							type="button"
-							className="wa-action-btn wa-confirm-btn"
-							disabled={isActionDisabled()}
-							onClick={handleNext}
+						    type="button"
+						    className={`wa-action-btn wa-confirm-btn ${
+						        (step === 4 && dsUserInfo.MEMBER_GB === 'SU' && requestDisabled ) ? 'wa-disabled' : ''
+						    }`}
+						    onClick={handleNext}
 						>
 							<span>
 								{

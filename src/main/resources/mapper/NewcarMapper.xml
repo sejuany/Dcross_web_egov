@@ -345,17 +345,28 @@
             TN.REQ_CAR_NO AS REQ_CAR_NO,
 			TN.PROC_CD AS PROC_CD,
             DECODE (TN.PROC_CD, 'C',TOI.DEBTOR_NM ,TN.OWNER_NM )AS OWNER_NM,
+            CD.CUSTOMER_NM,
             TN.BUY_AMT AS BUY_AMT,
-            CASE
-                WHEN TRIM(CD.FILENAME1) IS NOT NULL
-                  OR TRIM(CD.FILENAME2) IS NOT NULL
-                  OR TRIM(CD.FILENAME3) IS NOT NULL
-                  OR TRIM(CD.FILENAME4) IS NOT NULL
-                  OR TRIM(CD.FILENAME5) IS NOT NULL
-                  OR TRIM(CD.FILENAME6) IS NOT NULL
-                THEN 'Y'
-                ELSE ''
-            END AS ATTACH_YN,
+            TN.TASK_CD AS ATTACH_TASK_CD,
+            TN.REG_GB AS ATTACH_REG_GB,
+            TN.RATIO_NO AS ATTACH_RATIO_NO,
+            TN.NTAX_TRGET_CD AS ATTACH_NTAX_TRGET_CD,
+            TN.NTAX_TRGET_GR_CD AS ATTACH_NTAX_TRGET_GR_CD,
+            TN.NTAX_WHO AS ATTACH_NTAX_WHO,
+            (
+                SELECT LISTAGG(
+                           SUBSTR(
+                               AF2.ATCHSVRFILE_NM,
+                               LENGTH(AF2.SERVICE_ID) + 2,
+                               INSTR(AF2.ATCHSVRFILE_NM, '.', -1) - LENGTH(AF2.SERVICE_ID) - 2
+                           ),
+                           '|'
+                       ) WITHIN GROUP (ORDER BY AF2.SEQ)
+                  FROM TR_ATTACH_FILE AF2
+                 WHERE AF2.SERVICE_ID = TS.SERVICE_ID
+                   AND SUBSTR(AF2.ATCHSVRFILE_NM, 1, LENGTH(AF2.SERVICE_ID) + 1) = AF2.SERVICE_ID || '_'
+                   AND INSTR(AF2.ATCHSVRFILE_NM, '.', -1) &gt; LENGTH(AF2.SERVICE_ID) + 2
+            ) AS ATTACH_CODES,
             CASE TN.CARD_YN WHEN 'Y' THEN 'Y' ELSE '' END AS CARD_YN,
             CASE
                 WHEN NVL(TN.NTAX_TRGET_CD, '00') &lt;&gt; '00' THEN 'Y'

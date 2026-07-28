@@ -1,6 +1,10 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
 import { splitValue, mergeValue } from '../../../utils/formUtil';
 
+const applyFixedValues = (sourceValues, fixedValues) => sourceValues.map((item, index) => (
+    fixedValues[index] !== undefined ? String(fixedValues[index]) : item
+));
+
 const SplitInput = ({
     value = '',
     lengths = [],
@@ -8,6 +12,7 @@ const SplitInput = ({
     separator = '-',
     inputClassName = '',
     readOnly = false,
+    fixedValues = [],
     onlyNumber = true,
     onChange,
     ...props
@@ -21,7 +26,7 @@ const SplitInput = ({
 
     // 분리 입력값
     const [values, setValues] = useState(
-        splitValue(value || '', lengths)
+        applyFixedValues(splitValue(value || '', lengths), fixedValues)
     );
 
     // 부모에서 값이 변경된 경우만 화면 갱신
@@ -32,12 +37,17 @@ const SplitInput = ({
         }
 
         prevValue.current = value;
-        setValues(splitValue(value || '', lengths));
+        setValues(applyFixedValues(splitValue(value || '', lengths), fixedValues));
 
-    }, [value, lengths]);
+    }, [value, lengths, fixedValues]);
 
     // 입력 처리
     const handleChange = (index, inputValue) => {
+
+        // 고정값이 설정된 칸은 사용자가 변경할 수 없다.
+        if (fixedValues[index] !== undefined) {
+            return;
+        }
 
         let next = inputValue;
 
@@ -49,7 +59,8 @@ const SplitInput = ({
         // 자리수 제한
         next = next.slice(0, lengths[index]);
 
-        const newValues = [...values];
+        // 병합할 때도 고정값을 다시 적용해 onChange 결과에 반드시 포함한다.
+        const newValues = applyFixedValues([...values], fixedValues);
         newValues[index] = next;
 
         // 화면 먼저 갱신
@@ -78,9 +89,9 @@ const SplitInput = ({
                         {...props}
                         ref={el => inputRefs.current[index] = el}
                         className={`wa-input ${inputClassName}`}
-                        value={item}
+                        value={fixedValues[index] !== undefined ? fixedValues[index] : item}
                         maxLength={lengths[index]}
-                        readOnly={readOnly}
+                        readOnly={readOnly || fixedValues[index] !== undefined}
                         placeholder={placeholders[index] || ''}
                         onChange={e => handleChange(index, e.target.value)}
                     />

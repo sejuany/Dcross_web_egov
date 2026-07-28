@@ -62,6 +62,8 @@ public class NewcarService {
     private static final int WA_SEARCH_START_LIMIT_YEARS = 2;
     private static final DateTimeFormatter SEARCH_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Seoul");
+    private static final Set<String> NTAX_NO_UPLOAD_GRADES = Set.of(
+            "7", "8", "9", "10", "11", "12", "13", "14");
     
     // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
     private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
@@ -104,7 +106,146 @@ public class NewcarService {
         request.setBRANCH_ID(user.getBRANCH_ID());
         request.setMEMBER_GB(user.getMEMBER_GB());
         request.setMEMBER_ID(user.getLOGIN_ID());
-        return newcarMapper.getWaNewCarList(request);
+        List<Map<String, Object>> rows = newcarMapper.getWaNewCarList(request);
+        rows.forEach(this::applyWaAttachStatus);
+        return rows;
+    }
+
+    /**
+     * 프런트의 attachPolicy.js와 동일한 기준으로 첨부 필요/완료 여부를 계산한다.
+     * ATTACH_YN은 실제 업로드 서류가 필요한 경우에만 Y이며,
+     * ATTACH_COMPLETE_YN은 필요한 모든 문서 코드가 등록된 경우에만 Y이다.
+     */
+    private void applyWaAttachStatus(Map<String, Object> row) {
+        Set<String> requiredCodes = resolveWaRequiredAttachCodes(row);
+        Set<String> uploadedCodes = parseAttachCodes(row.get("ATTACH_CODES"));
+
+        row.put("ATTACH_YN", requiredCodes.isEmpty() ? "" : "Y");
+        row.put("ATTACH_COMPLETE_YN",
+                !requiredCodes.isEmpty() && uploadedCodes.containsAll(requiredCodes) ? "Y" : "");
+
+        row.remove("ATTACH_TASK_CD");
+        row.remove("ATTACH_REG_GB");
+        row.remove("ATTACH_RATIO_NO");
+        row.remove("ATTACH_NTAX_TRGET_CD");
+        row.remove("ATTACH_NTAX_TRGET_GR_CD");
+        row.remove("ATTACH_NTAX_WHO");
+        row.remove("ATTACH_CODES");
+    }
+
+    private Set<String> resolveWaRequiredAttachCodes(Map<String, Object> row) {
+        Set<String> requiredCodes = new HashSet<>();
+        String taskCd = attachValue(row, "ATTACH_TASK_CD");
+        String procCd = attachValue(row, "PROC_CD");
+        String regGb = attachValue(row, "ATTACH_REG_GB");
+        String ratioNo = attachValue(row, "ATTACH_RATIO_NO");
+
+        if (("NORML".equals(taskCd) || ("LEASE".equals(taskCd) && "C".equals(procCd)))
+                && "F".equals(regGb)) {
+            requiredCodes.add("FOREIGN_ID");
+        }
+
+        if (isJointOwnershipRatio(ratioNo)) {
+            addCodes(requiredCodes, "OWNER_ID", "JOINT_OWNER_ID", "JOINT_OWNER_AGREEMENT");
+        }
+
+        if ("LEASE".equals(taskCd) && "C".equals(procCd)) {
+            requiredCodes.add("LEASE_AGREEMENT");
+        }
+
+        addWaNtaxRequiredCodes(row, requiredCodes);
+        return requiredCodes;
+    }
+
+    private void addWaNtaxRequiredCodes(Map<String, Object> row, Set<String> requiredCodes) {
+        String targetCode = attachValue(row, "ATTACH_NTAX_TRGET_CD");
+        String gradeCode = attachValue(row, "ATTACH_NTAX_TRGET_GR_CD");
+        String targetWho = attachValue(row, "ATTACH_NTAX_WHO");
+
+        if (targetCode.isEmpty() || "00".equals(targetCode) || NTAX_NO_UPLOAD_GRADES.contains(gradeCode)) {
+            return;
+        }
+
+        boolean repre = "REPRE".equals(targetWho);
+        boolean union = "UNION".equals(targetWho);
+
+        switch (targetCode) {
+            case "01", "02" -> {
+                if (repre || union) requiredCodes.add("PATRIOT_CERT");
+                if (union) addCodes(requiredCodes, "RESIDENT_CERT", "FAMILY_CERT");
+            }
+            case "03" -> {
+                if (repre || union) {
+                    addCodes(requiredCodes, "AGENT_ORANGE_TARGET_CERT", "AGENT_ORANGE_CERT");
+                }
+                if (union) addCodes(requiredCodes, "RESIDENT_CERT", "FAMILY_CERT");
+            }
+            case "04" -> {
+                if (repre || union) requiredCodes.add("DISABILITY_CERT");
+                if (union) {
+                    addCodes(requiredCodes, "RESIDENT_CERT", "FAMILY_CERT",
+                            "LEGAL_REPRESENTATIVE_AGREEMENT", "GUARDIAN_CERT", "BASIC_CERT");
+                }
+            }
+            case "05" -> {
+                if (repre || union) requiredCodes.add("DISABILITY_CERT");
+                if (union) addCodes(requiredCodes, "RESIDENT_CERT", "FAMILY_CERT");
+                if ("4".equals(gradeCode)) requiredCodes.add("DISABILITY_LEVEL_CERT");
+            }
+            case "06", "15" -> {
+                if (repre || union) addCodes(requiredCodes, "FAMILY_CERT", "RESIDENT_CERT");
+            }
+            case "09" -> {
+                if (repre) addCodes(requiredCodes, "DEFECT_CERT", "DEREGISTRATION_CERT", "MANUFACTURER_CERT");
+            }
+            case "11" -> {
+                if (repre) addCodes(requiredCodes, "BUSINESS_CERT", "SALES_CONTRACT", "VEHICLE_REGISTRATION");
+            }
+            case "13" -> {
+                if (repre) addCodes(requiredCodes, "UNIQUE_NUMBER_CERT", "OFFICIAL_VEHICLE_APPROVAL");
+            }
+            case "14" -> {
+                if (repre || union) requiredCodes.add("PATRIOT_CONFIRM");
+                if (union) addCodes(requiredCodes, "RESIDENT_CERT", "FAMILY_CERT");
+            }
+            default -> {
+                // 첨부 정책이 없는 감면 유형은 필요한 문서를 추가하지 않는다.
+            }
+        }
+    }
+
+    private void addCodes(Set<String> target, String... codes) {
+        target.addAll(Arrays.asList(codes));
+    }
+
+    private Set<String> parseAttachCodes(Object value) {
+        Set<String> codes = new HashSet<>();
+        String joinedCodes = Objects.toString(value, "").trim();
+
+        if (!joinedCodes.isEmpty()) {
+            Arrays.stream(joinedCodes.split("\\|"))
+                    .map(String::trim)
+                    .filter(code -> !code.isEmpty())
+                    .forEach(codes::add);
+        }
+
+        return codes;
+    }
+
+    private boolean isJointOwnershipRatio(String ratioNo) {
+        if (ratioNo.isEmpty()) {
+            return false;
+        }
+
+        try {
+            return Double.compare(Double.parseDouble(ratioNo), 100D) != 0;
+        } catch (NumberFormatException e) {
+            return false;
+        }
+    }
+
+    private String attachValue(Map<String, Object> row, String key) {
+        return Objects.toString(row.get(key), "").trim();
     }
 
     /**

@@ -805,13 +805,13 @@ const NewcarInfo = ({
         updateTaxReceipt(prev => ({
             ...prev,
             GUBUN: type,
-            PHONE_NO: '',
-            REG_NO: prev.REG_NO || defaults.REG_NO,
-            COMPANY_NM: prev.COMPANY_NM || defaults.COMPANY_NM,
-            NAME: prev.NAME || defaults.NAME,
-            ADDR: prev.ADDR || defaults.ADDR,
-            ADDR_DT: prev.ADDR_DT || defaults.ADDR_DT,
-            POST_NO: prev.POST_NO || defaults.POST_NO
+			PHONE_NO: '',
+			REG_NO: '',
+			COMPANY_NM: '',
+			NAME: '',
+			ADDR: '',
+			ADDR_DT: '',
+			POST_NO: ''
         }));
     };
 
@@ -1128,6 +1128,7 @@ const NewcarInfo = ({
                                                 <SplitInput
                                                     value={dsTaxReceipt.PHONE_NO ?? ''}
                                                     lengths={[3, 4, 4]}
+                                                    fixedValues={['010']}
                                                     placeholders={['010', '1234', '5678']}
                                                     onChange={value => updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value })}
                                                 />
@@ -1274,6 +1275,7 @@ const NewcarInfo = ({
                             <SplitInput
                                 value={dsNewCar.PAY_HP_NO ?? ''}
                                 lengths={[3, 4, 4]}
+                                fixedValues={['010']}
                                 placeholders={['010', '1234', '5678']}
                                 onChange={value => updateNewCar({ PAY_HP_NO: value })}
                             />
