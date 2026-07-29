@@ -210,53 +210,38 @@ public class SchedulerService {
     		
     		int updateCount = 0;
     		
-    		// targetList에서 MEMBER_ID가 같은건끼리 묶어서 문자를 한번에 보내보자
-    		Map<String, List<SchedulerDto>> memberGroupedTargets = new HashMap<>();
-    		
     		for (SchedulerDto target : targetList) {
-    			// MEMBER_ID를 키로 해서 같은 MEMBER_ID를 가진 건들을 리스트로 묶음
-    			// computeIfAbsent는 키가 존재하지 않으면 새로운 ArrayList를 생성해서 넣어주고, 존재하면 기존 리스트를 반환
-    			memberGroupedTargets.computeIfAbsent(target.getMEMBER_ID(), k -> new ArrayList<>()).add(target);
-    		}
-    		logger.info("memberGroupedTargets : {}", memberGroupedTargets);
-    		
-    		for (List<SchedulerDto> targets : memberGroupedTargets.values()) {
-    			// 같은 MEMBER_ID를 가진 건들에 대해 한 번에 문자 발송
-    			if (targets == null || targets.isEmpty()) {
-    				continue;
-    			}
-    			
     			try {
     				// 고객 안내 문자
-    				String smsText = "[" + safeValue(targets.get(0).getCAR_NO()) + "] 차량의 취득세가 아직 확인되지 않아 안내드립니다.\n\n"
-    								+ "1) 전자납부번호 : " + safeValue(targets.get(0).getACQ_VBANK_NO()) + "\n"
-    								+ "2) 납부금액 : " + safeValue(targets.get(0).getACQ_PAY_AMT()) + "원\n"
+    				String smsText = "[" + safeValue(target.getREQ_CAR_NO()) + "] 차량의 취득세가 아직 확인되지 않아 안내드립니다.\n\n"
+    								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
+    								+ "2) 납부금액 : " + safeValue(target.getACQ_PAY_AMT()) + "원\n"
     								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n\n"
     								+ "※ 미결제 시 당일 관청 등록 처리가 마감되어 부득이하게 출고 일정이 지연될 수 있으니, 원활한 차량 인도를 위해 시간 내 결제 마무리를 당부드립니다.\n"
     								+ "※ 이미 납부하신 경우, 전산 반영 시차로 인해 본 안내문이 발송된 것이니 양해 부탁드립니다.";
     				
     				Map<String, Object> param = new HashMap<>();
-    				param.put("PAY_HP_NO", targets.get(0).getMPHONE_NO());
+    				param.put("PAY_HP_NO", target.getMPHONE_NO());
     				param.put("TEXT", smsText);
     				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
     				commonService.sendSms(param);
     				
     				// 담당자의 연락처로 문자 발송
-    				SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(targets.get(0).getMEMBER_ID());
+    				SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
     				String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
     				
     				if (isBlank(specialistPhone)) {
-    					logger.warn("[SchedulerService] 카드 미입금 알림 발송 제외 - 담당자 연락처 없음, memberId: {}", targets.get(0).getMEMBER_ID());
+    					logger.warn("[SchedulerService] 카드 미입금 알림 발송 제외 - 담당자 연락처 없음, memberId: {}", target.getMEMBER_ID());
     					continue;
     				}
     				
     				// 담당자 안내 문자
-    				smsText = "[" + safeValue(targets.get(0).getCAR_NO()) + "] 차량의 취득세가 납부되지 않았습니다. 고객께 납부요청 부탁드립니다.\n\n"
-    								+ "1) 전자납부번호 : " + safeValue(targets.get(0).getACQ_VBANK_NO()) + "\n"
-    								+ "2) 납부금액 : " + safeValue(targets.get(0).getACQ_PAY_AMT()) + "원\n"
+    				smsText = "[" + safeValue(target.getCAR_NO()) + "] 차량의 취득세가 납부되지 않았습니다. 고객께 납부요청 부탁드립니다.\n\n"
+    								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
+    								+ "2) 납부금액 : " + safeValue(target.getACQ_PAY_AMT()) + "원\n"
     								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n"
     								+ "4) 납부기한 : 당일 15:00\n\n"
-    								+ "고객 연락처 : " + safeValue(targets.get(0).getMPHONE_NO());
+    								+ "고객 연락처 : " + safeValue(target.getMPHONE_NO());
     				
     				param.put("PAY_HP_NO", specialistPhone);
     				param.put("TEXT", smsText);
@@ -266,7 +251,7 @@ public class SchedulerService {
     			} catch (Exception e) {
     				logger.error(
     						"[SchedulerService] 카드 미입금 알림 처리 실패 - memberId: {}, message: {}",
-    						targets.get(0).getMEMBER_ID(),
+    						target.getMEMBER_ID(),
     						e.getMessage(),
     						e
     						);

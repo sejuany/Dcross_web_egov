@@ -183,6 +183,7 @@ const OwnerLease = ({
 
 					<input
 	                    className="wa-input"
+	                    autoComplete="off"
 	                    name="DEBTOR_NM"
 	                    data-type="owner"
 	                    value={dsOwnerInfo.DEBTOR_NM ?? ''}

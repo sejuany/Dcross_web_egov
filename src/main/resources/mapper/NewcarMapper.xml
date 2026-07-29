@@ -7,23 +7,10 @@
 	<select id="getCarSpec" resultType="java.util.Map">
 		SELECT *
 		FROM (
-			SELECT
-				MAKER,
-				INITMODEL,
-				CAR_NM,
-				MADE_DT,
-				MADE_YY,
-				CAR_CC,
-				GETIN_NO,
-				CAR_KD,
-				CAR_KD_CD,
-				FM_NM,
-				FUEL_CD,
-				MULTI_PURPOSE_YN,
-				BUY_AMT
-			FROM TR_CAR_SPEC
-			WHERE REPLACE(UPPER(TRIM(MAKER)), ' ', '') = REPLACE(UPPER(TRIM(#{maker})), ' ', '')
-			AND REPLACE(UPPER(TRIM(CAR_NM)), ' ', '') = REPLACE(UPPER(TRIM(#{carName})), ' ', '')
+			SELECT CS.*
+			FROM TR_CAR_SPEC CS
+			WHERE REPLACE(UPPER(TRIM(CS.MAKER)), ' ', '') = REPLACE(UPPER(TRIM(#{maker})), ' ', '')
+			AND REPLACE(UPPER(TRIM(CS.CAR_NM)), ' ', '') = REPLACE(UPPER(TRIM(#{carName})), ' ', '')
 		)
 		WHERE ROWNUM = 1
 	</select>
@@ -60,6 +47,44 @@
 				START_DT DESC
 		)
 		WHERE ROWNUM = 1
+	</select>
+	<!-- 운영 프로시저가 취득세 친환경 감면 판정에 사용하는 공통코드 상세 설정 -->
+	<select id="getEstimateCodeConfig" resultType="java.util.Map">
+		SELECT
+			(
+				SELECT DETAIL_NM
+				FROM TM_CODE
+				WHERE GROUP_ID = 'TUSE'
+				AND CODE_ID = 'BUBYN'
+			) AS BUBYN,
+			(
+				SELECT DETAIL_NM
+				FROM TM_CODE
+				WHERE CODE_ID = 'HYBRID'
+			) AS HYBRID,
+			(
+				SELECT DETAIL_NM
+				FROM TM_CODE
+				WHERE CODE_ID = 'HYB_OK'
+			) AS HYB_OK
+		FROM DUAL
+	</select>
+	<!-- 운영 프로시저와 동일한 지역/차량구분/구간의 현재 공채 규칙 -->
+	<select id="getActiveBondRule" resultType="java.util.Map">
+		SELECT
+			AREA,
+			CAR_GB,
+			BASE1,
+			BASE2,
+			VALUE AS BOND_VALUE
+		FROM TM_BOND
+		WHERE AREA = #{area}
+		AND CAR_GB = #{carGb}
+		AND BASE1 &lt;= #{compare}
+		AND BASE2 &gt; #{compare}
+		AND SYSDATE BETWEEN START_DT AND END_DT
+		AND USE_YN = 'Y'
+		AND BOND_GB = 'N'
 	</select>
 	<!-- ============================================================ -->
 	<!-- 신차 등록 목록 조회 (동적 SQL)                                -->
@@ -335,7 +360,7 @@
                 WHEN TS.PROC_ST = 'PBEND' THEN 'PBEND'
                 WHEN TS.PROC_ST = 'P_END' THEN 'P_END'
                 WHEN TS.PROC_ST IN ('S_REQ', 'S_END', 'D_MAN', 'D_PAM', 'D_DAC') THEN 'S_REQ'
-                WHEN TS.PROC_ST IN ('J_REQ', 'J_ING', 'J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_PAQ', 'END') THEN 'S_END'
+                WHEN TS.PROC_ST IN ('J_REQ', 'J_ING', 'J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_PAQ', 'P_RET', 'END') THEN 'S_END'
                 WHEN TS.PROC_ST IN ('RET', 'REJECT') THEN 'RET'
                 ELSE TS.PROC_ST
             END AS NPROC_ST,

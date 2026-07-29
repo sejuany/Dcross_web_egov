@@ -126,6 +126,7 @@ const LeaseCompanyModal = ({
 							    <input
 							        type="text"
 							        className="wa-input"
+							        autoComplete="off"
 									name="OWNER_NM"
 									data-type="newcar"									    
 									value={dsNewCar.OWNER_NM ?? ''}
@@ -147,6 +148,7 @@ const LeaseCompanyModal = ({
 							    <input
 							        type="text"
 							        className="wa-input"
+							        autoComplete="off"
 									name="DEBTOR_NM"
 									data-type="owner"									    
 									value={dsOwnerInfo.DEBTOR_NM ?? ''}

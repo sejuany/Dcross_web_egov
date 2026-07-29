@@ -199,6 +199,7 @@ const OwnerUserLease = ({
 			        <input
 			            type="date"
 			            className="wa-input"
+			            autoComplete="off"
 			            value={dsNewCar.IMSIGV_DT ?? ''}
 			            onChange={e =>
 			                setDsNewCar(prev => ({
@@ -228,6 +229,7 @@ const OwnerUserLease = ({
                 <div className="wa-form-control">
                     <input
                         className="wa-input"
+                        autoComplete="off"
                         name="OWNER_NM"
                         data-type="newcar"
                         value={dsNewCar.OWNER_NM ?? ''}

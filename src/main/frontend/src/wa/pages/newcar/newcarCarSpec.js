@@ -64,6 +64,14 @@ export const resolveBondSearchCriteria = (newCar = {}) => {
 // TR_CAR_SPEC 조회 결과 중 TR_NEWCAR와 예상금액 계산에 필요한 필드만 추출함.
 // 공급가액은 사용자가 직접 입력한 값이 있으면 유지하고, 없을 때만 제원 테이블 값을 사용함.
 export const buildCarSpecPatch = (dsNewCar = {}, carSpec = {}) => {
+    const preferValue = (...values) => values.find(
+        value => value !== undefined && value !== null && value !== ''
+    ) ?? '';
+    const multiPurposeYn = preferValue(
+        carSpec.MULTI_PURPOSE_YN,
+        dsNewCar.MULTI_PURPOSE_YN
+    );
+
     const patch = {
         CAR_NM: carSpec.CAR_NM ?? dsNewCar.CAR_NM ?? '',
         MADE_DT: carSpec.MADE_DT ?? dsNewCar.MADE_DT ?? '',
@@ -73,8 +81,37 @@ export const buildCarSpecPatch = (dsNewCar = {}, carSpec = {}) => {
         CAR_KD: carSpec.CAR_KD ?? dsNewCar.CAR_KD ?? '',
         CAR_KD_CD: carSpec.CAR_KD_CD ?? dsNewCar.CAR_KD_CD ?? '',
         FM_NM: carSpec.FM_NM ?? dsNewCar.FM_NM ?? '',
+        FOM_NM: preferValue(carSpec.FOM_NM, dsNewCar.FOM_NM),
         FUEL_CD: carSpec.FUEL_CD ?? dsNewCar.FUEL_CD ?? '',
-        VH_TY_CD: dsNewCar.VH_TY_CD ?? '',
+        LENGTH: preferValue(
+            carSpec.LENGTH,
+            carSpec.CAR_LENGTH,
+            dsNewCar.LENGTH,
+            dsNewCar.CAR_LENGTH
+        ),
+        WIDTH: preferValue(
+            carSpec.WIDTH,
+            carSpec.CAR_WIDTH,
+            dsNewCar.WIDTH,
+            dsNewCar.CAR_WIDTH
+        ),
+        HEIGHT: preferValue(
+            carSpec.HEIGHT,
+            carSpec.CAR_HEIGHT,
+            dsNewCar.HEIGHT,
+            dsNewCar.CAR_HEIGHT
+        ),
+        MAX_CAP: preferValue(
+            carSpec.MAX_CAP,
+            carSpec.MXMM_LDG,
+            dsNewCar.MAX_CAP,
+            dsNewCar.MXMM_LDG
+        ),
+        TOTAL_CAP: preferValue(carSpec.TOTAL_CAP, dsNewCar.TOTAL_CAP),
+        MULTI_PURPOSE_YN: multiPurposeYn,
+        VH_TY_CD: String(multiPurposeYn).trim().toUpperCase() === 'Y'
+            ? '3'
+            : (dsNewCar.VH_TY_CD ?? ''),
         BUY_AMT: getAmount(dsNewCar.BUY_AMT) > 0
             ? dsNewCar.BUY_AMT
             : (carSpec.BUY_AMT ?? 0),

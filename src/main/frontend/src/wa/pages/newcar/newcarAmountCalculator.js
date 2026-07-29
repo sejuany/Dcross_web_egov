@@ -521,10 +521,23 @@ const isElectricVehicle = (dsNewCar) => {
     return ['e', 'q', 'r'].includes(fuelCode) || maker === 'POLESTAR';
 };
 
+// 전기차이지만 취득세 전기차 감면 대상이 아닌 차종.
+// 대소문자와 앞뒤/중복 공백 차이로 감면이 다시 적용되지 않도록 정규화해서 비교함.
+const normalizeCarName = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+const ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES = new Set([
+    'Polestar 4 Coupe Performance',
+    'Polestar 4 Long Range Dual Motor'
+].map(normalizeCarName));
+
+const isElectricAcqTaxExemptionEligible = (dsNewCar) => (
+    isElectricVehicle(dsNewCar)
+    && !ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES.has(normalizeCarName(dsNewCar.CAR_NM))
+);
+
 // 일반 감면과 전기차 취득세 감면은 중복 적용하지 않고 감면액이 큰 한 건만 적용함.
 // 전기차 취득세는 금액처리 파일 기준 최대 140만원 감면함.
 const applyElectricAcqTaxExemption = ({ dsNewCar, grossAcqTax, targetExemptionResult }) => {
-    if (!isElectricVehicle(dsNewCar)) {
+    if (!isElectricAcqTaxExemptionEligible(dsNewCar)) {
         return targetExemptionResult;
     }
 
@@ -765,6 +778,8 @@ const getMissingRequirements = ({ dsNewCar, codes, exemptionResult }) => {
 // 채권/카드/감면/차량제원/번호판 정보가 바뀌면 재계산 필요 상태로 보이게 처리함.
 export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.BUY_AMT ?? '',
+    dsNewCar.PROC_CD ?? '',
+    dsNewCar.TASK_CD ?? '',
     dsNewCar.STANDARD_AMT ?? '',
     dsNewCar.TAX_AMT ?? '',
     JSON.stringify(dsNewCar.TM_TAX_INFO ?? {}),
@@ -784,6 +799,13 @@ export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.NTAX_TRGET_CD ?? '',
     dsNewCar.NTAX_TRGET_GR_CD ?? '',
     dsNewCar.CAR_NM ?? '',
+    dsNewCar.FOM_NM ?? '',
+    dsNewCar.LENGTH ?? '',
+    dsNewCar.WIDTH ?? '',
+    dsNewCar.HEIGHT ?? '',
+    dsNewCar.MAX_CAP ?? '',
+    dsNewCar.TOTAL_CAP ?? '',
+    dsNewCar.MULTI_PURPOSE_YN ?? '',
     dsNewCar.MADE_YY ?? '',
     dsNewCar.VHCTY_ASORT_CODE ?? '',
     dsNewCar.CAR_KD ?? '',
@@ -802,43 +824,91 @@ export const calculateNewcarEstimate = ({
     dsNewCar = {},
     dsPaymentList = [],
     dsWorkCp = {},
-    codes = {}
+    codes = {},
+    coreEstimate = null
 }) => {
     const config = getConfig({ dsNewCar, codes });
     const paymentRows = buildPaymentRows(dsPaymentList);
+    // 서버가 취득세와 공채 매입액을 모두 계산한 경우에만 운영 프로시저 결과를 사용함.
+    // 둘 중 하나라도 없으면 기존 프런트 계산을 그대로 유지함.
+    const useCoreEstimate = hasValue(coreEstimate?.ACQ_AMT)
+        && hasValue(coreEstimate?.BOND_PURCHASE_AMT);
 
     // 1. 과세표준 및 취득세 계산함.
-    const taxableStandard = resolveTaxableStandard(dsNewCar);
+    // 서버 계산은 운영 프로시저와 동일하게 BUY_AMT를 과세표준으로 사용함.
+    const taxableStandard = useCoreEstimate
+        ? getNumber(dsNewCar.BUY_AMT)
+        : resolveTaxableStandard(dsNewCar);
     const acqRateField = resolveAcqRateField(dsNewCar);
     const taxInfo = getTaxInfo({ dsNewCar, codes });
-    const acqRate = normalizePercent(taxInfo[acqRateField]);
-    const grossAcqTax = roundDown(taxableStandard * acqRate);
-    const targetExemptionResult = resolveAcqTaxExemption({
-        dsNewCar,
-        codes,
-        grossAcqTax
-    });
-    const exemptionResult = applyElectricAcqTaxExemption({
-        dsNewCar,
-        grossAcqTax,
-        targetExemptionResult
-    });
+    const acqRate = useCoreEstimate
+        ? getNumber(coreEstimate.ACQ_RATIO)
+        : normalizePercent(taxInfo[acqRateField]);
+    const grossAcqTax = useCoreEstimate
+        ? getNumber(coreEstimate.GROSS_ACQ_AMT)
+        : roundDown(taxableStandard * acqRate);
+    const exemptionResult = useCoreEstimate
+        ? {
+            code: resolveExemptionCode(dsNewCar, codes),
+            name: EXEMPTION_NAMES[resolveExemptionCode(dsNewCar, codes)] || '',
+            grossAcqTax,
+            acqReductionAmt: getNumber(coreEstimate.ACQ_SUBTRACT_AMT),
+            acqTax: getNumber(coreEstimate.ACQ_AMT),
+            applied: getNumber(coreEstimate.ACQ_SUBTRACT_AMT) > 0,
+            reason: String(coreEstimate.ACQ_REASON ?? ''),
+            missingRequirements: [],
+            ntaxApplyCode: String(
+                coreEstimate.NTAX_APPLC_CD
+                ?? dsNewCar.NTAX_APPLC_CD
+                ?? '0'
+            )
+        }
+        : (() => {
+            const targetExemptionResult = resolveAcqTaxExemption({
+                dsNewCar,
+                codes,
+                grossAcqTax
+            });
+
+            return applyElectricAcqTaxExemption({
+                dsNewCar,
+                grossAcqTax,
+                targetExemptionResult
+            });
+        })();
     const acqTax = exemptionResult.acqTax;
 
     // 2. 공채 계산함.
     // TM_BOND.VALUE로 감면 전 매입액을 만든 뒤 지역별 전기차 공채 감면을 차감함.
     // BUY는 감면 후 매입액 전체, SELL은 감면 후 매입액에 할인율을 적용한 금액 납부함.
-    const bondArea = resolveBondArea(dsNewCar);
-    const bondValue = getNumber(config.bondRate);
-    const bondValueType = bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT';
+    const bondArea = useCoreEstimate
+        ? String(coreEstimate.BOND_AREA ?? '')
+        : resolveBondArea(dsNewCar);
+    const bondValue = useCoreEstimate
+        ? getNumber(coreEstimate.BOND_VALUE)
+        : getNumber(config.bondRate);
+    const bondValueType = useCoreEstimate
+        ? (String(coreEstimate.BOND_VALUE_TYPE ?? '').trim().toUpperCase()
+            || (bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT'))
+        : (bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT');
     const bondRate = bondValueType === 'RATE' ? bondValue : 0;
     // 프로시저처럼 VALUE가 소수면 취득가액에 곱하고 정수면 고정 공채금액으로 사용함.
-    const bondGrossAmt = Math.floor(
-        bondValueType === 'RATE' ? taxableStandard * bondValue : bondValue
-    );
-    const bondReliefResult = resolveElectricBondRelief({ dsNewCar, bondGrossAmt });
+    const bondGrossAmt = useCoreEstimate
+        ? getNumber(coreEstimate.BOND_GROSS_AMT)
+        : Math.floor(bondValueType === 'RATE' ? taxableStandard * bondValue : bondValue);
+    const bondReliefResult = useCoreEstimate
+        ? {
+            limit: getNumber(coreEstimate.BOND_SUBTRACT_AMT),
+            bondReductionAmt: getNumber(coreEstimate.BOND_SUBTRACT_AMT),
+            bondBaseAmt: getNumber(coreEstimate.BOND_PURCHASE_AMT),
+            applied: getNumber(coreEstimate.BOND_SUBTRACT_AMT) > 0,
+            reason: String(coreEstimate.BOND_REASON ?? '')
+        }
+        : resolveElectricBondRelief({ dsNewCar, bondGrossAmt });
     // 프로시저 순서대로 감면액을 먼저 차감한 뒤 지역별 5천원/1만원 단위 처리함.
-    const bondBaseAmt = roundBondPurchaseAmount(bondReliefResult.bondBaseAmt, bondArea);
+    const bondBaseAmt = useCoreEstimate
+        ? getNumber(coreEstimate.BOND_PURCHASE_AMT)
+        : roundBondPurchaseAmount(bondReliefResult.bondBaseAmt, bondArea);
     const bondDiscountAmt = Math.floor(bondBaseAmt * normalizePercent(config.bondDiscountRate));
     const bond = dsNewCar.BOND_DC === 'BUY' ? bondBaseAmt : bondDiscountAmt;
     const bondFee = Math.floor(
@@ -873,7 +943,11 @@ export const calculateNewcarEstimate = ({
         : getPaymentAmount(paymentRows, 'INJI', calculatedInji);
     const tnum = resolveNumplateAmount(dsNewCar, paymentRows);
     const unum = getPaymentAmount(paymentRows, 'UNUM', 0);
-    const ureg = getPaymentAmount(paymentRows, 'UREG', 0);
+    // 서버가 등록면허세를 계산하지 않은(null/미제공) 경우 기존 결제 row를 보존함.
+    const preserveExistingUregRow = useCoreEstimate && !hasValue(coreEstimate.UREG_AMT);
+    const ureg = useCoreEstimate && hasValue(coreEstimate.UREG_AMT)
+        ? getNumber(coreEstimate.UREG_AMT)
+        : getPaymentAmount(paymentRows, 'UREG', 0);
     const spare = getPaymentAmount(paymentRows, 'SPARE', 0);
     const isCardPay = dsNewCar.CARD_YN === 'Y';
 
@@ -892,8 +966,12 @@ export const calculateNewcarEstimate = ({
     };
 
     // 계산 금액을 결제 row에 반영함.
-    // BOND row의 T_VBANK_ID에는 첨부 로직처럼 채권 매입 기준금액을 보관함.
+    // BOND row는 실제 납부액과 공채 매입 기준금액을 분리해서 보관함.
     const updatedPaymentList = paymentRows.map(row => {
+        if (preserveExistingUregRow && row.PAY_KD === 'UREG') {
+            return row;
+        }
+
         if (!Object.prototype.hasOwnProperty.call(calculatedAmounts, row.PAY_KD)) {
             return row;
         }
@@ -905,7 +983,7 @@ export const calculateNewcarEstimate = ({
         };
 
         if (row.PAY_KD === 'BOND') {
-            nextRow.T_VBANK_ID = bondBaseAmt;
+            nextRow.REAL_ALOAN = bondBaseAmt;
         }
 
         return nextRow;
@@ -923,7 +1001,14 @@ export const calculateNewcarEstimate = ({
 
     // 화면 표시와 상태 저장에 필요한 계산 결과 반환함.
     return {
-        key: buildNewcarEstimateKey({ dsNewCar, dsWorkCp }),
+        // 화면 state에는 계산이 확정한 과세표준을 저장하므로 같은 값으로 key를 생성함.
+        key: buildNewcarEstimateKey({
+            dsNewCar: {
+                ...dsNewCar,
+                STANDARD_AMT: taxableStandard
+            },
+            dsWorkCp
+        }),
         buyAmt: getNumber(dsNewCar.BUY_AMT),
         taxableStandard,
         acqRateField,
@@ -962,6 +1047,9 @@ export const calculateNewcarEstimate = ({
         isCardPay,
         totalAmt,
         updatedPaymentList,
-        missingRequirements: getMissingRequirements({ dsNewCar, codes, exemptionResult })
+        // 서버 핵심 계산을 사용한 경우 클라이언트 TM_TAX/TM_BOND 누락 안내를 섞지 않음.
+        missingRequirements: useCoreEstimate
+            ? []
+            : getMissingRequirements({ dsNewCar, codes, exemptionResult })
     };
 };

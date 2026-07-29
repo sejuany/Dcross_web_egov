@@ -9,5 +9,15 @@
     "not ios_saf <= 26.4",
     "not safari <= 26.4",
     "not samsung <= 29"
-  ]
+  ],
+  "hints": {
+    "compat-api/css": [
+      "default",
+      {
+        "ignore": [
+          "min-height: auto"
+        ]
+      }
+    ]
+  }
 }

@@ -457,7 +457,7 @@ const WaNewcarAttachModal = ({
 								    onClick={handleMergePdf}
 								>
 								<RefreshCw size={15} style={{ marginRight: '3px' }} />
-								감면신청서 재병합
+								감면신청서 재생성
 								</button>
 							)}
 						</div>

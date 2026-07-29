@@ -147,6 +147,7 @@ const OwnerPersonal = ({
 			    <div className="wa-form-control">
 			        <input
 			            className="wa-input"
+			            autoComplete="off"
 			            name="OWNER_NM"
 			            data-type="newcar"
 			            value={dsNewCar.OWNER_NM ?? ''}

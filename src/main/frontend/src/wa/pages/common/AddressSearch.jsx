@@ -104,7 +104,9 @@ const AddressSearch = ({
 	onSameChange,
 	sameLabel,
 	data,
-	dataType = 'newcar'
+	dataType = 'newcar',
+	addressMaxLength,
+	detailMaxLength
 }) => {
 	
 	const formData = data || dsNewCar;
@@ -160,6 +162,7 @@ const AddressSearch = ({
 
 				    <input
 						className="wa-input"
+						autoComplete="off"
 						name={type}
 						data-type={dataType}
 						value={addressInput.value}
@@ -169,6 +172,7 @@ const AddressSearch = ({
 						onBlur={addressInput.onBlur}
 						onKeyDown={address.handleKeyDown}
 						placeholder={placeholder}
+						maxLength={addressMaxLength}
 				    />
 
 					{!!addressInput.value && (
@@ -360,6 +364,7 @@ const AddressSearch = ({
 				    <input
 				        ref={detailRef}
 				        className="wa-input wa-flex"
+						autoComplete="off"
 						style={{ flex: 2 }}
 				        name={detailName}
 				        data-type={dataType}
@@ -369,11 +374,13 @@ const AddressSearch = ({
 						onCompositionEnd={detailInput.onCompositionEnd}
 						onBlur={detailInput.onBlur}
 				        placeholder="상세주소 입력"
+						maxLength={detailMaxLength}
 				    />
 
 				    {postName && (
 				        <input
 				            className="wa-input"
+							autoComplete="off"
 				            style={{ flex: 1 }}
 				            name={postName}
 				            data-type={dataType}

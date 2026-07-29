@@ -1,5 +1,4 @@
-﻿﻿﻿ 
-/* =========================================================
+﻿﻿/* =========================================================
  * Import
  * ========================================================= */
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -405,7 +404,8 @@ const formatNumberData = (dataSet) => {
 		    ...item,
 
 		    PRE_PAY_AMT: gf.onlyNumber(String(item.PRE_PAY_AMT || '')),
-		    PAY_AMT: gf.onlyNumber(String(item.PAY_AMT || ''))
+		    PAY_AMT: gf.onlyNumber(String(item.PAY_AMT || '')),
+		    REAL_ALOAN: gf.onlyNumber(String(item.REAL_ALOAN || ''))
 		}))
     };
 };
@@ -748,59 +748,20 @@ const WaNewcarRequest = ({
 	    };
 	};
 	
-	// 첨부 완료 여부는 입력할 때마다 조회하지 않고, 신청건이 바뀌거나
-	// 최종 확인 단계에 진입했을 때만 조회하여 캐시한다.
+	// 첨부 완료 여부 갱신(버튼에서 쓸 겨)
 	useEffect(() => {
-		let cancelled = false;
 
-		const refreshAttachReady = async () => {
-			if (showAttach) {
-				setAttachReady(false);
-			}
+	    const load = async () => {
+	        const result = await checkAttachReady();
+	        setAttachReady(result.ready);
+	    };
 
-			const result = await checkAttachReady();
+	    load();
 
-			if (!cancelled) {
-				setAttachReady(result.ready);
-			}
-		};
-
-		if (dsService.SERVICE_ID || !showAttach) {
-			refreshAttachReady();
-		}
-
-		return () => {
-			cancelled = true;
-		};
-		// 신청건 변경 시에만 조회하도록 의도적으로 현재 렌더의 첨부 정책을 사용한다.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [dsService.SERVICE_ID]);
-
-	useEffect(() => {
-		let cancelled = false;
-
-		const refreshAttachReady = async () => {
-			if (showAttach) {
-				setAttachReady(false);
-			}
-
-			const result = await checkAttachReady();
-
-			if (!cancelled) {
-				setAttachReady(result.ready);
-			}
-		};
-
-		if (step === 4) {
-			refreshAttachReady();
-		}
-
-		return () => {
-			cancelled = true;
-		};
-		// 최종 확인 단계 진입 시에만 조회하며 입력값 변경은 조회 조건에서 제외한다.
-		// eslint-disable-next-line react-hooks/exhaustive-deps
-	}, [step]);
+	}, [
+	    dsService.SERVICE_ID,
+	    showAttach
+	]);
 
 
 
@@ -974,9 +935,11 @@ const WaNewcarRequest = ({
 			}));
 	    }
 
+		let saveSucceeded = false;
+
 	    try {
 	        // 현재 내용 저장
-	        await saveProcess(
+	        saveSucceeded = await saveProcess(
 				newCarForSave,
 				"SAV",
 				null,
@@ -986,18 +949,25 @@ const WaNewcarRequest = ({
 			);
 	    } catch (e) {
 	        console.error(e);
-	    } finally {
-	        // 저장 성공 여부와 관계없이 단계 이동
-	        setStep(nextStep);
-
-	        if (
-	            !isDetailPage &&
-	            dsService.SERVICE_ID &&
-	            stepMemory
-	        ) {
-	            stepMemory.set(dsService.SERVICE_ID, nextStep);
-	        }
 	    }
+
+		// 다른 탭의 기존 이동 흐름은 유지하되, 예상금액이 확정되는 3 -> 4 이동은
+		// TR_PAYMENT 저장에 성공한 경우에만 허용한다.
+		if (step === 3 && nextStep === 4 && !saveSucceeded) {
+			return false;
+		}
+
+	    setStep(nextStep);
+
+	    if (
+	        !isDetailPage &&
+	        dsService.SERVICE_ID &&
+	        stepMemory
+	    ) {
+	        stepMemory.set(dsService.SERVICE_ID, nextStep);
+	    }
+
+		return true;
 	};
 	
 	// 서류안내 모달창
@@ -1134,7 +1104,7 @@ const WaNewcarRequest = ({
 	 * 차대번호 대문자 변환, 금액의 쉼표 제거, 대표/공동소유 비율 계산처럼
 	 * 단순 대입 외의 보정도 이 함수에서 수행한다.
 	 */
-	const handleChange = useCallback(async (e) => {
+	const handleChange = async (e) => {
 		const { name, value, dataset } = e.target;
 
 		let v = value;
@@ -1224,7 +1194,7 @@ const WaNewcarRequest = ({
 		} else if (dataset.type === 'owner1') {
 			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
 		} 
-	}, []);
+	};
 
 	/**
 	 * 저장된 신청건 상세조회.
@@ -1555,14 +1525,6 @@ const WaNewcarRequest = ({
 			gf.loadingDelay(startTime, () => setLoading(false));
 	    }
 	};
-
-	// 첨부 모달에서 파일이 변경된 뒤에만 서버 상태를 다시 확인해 캐시를 갱신한다.
-	const handleAttachClose = async () => {
-		await reloadProcess(dsService.SERVICE_ID);
-
-		const result = await checkAttachReady();
-		setAttachReady(result.ready);
-	};
 	
 
 	/**
@@ -1701,7 +1663,7 @@ const WaNewcarRequest = ({
 	};
 
 	
-    const handleTaxReceiptAddressSelect = useCallback((type, addr) => {
+    const handleTaxReceiptAddressSelect = (type, addr) => {
         if (type !== 'ADDR') {
             return;
         }
@@ -1711,9 +1673,9 @@ const WaNewcarRequest = ({
             ADDR: addr.ADDR,
             POST_NO: addr.POST_NO
         }));
-    }, []);
+    };
 
-    const handleClearTaxReceiptAddress = useCallback((type) => {
+    const handleClearTaxReceiptAddress = (type) => {
         if (type !== 'ADDR') {
             return;
         }
@@ -1724,7 +1686,7 @@ const WaNewcarRequest = ({
             ADDR_DT: '',
             POST_NO: ''
         }));
-    }, []);
+    };
 
 	/**
 	 * SU 사용자가 최종 확인 단계에서 요청할 때 실행한다.
@@ -1765,35 +1727,35 @@ const WaNewcarRequest = ({
 			dsTaxReceipt,
 	        dsPaymentList: [...dsPaymentList]
 	    };
-
-		// 감면신청서 데이터
-		newDataSet.dsExemption = {
-		    CREATE_YN: attachPolicy.needSign ? 'Y' : 'N',
-		    REASON: '',
-		    DOCUMENT: ''
-		};
 		
 		// 감면신청서 데이터 추가
 		if (attachPolicy.needSign) {
-			
-			newDataSet.dsExemption.REASON =
-			    NTAX_POLICY[dsNewCar.NTAX_TRGET_CD]?.NAME || '';
 
-			newDataSet.dsExemption.DOCUMENT =
-			    (ntaxPolicy.requiredDocs || [])
-			        .map(doc => doc.name)
-			        .join(', ');
-		} 
+		    const ntaxReason =
+		        NTAX_POLICY[dsNewCar.NTAX_TRGET_CD]?.NAME || '';
+
+		    const ntaxDocuments =
+		        (ntaxPolicy.requiredDocs || [])
+		            .map(doc => doc.name)
+		            .join(', ');
+
+		    newDataSet.dsExemption = {
+		        REASON: ntaxReason,
+		        DOCUMENT: ntaxDocuments
+		    };
+		}
 
 		await processService(newDataSet, "REQ");
 	};
 	
 
 	/**
-	 * 서버 조회가 필요 없는 최종 요청 입력값 검사.
-	 * 입력 중 요청 버튼 상태를 계산할 때도 사용하므로 네트워크 요청을 포함하지 않는다.
+	 * 최종 요청 전 전체 유효성 검사.
+	 * 1~3단계 필수값, 필수 첨부/전자서명, 차대번호 길이,
+	 * 대표·공동소유자 비율과 공동소유자 인적사항을 순서대로 확인한다.
+	 * 오류가 있으면 사용자에게 표시할 첫 번째 메시지를 반환한다.
 	 */
-	const validateRequestFields = (moveToInvalidStep = false) => {
+	const validateRequest = async (moveToInvalidStep = false) => {
 
 		// 최종 요청에서는 1~3단계를 처음부터 다시 검사한다.
 		const requiredValidation = validateRequiredSteps(1, 3);
@@ -1806,6 +1768,15 @@ const WaNewcarRequest = ({
 			return requiredValidation.message;
 		}
 		
+		// 서명 및 첨부파일 확인
+		const result = await checkAttachReady();
+
+		setAttachReady(result.ready);
+
+		if (!result.ready) {
+		    return result.message;
+		}
+
 		if (gf.Check(dsNewCar.CARID_NO, '차대번호', 17)) {
 			return '차대번호를 확인해주세요.';
 		}
@@ -1854,23 +1825,6 @@ const WaNewcarRequest = ({
 		}
 		
 		return '';
-	};
-
-	/**
-	 * 최종 요청 직전에 입력값과 첨부/전자서명을 모두 검사한다.
-	 * 첨부 상태는 버튼 상태 계산에 사용한 캐시를 신뢰하지 않고 서버에서 다시 확인한다.
-	 */
-	const validateRequest = async (moveToInvalidStep = false) => {
-		const fieldMessage = validateRequestFields(moveToInvalidStep);
-
-		if (fieldMessage) {
-			return fieldMessage;
-		}
-
-		const result = await checkAttachReady();
-		setAttachReady(result.ready);
-
-		return result.ready ? '' : result.message;
 	};
 	
 	
@@ -2102,16 +2056,30 @@ const WaNewcarRequest = ({
 		return { step: null, message: '' };
 	};
 
-	// 요청 버튼이 표시되는 최종 확인 단계의 SU 사용자일 때만 전체 필수값을 검사한다.
-	// 1~3단계 입력 중에는 사용하지 않는 요청버튼 검증 비용을 발생시키지 않는다.
-	const requestDisabled = (
-		step === 4
-		&& dsUserInfo.MEMBER_GB === 'SU'
-		&& (
-			Boolean(validateRequestFields())
-			|| (showAttach && !attachReady)
-		)
-	);
+	// 요청 가능 여부 갱신1(버튼 비활성화용, css용)
+	const [requestDisabled, setRequestDisabled] = useState(false);
+	
+	// 요청 가능 여부 갱신2
+	useEffect(() => {
+
+	    const check = async () => {
+
+	        // 요청 가능 여부 확인
+	        const msg = await validateRequest();
+
+	        // 요청 불가 시 버튼 비활성화
+	        setRequestDisabled(!!msg);
+	    };
+
+	    check();
+
+	}, [
+	    dsNewCar,
+	    dsOwnerInfo,
+	    dsOwnerInfo1,
+	    dsService.SERVICE_ID,
+	    showAttach
+	]);
 	
 	// 서류 안내창
 	const noticeCheck = useMemo(() => {
@@ -2163,10 +2131,8 @@ const WaNewcarRequest = ({
 	// 감면 안내창
 	const exemptionNotice = useMemo(() => {
 		
-		const isExempt = attachPolicy.needSign || ntaxPolicy.needUpload;
-		
 		// 감면 안내가 필요 없으면 모달 자체를 띄우지 않음
-		if (!isExempt) {
+		if (!showAttach) {
 		    return null;
 		}
 		
@@ -2607,7 +2573,7 @@ const WaNewcarRequest = ({
 								dsTaxReceipt={dsTaxReceipt}
 								dsBaseList={dsBaseList}
 								dsPaymentList={dsPaymentList}
-								onAttachClose={handleAttachClose}
+								onAttachClose={() => reloadProcess(dsService.SERVICE_ID)}
 								onMoveStep={setStep}
 						    />
 						}

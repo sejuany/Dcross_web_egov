@@ -566,6 +566,7 @@ const WaNumPlateSelectModal = ({
 
 	                        <div className="search-input-group">
 	                            <input
+	                                autoComplete="off"
 	                                value={keyword}
 	                                placeholder="번호를 입력하세요."
 	                                onChange={e => setKeyword(e.target.value)}

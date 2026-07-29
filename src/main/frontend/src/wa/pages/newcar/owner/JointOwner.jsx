@@ -52,6 +52,7 @@ const JointOwner = ({
 						<div className="wa-ratio-input">
 				            <input
 				                className="wa-input"
+				                autoComplete="off"
 				                data-type="owner"
 				                name="DEBTOR_RATIO"
 				                value={dsOwnerInfo.DEBTOR_RATIO ?? ''}
@@ -67,6 +68,7 @@ const JointOwner = ({
 						<div className="wa-ratio-input">
 						    <input
 						        className="wa-input"
+						        autoComplete="off"
 								name="RATIO_NO"
 				                data-type="newcar"
 				                value={dsNewCar.RATIO_NO ?? ''}
@@ -90,6 +92,7 @@ const JointOwner = ({
 			    <div className="wa-form-control">
 			        <input
 			            className="wa-input"
+			            autoComplete="off"
 			            name="DEBTOR_NM"
 			            data-type="owner"
 			            value={dsOwnerInfo.DEBTOR_NM ?? ''}

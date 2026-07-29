@@ -674,12 +674,12 @@
 	    INSERT INTO TR_PAYMENT (
 	        SERVICE_ID, PAY_KD, PAY_AMT, PAY_OP, PAY_ST,
 	        VBANK_CD, VBANK_NO, PAY_DT, T_VBANK_GB, T_VBANK_ID,
-	        INS_USER, PRE_PAY_AMT
+	        INS_USER, PRE_PAY_AMT, REAL_ALOAN
 	    )
 	    VALUES (
 	        #{SERVICE_ID}, #{PAY_KD}, NVL(#{PAY_AMT}, 0), #{PAY_OP}, #{PAY_ST},
 	        #{VBANK_CD}, #{VBANK_NO}, TO_DATE(TRIM(#{PAY_DT}), 'YYYY/MM/DD HH24:MI:SS'), #{T_VBANK_GB}, #{T_VBANK_ID},
-	        #{MEMBER_ID}, NVL(#{PRE_PAY_AMT}, 0)
+	        #{MEMBER_ID}, NVL(#{PRE_PAY_AMT}, 0), NVL(#{REAL_ALOAN}, 0)
 	    )
 	</insert>
 	

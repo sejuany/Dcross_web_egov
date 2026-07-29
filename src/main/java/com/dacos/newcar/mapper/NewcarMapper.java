@@ -1,5 +1,6 @@
 package com.dacos.newcar.mapper;
 
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 
@@ -39,6 +40,15 @@ public interface NewcarMapper {
             @Param("baseAddress") String baseAddress,
             @Param("carGb") String carGb,
             @Param("baseValue") double baseValue);
+
+    /** 예상금액 계산에 사용하는 운영 공통코드 설정 조회 */
+    Map<String, Object> getEstimateCodeConfig();
+
+    /** 운영 프로시저와 동일한 조건의 현재 공채 규칙 한 건 조회 */
+    Map<String, Object> getActiveBondRule(
+            @Param("area") String area,
+            @Param("carGb") String carGb,
+            @Param("compare") BigDecimal compare);
     
     /** 다건 상태 변경 */
     int updateProcSt(@Param("SERVICE_IDS") List<String> serviceIds, @Param("PROC_ST") String procSt);

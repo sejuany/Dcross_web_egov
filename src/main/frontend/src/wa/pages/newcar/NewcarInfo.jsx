@@ -23,11 +23,7 @@ import {
     formatAmount,
     sortPaymentRows
 } from './newcarAmountCalculator';
-import {
-    buildCarSpecPatch,
-    isElectricBondLookupExemptArea,
-    resolveBondSearchCriteria
-} from './newcarCarSpec';
+import { buildCarSpecPatch } from './newcarCarSpec';
 
 const BOND_OPTIONS = [
     { value: 'SELL', label: '매도(할인)' },
@@ -473,6 +469,7 @@ const DeferredInput = memo(({
     return (
         <input
             {...inputProps}
+            autoComplete="off"
             name={name}
             value={draftValue}
             onChange={handleDraftChange}
@@ -1062,17 +1059,17 @@ const NewcarInfo = ({
 
     // 금액 계산은 newcarAmountCalculator에서 처리함.
     // 화면 컴포넌트는 계산 결과를 상태와 결제목록에 반영하는 역할만 담당함.
-    const getEstimateResult = (newCar = dsNewCar) => calculateNewcarEstimate({
+    const getEstimateResult = (newCar = dsNewCar, coreEstimate = null) => calculateNewcarEstimate({
         dsNewCar: newCar,
         dsService,
         dsPaymentList,
         dsWorkCp,
-        codes
+        codes,
+        coreEstimate
     });
 
-    // 차명과 로그인 회사에 설정된 Maker로 TR_CAR_SPEC 차량제원 가져옴.
-    // 차량제원의 CAR_CC와 TR_NEWCAR.BASE_ADDRESS로 TM_BOND 공채 매입률을 이어서 가져옴.
-    const getCarSpecForEstimate = async () => {
+    // 운영 프로시저와 같은 서버 계산 API에서 차량제원, 취득세, 공채 기준금액을 한 번에 가져옴.
+    const getServerEstimate = async () => {
         const carName = String(dsNewCar.CAR_NM ?? '').trim();
         const baseAddress = String(dsNewCar.BASE_ADDRESS ?? '').trim();
 
@@ -1084,78 +1081,43 @@ const NewcarInfo = ({
             throw new Error('사용본거지 주소를 입력해주세요.');
         }
 
-        // 로그인 회사에 연결된 Maker와 차명이 같은 차량제원 한 건 가져옴.
-        const carSpecResponse = await axios.get('/api/newcar/car-spec', {
-            params: { carName }
+        const response = await axios.post('/api/newcar/estimate', {
+            dsService: { ...dsService },
+            dsNewCar: { ...dsNewCar }
         });
-        const carSpec = carSpecResponse.data?.data;
+        const coreEstimate = response.data?.data;
 
-        if (!carSpec) {
-            throw new Error('차량제원 조회 결과가 없습니다.');
+        if (
+            !coreEstimate
+            || coreEstimate.ACQ_AMT === undefined
+            || coreEstimate.ACQ_AMT === null
+            || coreEstimate.BOND_PURCHASE_AMT === undefined
+            || coreEstimate.BOND_PURCHASE_AMT === null
+        ) {
+            throw new Error(
+                response.data?.message
+                || '예상금액 계산 결과가 올바르지 않습니다.'
+            );
         }
 
+        const carSpec = coreEstimate.CAR_SPEC || {};
         const carSpecPatch = buildCarSpecPatch(dsNewCar, carSpec);
-        const bondSearchCriteria = resolveBondSearchCriteria({
-            ...dsNewCar,
-            ...carSpecPatch
-        });
-
-        const fuelCode = String(carSpecPatch.FUEL_CD ?? '').trim().toLowerCase();
-        const maker = String(carSpecPatch.CAR_SPEC_MAKER ?? '').replace(/\s+/g, '').toUpperCase();
-        const electricVehicle = ['e', 'q', 'r'].includes(fuelCode) || maker === 'POLESTAR';
-        const bondLookupExempt = electricVehicle && isElectricBondLookupExemptArea(baseAddress);
-
-        // 경기·부산·대구·경남 전기차는 프로시저처럼 TM_BOND 조회 전에 전액면제 처리함.
-        // 나머지 지역만 다목적형 지역 기준으로 공채값을 조회하고 TM_TAX는 항상 함께 가져옴.
-        const bondRateRequest = bondLookupExempt
-            ? Promise.resolve({
-                data: {
-                    data: {
-                        BOND_RATE: 0,
-                        AREA: bondSearchCriteria.area,
-                        BOND_GB: 'N',
-                        FULL_EXEMPT_YN: 'Y'
-                    }
-                }
-            })
-            : axios.get('/api/newcar/bond-rate', {
-                params: {
-                    baseAddress,
-                    carGb: bondSearchCriteria.carGb,
-                    baseValue: bondSearchCriteria.baseValue
-                }
-            });
-        const [bondRateResponse, taxInfoResponse] = await Promise.all([
-            bondRateRequest,
-            axios.get('/api/newcar/tax-info')
-        ]);
-        const bondRateInfo = bondRateResponse.data?.data;
-        const taxInfo = taxInfoResponse.data?.data;
-
-        if (!bondRateInfo || bondRateInfo.BOND_RATE === undefined || bondRateInfo.BOND_RATE === null) {
-            throw new Error('공채 매입률 조회 결과가 없습니다.');
-        }
-
-        if (!taxInfo) {
-            throw new Error('신규등록 세율정보 조회 결과가 없습니다.');
-        }
-
-        // 조회 기준값은 예상금액 계산에만 합치며 TR_NEWCAR 저장 필드에는 별도 매핑하지 않음.
+        // 서버가 사용한 공채 조회 기준도 state에 보관해 계산 기준 변경 여부를 판별함.
         const estimatePatch = {
             ...carSpecPatch,
-            BOND_RATE: bondRateInfo.BOND_RATE,
-            BOND_AREA: bondRateInfo.AREA ?? '',
-            BOND_GB: bondRateInfo.BOND_GB ?? '',
-            BOND_FULL_EXEMPT_YN: bondRateInfo.FULL_EXEMPT_YN ?? 'N',
-            BOND_RATE_BASE1: bondRateInfo.BASE1 ?? '',
-            BOND_RATE_BASE2: bondRateInfo.BASE2 ?? '',
-            BOND_SEARCH_CAR_GB: bondSearchCriteria.carGb,
-            BOND_SEARCH_BASE_VALUE: bondSearchCriteria.baseValue,
-            TM_TAX_INFO: taxInfo
+            BOND_AREA: coreEstimate.BOND_AREA ?? '',
+            BOND_VALUE: coreEstimate.BOND_VALUE ?? '',
+            BOND_VALUE_TYPE: coreEstimate.BOND_VALUE_TYPE ?? '',
+            BOND_RATE: coreEstimate.BOND_VALUE ?? '',
+            BOND_CAR_GB: coreEstimate.BOND_CAR_GB ?? '',
+            BOND_COMPARE: coreEstimate.BOND_COMPARE ?? '',
+            BOND_SEARCH_CAR_GB: coreEstimate.BOND_CAR_GB ?? '',
+            BOND_SEARCH_BASE_VALUE: coreEstimate.BOND_COMPARE ?? ''
         };
 
         return {
             carSpecPatch: estimatePatch,
+            coreEstimate,
             newCar: {
                 ...dsNewCar,
                 ...estimatePatch
@@ -1215,8 +1177,8 @@ const NewcarInfo = ({
         setEstimating(true);
 
         try {
-            const { carSpecPatch, newCar } = await getCarSpecForEstimate();
-            const result = getEstimateResult(newCar);
+            const { carSpecPatch, coreEstimate, newCar } = await getServerEstimate();
+            const result = getEstimateResult(newCar, coreEstimate);
 
             // 계산된 TR_PAYMENT 목록 반영함.
             setDsPaymentList?.(result.updatedPaymentList);
@@ -1466,6 +1428,7 @@ const NewcarInfo = ({
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:COMPANY_NM`}
                                                         className="wa-input"
+                                                        maxLength={50}
                                                         name="COMPANY_NM"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.COMPANY_NM ?? ''}
@@ -1481,6 +1444,7 @@ const NewcarInfo = ({
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:NAME`}
                                                         className="wa-input"
+                                                        maxLength={50}
                                                         name="NAME"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.NAME ?? ''}
@@ -1497,6 +1461,8 @@ const NewcarInfo = ({
                                             type="ADDR"
                                             detailName="ADDR_DT"
 											postName="POST_NO"
+                                            addressMaxLength={70}
+                                            detailMaxLength={70}
                                             data={dsTaxReceipt}
                                             dataType="taxReceipt"
                                             handleChange={handleChange}
@@ -1511,6 +1477,7 @@ const NewcarInfo = ({
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:BUSINESS_TYPE`}
                                                         className="wa-input"
+                                                        maxLength={10}
                                                         name="BUSINESS_TYPE"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.BUSINESS_TYPE ?? ''}
@@ -1526,6 +1493,7 @@ const NewcarInfo = ({
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:INDUSTRY_TYPE`}
                                                         className="wa-input"
+                                                        maxLength={10}
                                                         name="INDUSTRY_TYPE"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.INDUSTRY_TYPE ?? ''}
@@ -1541,6 +1509,7 @@ const NewcarInfo = ({
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:MAIL1`}
                                                         className="wa-input"
+                                                        maxLength={50}
                                                         name="MAIL1"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL1 ?? ''}
@@ -1556,6 +1525,7 @@ const NewcarInfo = ({
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:MAIL2`}
                                                         className="wa-input"
+                                                        maxLength={50}
                                                         name="MAIL2"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL2 ?? ''}

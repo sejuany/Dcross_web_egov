@@ -90,6 +90,7 @@ export const toast = (msg, delay = 2500) => {
 };
 
 
+
 export const gf = {
 	
 	// 공통 알림 팝업
@@ -166,8 +167,6 @@ export const gf = {
 	// 입력값 유효성 검사
     Check: (value, label, min, max) => {
 		const str = String(value ?? '').trim();
-		
-		console.log('str : ' + str);
 		
 		if (str === '') {
 		    return `${label} 값이 입력되지 않았습니다.`;
@@ -580,233 +579,238 @@ export const gf = {
 	    });
 	},
 	
-	// 광역자치단체
+	// 광역자치단체명 표준화
 	findSidoNm(address) {
-		
-		const SIDO_MAP = {
-		    '서울': '서울특별시',
-		    '서울시': '서울특별시',
-		    '서울특별시': '서울특별시',
 
-		    '부산': '부산광역시',
-		    '부산시': '부산광역시',
-		    '부산광역시': '부산광역시',
+	    const SIDO_MAP = {
+	        '서울특별시': '서울특별시',
+	        '서울시': '서울특별시',
+	        '서울': '서울특별시',
 
-		    '대구': '대구광역시',
-		    '대구시': '대구광역시',
-		    '대구광역시': '대구광역시',
+	        '부산광역시': '부산광역시',
+	        '부산시': '부산광역시',
+	        '부산': '부산광역시',
 
-		    '인천': '인천광역시',
-		    '인천시': '인천광역시',
-		    '인천광역시': '인천광역시',
+	        '대구광역시': '대구광역시',
+	        '대구시': '대구광역시',
+	        '대구': '대구광역시',
 
-		    '광주': '광주광역시',
-		    '광주시': '광주광역시',
-		    '광주광역시': '광주광역시',
+	        '인천광역시': '인천광역시',
+	        '인천시': '인천광역시',
+	        '인천': '인천광역시',
 
-		    '대전': '대전광역시',
-		    '대전시': '대전광역시',
-		    '대전광역시': '대전광역시',
+	        '광주광역시': '광주광역시',
+	        '광주시': '광주광역시',
+	        '광주': '광주광역시',
 
-		    '울산': '울산광역시',
-		    '울산시': '울산광역시',
-		    '울산광역시': '울산광역시',
+	        '대전광역시': '대전광역시',
+	        '대전시': '대전광역시',
+	        '대전': '대전광역시',
 
-		    '세종': '세종특별자치시',
-		    '세종시': '세종특별자치시',
-		    '세종특별자치시': '세종특별자치시',
+	        '울산광역시': '울산광역시',
+	        '울산시': '울산광역시',
+	        '울산': '울산광역시',
 
-		    '경기': '경기도',
-		    '경기도': '경기도',
+	        '세종특별자치시': '세종특별자치시',
+	        '세종시': '세종특별자치시',
+	        '세종': '세종특별자치시',
 
-		    '강원': '강원특별자치도',
-		    '강원도': '강원특별자치도',
-		    '강원특별자치도': '강원특별자치도',
+	        '경기도': '경기도',
 
-		    '충북': '충청북도',
-		    '충청북도': '충청북도',
+	        '강원특별자치도': '강원특별자치도',
+	        '강원도': '강원특별자치도',
+	        '강원': '강원특별자치도',
 
-		    '충남': '충청남도',
-		    '충청남도': '충청남도',
+	        '충청북도': '충청북도',
+	        '충북': '충청북도',
 
-		    '전북': '전북특별자치도',
-		    '전북도': '전북특별자치도',
-		    '전북특별자치도': '전북특별자치도',
+	        '충청남도': '충청남도',
+	        '충남': '충청남도',
 
-		    '전남': '전라남도',
-			'전라도': '전라남도',
-		    '전라남도': '전라남도',
+	        '전북특별자치도': '전북특별자치도',
+	        '전북도': '전북특별자치도',
+	        '전북': '전북특별자치도',
 
-		    '경북': '경상북도',
-		    '경상북도': '경상북도',
+	        '전라남도': '전라남도',
+	        '전라도': '전라남도',
+	        '전남': '전라남도',
 
-		    '경남': '경상남도',
-		    '경상남도': '경상남도',
+	        '경상북도': '경상북도',
+	        '경북': '경상북도',
 
-		    '제주': '제주특별자치도',
-		    '제주도': '제주특별자치도',
-		    '제주특별자치도': '제주특별자치도'
-		};
-		
-		const firstWord = address.trim().split(/\s+/)[0];
+	        '경상남도': '경상남도',
+	        '경남': '경상남도',
 
-		return SIDO_MAP[firstWord] || '';
+	        '제주특별자치도': '제주특별자치도',
+	        '제주도': '제주특별자치도',
+	        '제주': '제주특별자치도'
+	    };
+
+	    const input = (address || '').replace(/\s/g, '');
+
+	    for (const key of Object.keys(SIDO_MAP).sort((a, b) => b.length - a.length)) {
+	        if (input.startsWith(key)) {
+	            return SIDO_MAP[key];
+	        }
+	    }
+
+	    return '';
 	},
 	
-	// 전체 주소 넣고 조회하기 
-	createAddrParam(address) {
+	// 주소를 공백 기준으로 분리하고 약식 주소는 숫자를 분리
+	parseAddress(address) {
 
-	    if (!address || !String(address).trim()) {
-	        return null;
-	    }
+		const tokens = (address || '')
+		    .trim()
+		    .split(/\s+/)
+		    .filter(Boolean);
 
-	    // 광역자치단체  
-	    const SIDO_NM = gf.findSidoNm(address);
+		// 공백이 없는 입력 대응
+		if (tokens.length === 1) {
 
-	    // 공백 제거
-	    let inputAddr = String(address).replace(/\s/g, '');
+		    const token = tokens[0];
 
-	    // 행정구역 제거하고 시작
-	    const addr = gf.removeRegionAddress(inputAddr);
+		    const match = token.match(
+		        /^(.+?)([0-9]+(?:-[0-9]+)?)$/
+		    );
 
-	    console.log("addr : " + addr);
-
-	    // 결과값
-	    let ROAD_NM = '';
-	    let BUILDB_NO = '';
-	    let BUILDS_NO = '';
-	    let BUBJUNGRI_NM = 'N';
-
-	    // 도로명 패턴
-	    // 예)
-	    // 동대구로41
-	    // 우이천로304
-	    // 논현로11길18
-	    // 세종대로110
-	    // 뒤에 괄호가 붙어도 앞쪽 주소만 잡음
-	    const roadMatch = addr.match(
-	        /([가-힣0-9]+(?:대로|로|길))([0-9]+(?:-[0-9]+)?)/
-	    );
-
-	    // 지번 패턴
-	    const jibunMatch = addr.match(
-	        /([가-힣0-9]+(?:읍|면|동|리))([0-9]+(?:-[0-9]+)?)/
-	    );
-
-	    // 도로명 우선
-	    if (roadMatch) {
-	        ROAD_NM = roadMatch[1];
-	        BUILDB_NO = roadMatch[2];
-	        BUBJUNGRI_NM = 'N';
-	    }
-
-	    // 지번
-	    else if (jibunMatch) {
-	        ROAD_NM = jibunMatch[1];
-	        BUILDB_NO = jibunMatch[2];
-
-	        if (ROAD_NM.endsWith('리')) {
-	            BUBJUNGRI_NM = 'Y';
-	        }
-	    }
-
-	    if (!ROAD_NM || !BUILDB_NO) {
-	        console.log('[createAddrParam 실패]', {
-	            SIDO_NM,
-	            inputAddr,
-	            addr,
-	            ROAD_NM,
-	            BUILDB_NO,
-	            BUILDS_NO,
-	            BUBJUNGRI_NM
-	        });
-
-	        return null;
-	    }
-
-	    // 본번 / 부번 분리
-	    if (BUILDB_NO.includes('-')) {
-	        const splitNo = BUILDB_NO.split('-');
-
-	        BUILDB_NO = splitNo[0];
-	        BUILDS_NO = splitNo[1];
-	    }
-
-	    console.log({
-	        SIDO_NM,
-	        ROAD_NM,
-	        BUILDB_NO,
-	        BUILDS_NO,
-	        BUBJUNGRI_NM
-	    });
-
-	    return {
-	        SIDO_NM,
-	        ROAD_NM,
-	        BUILDB_NO,
-	        BUILDS_NO,
-	        BUBJUNGRI_NM
-	    };
-	},
-
-
-	// 행정구역 제거
-	removeRegionAddress(address) {
-
-	    let inputAddr = address.replace(/\s/g, '');
-
-	    // 시/도 제거 대상
-	    const removeWords = [
-	        '경기도', '강원특별자치도', '충청북도', '충청남도',
-	        '전북특별자치도', '전라남도', '경상북도', '경상남도',
-	        '제주특별자치도', '강원도', '전라도', '경상도', '충청도',
-	        
-			'서울', '부산', '대구', '인천', '광주', '대전', '울산'
-			// 나머지는 세종대로 같이 ㅇㅇ대로가 있어서 삭제함
-	    ];
-
-	    // 시/도 제거
-	    removeWords.forEach(word => {
-
-	        if (inputAddr.startsWith(word)) {
-
-	            inputAddr =
-	                inputAddr.substring(word.length);
-
-	        }
-
-	    });
-		
-		// 시/군/구 제거
-		while (/^[가-힣]+?(시|군|구)(?=[가-힣])/.test(inputAddr)) {
-
-		    const match = inputAddr.match(/^([가-힣]+?(시|군|구))(?=[가-힣])/);
-
-		    if (!match) {
-		        break;
+		    if (match) {
+		        return [match[1], match[2]];
 		    }
-
-		    const removeText = match[1];
-		    const nextText = inputAddr.substring(removeText.length);
-
-		    // 동대구로41 같은 도로명을 "동대구" + "로41"로 잘라버리는 것 방지
-		    if (/^(로|길|대로)/.test(nextText)) {
-		        break;
-		    }
-
-		    inputAddr = inputAddr.substring(removeText.length);
 		}
 
-		// 시/군/구 제거 후 남은 읍/면 제거
-		inputAddr = inputAddr.replace(
-		    /^[가-힣]+?(읍|면)/,
-		    ''
-		);
-
-	    return inputAddr;
-
+		return tokens;
 	},
 	
+
+	// 주소 토큰을 시도, 도로명(지번), 건물번호로 분류
+	classifyAddress(tokens) {
+
+		const result = {
+		    sido: '',
+		    sigungu: '',
+		    eupmyeon: '',
+		    road: '',
+		    jibun: '',
+		    buildNo: '',
+		    buildSubNo: ''
+		};
+
+	    tokens.forEach(token => {
+
+	        const sido = gf.findSidoNm(token);
+
+	        if (!result.sido && sido) {
+	            result.sido = sido;
+	            return;
+	        }
+
+	        if (!result.sigungu && /(?:시|군|구)$/.test(token)) {
+	            result.sigungu = token;
+	            return;
+	        }
+
+	        if (!result.eupmyeon && /(?:읍|면)$/.test(token)) {
+	            result.eupmyeon = token;
+	            return;
+	        }
+
+	        if (!result.road && /(?:대로|로|길)$/.test(token)) {
+	            result.road = token;
+	            return;
+	        }
+
+	        if (!result.jibun && /(?:동|리)$/.test(token)) {
+	            result.jibun = token;
+	            return;
+	        }
+
+
+			if (!result.buildNo && /^[0-9]+(?:-[0-9]+)?$/.test(token)) {
+
+			    const [mainNo, subNo = ''] = token.split('-');
+
+			    result.buildNo = mainNo;
+			    result.buildSubNo = subNo;
+
+			    return;
+			}
+	    });
+
+		result.roadSearch = result.road;
+
+		result.jibunSearch = [
+		    result.sigungu,
+		    result.eupmyeon,
+		    result.jibun
+		].filter(Boolean).join('');
+
+	    return result;
+	},
+	
+
+	// 주소검색
+	createAddrParam(address) {
+
+		address = (address || '').trim();
+		
+		const spaceCount = (address.match(/\s+/g) || []).length;
+
+		if (spaceCount <= 1) {
+
+		    const match = address.match(/^(.+?)(\d+(?:-\d+)?)$/);
+
+		    if (match) {
+
+		        const roadNm = match[1].replace(/\s+/g, '');
+		        const [buildNo, buildSubNo = ''] = match[2].split('-');
+
+		        return {
+		            SIDO_NM: '',
+		            ROAD_NM: roadNm,
+		            BUILDB_NO: buildNo,
+		            BUILDS_NO: buildSubNo,
+		            BUBJUNGRI_NM: 'N'
+		        };
+		    }
+		}
+
+
+		// 전체 주소에서 건물번호 앞 공백이 없는 경우 보정
+		const match = address.match(/^(.+?)(\d+(?:-\d+)?)$/);
+
+		if (match) {
+		    const [, text, number] = match;
+		    address = `${text.trim()} ${number}`;
+		}
+
+		const info = gf.classifyAddress(gf.parseAddress(address));
+		log(info);
+	
+	    if (info.road) {
+
+			return {
+				SIDO_NM: info.sido,
+		        ROAD_NM: info.road,
+			    BUILDB_NO: info.buildNo,
+			    BUILDS_NO: info.buildSubNo,
+			    BUBJUNGRI_NM: 'N'
+			};
+	    }
+
+	    if (info.jibun) {
+
+			return {
+			    SIDO_NM: info.sido,
+			    ROAD_NM: info.jibun,
+			    BUILDB_NO: info.buildNo,
+			    BUILDS_NO: info.buildSubNo,
+			    BUBJUNGRI_NM: 'N'
+			};
+	    }
+
+	    return null;
+	},
 
 	/**
 	 * 최소 로딩시간 보장

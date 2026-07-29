@@ -212,6 +212,7 @@ const WaSendSmsModal = ({
                 <div className="wa-sms-modal-body">
                     <div className="wa-sms-phone-row">
 						<input
+						    autoComplete="off"
 						    ref={hp1Ref}
 						    value={phone.hp1}
 						    maxLength={3}
@@ -221,6 +222,7 @@ const WaSendSmsModal = ({
 						<span>-</span>
 	
 						<input
+						    autoComplete="off"
 						    ref={hp2Ref}
 						    value={phone.hp2}
 						    maxLength={4}
@@ -230,6 +232,7 @@ const WaSendSmsModal = ({
 						<span>-</span>
 	
 						<input
+						    autoComplete="off"
 						    ref={hp3Ref}
 						    value={phone.hp3}
 						    maxLength={4}

@@ -139,6 +139,7 @@ const CarInfo = ({
 				    <div className="wa-form-control">
 				        <input
 				            className="wa-input"
+				            autoComplete="off"
 				            name="CAR_NM"
 							data-type="newcar"
 				            value={dsNewCar.CAR_NM ?? ''}
@@ -156,6 +157,7 @@ const CarInfo = ({
 				    <div className="wa-form-control">
 				        <input
 				            className="wa-input"
+				            autoComplete="off"
 				            name="BUY_AMT"
 				            data-type="newcar"
 				            value={Number(dsNewCar.BUY_AMT || 0).toLocaleString()}
@@ -218,6 +220,7 @@ const CarInfo = ({
 				        <div className="wa-inline-group">
 							<input
 							    className="wa-input"
+							    autoComplete="off"
 							    name="REQ_CAR_NO"
 							    value={dsNewCar.REQ_CAR_NO ?? ''}
 							    data-type="newcar"

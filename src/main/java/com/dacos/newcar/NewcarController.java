@@ -35,6 +35,8 @@ import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
 import com.dacos.common.util.AuthUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
+import com.dacos.newcar.estimate.NewcarEstimateRequest;
+import com.dacos.newcar.estimate.NewcarEstimateService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -49,12 +51,14 @@ public class NewcarController {
     private static final Logger logger = LoggerFactory.getLogger(NewcarController.class);
 
     private final NewcarService newcarService;
+    private final NewcarEstimateService newcarEstimateService;
     private final CommonService commonService;
     private final NewcarPdfExtractService newcarPdfExtractService;
     private final AttachService attachService;
 
-    public NewcarController(NewcarService newcarService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService, AttachService attachService) {
+    public NewcarController(NewcarService newcarService, NewcarEstimateService newcarEstimateService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService, AttachService attachService) {
         this.newcarService = newcarService;
+        this.newcarEstimateService = newcarEstimateService;
         this.commonService = commonService;
         this.newcarPdfExtractService = newcarPdfExtractService;
         this.attachService = attachService;
@@ -244,6 +248,20 @@ public class NewcarController {
         AuthUtil.getLoginUser(session);
         Map<String, Object> taxInfo = newcarService.getNewcarTaxInfo();
         return ResponseEntity.ok(ApiResponse.withKey("data", taxInfo));
+    }
+
+    /**
+     * 운영 프로시저 기준 신규등록 예상금액 계산.
+     * 계산 과정에서는 DB를 변경하지 않으며 로그인 회사의 차량제원만 조회한다.
+     * POST /api/newcar/estimate
+     */
+    @PostMapping("/estimate")
+    public ResponseEntity<Map<String, Object>> estimateNewCar(
+            @RequestBody NewcarEstimateRequest request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        Map<String, Object> estimate = newcarEstimateService.estimate(request, user);
+        return ResponseEntity.ok(ApiResponse.withKey("data", estimate));
     }
     /**
      * 선택 가능한 번호판 목록 조회

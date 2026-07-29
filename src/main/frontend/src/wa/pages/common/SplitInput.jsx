@@ -217,6 +217,7 @@ const SplitInput = ({
                 <Fragment key={index}>
                     <input
                         {...props}
+                        autoComplete="off"
                         ref={el => inputRefs.current[index] = el}
                         className={`wa-input ${inputClassName}`}
                         value={fixedValues[index] !== undefined ? fixedValues[index] : item}
