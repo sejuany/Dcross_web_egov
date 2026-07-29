@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { NavLink, Outlet, useLocation } from 'react-router-dom';
-import { ChevronDown, LogOut, UserRound } from 'lucide-react';
+import { NavLink, Outlet, useLocation, useNavigate } from 'react-router-dom';
+import { ChevronDown, LogOut, UserRound, Settings } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { getUserCompanyId, WA_HOME_PATH } from '../auth/waRouting';
 import '../styles/wa.css';
@@ -35,6 +35,7 @@ const getUserMemberGb = (user) => {
 const WaLayout = () => {
     const { user, logout } = useAuth();
     const location = useLocation();
+	const navigate = useNavigate();
 
     const companyId = getUserCompanyId(user);
     const userName = getUserName(user);
@@ -139,22 +140,31 @@ const WaLayout = () => {
                         )}
                     </nav>
 
-                    <div className="wa-top-actions">
-                        <span className="wa-user-chip">
-                            <UserRound size={14} />
-                            {/* <span>{companyId || 'WA'}</span> */}
-                            <strong>{userName}</strong>
-                        </span>
+					<div className="wa-top-actions">
+					    <span className="wa-user-chip">
+					        <UserRound size={14} />
+					        {/* <span>{companyId || 'WA'}</span> */}
+					        <strong>{userName}</strong>
+					    </span>
 
-                        <button
-                            type="button"
-                            className="wa-logout-button"
-                            onClick={() => logout({ redirectTo: '/wa/login' })}
-                        >
-                            <LogOut size={14} />
-                            <span>로그아웃</span>
-                        </button>
-                    </div>
+					    <button
+					        type="button"
+					        className="wa-logout-button"
+					        onClick={() => navigate('/wa/member-password-check')}
+					    >
+					        <Settings size={14} />
+					        <span>회원정보수정</span>
+					    </button>
+
+					    <button
+					        type="button"
+					        className="wa-logout-button"
+					        onClick={() => logout({ redirectTo: '/wa/login' })}
+					    >
+					        <LogOut size={14} />
+					        <span>로그아웃</span>
+					    </button>
+					</div>
                 </div>
             </header>
 

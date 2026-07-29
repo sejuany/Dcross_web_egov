@@ -9,8 +9,12 @@
 }
 
 .modal-container.NumPlateSelect {
-    width: 720px;
-    max-width: 90vw;
+    width: min(720px, 95vw);
+    max-height: 90vh;
+
+    display: flex;
+    flex-direction: column;
+
     background: #fff;
     border-radius: 10px;
     overflow: hidden;
@@ -63,6 +67,8 @@
 .modal-body,
 .numplate-body {
     padding: 22px 24px;
+    overflow-y: auto;
+    flex: 1;
 }
 
 .numplate-search-wrap {
@@ -179,7 +185,7 @@
 
 .grid-box tbody {
     display: block;
-    height: 300px;
+    height: min(300px, 35vh);
     overflow-y: auto;
 }
 

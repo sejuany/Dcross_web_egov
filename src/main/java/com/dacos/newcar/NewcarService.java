@@ -1276,12 +1276,13 @@ public class NewcarService {
 
 		    logger.info("DB PROC_ST: {}", beforeProcSt);
 			logger.info("REQUEST PROC_ST: {}", procSt);
+			logger.info("mExemption: {}", mExemption);
 			
 			// 감면신청서 생성 및 PDF 병합이 필요한 경우
 			if (
 			    !"W_REQ".equals(beforeProcSt)
 			    && "W_REQ".equals(procSt)
-			    && !commonUtil.isEmpty(mExemption)
+			    && "Y".equals(mExemption.get("CREATE_YN"))
 			) {
 		    	
 		        attachService.mergePdf(serviceId, mExemption);

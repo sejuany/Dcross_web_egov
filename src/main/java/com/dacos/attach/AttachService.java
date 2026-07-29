@@ -597,7 +597,7 @@ public class AttachService {
 	    }
 
 	    if (mergeFiles.isEmpty()) {
-	        throw new BusinessException("병합할 이미지가 없습니다.", 400);
+	    	logger.info("병합할 파일이 없어 병합을 건너뜁니다.");
 	    }
 
 	    return mergeFiles;

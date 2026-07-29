@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 
 import {
@@ -388,6 +388,411 @@ const getCodeOptions = (codes, groupId, fallback = []) => {
     return Array.isArray(optionList) && optionList.length ? optionList : fallback;
 };
 
+const DEFERRED_INPUT_SYNC_DELAY = 220;
+const PHONE_PART_LENGTHS = [3, 4, 4];
+const PHONE_FIXED_VALUES = ['010'];
+const PHONE_PLACEHOLDERS = ['010', '1234', '5678'];
+const BUSINESS_NO_PART_LENGTHS = [3, 2, 5];
+const BUSINESS_NO_PLACEHOLDERS = ['123', '45', '67890'];
+
+/**
+ * 문자 입력 중에는 해당 input만 다시 렌더링하고, 입력이 확정되는 시점에만
+ * 상위 dsNewCar/dsTaxReceipt state로 값을 전달한다.
+ *
+ * - IME 조합 중간값은 상위 state에 반영하지 않는다.
+ * - 조합 완료, 포커스 이탈 또는 짧은 입력 중단 후 최신값을 반영한다.
+ * - 외부 조회/초기화로 value가 바뀌면 로컬 draft도 동기화한다.
+ */
+const DeferredInput = memo(({
+    name,
+    value = '',
+    onCommit,
+    ...inputProps
+}) => {
+    const externalValue = String(value ?? '');
+    const [draftValue, setDraftValue] = useState(externalValue);
+    const latestValueRef = useRef(externalValue);
+    const composingRef = useRef(false);
+
+    useEffect(() => {
+        latestValueRef.current = externalValue;
+        setDraftValue(externalValue);
+    }, [externalValue]);
+
+    const commitValue = useCallback((nextValue = latestValueRef.current) => {
+        if (nextValue !== externalValue) {
+            onCommit?.(name, nextValue);
+        }
+    }, [externalValue, name, onCommit]);
+
+    useEffect(() => {
+        if (composingRef.current || draftValue === externalValue) {
+            return undefined;
+        }
+
+        const timer = window.setTimeout(() => {
+            if (!composingRef.current) {
+                commitValue(latestValueRef.current);
+            }
+        }, DEFERRED_INPUT_SYNC_DELAY);
+
+        return () => window.clearTimeout(timer);
+    }, [commitValue, draftValue, externalValue]);
+
+    const handleDraftChange = (event) => {
+        const nextValue = event.target.value;
+        latestValueRef.current = nextValue;
+        setDraftValue(nextValue);
+    };
+
+    const handleCompositionEnd = (event) => {
+        const nextValue = event.currentTarget.value;
+        composingRef.current = false;
+        latestValueRef.current = nextValue;
+        setDraftValue(nextValue);
+        commitValue(nextValue);
+    };
+
+    return (
+        <input
+            {...inputProps}
+            name={name}
+            value={draftValue}
+            onChange={handleDraftChange}
+            onCompositionStart={() => {
+                composingRef.current = true;
+            }}
+            onCompositionEnd={handleCompositionEnd}
+            onBlur={() => commitValue(latestValueRef.current)}
+        />
+    );
+});
+
+DeferredInput.displayName = 'DeferredInput';
+
+const RequiredDocuments = memo(({
+    documentInfo,
+    showFamilyRelationNumberNote
+}) => {
+    if (!documentInfo) {
+        return null;
+    }
+
+    return (
+        <div className="wa-required-docs">
+            <div className="wa-required-docs-heading">
+                <ReceiptText size={15} />
+                <strong>{documentInfo.name} 필요서류</strong>
+            </div>
+
+            <ol className="wa-required-docs-list">
+                {documentInfo.documents.map(document => (
+                    <li key={document}>{document}</li>
+                ))}
+            </ol>
+
+            {documentInfo.note && (
+                <div className="wa-required-docs-section">
+                    <strong>비고</strong>
+                    <p>{documentInfo.note}</p>
+                </div>
+            )}
+
+            {documentInfo.amount && (
+                <div className="wa-required-docs-section">
+                    <strong>감면금액</strong>
+                    <p>{documentInfo.amount}</p>
+                </div>
+            )}
+
+            {documentInfo.reference && (
+                <div className="wa-required-docs-section">
+                    <strong>참고사항</strong>
+                    <p>{documentInfo.reference}</p>
+                </div>
+            )}
+
+            {showFamilyRelationNumberNote && (
+                <p className="wa-required-docs-footnote">
+                    * {FAMILY_RELATION_NUMBER_NOTE}
+                </p>
+            )}
+        </div>
+    );
+});
+
+RequiredDocuments.displayName = 'RequiredDocuments';
+
+const ExemptionSelectorFields = memo(({
+    whoCode,
+    targetCode,
+    gradeCode,
+    whoOptions,
+    targetOptions,
+    gradeOptions,
+    gradeDisabled,
+    onFieldChange
+}) => (
+    <div className="wa-inline-group wa-select-stack">
+        <CommonSelect
+            className="wa-select"
+            name="NTAX_WHO"
+            data-type="newcar"
+            value={whoCode}
+            options={whoOptions}
+            onChange={onFieldChange}
+        />
+        <CommonSelect
+            className="wa-select wa-flex"
+            name="NTAX_TRGET_CD"
+            data-type="newcar"
+            value={targetCode === '00' ? '' : targetCode}
+            options={targetOptions}
+            onChange={onFieldChange}
+        />
+        <CommonSelect
+            className="wa-select"
+            name="NTAX_TRGET_GR_CD"
+            data-type="newcar"
+            value={gradeCode}
+            options={gradeOptions}
+            onChange={onFieldChange}
+            disabled={gradeDisabled}
+        />
+    </div>
+));
+
+ExemptionSelectorFields.displayName = 'ExemptionSelectorFields';
+
+/** 감면 선택/필요서류 영역은 다른 입력값 변경 시 다시 렌더링하지 않는다. */
+const ExemptionSection = memo(({
+    open,
+    whoCode,
+    targetCode,
+    gradeCode,
+    whoOptions,
+    targetOptions,
+    gradeOptions,
+    gradeDisabled,
+    selectedDocumentInfo,
+    showFamilyRelationNumberNote,
+    onToggle,
+    onFieldChange
+}) => (
+    <>
+        <button
+            type="button"
+            className={`wa-sub-btn ${open ? 'active' : ''}`}
+            aria-pressed={open}
+            onClick={onToggle}
+        >
+            <CircleHelp size={18} />
+            감면 대상자 해당 시 클릭
+            {open && <CheckCircle2 size={16} />}
+        </button>
+
+        {open && (
+            <div className="wa-conditional-panel">
+                <div className="wa-form-row">
+                    <label className="wa-form-label">감면 대상 정보</label>
+                    <div className="wa-form-control">
+                        <ExemptionSelectorFields
+                            whoCode={whoCode}
+                            targetCode={targetCode}
+                            gradeCode={gradeCode}
+                            whoOptions={whoOptions}
+                            targetOptions={targetOptions}
+                            gradeOptions={gradeOptions}
+                            gradeDisabled={gradeDisabled}
+                            onFieldChange={onFieldChange}
+                        />
+                        <RequiredDocuments
+                            documentInfo={selectedDocumentInfo}
+                            showFamilyRelationNumberNote={showFamilyRelationNumberNote}
+                        />
+                    </div>
+                </div>
+            </div>
+        )}
+    </>
+));
+
+ExemptionSection.displayName = 'ExemptionSection';
+
+/** 계산 결과는 summary가 바뀔 때만 결제행 정렬과 금액 포맷을 다시 수행한다. */
+const EstimateResultPanel = memo(({
+    estimating,
+    estimateSummary,
+    estimateDirty
+}) => {
+    const displayRows = useMemo(
+        () => estimateSummary
+            ? sortPaymentRows(estimateSummary.updatedPaymentList)
+                .filter(row => PAYMENT_LABELS[row.PAY_KD])
+            : [],
+        [estimateSummary]
+    );
+
+    return (
+        <>
+            <div className={`wa-estimate-guide ${estimateDirty ? 'warning' : ''}`}>
+                ※ 예상납부금액 확인 버튼 클릭 후 채권/감면/취득세 선택 시 새로고침 버튼을 눌러 정보를 업데이트 해주세요.
+            </div>
+
+            {estimating && (
+                <div className="wa-estimate-progress" role="status">
+                    <LoaderCircle size={18} className="wa-spin" />
+                    예상납부금액을 계산중입니다!
+                </div>
+            )}
+
+            {estimateSummary && (
+                <div className="wa-estimate-panel">
+                    <div className="wa-estimate-total">
+                        <span>예상 납부 합계</span>
+                        <strong>{formatAmount(estimateSummary.totalAmt)} 원</strong>
+                    </div>
+
+                    {estimateSummary.isCardPay && (
+                        <div className="wa-card-tax-amount">
+                            취득세 카드납부 금액 {formatAmount(estimateSummary.acqTax)} 원
+                        </div>
+                    )}
+                    {estimateSummary.exemptionCode && (
+                        <div className={[
+                            'wa-acq-reduction',
+                            estimateSummary.exemptionApplied ? 'applied' : 'review'
+                        ].join(' ')}>
+                            <div className="wa-acq-reduction-title">
+                                <span>{estimateSummary.exemptionName || '취득세 감면'}</span>
+                                <strong>- {formatAmount(estimateSummary.acqReductionAmt)} 원</strong>
+                            </div>
+                            <p>
+                                감면 전 {formatAmount(estimateSummary.grossAcqTax)} 원
+                                {' / '}
+                                납부 {formatAmount(estimateSummary.acqTax)} 원
+                            </p>
+                            {estimateSummary.exemptionReason && <p>{estimateSummary.exemptionReason}</p>}
+                            {estimateSummary.exemptionMissingRequirements.length > 0 && (
+                                <p>확인 필요: {estimateSummary.exemptionMissingRequirements.join(', ')}</p>
+                            )}
+                        </div>
+                    )}
+
+                    {estimateSummary.electricVehicle && (
+                        <div className={[
+                            'wa-acq-reduction',
+                            estimateSummary.bondReliefApplied ? 'applied' : 'review'
+                        ].join(' ')}>
+                            <div className="wa-acq-reduction-title">
+                                <span>전기차 공채 감면 · {estimateSummary.bondArea || '지역 확인'}</span>
+                                <strong>- {formatAmount(estimateSummary.bondReductionAmt)} 원</strong>
+                            </div>
+                            <p>
+                                {estimateSummary.bondValueType === 'RATE'
+                                    ? `매입률 ${(estimateSummary.bondRate * 100).toLocaleString()}%`
+                                    : `공채 기준금액 ${formatAmount(estimateSummary.bondValue)} 원`}
+                                {' / '}
+                                감면 전 {formatAmount(estimateSummary.bondGrossAmt)} 원
+                                {' / '}
+                                감면 후 {formatAmount(estimateSummary.bondBaseAmt)} 원
+                            </p>
+                            {estimateSummary.bondReliefReason && <p>{estimateSummary.bondReliefReason}</p>}
+                        </div>
+                    )}
+
+                    <table className="wa-payment-table">
+                        <thead>
+                            <tr>
+                                <th>항목</th>
+                                <th>예상금액</th>
+                                <th>상태</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {displayRows.map(row => {
+                                const isCardExcluded = estimateSummary.isCardPay && row.PAY_KD === 'ACQ';
+                                const amount = row.PAY_AMT ?? row.PRE_PAY_AMT;
+
+                                return (
+                                    <tr key={row.PAY_KD} className={isCardExcluded ? 'muted' : ''}>
+                                        <td>{PAYMENT_LABELS[row.PAY_KD]}</td>
+                                        <td>{formatAmount(amount)} 원</td>
+                                        <td>{isCardExcluded
+                                            ? '카드납부'
+                                            : Number(amount) === 0
+                                                ? '-'
+                                                : '입금대상'}</td>
+                                    </tr>
+                                );
+                            })}
+                        </tbody>
+                    </table>
+                </div>
+            )}
+        </>
+    );
+});
+
+EstimateResultPanel.displayName = 'EstimateResultPanel';
+
+const RefundAccountFields = memo(({
+    recordKey,
+    returnName,
+    bankCode,
+    returnAccount,
+    bankOptions,
+    onFieldChange,
+    onFieldCommit
+}) => (
+    <>
+        <div className="wa-form-row">
+            <label className="wa-form-label">환불 예금주</label>
+
+            <div className="wa-form-control">
+                <DeferredInput
+                    key={`${recordKey}:RETURN_NM`}
+                    className="wa-input"
+                    name="RETURN_NM"
+                    data-type="newcar"
+                    value={returnName}
+                    onCommit={onFieldCommit}
+                    placeholder="예금주"
+                />
+            </div>
+        </div>
+
+        <div className="wa-form-row">
+            <label className="wa-form-label">환불 계좌</label>
+
+            <div className="wa-form-control">
+                <div className="wa-inline-group wa-refund-group">
+                    <CommonSelect
+                        className="wa-select"
+                        name="RT_BANK_CD"
+                        data-type="newcar"
+                        value={bankCode}
+                        options={bankOptions}
+                        onChange={onFieldChange}
+                    />
+
+                    <DeferredInput
+                        key={`${recordKey}:RETURN_NO`}
+                        className="wa-input wa-flex"
+                        name="RETURN_NO"
+                        data-type="newcar"
+                        value={returnAccount}
+                        onCommit={onFieldCommit}
+                        placeholder="계좌번호 입력"
+                    />
+                </div>
+            </div>
+        </div>
+    </>
+));
+
+RefundAccountFields.displayName = 'RefundAccountFields';
+
 
 const NewcarInfo = ({
     dsNewCar = {},
@@ -413,7 +818,7 @@ const NewcarInfo = ({
     const exemptionTargetOptions = useMemo(
         () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS)
             .filter(item => (
-                !['11', '17', '19'].includes(item.CODE_ID)
+                !['07','11', '17', '19'].includes(item.CODE_ID)
                 && !EXCLUDED_EXEMPTION_TARGET_NAMES.has(normalizeExemptionTargetName(item.CODE_NM))
             )),
         	[codes]
@@ -563,21 +968,40 @@ const NewcarInfo = ({
 
 	}, [dsNewCar.BASE_ADDRESS]);
 		
-    const updateNewCar = (updater) => {
+    const updateNewCar = useCallback((updater) => {
         if (!setDsNewCar) {
             return;
         }
 
         setDsNewCar(prev => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
-    };
+    }, [setDsNewCar]);
 
-    const updateTaxReceipt = (updater) => {
+    const updateTaxReceipt = useCallback((updater) => {
         if (!setDsTaxReceipt) {
             return;
         }
 
         setDsTaxReceipt(prev => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
-    };
+    }, [setDsTaxReceipt]);
+
+    const handleNewCarFieldChange = useCallback((event) => {
+        const { name, value } = event.target;
+        updateNewCar(prev => (
+            prev[name] === value ? prev : { ...prev, [name]: value }
+        ));
+    }, [updateNewCar]);
+
+    const commitNewCarField = useCallback((name, value) => {
+        updateNewCar(prev => (
+            prev[name] === value ? prev : { ...prev, [name]: value }
+        ));
+    }, [updateNewCar]);
+
+    const commitTaxReceiptField = useCallback((name, value) => {
+        updateTaxReceipt(prev => (
+            prev[name] === value ? prev : { ...prev, [name]: value }
+        ));
+    }, [updateTaxReceipt]);
 
     const getOwnerTaxReceiptDefaults = () => ({
         REG_NO: dsNewCar.BIZ_NO || dsNewCar.REG_NO || '',
@@ -708,7 +1132,7 @@ const NewcarInfo = ({
         }));
     };
 
-    const handleExemptionToggle = () => {
+    const handleExemptionToggle = useCallback(() => {
         if (isExemptionOpen) {
             updateNewCar(prev => ({
                 ...prev,
@@ -728,7 +1152,7 @@ const NewcarInfo = ({
             NTAX_TRGET_GR_CD: prev.NTAX_TRGET_GR_CD || '0'
         }));
         setIsExemptionOpen(true);
-    };
+    }, [isExemptionOpen, updateNewCar]);
 
     const handleCardToggle = () => {
         updateNewCar(prev => {
@@ -835,10 +1259,6 @@ const NewcarInfo = ({
         }));
     };
 
-    const displayRows = estimateSummary
-        ? sortPaymentRows(estimateSummary.updatedPaymentList).filter(row => PAYMENT_LABELS[row.PAY_KD])
-        : [];
-
     return (
         <div className="wa-form-body wa-newcar-info-body">
             <div className="wa-info-section">
@@ -862,96 +1282,20 @@ const NewcarInfo = ({
                     </div>
                 </div>
 
-                <button
-                    type="button"
-                    className={`wa-sub-btn ${isExemptionOpen ? 'active' : ''}`}
-                    aria-pressed={isExemptionOpen}
-                    onClick={handleExemptionToggle}
-                >
-                    <CircleHelp size={18} />
-                    감면 대상자 해당 시 클릭
-                    {isExemptionOpen && <CheckCircle2 size={16} />}
-                </button>
-
-                {isExemptionOpen && (
-                    <div className="wa-conditional-panel">
-                        <div className="wa-form-row">
-                            <label className="wa-form-label">감면 대상 정보</label>
-
-                            <div className="wa-form-control">
-                                <div className="wa-inline-group wa-select-stack">
-                                    <CommonSelect
-                                        className="wa-select"
-                                        name="NTAX_WHO"
-                                        data-type="newcar"
-                                        value={dsNewCar.NTAX_WHO ?? ''}
-                                        options={exemptionWhoOptions}
-                                        onChange={handleChange}
-                                    />
-
-                                    <CommonSelect
-                                        className="wa-select wa-flex"
-                                        name="NTAX_TRGET_CD"
-                                        data-type="newcar"
-                                        value={dsNewCar.NTAX_TRGET_CD === '00' ? '' : (dsNewCar.NTAX_TRGET_CD ?? '')}
-                                        options={exemptionTargetOptions}
-                                        onChange={handleChange}
-                                    />
-
-                                    <CommonSelect
-                                        className="wa-select"
-                                        name="NTAX_TRGET_GR_CD"
-                                        data-type="newcar"
-                                        value={dsNewCar.NTAX_TRGET_GR_CD ?? ''}
-                                        options={exemptionGradeOptions}
-                                        onChange={handleChange}
-                                        disabled={isExemptionGradeDisabled}
-                                    />
-                                </div>
-
-                                {selectedExemptionDocInfo && (
-                                    <div className="wa-required-docs">
-                                        <div className="wa-required-docs-heading">
-                                            <ReceiptText size={15} />
-                                            <strong>{selectedExemptionDocInfo.name} 필요서류</strong>
-                                        </div>
-
-                                        <ol className="wa-required-docs-list">
-                                            {selectedExemptionDocInfo.documents.map(document => (
-                                                <li key={document}>{document}</li>
-                                            ))}
-                                        </ol>
-
-                                        {selectedExemptionDocInfo.note && (
-                                            <div className="wa-required-docs-section">
-                                                <strong>비고</strong>
-                                                <p>{selectedExemptionDocInfo.note}</p>
-                                            </div>
-                                        )}
-
-                                        {selectedExemptionDocInfo.amount && (
-                                            <div className="wa-required-docs-section">
-                                                <strong>감면금액</strong>
-                                                <p>{selectedExemptionDocInfo.amount}</p>
-                                            </div>
-                                        )}
-
-                                        {selectedExemptionDocInfo.reference && (
-                                            <div className="wa-required-docs-section">
-                                                <strong>참고사항</strong>
-                                                <p>{selectedExemptionDocInfo.reference}</p>
-                                            </div>
-                                        )}
-
-                                        {showFamilyRelationNumberNote && (
-                                            <p className="wa-required-docs-footnote">* {FAMILY_RELATION_NUMBER_NOTE}</p>
-                                        )}
-                                    </div>
-                                )}
-                            </div>
-                        </div>
-                    </div>
-                )}
+                <ExemptionSection
+                    open={isExemptionOpen}
+                    whoCode={dsNewCar.NTAX_WHO ?? ''}
+                    targetCode={dsNewCar.NTAX_TRGET_CD ?? ''}
+                    gradeCode={dsNewCar.NTAX_TRGET_GR_CD ?? ''}
+                    whoOptions={exemptionWhoOptions}
+                    targetOptions={exemptionTargetOptions}
+                    gradeOptions={exemptionGradeOptions}
+                    gradeDisabled={isExemptionGradeDisabled}
+                    selectedDocumentInfo={selectedExemptionDocInfo}
+                    showFamilyRelationNumberNote={showFamilyRelationNumberNote}
+                    onToggle={handleExemptionToggle}
+                    onFieldChange={handleNewCarFieldChange}
+                />
 
                 <button
                     type="button"
@@ -987,100 +1331,11 @@ const NewcarInfo = ({
                     </button>
                 </div>
 
-                <div className={`wa-estimate-guide ${estimateDirty ? 'warning' : ''}`}>
-                    ※ 예상납부금액 확인 버튼 클릭 후 채권/감면/취득세 선택 시 새로고침 버튼을 눌러 정보를 업데이트 해주세요.
-                </div>
-
-                {estimating && (
-                    <div className="wa-estimate-progress" role="status">
-                        <LoaderCircle size={18} className="wa-spin" />
-                        예상납부금액을 계산중입니다!
-                    </div>
-                )}
-
-                {estimateSummary && (
-                    <div className="wa-estimate-panel">
-                        <div className="wa-estimate-total">
-                            <span>예상 납부 합계</span>
-                            <strong>{formatAmount(estimateSummary.totalAmt)} 원</strong>
-                        </div>
-
-                        {estimateSummary.isCardPay && (
-                            <div className="wa-card-tax-amount">
-                                취득세 카드납부 금액 {formatAmount(estimateSummary.acqTax)} 원
-                            </div>
-                        )}
-                        {estimateSummary.exemptionCode && (
-                            <div className={[
-                                'wa-acq-reduction',
-                                estimateSummary.exemptionApplied ? 'applied' : 'review'
-                            ].join(' ')}>
-                                <div className="wa-acq-reduction-title">
-                                    <span>{estimateSummary.exemptionName || '취득세 감면'}</span>
-                                    <strong>- {formatAmount(estimateSummary.acqReductionAmt)} 원</strong>
-                                </div>
-                                <p>
-                                    감면 전 {formatAmount(estimateSummary.grossAcqTax)} 원
-                                    {' / '}
-                                    납부 {formatAmount(estimateSummary.acqTax)} 원
-                                </p>
-                                {estimateSummary.exemptionReason && <p>{estimateSummary.exemptionReason}</p>}
-                                {estimateSummary.exemptionMissingRequirements.length > 0 && (
-                                    <p>확인 필요: {estimateSummary.exemptionMissingRequirements.join(', ')}</p>
-                                )}
-                            </div>
-                        )}
-
-                        {estimateSummary.electricVehicle && (
-                            <div className={[
-                                'wa-acq-reduction',
-                                estimateSummary.bondReliefApplied ? 'applied' : 'review'
-                            ].join(' ')}>
-                                <div className="wa-acq-reduction-title">
-                                    <span>전기차 공채 감면 · {estimateSummary.bondArea || '지역 확인'}</span>
-                                    <strong>- {formatAmount(estimateSummary.bondReductionAmt)} 원</strong>
-                                </div>
-                                <p>
-                                    {estimateSummary.bondValueType === 'RATE'
-                                        ? `매입률 ${(estimateSummary.bondRate * 100).toLocaleString()}%`
-                                        : `공채 기준금액 ${formatAmount(estimateSummary.bondValue)} 원`}
-                                    {' / '}
-                                    감면 전 {formatAmount(estimateSummary.bondGrossAmt)} 원
-                                    {' / '}
-                                    감면 후 {formatAmount(estimateSummary.bondBaseAmt)} 원
-                                </p>
-                                {estimateSummary.bondReliefReason && <p>{estimateSummary.bondReliefReason}</p>}
-                            </div>
-                        )}
-                        <table className="wa-payment-table">
-                            <thead>
-                                <tr>
-                                    <th>항목</th>
-                                    <th>예상금액</th>
-                                    <th>상태</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {displayRows.map(row => {
-                                    const isCardExcluded = estimateSummary.isCardPay && row.PAY_KD === 'ACQ';
-                                    const amount = row.PAY_AMT ?? row.PRE_PAY_AMT;
-
-                                    return (
-                                        <tr key={row.PAY_KD} className={isCardExcluded ? 'muted' : ''}>
-                                            <td>{PAYMENT_LABELS[row.PAY_KD]}</td>
-                                            <td>{formatAmount(amount)} 원</td>
-                                            <td>{isCardExcluded
-											    ? '카드납부'
-											    : Number(amount) === 0
-											        ? '-'
-											        : '입금대상'}</td>
-                                        </tr>
-                                    );
-                                })}
-                            </tbody>
-                        </table>
-                    </div>
-                )}
+                <EstimateResultPanel
+                    estimating={estimating}
+                    estimateSummary={estimateSummary}
+                    estimateDirty={estimateDirty}
+                />
             </div>
 
             <hr className="wa-divider" />
@@ -1127,9 +1382,9 @@ const NewcarInfo = ({
                                             <div className="wa-inline-group">
                                                 <SplitInput
                                                     value={dsTaxReceipt.PHONE_NO ?? ''}
-                                                    lengths={[3, 4, 4]}
-                                                    fixedValues={['010']}
-                                                    placeholders={['010', '1234', '5678']}
+                                                    lengths={PHONE_PART_LENGTHS}
+                                                    fixedValues={PHONE_FIXED_VALUES}
+                                                    placeholders={PHONE_PLACEHOLDERS}
                                                     onChange={value => updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value })}
                                                 />
                                             </div>
@@ -1152,8 +1407,8 @@ const NewcarInfo = ({
                                                 <div className="wa-inline-group">
                                                     <SplitInput
                                                         value={dsTaxReceipt.REG_NO ?? ''}
-                                                        lengths={[3, 2, 5]}
-                                                        placeholders={['123', '45', '67890']}
+                                                        lengths={BUSINESS_NO_PART_LENGTHS}
+                                                        placeholders={BUSINESS_NO_PLACEHOLDERS}
                                                         onChange={value => updateTaxReceipt({ REG_NO: value })}
                                                     />
                                                 </div>
@@ -1164,12 +1419,13 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">상호명</label>
                                                 <div className="wa-form-control">
-                                                    <input
+                                                    <DeferredInput
+                                                        key={`${dsService.SERVICE_ID || 'new'}:COMPANY_NM`}
                                                         className="wa-input"
                                                         name="COMPANY_NM"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.COMPANY_NM ?? ''}
-                                                        onChange={handleChange}
+                                                        onCommit={commitTaxReceiptField}
                                                         placeholder="상호명을 입력하세요"
                                                     />
                                                 </div>
@@ -1178,12 +1434,13 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">대표자명</label>
                                                 <div className="wa-form-control">
-                                                    <input
+                                                    <DeferredInput
+                                                        key={`${dsService.SERVICE_ID || 'new'}:NAME`}
                                                         className="wa-input"
                                                         name="NAME"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.NAME ?? ''}
-                                                        onChange={handleChange}
+                                                        onCommit={commitTaxReceiptField}
                                                         placeholder="대표자명을 입력하세요"
                                                     />
                                                 </div>
@@ -1207,12 +1464,13 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">업태</label>
                                                 <div className="wa-form-control">
-                                                    <input
+                                                    <DeferredInput
+                                                        key={`${dsService.SERVICE_ID || 'new'}:BUSINESS_TYPE`}
                                                         className="wa-input"
                                                         name="BUSINESS_TYPE"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.BUSINESS_TYPE ?? ''}
-                                                        onChange={handleChange}
+                                                        onCommit={commitTaxReceiptField}
                                                         placeholder="업태를 입력하세요"
                                                     />
                                                 </div>
@@ -1221,12 +1479,13 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">업종</label>
                                                 <div className="wa-form-control">
-                                                    <input
+                                                    <DeferredInput
+                                                        key={`${dsService.SERVICE_ID || 'new'}:INDUSTRY_TYPE`}
                                                         className="wa-input"
                                                         name="INDUSTRY_TYPE"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.INDUSTRY_TYPE ?? ''}
-                                                        onChange={handleChange}
+                                                        onCommit={commitTaxReceiptField}
                                                         placeholder="업종을 입력하세요"
                                                     />
                                                 </div>
@@ -1235,12 +1494,13 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">이메일주소</label>
                                                 <div className="wa-form-control">
-                                                    <input
+                                                    <DeferredInput
+                                                        key={`${dsService.SERVICE_ID || 'new'}:MAIL1`}
                                                         className="wa-input"
                                                         name="MAIL1"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL1 ?? ''}
-                                                        onChange={handleChange}
+                                                        onCommit={commitTaxReceiptField}
                                                         placeholder="example@company.com"
                                                     />
                                                 </div>
@@ -1249,12 +1509,13 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">이메일주소2</label>
                                                 <div className="wa-form-control">
-                                                    <input
+                                                    <DeferredInput
+                                                        key={`${dsService.SERVICE_ID || 'new'}:MAIL2`}
                                                         className="wa-input"
                                                         name="MAIL2"
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL2 ?? ''}
-                                                        onChange={handleChange}
+                                                        onCommit={commitTaxReceiptField}
                                                         placeholder="추가 수신 이메일"
                                                     />
                                                 </div>
@@ -1274,55 +1535,24 @@ const NewcarInfo = ({
                         <div className="wa-inline-group">
                             <SplitInput
                                 value={dsNewCar.PAY_HP_NO ?? ''}
-                                lengths={[3, 4, 4]}
-                                fixedValues={['010']}
-                                placeholders={['010', '1234', '5678']}
+                                lengths={PHONE_PART_LENGTHS}
+                                fixedValues={PHONE_FIXED_VALUES}
+                                placeholders={PHONE_PLACEHOLDERS}
                                 onChange={value => updateNewCar({ PAY_HP_NO: value })}
                             />
                         </div>
                     </div>
                 </div>
 
-				<div className="wa-form-row">
-				    <label className="wa-form-label">환불 예금주</label>
-
-				    <div className="wa-form-control">
-				        <input
-				            className="wa-input"
-				            name="RETURN_NM"
-				            data-type="newcar"
-				            value={dsNewCar.RETURN_NM ?? ''}
-				            onChange={handleChange}
-				            placeholder="예금주"
-				        />
-				    </div>
-				</div>
-
-				<div className="wa-form-row">
-				    <label className="wa-form-label">환불 계좌</label>
-
-				    <div className="wa-form-control">
-				        <div className="wa-inline-group wa-refund-group">
-				            <CommonSelect
-				                className="wa-select"
-				                name="RT_BANK_CD"
-				                data-type="newcar"
-				                value={dsNewCar.RT_BANK_CD ?? ''}
-				                options={bankOptions}
-				                onChange={handleChange}
-				            />
-
-				            <input
-				                className="wa-input wa-flex"
-				                name="RETURN_NO"
-				                data-type="newcar"
-				                value={dsNewCar.RETURN_NO ?? ''}
-				                onChange={handleChange}
-				                placeholder="계좌번호 입력"
-				            />
-				        </div>
-				    </div>
-				</div>
+                <RefundAccountFields
+                    recordKey={dsService.SERVICE_ID || 'new'}
+                    returnName={dsNewCar.RETURN_NM ?? ''}
+                    bankCode={dsNewCar.RT_BANK_CD ?? ''}
+                    returnAccount={dsNewCar.RETURN_NO ?? ''}
+                    bankOptions={bankOptions}
+                    onFieldChange={handleNewCarFieldChange}
+                    onFieldCommit={commitNewCarField}
+                />
 
             </div>
         </div>
