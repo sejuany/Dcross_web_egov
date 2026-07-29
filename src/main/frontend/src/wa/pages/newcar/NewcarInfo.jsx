@@ -388,7 +388,12 @@ const getCodeOptions = (codes, groupId, fallback = []) => {
     return Array.isArray(optionList) && optionList.length ? optionList : fallback;
 };
 
+// 일반 문자 입력은 마지막 입력 후 이 시간이 지났을 때 상위 state에 반영한다.
+// 너무 짧으면 큰 부모 컴포넌트가 다시 자주 렌더링되고, 너무 길면 검증값 반영이 늦어진다.
 const DEFERRED_INPUT_SYNC_DELAY = 220;
+
+// SplitInput에 인라인 배열을 넘기면 NewcarInfo 렌더마다 새 배열로 인식된다.
+// 모듈 상수로 고정해 SplitInput 내부 effect가 불필요하게 실행되지 않도록 한다.
 const PHONE_PART_LENGTHS = [3, 4, 4];
 const PHONE_FIXED_VALUES = ['010'];
 const PHONE_PLACEHOLDERS = ['010', '1234', '5678'];
@@ -409,28 +414,38 @@ const DeferredInput = memo(({
     onCommit,
     ...inputProps
 }) => {
+    // 화면에 보이는 값은 로컬 draft로 관리한다.
+    // 사용자가 키를 입력할 때 NewcarInfo와 WaNewcarRequest 전체가 렌더되는 것을 막기 위함이다.
     const externalValue = String(value ?? '');
     const [draftValue, setDraftValue] = useState(externalValue);
+
+    // 비동기 debounce와 blur 시점에서도 가장 최근 입력값을 읽기 위한 ref다.
     const latestValueRef = useRef(externalValue);
+
+    // 한글 IME 조합 중간값(예: ㅇ → 이 → 임)을 상위 state로 보내지 않기 위한 플래그다.
     const composingRef = useRef(false);
 
+    // 상세 재조회, 저장 후 재조회 등 외부 state 값이 변경되면 화면 draft도 맞춘다.
     useEffect(() => {
         latestValueRef.current = externalValue;
         setDraftValue(externalValue);
     }, [externalValue]);
 
+    // 값이 실제로 달라진 경우에만 상위 state 갱신 콜백을 실행한다.
     const commitValue = useCallback((nextValue = latestValueRef.current) => {
         if (nextValue !== externalValue) {
             onCommit?.(name, nextValue);
         }
     }, [externalValue, name, onCommit]);
 
+    // 일반 입력은 연속 입력이 잠시 멈춘 뒤 한 번만 상위 state에 반영한다.
     useEffect(() => {
         if (composingRef.current || draftValue === externalValue) {
             return undefined;
         }
 
         const timer = window.setTimeout(() => {
+            // 타이머 대기 중 IME 조합이 시작될 수 있으므로 실행 직전에도 다시 확인한다.
             if (!composingRef.current) {
                 commitValue(latestValueRef.current);
             }
@@ -439,12 +454,14 @@ const DeferredInput = memo(({
         return () => window.clearTimeout(timer);
     }, [commitValue, draftValue, externalValue]);
 
+    // 키 입력 시에는 작은 DeferredInput 컴포넌트의 로컬 state만 갱신한다.
     const handleDraftChange = (event) => {
         const nextValue = event.target.value;
         latestValueRef.current = nextValue;
         setDraftValue(nextValue);
     };
 
+    // 한글 조합이 완료되면 완성된 문자열만 상위 state에 반영한다.
     const handleCompositionEnd = (event) => {
         const nextValue = event.currentTarget.value;
         composingRef.current = false;
@@ -463,6 +480,7 @@ const DeferredInput = memo(({
                 composingRef.current = true;
             }}
             onCompositionEnd={handleCompositionEnd}
+            // 다음/저장 버튼 클릭 전에 blur가 먼저 발생하므로 최신 입력값이 검증·저장에 포함된다.
             onBlur={() => commitValue(latestValueRef.current)}
         />
     );
@@ -470,6 +488,8 @@ const DeferredInput = memo(({
 
 DeferredInput.displayName = 'DeferredInput';
 
+// 감면 대상별 필요서류 안내를 독립 렌더 영역으로 분리한다.
+// 감면 코드가 그대로라면 다른 입력값이 바뀌어도 긴 문서 목록 DOM을 다시 만들지 않는다.
 const RequiredDocuments = memo(({
     documentInfo,
     showFamilyRelationNumberNote
@@ -523,6 +543,8 @@ const RequiredDocuments = memo(({
 
 RequiredDocuments.displayName = 'RequiredDocuments';
 
+// 감면 관련 3개 select만 묶은 컴포넌트다.
+// dsNewCar 전체 객체 대신 필요한 코드값만 받아 React.memo 비교가 가능하도록 한다.
 const ExemptionSelectorFields = memo(({
     whoCode,
     targetCode,
@@ -564,7 +586,10 @@ const ExemptionSelectorFields = memo(({
 
 ExemptionSelectorFields.displayName = 'ExemptionSelectorFields';
 
-/** 감면 선택/필요서류 영역은 다른 입력값 변경 시 다시 렌더링하지 않는다. */
+/**
+ * 감면 선택 버튼, 감면 콤보박스, 필요서류 안내를 하나의 memo 경계로 묶는다.
+ * 환불계좌나 세금계산서처럼 감면과 무관한 값 변경 시 이 영역 렌더를 건너뛴다.
+ */
 const ExemptionSection = memo(({
     open,
     whoCode,
@@ -619,12 +644,16 @@ const ExemptionSection = memo(({
 
 ExemptionSection.displayName = 'ExemptionSection';
 
-/** 계산 결과는 summary가 바뀔 때만 결제행 정렬과 금액 포맷을 다시 수행한다. */
+/**
+ * 예상금액 결과 표시 전용 컴포넌트다.
+ * 계산 중 여부나 계산 결과가 바뀌지 않으면 React.memo가 기존 결과 DOM을 재사용한다.
+ */
 const EstimateResultPanel = memo(({
     estimating,
     estimateSummary,
     estimateDirty
 }) => {
+    // 결제행 복사/정렬/필터는 estimateSummary가 갱신될 때만 수행한다.
     const displayRows = useMemo(
         () => estimateSummary
             ? sortPaymentRows(estimateSummary.updatedPaymentList)
@@ -736,6 +765,10 @@ const EstimateResultPanel = memo(({
 
 EstimateResultPanel.displayName = 'EstimateResultPanel';
 
+/**
+ * 환불 예금주와 계좌번호는 각각 DeferredInput의 로컬 draft를 사용한다.
+ * 은행 select는 draft 컴포넌트 밖에 두어 문자 입력 시 select까지 렌더되지 않도록 한다.
+ */
 const RefundAccountFields = memo(({
     recordKey,
     returnName,
@@ -966,8 +999,10 @@ const NewcarInfo = ({
 
 	    checkJsa();
 
-	}, [dsNewCar.BASE_ADDRESS]);
-		
+    }, [dsNewCar.BASE_ADDRESS]);
+
+    // 하위 memo 컴포넌트에 전달하는 함수의 참조가 매 렌더마다 바뀌지 않도록
+    // useCallback으로 고정한다. updater 함수와 단순 patch 객체를 모두 받을 수 있다.
     const updateNewCar = useCallback((updater) => {
         if (!setDsNewCar) {
             return;
@@ -984,6 +1019,8 @@ const NewcarInfo = ({
         setDsTaxReceipt(prev => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
     }, [setDsTaxReceipt]);
 
+    // CommonSelect의 표준 change event를 dsNewCar 필드 갱신으로 변환한다.
+    // 기존 값과 같으면 이전 객체를 그대로 반환해 불필요한 부모 렌더를 막는다.
     const handleNewCarFieldChange = useCallback((event) => {
         const { name, value } = event.target;
         updateNewCar(prev => (
@@ -991,12 +1028,14 @@ const NewcarInfo = ({
         ));
     }, [updateNewCar]);
 
+    // DeferredInput이 조합 완료/debounce/blur 시 전달한 최신 draft를 dsNewCar에 확정한다.
     const commitNewCarField = useCallback((name, value) => {
         updateNewCar(prev => (
             prev[name] === value ? prev : { ...prev, [name]: value }
         ));
     }, [updateNewCar]);
 
+    // 세금계산서 문자 입력용 확정 콜백이다.
     const commitTaxReceiptField = useCallback((name, value) => {
         updateTaxReceipt(prev => (
             prev[name] === value ? prev : { ...prev, [name]: value }
@@ -1282,6 +1321,7 @@ const NewcarInfo = ({
                     </div>
                 </div>
 
+                {/* 감면과 무관한 문자 입력 시 감면 영역 전체가 다시 렌더되지 않도록 분리함. */}
                 <ExemptionSection
                     open={isExemptionOpen}
                     whoCode={dsNewCar.NTAX_WHO ?? ''}
@@ -1331,6 +1371,7 @@ const NewcarInfo = ({
                     </button>
                 </div>
 
+                {/* 정렬·금액 포맷이 포함된 계산 결과 영역은 계산값 변경 시에만 렌더함. */}
                 <EstimateResultPanel
                     estimating={estimating}
                     estimateSummary={estimateSummary}
@@ -1385,6 +1426,7 @@ const NewcarInfo = ({
                                                     lengths={PHONE_PART_LENGTHS}
                                                     fixedValues={PHONE_FIXED_VALUES}
                                                     placeholders={PHONE_PLACEHOLDERS}
+                                                    deferred
                                                     onChange={value => updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value })}
                                                 />
                                             </div>
@@ -1409,6 +1451,7 @@ const NewcarInfo = ({
                                                         value={dsTaxReceipt.REG_NO ?? ''}
                                                         lengths={BUSINESS_NO_PART_LENGTHS}
                                                         placeholders={BUSINESS_NO_PLACEHOLDERS}
+                                                        deferred
                                                         onChange={value => updateTaxReceipt({ REG_NO: value })}
                                                     />
                                                 </div>
@@ -1419,6 +1462,7 @@ const NewcarInfo = ({
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">상호명</label>
                                                 <div className="wa-form-control">
+                                                    {/* 문자 조합 중에는 이 input만 렌더하고 완성값만 dsTaxReceipt에 반영함. */}
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:COMPANY_NM`}
                                                         className="wa-input"
@@ -1538,12 +1582,14 @@ const NewcarInfo = ({
                                 lengths={PHONE_PART_LENGTHS}
                                 fixedValues={PHONE_FIXED_VALUES}
                                 placeholders={PHONE_PLACEHOLDERS}
+                                deferred
                                 onChange={value => updateNewCar({ PAY_HP_NO: value })}
                             />
                         </div>
                     </div>
                 </div>
 
+                {/* Trace에서 입력 지연이 확인된 환불 입력 영역을 로컬 draft로 격리함. */}
                 <RefundAccountFields
                     recordKey={dsService.SERVICE_ID || 'new'}
                     returnName={dsNewCar.RETURN_NM ?? ''}
@@ -1559,4 +1605,5 @@ const NewcarInfo = ({
     );
 };
 
-export default NewcarInfo;
+// 부모의 hover/모달 등 신규등록 입력과 무관한 state 변경 시 전체 화면 렌더를 건너뛴다.
+export default memo(NewcarInfo);

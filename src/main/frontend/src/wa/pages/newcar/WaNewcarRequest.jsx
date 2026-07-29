@@ -1134,7 +1134,7 @@ const WaNewcarRequest = ({
 	 * 차대번호 대문자 변환, 금액의 쉼표 제거, 대표/공동소유 비율 계산처럼
 	 * 단순 대입 외의 보정도 이 함수에서 수행한다.
 	 */
-	const handleChange = async (e) => {
+	const handleChange = useCallback(async (e) => {
 		const { name, value, dataset } = e.target;
 
 		let v = value;
@@ -1224,7 +1224,7 @@ const WaNewcarRequest = ({
 		} else if (dataset.type === 'owner1') {
 			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
 		} 
-	};
+	}, []);
 
 	/**
 	 * 저장된 신청건 상세조회.
@@ -1701,7 +1701,7 @@ const WaNewcarRequest = ({
 	};
 
 	
-    const handleTaxReceiptAddressSelect = (type, addr) => {
+    const handleTaxReceiptAddressSelect = useCallback((type, addr) => {
         if (type !== 'ADDR') {
             return;
         }
@@ -1711,9 +1711,9 @@ const WaNewcarRequest = ({
             ADDR: addr.ADDR,
             POST_NO: addr.POST_NO
         }));
-    };
+    }, []);
 
-    const handleClearTaxReceiptAddress = (type) => {
+    const handleClearTaxReceiptAddress = useCallback((type) => {
         if (type !== 'ADDR') {
             return;
         }
@@ -1724,7 +1724,7 @@ const WaNewcarRequest = ({
             ADDR_DT: '',
             POST_NO: ''
         }));
-    };
+    }, []);
 
 	/**
 	 * SU 사용자가 최종 확인 단계에서 요청할 때 실행한다.
@@ -2102,11 +2102,15 @@ const WaNewcarRequest = ({
 		return { step: null, message: '' };
 	};
 
-	// 입력 중에는 서버를 조회하지 않고 로컬 입력값과 캐시된 첨부 상태만 확인한다.
-	// 파생값을 별도 state로 저장하지 않아 버튼 상태 갱신을 위한 추가 렌더링도 막는다.
+	// 요청 버튼이 표시되는 최종 확인 단계의 SU 사용자일 때만 전체 필수값을 검사한다.
+	// 1~3단계 입력 중에는 사용하지 않는 요청버튼 검증 비용을 발생시키지 않는다.
 	const requestDisabled = (
-		Boolean(validateRequestFields())
-		|| (showAttach && !attachReady)
+		step === 4
+		&& dsUserInfo.MEMBER_GB === 'SU'
+		&& (
+			Boolean(validateRequestFields())
+			|| (showAttach && !attachReady)
+		)
 	);
 	
 	// 서류 안내창

@@ -31,10 +31,12 @@ const useAddressSearch = ({
 	const [showGuide, setShowGuide] = useState(false);
 	
 	useEffect(() => {
-	    setSearched(false);
-	    setAddressList([]);
-	    setPage(1);
-		setShowGuide(false);
+		// 입력값이 바뀌었을 때 실제로 초기화할 값만 갱신한다.
+		// 이미 빈 목록이면 기존 배열을 유지해 불필요한 렌더링을 만들지 않는다.
+	    setSearched(current => (current ? false : current));
+	    setAddressList(current => (current.length ? [] : current));
+	    setPage(current => (current !== 1 ? 1 : current));
+		setShowGuide(current => (current ? false : current));
 	}, [value]);
 	
     // 주소 조회
@@ -57,7 +59,7 @@ const useAddressSearch = ({
             const res = await axios.post('/api/common/search/address', oAddr);
 
             setAddressList(res.data.list || []);
-            setPage(1);
+            setPage(current => (current !== 1 ? 1 : current));
 
 			setSearched(true);
         } catch (e) {
@@ -89,8 +91,8 @@ const useAddressSearch = ({
 		    });
 		} 
 
-	    setAddressList([]);
-		setSearched(false);
+	    setAddressList(current => (current.length ? [] : current));
+		setSearched(current => (current ? false : current));
 		
 	};
 

@@ -1,8 +1,94 @@
-import { useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { Search } from 'lucide-react';
 
 import useAddressSearch from '../../../hooks/useAddressSearch';
+
+// 연속 입력이 잠시 멈춘 뒤 상위 화면 state에 값을 반영한다.
+const DEFERRED_INPUT_SYNC_DELAY = 220;
+
+/**
+ * 주소 입력 중에는 AddressSearch의 로컬 draft만 변경한다.
+ * 한글 조합 완료, 포커스 이탈 또는 debounce 시점에만 기존 handleChange로 값을 전달한다.
+ */
+const useDeferredInput = ({
+	value,
+	name,
+	dataType,
+	handleChange
+}) => {
+	const externalValue = String(value ?? '');
+	const [draftValue, setDraftValue] = useState(externalValue);
+	const latestValueRef = useRef(externalValue);
+	const composingRef = useRef(false);
+
+	// 조회 결과 선택이나 초기화로 외부 값이 바뀌면 로컬 입력값도 동기화한다.
+	useEffect(() => {
+		latestValueRef.current = externalValue;
+		setDraftValue(currentValue => (
+			currentValue === externalValue ? currentValue : externalValue
+		));
+	}, [externalValue]);
+
+	const commitValue = useCallback((nextValue = latestValueRef.current) => {
+		if (nextValue === externalValue) {
+			return;
+		}
+
+		// 기존 공통 handleChange가 사용하는 event.target 계약을 그대로 유지한다.
+		handleChange?.({
+			target: {
+				name,
+				value: nextValue,
+				dataset: { type: dataType }
+			}
+		});
+	}, [dataType, externalValue, handleChange, name]);
+
+	useEffect(() => {
+		if (composingRef.current || draftValue === externalValue) {
+			return undefined;
+		}
+
+		const timer = window.setTimeout(() => {
+			if (!composingRef.current) {
+				commitValue(latestValueRef.current);
+			}
+		}, DEFERRED_INPUT_SYNC_DELAY);
+
+		return () => window.clearTimeout(timer);
+	}, [commitValue, draftValue, externalValue]);
+
+	const onChange = useCallback((event) => {
+		const nextValue = event.target.value;
+		latestValueRef.current = nextValue;
+		setDraftValue(nextValue);
+	}, []);
+
+	const onCompositionStart = useCallback(() => {
+		composingRef.current = true;
+	}, []);
+
+	const onCompositionEnd = useCallback((event) => {
+		const nextValue = event.currentTarget.value;
+		composingRef.current = false;
+		latestValueRef.current = nextValue;
+		setDraftValue(nextValue);
+		commitValue(nextValue);
+	}, [commitValue]);
+
+	const onBlur = useCallback(() => {
+		commitValue(latestValueRef.current);
+	}, [commitValue]);
+
+	return {
+		value: draftValue,
+		onChange,
+		onCompositionStart,
+		onCompositionEnd,
+		onBlur
+	};
+};
 
 const AddressSearch = ({
 	label,
@@ -22,9 +108,22 @@ const AddressSearch = ({
 }) => {
 	
 	const formData = data || dsNewCar;
+	const addressInput = useDeferredInput({
+		value: formData[type],
+		name: type,
+		dataType,
+		handleChange
+	});
+	const detailInput = useDeferredInput({
+		value: formData[detailName],
+		name: detailName,
+		dataType,
+		handleChange
+	});
 	
 	const address = useAddressSearch({
-	    value: formData[type],
+		// 검색 버튼과 Enter 조회는 아직 상위 state에 반영되기 전이어도 최신 draft를 사용한다.
+	    value: addressInput.value,
 	    type,
 	    onSelect
 	});
@@ -63,13 +162,16 @@ const AddressSearch = ({
 						className="wa-input"
 						name={type}
 						data-type={dataType}
-						value={formData[type] ?? ''}
-						onChange={handleChange}
+						value={addressInput.value}
+						onChange={addressInput.onChange}
+						onCompositionStart={addressInput.onCompositionStart}
+						onCompositionEnd={addressInput.onCompositionEnd}
+						onBlur={addressInput.onBlur}
 						onKeyDown={address.handleKeyDown}
 						placeholder={placeholder}
 				    />
 
-					{!!formData[type] && (
+					{!!addressInput.value && (
 				        <button
 				            type="button"
 				            className="wa-clear-btn"
@@ -261,8 +363,11 @@ const AddressSearch = ({
 						style={{ flex: 2 }}
 				        name={detailName}
 				        data-type={dataType}
-				        value={formData[detailName] ?? ''}
-				        onChange={handleChange}
+				        value={detailInput.value}
+				        onChange={detailInput.onChange}
+						onCompositionStart={detailInput.onCompositionStart}
+						onCompositionEnd={detailInput.onCompositionEnd}
+						onBlur={detailInput.onBlur}
 				        placeholder="상세주소 입력"
 				    />
 
