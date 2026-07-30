@@ -537,6 +537,24 @@ public class NewcarController {
     	
         return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
     }
+    
+    /**
+     * 취소요청
+     * POST /api/newcar/cancel
+     */
+    @PostMapping("/cancel")
+    public ResponseEntity<Map<String, Object>> cancel(
+            @RequestBody Map<String, Object> param,
+            HttpSession session) {
+
+    	// 세션 체크
+    	UserDto user = AuthUtil.getLoginUser(session);
+
+    	// 취소요청
+    	newcarService.cancel(param, user);
+    	
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
 }
 
 

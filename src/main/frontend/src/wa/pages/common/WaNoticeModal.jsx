@@ -77,19 +77,25 @@ const WaNoticeModal = ({
                 <div className="wa-attach-modal-body wa-notice-body">
 
                     {/* 파란 박스 */}
-                    {!!notice?.items?.length && (
-                        <div className="wa-notice-box">
+					{!!notice?.items?.length && (
+					    <div className="wa-notice-box">
+					        {notice.items.map((item, index) => (
+					            <React.Fragment key={index}>
+					                {notice.titles
+					                    ?.filter(t => t.index === index)
+					                    .map(t => (
+					                        <div key={t.text} className="wa-notice-title">
+					                            {t.text}
+					                        </div>
+					                    ))}
 
-                            <ul className="wa-notice-list">
-                                {notice.items.map((item, index) => (
-                                    <li key={index}>
-                                        {item}
-                                    </li>
-                                ))}
-                            </ul>
-
-                        </div>
-                    )}
+					                <ul className="wa-notice-list">
+					                    <li>{item}</li>
+					                </ul>
+					            </React.Fragment>
+					        ))}
+					    </div>
+					)}
 
                     {/* 체크박스 */}
                     {!!notice?.checks?.length && (

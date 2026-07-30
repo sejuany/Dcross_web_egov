@@ -87,13 +87,18 @@ const WaSendSmsModal = ({
 		}
 		
 		const url = `${window.location.origin}/customer/CustomerSign?t=${token}`;
-		
+		/*
 		const sText = '안녕하세요. 폴스타코리아 주문번호 ' + dsService.LINK_ID + 
 		' 차량의 추가 제출서류를 준비하셔서 아래의 URL로 접속하신 후 업로드 바랍니다.\n' +
 		'※ 업로드 완료 후 담당 스페셜리스트에게 연락 바랍니다.\n' +
 		'담당 스페셜리스트 : ' + formatPhoneNumber(dsUserInfo.MPHONE_NO) + '\r\n' +
 		url;
-		 
+		 */
+		const sText = '안녕하세요. 폴스타코리아 차량의 신규등록을 위해 추가 제출서류를 준비하셔서 아래의 URL로 접속하신 후 업로드 바랍니다. \r\n\r\n' +
+		 			'주문번호 ' + dsService.LINK_ID + '\r\n차대번호 : ' + dsNewCar.CARID_NO + '\r\n\r\n' + 				
+				'※ 업로드 완료 후 담당 스페셜리스트에게 연락 바랍니다.\n' +
+				'담당 스페셜리스트 : ' + formatPhoneNumber(dsUserInfo.MPHONE_NO) + '\r\n' +
+				url;
 		console.log(sText);
 		
 		try {
@@ -102,7 +107,8 @@ const WaSendSmsModal = ({
 			await axios.post('/api/newcar/numplateSms', {
 			    PAY_HP_NO: fullPhone,
 				MSG_TYPE: '3',
-			    TEXT: sText
+			    TEXT: sText,
+				SUBJECT: '등록 차량 서류 업로드'
 			});
 			
 			// 2. 전자서명 이력 생성

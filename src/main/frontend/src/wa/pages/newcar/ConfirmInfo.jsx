@@ -184,7 +184,11 @@ const ConfirmInfo = ({
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 계약자 등록번호</span>
-					                <strong>{dsOwnerInfo.DEBTOR_REG_NO}</strong>
+									<strong>
+								        {dsOwnerInfo.DEBTOR_GB === 'C'
+								            ? dsOwnerInfo.DEBTOR_BIZ_NO
+								            : dsOwnerInfo.DEBTOR_REG_NO}
+								    </strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 계약자 휴대폰번호</span>
@@ -288,10 +292,17 @@ const ConfirmInfo = ({
 		            </div>
 		
 		
-		            <div className="wa-confirm-item">
-		                <span>번호판 종류</span>
-		                <strong>{dsNUMGB?.find(item => item.CODE_ID === dsNewCar.NUMPLATE_GB)?.CODE_NM ?? ''}</strong>
-		            </div>
+					<div className="wa-confirm-item">
+					    <span>번호판 종류</span>
+					    <strong>
+					        {
+					            dsNUMGB
+					                ?.find(item => item.CODE_ID === dsNewCar.NUMPLATE_GB)
+					                ?.CODE_NM
+					                ?.replace('긴', '페인트') ?? ''
+					        }
+					    </strong>
+					</div>
 		
 		            <div className="wa-confirm-item">
 		                <span>선택 번호</span>

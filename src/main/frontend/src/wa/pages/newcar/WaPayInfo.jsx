@@ -1016,10 +1016,20 @@ const WaPayInfo = () => {
     ), [stickyColumnOffsets]);
 
     const handleSortColumn = useCallback((column) => {
-        setSortConfig(prev => ({
-            key: column.key,
-            direction: prev.key === column.key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
+		if (column.sortable === false) return;
+
+		    setSortConfig(prev => {
+		        // 1. 다른 컬럼을 클릭한 경우 -> 오름차순(asc) 시작
+		        if (prev.key !== column.key) {
+		            return { key: column.key, direction: 'asc' };
+		        }
+		        // 2. 같은 컬럼인데 현재 오름차순(asc)인 경우 -> 내림차순(desc)
+		        if (prev.direction === 'asc') {
+		            return { key: column.key, direction: 'desc' };
+		        }
+		        // 3. 같은 컬럼인데 현재 내림차순(desc)인 경우 -> 정렬 초기화(none)
+		        return { key: null, direction: 'none' }; 
+		    });
     }, []);
 
     const handleColumnResizeStart = useCallback((event, column) => {
@@ -1173,69 +1183,136 @@ const WaPayInfo = () => {
                     </label>
                 </section>
                 {/* 조회 결과 그리드를 렌더링함 */}
-                <section className="wa-status-grid-panel" aria-label="납부현황 목록" style={{ minHeight: `52vh`, maxHeight: `70vh` }}>
-                    <section className="wa-status-heading">
-                        <div className="wa-status-actions" aria-label="납부현황 결과 요약">
-                            <strong>검색 결과 총 {rows.length}건</strong>
-                        </div>
-                    </section>
+				{/* 1. 최상단 section에 Flexbox를 적용하여 자식 요소들이 높이를 꽉 채우도록 합니다. */}
+				<section 
+				    className="wa-status-grid-panel" 
+				    aria-label="납부현황 목록" 
+				    style={{ display: 'flex', flexDirection: 'column', minHeight: `52vh`, maxHeight: `70vh` }}
+				>
+				    <section className="wa-status-heading">
+				        <div className="wa-status-actions" aria-label="납부현황 결과 요약">
+				            <strong>검색 결과 총 {rows.length}건</strong>
+				        </div>
+				    </section>
 
-                    {errorMessage && <div className="wa-status-error">{errorMessage}</div>}
-                    {noticeMessage && <div className="wa-status-notice">{noticeMessage}</div>}
+				    {errorMessage && <div className="wa-status-error">{errorMessage}</div>}
+				    {noticeMessage && <div className="wa-status-notice">{noticeMessage}</div>}
 
-                    <div className="wa-status-table-scroll">
-                        <table className="wa-status-table" style={{ width: `${gridWidth}px`, minWidth: `${gridWidth}px` }}>
-                            <colgroup>
-                                {columns.map(column => (
-                                    <col key={column.key} style={{ width: `${getColumnWidth(column)}px` }} />
-                                ))}
-                            </colgroup>
-                            <thead>
-                                <tr>
-                                    {columns.map(column => {
-                                        const isSorted = sortConfig.key === column.key;
-                                        const ariaSort = isSorted ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none';
-                                        const sortClassName = isSorted ? ` sort-${sortConfig.direction}` : '';
+				    {/* 2. 스크롤 컨테이너 역시 Flexbox로 만들어서 내부 요소들을 위아래로 배치합니다. */}
+				    <div 
+				        className="wa-status-table-scroll" 
+				        style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}
+				    >
+				        {/* 3. 데이터 테이블을 div로 감싸고 flex: 1 속성을 주어, 데이터가 적어도 하얀 여백을 이 div가 모두 차지하게(밀어내게) 합니다. */}
+				        <div style={{ flex: '1 1 auto' }}>
+				            <table className="wa-status-table" style={{ width: `${gridWidth}px`, minWidth: `${gridWidth}px` }}>
+				                <colgroup>
+				                    {columns.map(column => (
+				                        <col key={column.key} style={{ width: `${getColumnWidth(column)}px` }} />
+				                    ))}
+				                </colgroup>
+				                <thead>
+				                    <tr>
+				                        {columns.map(column => {
+				                            const isSorted = sortConfig.key === column.key;
+				                            const ariaSort = isSorted ? (sortConfig.direction === 'asc' ? 'ascending' : 'descending') : 'none';
+				                            const sortClassName = isSorted ? ` sort-${sortConfig.direction}` : '';
 
-                                        return (
-                                            <th key={column.key} className={getColumnClassName(column)} style={getStickyColumnStyle(column)} aria-sort={ariaSort}>
-                                                <button type="button" className={`wa-status-sort-button${sortClassName}`} onClick={() => handleSortColumn(column)}>
-                                                    <span>{column.label}</span>
-                                                </button>
-                                                <span
-                                                    className="wa-status-column-resizer"
-                                                    role="separator"
-                                                    aria-orientation="vertical"
-                                                    aria-label={`${column.label} 컬럼 폭 조절`}
-                                                    onPointerDown={event => handleColumnResizeStart(event, column)}
-                                                />
-                                            </th>
-                                        );
-                                    })}
-                                </tr>
-                            </thead>
-                            <tbody>
-                                {loading ? (
-                                    <tr>
-                                        <td className="wa-status-empty" colSpan={columns.length}>조회 중입니다.</td>
-                                    </tr>
-                                ) : rows.length === 0 ? (
-                                    <tr>
-                                        <td className="wa-status-empty" colSpan={columns.length}>조회된 데이터가 없습니다.</td>
-                                    </tr>
-                                ) : sortedRows.map(row => (
-                                    <tr key={row.rowKey} className="wa-status-data-row" tabIndex={0}>
-                                        {columns.map(column => (
-                                            <td key={`${row.rowKey}-${column.key}`} className={getColumnClassName(column)} style={getStickyColumnStyle(column)}>
-                                                {renderGridCell(row, column)}
-                                            </td>
-                                        ))}
-                                    </tr>
-                                ))}
-                            </tbody>
-                        </table>
-                    </div>
-                </section>
+				                            return (
+				                                <th key={column.key} className={getColumnClassName(column)} style={getStickyColumnStyle(column)} aria-sort={ariaSort}>
+				                                    <button type="button" className={`wa-status-sort-button${sortClassName}`} onClick={() => handleSortColumn(column)}>
+				                                        <span>{column.label}</span>
+				                                    </button>
+				                                    <span
+				                                        className="wa-status-column-resizer"
+				                                        role="separator"
+				                                        aria-orientation="vertical"
+				                                        aria-label={`${column.label} 컬럼 폭 조절`}
+				                                        onPointerDown={event => handleColumnResizeStart(event, column)}
+				                                    />
+				                                </th>
+				                            );
+				                        })}
+				                    </tr>
+				                </thead>
+				                <tbody>
+				                    {loading ? (
+				                        <tr>
+				                            <td className="wa-status-empty" colSpan={columns.length}>조회 중입니다.</td>
+				                        </tr>
+				                    ) : rows.length === 0 ? (
+				                        <tr>
+				                            <td className="wa-status-empty" colSpan={columns.length}>조회된 데이터가 없습니다.</td>
+				                        </tr>
+				                    ) : sortedRows.map(row => (
+				                        <tr key={row.rowKey} className="wa-status-data-row" tabIndex={0}>
+				                            {columns.map(column => (
+				                                <td key={`${row.rowKey}-${column.key}`} className={getColumnClassName(column)} style={getStickyColumnStyle(column)}>
+				                                    {renderGridCell(row, column)}
+				                                </td>
+				                            ))}
+				                        </tr>
+				                    ))}
+				                </tbody>
+				            </table>
+				        </div>
+
+				        {/* 4. 합계 영역을 별도의 테이블로 분리하고 sticky 처리합니다. */}
+				        {!loading && rows.length > 0 && (
+				            <table 
+				                className="wa-status-table wa-status-summary-table" 
+				                style={{ 
+				                    width: `${gridWidth}px`, 
+				                    minWidth: `${gridWidth}px`,
+				                    position: 'sticky', 
+				                    bottom: 0, 
+				                    zIndex: 10, 
+				                    backgroundColor: '#f8f9fa',
+				                    borderTop: '2px solid #243447' // 합계 선을 뚜렷하게
+				                }}
+				            >
+				                {/* 💡 데이터 테이블과 똑같은 colgroup을 사용하여 열 너비를 완벽하게 동기화합니다. */}
+				                <colgroup>
+				                    {columns.map(column => (
+				                        <col key={column.key} style={{ width: `${getColumnWidth(column)}px` }} />
+				                    ))}
+				                </colgroup>
+				                <tfoot>
+				                    <tr className="wa-status-summary-row">
+				                        {columns.map((column, index) => {
+				                            if (index === 0) {
+				                                return (
+				                                    <td key={`summary-${column.key}`} className={getColumnClassName(column)} style={{...getStickyColumnStyle(column), textAlign: 'center'}}>
+				                                        <strong>합계</strong>
+				                                    </td>
+				                                );
+				                            }
+
+				                            //const isNumeric = column.isNumeric; // 컬럼의 속성에 따라 판별
+				                            let cellContent = '';
+				                            
+											const isNumeric = ['ACQ_AMT', 'TOTAL_AMT', 'NUMP_AMT', 'FEE_AMT', 'BFEE_AMT', 'BOND_AMT', 'STAMP_AMT', 'INJI_AMT', 'REGIS_AMT'].includes(column.key);
+											
+				                            if (isNumeric) {
+				                                const sum = sortedRows.reduce((acc, row) => {
+				                                    const value = Number(row[column.key]);
+				                                    return acc + (isNaN(value) ? 0 : value);
+				                                }, 0);
+				                                cellContent = sum.toLocaleString(); 
+				                            }
+
+				                            return (
+				                                <td key={`summary-${column.key}`} className={getColumnClassName(column)} style={getStickyColumnStyle(column)}>
+				                                    <strong>{cellContent}</strong>
+				                                </td>
+				                            );
+				                        })}
+				                    </tr>
+				                </tfoot>
+				            </table>
+				        )}
+				    </div>
+				</section>
                 {/* 통계 버튼 클릭 시 표시되는 모달을 렌더링함 */}
                 {showStatistics && (
                     <div className="wa-pay-dashboard-backdrop" role="presentation" onClick={() => setShowStatistics(false)}>

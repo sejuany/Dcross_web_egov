@@ -18,7 +18,8 @@
             TN.REQ_CAR_NO as CAR_NO,
             TN.OWNER_NM,
             PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
-            TN.REGIST_DATE
+            TN.REGIST_DATE,
+            TS.LINK_ID
         FROM TR_SERVICE TS
              JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
         WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
@@ -44,13 +45,13 @@
         AND TS.PROC_ST = 'S_WAIT'
     </select>
 
-        <select id="selectNewcarSpecialistInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
+    <select id="selectNewcarSpecialistInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT
             MEMBER_NM AS SPECIALIST_NM,
             PKG_COMMON.FN_DECRYPT(MPHONE_NO) AS SPECIALIST_HP_NO
         FROM TM_MEMBER_DT
         WHERE MEMBER_ID = #{MEMBER_ID}
-    </select>
+    </select>  
 
     <select id="selectNewcarNonPayedServices" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT TS.SERVICE_ID, TS.CAR_NO, TS.PROC_ST, TS.JUDGE_ST, TS.COMPANY_ID, TN.REGIST_DATE, TS.MEMBER_ID, TCD.CUSTOMER_NM, DECODE (TN.PROC_CD, 'C', PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO), DECODE(TN.TASK_CD, 'LEASE', PKG_COMMON.FN_DECRYPT(TOI.DSIGN_HP_NO), PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO))) AS MPHONE_NO, TN.REQ_CAR_NO AS REQ_CAR_NO

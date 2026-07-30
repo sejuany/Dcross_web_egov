@@ -239,11 +239,14 @@ const WaNewcarDetail = ({
 		
 		// 등록취소 알림 띄우기
 		try {
-	        await axios.post("/api/common/procedure/board", {
-	            SERVICE_ID: dsService.SERVICE_ID,
-	            CONTENT_TX: "[신차사업] 등록 취소!! 관청에 확인 필요",
+			
+			await axios.post("/api/newcar/cancel", {
+			    SERVICE_ID: dsService.SERVICE_ID,
+				PROC_ST: 'W_RET',
+				JUDGE_ST: '',
+				CONTENT_TX: "[신차사업] 등록 취소!! 관청에 확인 필요",
 	            GUBUN: "2"
-	        });
+			});
 			
 			// 등록취소 요청 상태 저장
 	        setIsCancelRequested(true);
@@ -602,7 +605,14 @@ const WaNewcarDetail = ({
 
 				            <div className="wa-detail-row">
 				                <span className="wa-detail-name">번호판 종류</span>
-				                <span>{dsNUMGB?.find(item => item.CODE_ID === dsNewCar.NUMPLATE_GB)?.CODE_NM ?? '-'}</span>
+				                <span>
+									{
+							            dsNUMGB
+							                ?.find(item => item.CODE_ID === dsNewCar.NUMPLATE_GB)
+							                ?.CODE_NM
+							                ?.replace('긴', '페인트') ?? ''
+							        }
+								</span>
 				            </div>
 
 				            <div className="wa-detail-row">

@@ -66,9 +66,27 @@ const headerActionButtons = [
 ];
 
 const gridActionButtons = [
-    { key: 'apply', label: '신청', Icon: ClipboardCheck, variant: 'outline' },
-    { key: 'payment', label: '차량대금 납부', Icon: WalletCards, variant: 'outline' },
-    { key: 'suChange', label: '담당자 변경', Icon: UsersRound , variant: 'outline' }
+	{
+		key: 'apply',
+		label: '신청',
+		Icon: ClipboardCheck,
+		variant: 'outline',
+		roles: ['CA']
+	},
+	{
+		key: 'payment',
+		label: '차량대금 납부',
+		Icon: WalletCards,
+		variant: 'outline',
+		roles: ['CA']
+	},
+	{
+		key: 'suChange',
+		label: '담당자 변경',
+		Icon: UsersRound,
+		variant: 'outline',
+		roles: ['BA']
+	}
 ];
 
 const DEFAULT_MIN_COLUMN_WIDTH = 56;
@@ -315,7 +333,7 @@ const WaNewcarList = () => {
     const [requestRows, setRequestRows] = useState([]);
     const [showRequestConfirm, setShowRequestConfirm] = useState(false);
 	const [showSuChangeModal, setShowSuChangeModal] = useState(false);
-	const [changeUser, setChangeUser] = useState("");
+	const [changeUser, setChangeUser] = useState(null);
 	const [userList, setUserList] = useState([]);
     const fileInputRef = useRef(null);
     const searchStartLimitDate = getSearchStartLimitDate();
@@ -843,17 +861,20 @@ const WaNewcarList = () => {
         }
     };
 	
+	const currentSuNames = [...new Set(
+	    selectedRows.map(row => row.MEMBER_ID)
+	)];
+
+	const currentSuText = currentSuNames.length === 1
+	    ? ` ${currentSuNames[0]}`
+	    : ` ${currentSuNames.join(", ")}`;
+		
 	const handleSuChangeClick = async () => {
 	    setErrorMessage("");
 	    setNoticeMessage("");
 
 	    if (selectedRows.length === 0) {
 	        setErrorMessage("선택된 건이 없습니다.");
-	        return;
-	    }
-
-	    if (selectedRows.length > 1) {
-	        setErrorMessage("담당자 변경은 1건만 선택 가능합니다.");
 	        return;
 	    }
 
@@ -869,17 +890,30 @@ const WaNewcarList = () => {
 	};
 	
 	const handleSuChangeConfirm = async () => {
-	    if (!changeUser) {
+		if (!changeUser?.LOGIN_ID) {
 	        gf.alert("변경 담당자를 선택하세요.");
 	        return;
 	    }
+		
 	    try {
-	        await axios.post("/api/newcar/change-su", {
-	            SERVICE_ID: selectedRows[0].SERVICE_ID,
-	            CHAGE_SU_ID: changeUser
-	        });
+			const params = {
+	            CHAGE_SU_ID: changeUser.LOGIN_ID,
+	            CHAGE_SU_NM: changeUser.MEMBER_NM,
+	            CHAGE_SU_HP: changeUser.MPHONE_NO,
+
+	            LIST: selectedRows.map(row => ({
+	                SERVICE_ID: row.SERVICE_ID
+	            }))
+	        };
+
+
+	        await axios.post(
+	            "/api/newcar/change-su",
+	            params
+	        );
 	        gf.alert("담당자가 변경되었습니다.");
 	        setShowSuChangeModal(false);
+			setChangeUser(null);
 	        fetchNewCarList(searchFilters);
 	    } catch (e) {
 	        gf.alert("담당자 변경 중 오류가 발생했습니다.");
@@ -887,25 +921,24 @@ const WaNewcarList = () => {
 	};
 
     const handleGridActionClick = (actionKey) => {
-        if (!canManageNewcarActions) {
-            return;
-        }
-
-        if (actionKey === 'apply') {
-            handleRequestClick();
-            return;
-        }
-
-        if (actionKey === 'payment') {
-            handlePaymentClick();
-            return;
-        }
-		
 		if (actionKey === 'suChange') {
-            handleSuChangeClick();
-			return;
-        }
-		
+		    if (memberGb !== 'BA') return;
+
+		    handleSuChangeClick();
+		    return;
+		}
+
+		if (memberGb !== 'CA') return;
+
+		if (actionKey === 'apply') {
+		    handleRequestClick();
+		    return;
+		}
+
+		if (actionKey === 'payment') {
+		    handlePaymentClick();
+		    return;
+		}
     };
     const toggleAllRows = (checked) => {
         setSelectedRowKeys(checked ? rows.map(row => row.rowKey) : []);
@@ -967,10 +1000,18 @@ const WaNewcarList = () => {
     const handleSortColumn = useCallback((column) => {
         if (column.sortable === false) return;
 
-        setSortConfig(prev => ({
-            key: column.key,
-            direction: prev.key === column.key && prev.direction === 'asc' ? 'desc' : 'asc'
-        }));
+		setSortConfig(prev => {
+		        // 1. 다른 컬럼을 클릭한 경우 -> 오름차순(asc) 시작
+		        if (prev.key !== column.key) {
+		            return { key: column.key, direction: 'asc' };
+		        }
+		        // 2. 같은 컬럼인데 현재 오름차순(asc)인 경우 -> 내림차순(desc)
+		        if (prev.direction === 'asc') {
+		            return { key: column.key, direction: 'desc' };
+		        }
+		        // 3. 같은 컬럼인데 현재 내림차순(desc)인 경우 -> 정렬 초기화(none)
+		        return { key: null, direction: 'none' }; 
+		    });
     }, []);
 
     const handleColumnResizeStart = useCallback((event, column) => {
@@ -1181,16 +1222,22 @@ const WaNewcarList = () => {
 
             <section className="wa-status-grid-panel" aria-label="신규신청현황 목록">
                 <section className="wa-status-heading">
-                    {canManageNewcarActions && (
-                        <div className="wa-status-actions" aria-label="목록 처리 버튼">
-                            {gridActionButtons.map(({ key, label, Icon, variant }) => (
-                                <button key={key} type="button" className={`wa-status-action ${variant}`} onClick={() => handleGridActionClick(key)} disabled={loading}>
-                                    <Icon size={15} />
-                                    <span>{label}</span>
-                                </button>
-                            ))}
-                        </div>
-                    )}
+					<div className="wa-status-actions" aria-label="목록 처리 버튼">
+					    {gridActionButtons
+					        .filter(button => button.roles.includes(memberGb))
+					        .map(({ key, label, Icon, variant }) => (
+					            <button
+					                key={key}
+					                type="button"
+					                className={`wa-status-action ${variant}`}
+					                onClick={() => handleGridActionClick(key)}
+					                disabled={loading}
+					            >
+					                <Icon size={15} />
+					                <span>{label}</span>
+					            </button>
+					        ))}
+					</div>
 
                     <div className="wa-status-actions" aria-label="목록 부가 기능">
                         <strong>검색 결과 총 {rows.length}건</strong>
@@ -1354,38 +1401,46 @@ const WaNewcarList = () => {
 			            <strong>담당자 변경</strong>
 			        </header>
 			        <div className="wa-action-confirm-content">
-			            <div style={{marginBottom:10}}>
-			                {selectedRows[0]?.CARID_NO} 차량의<br/>
-			                담당자를 변경하시겠습니까?
-			            </div>
 			            <table style={{width:"100%"}}>
-			                <tbody>
-			                <tr>
-			                    <td style={{width:70}}>기존</td>
-			                    <td>{selectedRows[0]?.MEMBER_ID}</td>
-			                </tr>
+		                <tbody>
+							<tr>
+								<td style={{width:70}}>기존</td>
+								<td>{currentSuText}</td>
+							</tr>
 			                <tr>
 			                    <td>변경</td>
 			                    <td>
 									<select
 									    className="wa-su-change-select"
-									    value={changeUser}
-									    onChange={(e) => setChangeUser(e.target.value)}
+									    value={changeUser?.LOGIN_ID || ""}
+									    onChange={(e) => {
+											if (!e.target.value) {
+									            setChangeUser(null);
+									            return;
+									        }
+											
+									        const user = userList.find(
+									            u => u.LOGIN_ID === e.target.value
+									        );
+									        setChangeUser(user || null);
+									    }}
 									>
 									    <option value="">선택</option>
 	
-									    {[...userList]
-									        .filter(user => user.MEMBER_NM !== selectedRows[0]?.MEMBER_ID)
-									        .sort((a, b) => a.MEMBER_NM.localeCompare(b.MEMBER_NM, 'ko'))
-									        .map(user => (
-									            <option
-									                key={user.LOGIN_ID}
-									                value={user.LOGIN_ID}
-									            >
-									                {user.MEMBER_NM}
-									            </option>
-									        ))
-									    }
+										{[...userList]
+											.filter(user =>
+											    !selectedRows.some(row => row.MEMBER_ID === user.MEMBER_NM)
+											)
+										    .sort((a, b) => a.MEMBER_NM.localeCompare(b.MEMBER_NM, 'ko'))
+										    .map(user => (
+										        <option
+										            key={user.LOGIN_ID}
+										            value={user.LOGIN_ID}
+										        >
+										            {user.MEMBER_NM}
+										        </option>
+										    ))
+										}
 									</select>
 			                    </td>
 			                </tr>
@@ -1395,7 +1450,10 @@ const WaNewcarList = () => {
 			        <footer className="wa-action-confirm-footer">
 			            <button
 			                className="wa-status-action outline"
-			                onClick={()=>setShowSuChangeModal(false)}
+							onClick={() => {
+					            setShowSuChangeModal(false);
+					            setChangeUser(null);
+					        }}
 			            >
 			                닫기
 			            </button>

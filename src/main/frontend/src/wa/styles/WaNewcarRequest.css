@@ -2082,6 +2082,14 @@ hr.wa-divider.hr2 {
  * Notice Modal
  * ========================= */
 
+.wa-notice-title {
+    font-size: 15px;   /* 기존 글씨 크기 그대로 */
+    font-weight: 700;     /* 볼드 */
+    margin: 10px 0 4px;
+    list-style: none;     /* 앞의 동그라미 제거 */
+    color:#163a73;
+}
+
 .wa-notice-modal {
     width: 520px;
     max-width: 90vw;
@@ -2122,14 +2130,14 @@ hr.wa-divider.hr2 {
 
 .wa-notice-check input[type="checkbox"] {
     margin-top: 2px;
-    width: 16px;
-    height: 16px;
+    width: 15px;
+    height: 15px;
     flex-shrink: 0;
 }
 
 .wa-notice-check span {
     white-space: pre-line;
-    font-size: 15px;
+    font-size: 14px;
     font-weight: 500;
 }
 

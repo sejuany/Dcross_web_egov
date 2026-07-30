@@ -257,12 +257,19 @@ const WaNewcarAttachModal = ({
 		return <FileText size={28} />;
     };
 
-	// PDF 재병합 버튼
+	// PDF 재생성 버튼
 	const handleMergePdf = async () => {
 
+	    const target =
+	        attachPolicy.needSign && attachPolicy.needMinorDocs
+	            ? '감면신청서와 미성년자 확인서류를'
+	            : attachPolicy.needSign
+	                ? '감면신청서를'
+	                : '미성년자 확인서류를';
+
 	    const ok = await gf.confirm(
-	        '감면신청서를 다시 생성하시겠습니까?',
-	        'PDF 재병합'
+	        `${target} 다시 생성하시겠습니까?`,
+	        'PDF 재생성'
 	    );
 
 	    if (!ok) {
@@ -276,7 +283,7 @@ const WaNewcarAttachModal = ({
 
 	        let dsExemption = null;
 
-	        // 감면 신청서가 필요한 경우만 생성
+	        // 감면신청서 데이터 생성
 	        if (attachPolicy.needSign) {
 
 	            const ntaxReason =
@@ -291,14 +298,21 @@ const WaNewcarAttachModal = ({
 	                REASON: ntaxReason,
 	                DOCUMENT: ntaxDocuments
 	            };
+
+	            await axios.post('/api/attach/merge-pdf', {
+	                SERVICE_ID: dsService.SERVICE_ID,
+	                EXEMPTION: dsExemption
+	            });
 	        }
 
-			await axios.post('/api/attach/merge-pdf', {
-			    SERVICE_ID: dsService.SERVICE_ID,
-			    EXEMPTION: dsExemption
-			});
+	        // 미성년자 확인서류 병합
+	        if (attachPolicy.needMinorDocs) {
+	            await axios.post('/api/attach/minor-merge-pdf', {
+	                SERVICE_ID: dsService.SERVICE_ID
+	            });
+	        }
 
-	        gf.alert('감면신청서를 다시 생성했습니다.');
+	        gf.alert(`${target} 다시 생성했습니다.`);
 
 	    } finally {
 	        gf.loadingDelay(startTime, () => setLoading(false));
@@ -450,16 +464,21 @@ const WaNewcarAttachModal = ({
 	                            관련 신청서 서명 및 파일업로드 링크 문자 발송
 	                        </button>
 							
-
-							{(attachPolicy.needSign && ['END', 'REQ', 'W_REQ', 'S_REQ', 'S_END'].includes(dsService.PROC_ST)) && (
-								<button
-								    type="button"
-									className="wa-attach-merge-btn"
-								    onClick={handleMergePdf}
-								>
-								<RefreshCw size={15} style={{ marginRight: '3px' }} />
-								감면신청서 재생성
-								</button>
+							{((attachPolicy.needSign || attachPolicy.needMinorDocs) &&
+								// 필요한 경우 더 추가 
+							    ['END', 'W_REQ', 'REQ', 'S_REQ', 'S_END'].includes(dsService.PROC_ST)) && (
+							    <button
+							        type="button"
+							        className="wa-attach-merge-btn"
+							        onClick={handleMergePdf}
+							    >
+							        <RefreshCw size={15} style={{ marginRight: '3px' }} />
+							        {attachPolicy.needSign && attachPolicy.needMinorDocs
+							            ? 'PDF 재생성'
+							            : attachPolicy.needSign
+							                ? '감면신청서 재생성'
+							                : '미성년자 확인서류 재생성'}
+							    </button>
 							)}
 						</div>
                         

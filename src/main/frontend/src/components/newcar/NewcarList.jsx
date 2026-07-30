@@ -546,7 +546,11 @@ const NewcarList = () => {
 	    removeTab(activeTabId);
     };
 
-    const defaultColDef = React.useMemo(() => ({ sortable: true, resizable: true }), []);
+    const defaultColDef = React.useMemo(() => ({ 
+			sortable: true, 
+			resizable: true, 	
+	        sortingOrder: ['asc', 'desc', null],
+	        unSortIcon: true, }), []);
 
     const handleGridRowDataUpdated = React.useCallback(() => {
         gridRef.current?.api?.deselectAll();

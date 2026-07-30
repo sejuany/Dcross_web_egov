@@ -124,6 +124,10 @@
 	            INSTALL_SMS_TX = #{INSTALL_SMS_TX},
 	        </if>
 	
+	        <if test="RECEIVE_NM != null and RECEIVE_NM != ''">
+	            RECEIVE_NM = #{RECEIVE_NM},
+	        </if>
+
 	        <if test="RECEIVE_TEL_NO != null and RECEIVE_TEL_NO != ''">
 	            RECEIVE_TEL_NO = PKG_COMMON.FN_ENCRYPT(#{RECEIVE_TEL_NO}),
 	        </if>

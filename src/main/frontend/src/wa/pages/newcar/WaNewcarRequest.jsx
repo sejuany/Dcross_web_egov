@@ -31,9 +31,10 @@ import {
 
 // 파일 업로드 정책 가져오기
 import {
-    getAttachPolicy,
-    getNtaxAttachPolicy,
-	NTAX_POLICY
+	getAttachPolicy,      // 일반 첨부파일 정책
+	getNtaxAttachPolicy,  // 비과세 첨부파일 정책
+	ATTACH_DOC,           // 일반 첨부파일 정의
+	NTAX_POLICY           // 비과세 정책 정의
 } from '../../../policy/attachPolicy';
 
 // 화면
@@ -188,7 +189,7 @@ const resolveBondBankFields = (baseAddress, busanBond, bondDc) => {
 
 
 // 상세조회 화면 표시 대상 상태
-const DETAIL_PROC_STATUS = ['REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END'];
+const DETAIL_PROC_STATUS = ['REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END', 'W_RET'];
 
 // 신청 단계
 const REQUEST_STEPS = [
@@ -675,8 +676,8 @@ const WaNewcarRequest = ({
 	
 	// 일반 첨부 정책	
 	const attachPolicy = useMemo(
-	    () => getAttachPolicy(dsNewCar),
-	    [dsNewCar]
+	    () => getAttachPolicy(dsNewCar, dsOwnerInfo),
+	    [dsNewCar, dsOwnerInfo]
 	);
 	// 비과세 첨부 정책
 	const ntaxPolicy = useMemo(
@@ -995,12 +996,13 @@ const WaNewcarRequest = ({
 	
 	// 서류안내 모달창
 	const openNotice = async (currentStep, nextStep) => {
-
+		const notice = noticeCheck();
+		
 	    // 1 -> 2
 	    if (currentStep === 1 && nextStep === 2) {
 
 			// 첨부 파일이 필요한 경우
-			if (noticeCheck.items.length || noticeCheck.checks.length) {
+			if (notice.items.length || notice.checks.length) {
 
 			    // 필요한 첨부파일이 없으면 검사하지 않음
 			    if (attachPolicy.requiredDocs.length === 0) {
@@ -1022,7 +1024,7 @@ const WaNewcarRequest = ({
 			    );
 
 			    if (hasMissingDoc) {
-			        setNotice(noticeCheck);
+			        setNotice(notice);
 			        setNoticeOpen(true);
 			        setNextStep(2);
 			        return true;
@@ -1848,9 +1850,13 @@ const WaNewcarRequest = ({
 
 		// 감면신청서 데이터
 		newDataSet.dsExemption = {
-		    CREATE_YN: attachPolicy.needSign ? 'Y' : 'N',
+			// 감면신청서 + 비과세 파일 병합 시 필요
+		    CREATE_YN: attachPolicy.needSign ? 'Y' : 'N', 
 		    REASON: '',
-		    DOCUMENT: ''
+		    DOCUMENT: '',
+			
+			// 미성년자 제출 서류 병합 시 필요 
+			MINOR_YN: attachPolicy.needMinorDocs ? 'Y': 'N', 
 		};
 		
 		// 감면신청서 데이터 추가
@@ -2136,6 +2142,10 @@ const WaNewcarRequest = ({
 				|| requireValue(dsNewCar.NTAX_TRGET_GR_CD, '감면 등급');
 		}
 
+		if (!message && !['CASH', 'TAX'].includes(dsTaxReceipt.GUBUN)) {
+			message = '현금영수증 또는 세금계산서를 선택해주세요.';
+		}
+
 		if (!message && dsTaxReceipt.GUBUN === 'CASH') {
 			message = requirePhoneNumber(dsTaxReceipt.PHONE_NO, '현금영수증 휴대폰번호');
 		}
@@ -2202,50 +2212,104 @@ const WaNewcarRequest = ({
 	]);
 	
 	// 서류 안내창
-	const noticeCheck = useMemo(() => {
+	const noticeCheck = () => {
+		console.log(ATTACH_DOC);
 
 	    const items = [];
+	    const titles = [];
 	    const checks = [];
 	    const footer = [];
-		
-		let normalCheck = false;
-		
-	    if((dsNewCar.TASK_CD === 'NORML' || 
-			(dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')) && 
-			 dsNewCar.REG_GB === 'F') {
-	        items.push('외국인등록증');
-			normalCheck = true;
-	    }
-		
-		if (dsOwnerInfo.DEBTOR_GB === 'F') {
-			
-	        items.push('공동명의자 외국인등록증');
-			normalCheck = true;
+
+	    let normalCheck = false;
+
+	    // 제목 + 서류 추가
+	    const addDocs = (title, ...docs) => {
+	        titles.push({ index: items.length, text: title });
+	        items.push(...docs.map(doc => doc.name));
+	        normalCheck = true;
+	    };
+
+	    // ===== 외국인 =====
+	    if (
+	        (dsNewCar.TASK_CD === 'NORML' ||
+	            (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')) &&
+	        dsNewCar.REG_GB === 'F'
+	    ) {
+	        addDocs(
+	            '외국인',
+	            ATTACH_DOC.FOREIGN_ID
+	        );
 	    }
 
-		if (String(dsNewCar.RATIO_NO) !== '100') {
-	        items.push('공동명의 동의서');
-	        items.push('신분증 사본(대표소유자 및 공동명의자)');
-			normalCheck = true;
+	    if (dsOwnerInfo.DEBTOR_GB === 'F') {
+	        addDocs(
+	            '공동명의 외국인',
+	            ATTACH_DOC.FOREIGN_ID
+	        );
 	    }
-		
-		if (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C') {
-		    items.push('리스계약서');
-			checks.push('이용자명의 리스로 차량 등록 시 리스계약서가 필요합니다.\n최종확인 페이지에서 리스계약서를 제출해 주세요.');
-		}
-		
-		if(normalCheck) {
-			checks.push('해당 고객님은 서류 제출 대상자입니다.\n최종확인 페이지에서 위 서류를 제출해 주세요.');
-		}
+
+	    // ===== 공동소유 =====
+	    if (String(dsNewCar.RATIO_NO) !== '100') {
+	        addDocs(
+	            '공동소유',
+	            ATTACH_DOC.JOINT_OWNER_AGREEMENT,
+	            ATTACH_DOC.OWNER_ID,
+	            ATTACH_DOC.JOINT_OWNER_ID
+	        );
+	    }
+
+	    // ===== 이용자명의 리스 =====
+	    if (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C') {
+
+	        addDocs(
+	            '이용자명의 리스',
+	            ATTACH_DOC.LEASE_AGREEMENT
+	        );
+
+	        checks.push(
+	            '이용자명의 리스로 차량 등록 시 리스계약서가 필요합니다.\n최종확인 페이지에서 리스계약서를 제출해 주세요.'
+	        );
+	    }
+
+	    // ===== 미성년자 =====
+	    const ownerMinor =
+	        ['R', 'F'].includes(dsNewCar.REG_GB) &&
+	        gf.isMinor(dsNewCar.REG_NO);
+
+	    const debtorMinor =
+	        Number(dsNewCar.RATIO_NO || 100) !== 100 &&
+	        ['R', 'F'].includes(dsOwnerInfo?.DEBTOR_GB) &&
+	        gf.isMinor(dsOwnerInfo?.DEBTOR_REG_NO);
+
+	    if (ownerMinor || debtorMinor) {
+
+	        addDocs(
+	            '미성년자',
+	            ATTACH_DOC.MINOR_AGREEMENT,
+	            ATTACH_DOC.PARENT_SEAL,
+	            ATTACH_DOC.PARENT_ID,
+	            ATTACH_DOC.FAMILY_CERT,
+	            ATTACH_DOC.BASIC_CERT
+	        );
+			
+			checks.push('등록하신 정보는 만 19세 미만으로 확인됩니다. '+
+				'차량 소유자가 청소년일 경우, 부모 등 법정대리인의 동의가 필요합니다.');
+	    }
+
+	    if (normalCheck) {
+	        checks.push(
+	            '해당 고객님은 서류 제출 대상자입니다.\n최종확인 페이지에서 위 서류를 제출해 주세요.'
+	        );
+	    }
 
 	    return {
 	        title: '서류 안내',
 	        items,
+	        titles,
 	        checks,
 	        footer
 	    };
-
-	}, [dsNewCar, dsOwnerInfo]);
+	};
 	
 
 	// 감면 안내창

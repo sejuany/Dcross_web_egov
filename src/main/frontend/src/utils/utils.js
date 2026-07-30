@@ -859,6 +859,43 @@ export const gf = {
 
 	    return list;
 	},
+	
+	/**
+	 * 주민등록번호 기준 미성년자 여부
+	 */
+	isMinor(regNo) {
+
+	    if (!regNo || regNo.length < 7) {
+	        return false;
+	    }
+
+	    const yy = Number(regNo.substring(0, 2));
+	    const mm = Number(regNo.substring(2, 4));
+	    const dd = Number(regNo.substring(4, 6));
+	    const gender = regNo.charAt(6);
+
+	    // 출생연도
+	    const year = ['1', '2', '5', '6'].includes(gender)
+	        ? 1900 + yy
+	        : 2000 + yy;
+
+	    const today = new Date();
+
+	    let age = today.getFullYear() - year;
+
+	    // 올해 생일이 아직 지나지 않았으면 1살 차감
+	    if (
+	        today.getMonth() + 1 < mm ||
+	        (
+	            today.getMonth() + 1 === mm &&
+	            today.getDate() < dd
+	        )
+	    ) {
+	        age--;
+	    }
+
+	    return age < 19;
+	},
 };
 
  

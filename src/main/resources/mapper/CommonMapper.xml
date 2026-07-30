@@ -188,6 +188,9 @@
 	        CALLBACK,
 	        STAT,
 	        TEXT,
+	        <if test="SUBJECT != null and SUBJECT != ''">
+	        SUBJECT,
+	        </if>
 	        REQUEST_TIME
 	    )
 	    VALUES (
@@ -197,6 +200,9 @@
 	        '16886112',
 	        '0',
 	        #{TEXT},
+	        <if test="SUBJECT != null and SUBJECT != ''">
+	        #{SUBJECT},
+	        </if>
 	        SYSDATE
 	    )
 	</insert>
@@ -210,6 +216,7 @@
 	        CALLBACK,
 	        STAT,
 	        TEXT,
+	        SUBJECT,
 	        REQUEST_TIME
 	    )
 	    VALUES (
@@ -219,6 +226,7 @@
 	        '16886112',
 	        '0',
 	        #{TEXT},
+	        #{SUBJECT},
 	        SYSDATE
 	    )
 	</insert>

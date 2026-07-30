@@ -201,6 +201,7 @@ const OwnerUserLease = ({
 			            className="wa-input"
 			            autoComplete="off"
 			            value={dsNewCar.IMSIGV_DT ?? ''}
+						onClick={(e) => e.target.showPicker?.()}
 			            onChange={e =>
 			                setDsNewCar(prev => ({
 			                    ...prev,

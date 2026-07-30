@@ -10,6 +10,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
 import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
@@ -34,7 +35,8 @@ public class SchedulerService {
     public int processTodayNewcarWaitingServices() {
         // 오늘 등록예정일 건들 중 '납부완료','심사대기'상태인 것들 조회하여 심사요청으로 변경하는 스케쥴
         List<SchedulerDto> targetList = schedulerMapper.selectNewcarWaitingServices();
-
+        String sSubject =  "";	// 문자 메시지 제목
+        
         if (targetList == null || targetList.isEmpty()) {
             logger.info("[SchedulerService] 처리할 건 없음");
             return 0;
@@ -65,6 +67,7 @@ public class SchedulerService {
                 // WA로 시작하는 회사 문자 처리
                 if (target.getCOMPANY_ID() != null && target.getCOMPANY_ID().substring(0,2).equals("WA")) {
                      if (target.getCOMPANY_ID().equals("WA001")) {
+                    	 	/*
                             smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
                     		+ "■ 신차 등록 접수 및 세제 혜택 유지 안내\n"
                             + "고객님의 소중한 차량(" + safeValue(target.getCAR_NO()) + ") 등록 서류가 관청에 정상 접수되었습니다. 고객님께서 적용받으신 '취득세 감면 혜택'과 관련하여 필수 유의사항을 안내해 드립니다.\n\n"
@@ -72,7 +75,19 @@ public class SchedulerService {
                             + "감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해 주셔야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n\n"
                             + "저공해 차량 등록 정보는 신규 등록 절차가 모두 완료된 후 전산에서 확인 가능합니다.\n\n"
                             + "※ 본 메시지는 시스템 발신 전용으로 회신이 어렵습니다. 관련 문의 사항은 담당 스페셜리스트에게 문의해 주시면 자세히 안내해 드리겠습니다."
-                            + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone);    
+                            + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone);
+                            */
+                            smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
+                            		+ "주문번호 : " + target.getLINK_ID() + "\r\n차대번호 : " + target.getCARID_NO() + "\r\n\r\n" 
+                            		+ "■ 신차 등록 접수 및 세제 혜택 유지 안내\n"
+                                    + safeValue(target.getCAR_NO())  + "차량의 등록 신청이 관청에 정상 접수되었습니다. 고객님께서 적용받으신 '취득세 감면 혜택'과 관련하여 필수 유의사항을 안내해 드립니다.\n\n"
+                                    + "[취득세 감면 유지 유의사항]\n"
+                                    + "감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해 주셔야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 사유 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n\n"
+                                    + "[취득세 기감면 차량 보유 시 유의사항]\r\n동일한 감면 조건을 여러 차량에 적용할 수 없습니다. 기감면 차량 보유하신 상태에서 새 차량 감면 신청하신 경우, 새 차량 등록일로부터 60일 내에 기존 감면 차량을 말소 또는 이전 등록해야 합니다.\r\n\r\n"
+                                    + "저공해 차량 등록 정보는 신규 등록을 마친 다음 날부터 무공해차 통합누리집에서 확인하실 수 있습니다.\n\n"
+                                    + "※ 본 메시지는 시스템 발신 전용으로 회신이 어렵습니다. 관련 문의 사항은 담당 스페셜리스트에게 문의해 주시면 자세히 안내해 드리겠습니다."
+                                    + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone); 
+                            sSubject = "등록 접수 안내";
                      }
                      else {
                         smsText = "안녕하세요. 신규등록 온라인 대행업체입니다.\n"
@@ -106,7 +121,7 @@ public class SchedulerService {
                 param.put("PAY_HP_NO", target.getMPHONE_NO()); // 고객 연락처
                 param.put("TEXT", smsText);                    // 문자 내용
                 param.put("MSG_TYPE", "3");                   // 문자메세지 유형 1:SMS, 3:LMS
-
+                param.put("SUBJECT", sSubject);                   // 문자메세지 제목
                 commonService.sendSms(param);
                 logger.info("[SchedulerService] SMS문자 발송완료 - serviceId: {}, 문자내용: {}", serviceId, smsText);
 
@@ -155,7 +170,7 @@ public class SchedulerService {
                 }
 
                 try {
-                    StringBuilder smsTextBuilder = new StringBuilder("[폴스타코리아 미입금 확인] ");
+                    StringBuilder smsTextBuilder = new StringBuilder("");
                     for (SchedulerDto target : targets) {
                         smsTextBuilder.append(safeValue(target.getREQ_CAR_NO())).append(", ");
                     }
@@ -176,6 +191,7 @@ public class SchedulerService {
                     param.put("PAY_HP_NO", specialistPhone);
                     param.put("TEXT", smsText);
                     param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
+                    param.put("SUBJECT", "미입금 고객 납부 요청 필요"); // 예: SMS 메시지 유형
                     int result = commonService.sendSms(param);
                     logger.info("[SchedulerService] 문자 발송 완료 - getSPECIALIST_HP_NO: {}, SMS_TEXT: {}", specialistPhone, smsText);
                     updateCount += result;
@@ -217,13 +233,14 @@ public class SchedulerService {
     								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
     								+ "2) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
     								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n\n"
-    								+ "※ 미결제 시 당일 관청 등록 처리가 마감되어 부득이하게 출고 일정이 지연될 수 있으니, 원활한 차량 인도를 위해 시간 내 결제 마무리를 당부드립니다.\n"
+    								+ "※ 미결제 시 당일 관청 등록 처리가 마감되어 부득이하게 출고 일정이 지연될 수 있으니, 원활한 차량 인도를 위해 시간 내 결제 당부드립니다.\n"
     								+ "※ 이미 납부하신 경우, 전산 반영 시차로 인해 본 안내문이 발송된 것이니 양해 부탁드립니다.";
     				
     				Map<String, Object> param = new HashMap<>();
     				param.put("PAY_HP_NO", target.getMPHONE_NO());
     				param.put("TEXT", smsText);
     				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
+    				param.put("SUBJECT", "취득세 납부 미확인 안내"); // 예: SMS 제목
     				commonService.sendSms(param);
     				
     				// 담당자의 연락처로 문자 발송
@@ -246,6 +263,7 @@ public class SchedulerService {
     				param.put("PAY_HP_NO", specialistPhone);
     				param.put("TEXT", smsText);
     				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
+    				param.put("SUBJECT", "취득세 납부 요청 필요"); // 예: SMS 제목
     				int result = commonService.sendSms(param);
     				updateCount += result;
     			} catch (Exception e) {

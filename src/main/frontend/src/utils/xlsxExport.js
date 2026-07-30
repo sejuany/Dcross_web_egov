@@ -94,22 +94,51 @@ export const createSheetXml = (rows) => {
 </worksheet>`;
 };
 
-export const createStylesXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+const createStylesXml = () => {
+    return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
-<fills count="3">
-<fill><patternFill patternType="none"/></fill>
-<fill><patternFill patternType="gray125"/></fill>
-<fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill>
-</fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="2">
-<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>
-</cellXfs>
-<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+    <fonts count="2">
+        <font><sz val="11"/><name val="Malgun Gothic"/></font> <!-- 0: 기본 폰트 -->
+        <font><b/><sz val="11"/><name val="Malgun Gothic"/></font> <!-- 1: 굵은 폰트(제목용) -->
+    </fonts>
+    
+    <fills count="3">
+        <fill><patternFill patternType="none"/></fill>
+        <fill><patternFill patternType="gray125"/></fill>
+        <fill> <!-- 2: 제목줄 배경색 (연한 파란색) -->
+            <patternFill patternType="solid">
+                <fgColor rgb="FFD9E1F2"/>
+            </patternFill>
+        </fill>
+    </fills>
+    
+    <!-- ▼ 테두리(borders) 정의: 모든 방향(좌우상하)에 얇은 실선(thin) 지정 -->
+    <borders count="2">
+        <border><left/><right/><top/><bottom/><diagonal/></border> <!-- 0: 선 없음 -->
+        <border> <!-- 1: 가로세로 격자선 -->
+            <left style="thin"><color auto="1"/></left>
+            <right style="thin"><color auto="1"/></right>
+            <top style="thin"><color auto="1"/></top>
+            <bottom style="thin"><color auto="1"/></bottom>
+        </border>
+    </borders>
+    
+    <cellXfs count="3">
+        <!-- 인덱스 0: 기본 셀 -->
+        <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+        
+        <!-- 인덱스 1: 제목줄 (배경색 + 굵은 글씨 + 테두리 + 가운데 정렬) -->
+        <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1">
+            <alignment horizontal="center" vertical="center"/>
+        </xf>
+        
+        <!-- 인덱스 2: 데이터 본문 (테두리 + 가운데 정렬) -->
+        <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1">
+            <alignment horizontal="center" vertical="center"/>
+        </xf>
+    </cellXfs>
 </styleSheet>`;
+};
 
 const createWorkbookXml = (sheetName) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">

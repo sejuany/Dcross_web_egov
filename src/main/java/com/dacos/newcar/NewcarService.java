@@ -1064,12 +1064,26 @@ public class NewcarService {
                         specialistPhone = specialistPhone.replaceAll("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
                     }
                 }
+                // 서비스 정보
+                Map<String, Object> service =
+        		mortgageMapper.getTrService(serviceId);
+
+                if (service == null || service.isEmpty()) {
+                    throw new BusinessException("서비스 정보 없음: " + serviceId, 404);
+                }
+
+                // 신차 정보
+                Map<String, Object> detail =
+        		newcarMapper.getNewCarDetail(serviceId);
+                
                 String smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
+                		+ "주문번호 : " + service.get("LINK_ID") + "\r\n차대번호 : " + detail.get("CARID_NO") + "\r\n\r\n" 
                 		+ "■ 신차 등록 접수 및 세제 혜택 유지 안내\n"
-                        + "고객님의 소중한 차량(" + safeValue(row.get("CAR_NO").toString()) + ") 등록 서류가 관청에 정상 접수되었습니다. 고객님께서 적용받으신 '취득세 감면 혜택'과 관련하여 필수 유의사항을 안내해 드립니다.\n\n"
+                        + safeValue(row.get("CAR_NO").toString()) + "차량의 등록 신청이 관청에 정상 접수되었습니다. 고객님께서 적용받으신 '취득세 감면 혜택'과 관련하여 필수 유의사항을 안내해 드립니다.\n\n"
                         + "[취득세 감면 유지 유의사항]\n"
-                        + "감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해 주셔야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n\n"
-                        + "저공해 차량 등록 정보는 신규 등록 절차가 모두 완료된 후 전산에서 확인 가능합니다.\n\n"
+                        + "감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해 주셔야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 사유 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n\n"
+                        + "[취득세 기감면 차량 보유 시 유의사항]\r\n동일한 감면 조건을 여러 차량에 적용할 수 없습니다. 기감면 차량 보유하신 상태에서 새 차량 감면 신청하신 경우, 새 차량 등록일로부터 60일 내에 기존 감면 차량을 말소 또는 이전 등록해야 합니다.\r\n\r\n"
+                        + "저공해 차량 등록 정보는 신규 등록을 마친 다음 날부터 무공해차 통합누리집에서 확인하실 수 있습니다.\n\n"
                         + "※ 본 메시지는 시스템 발신 전용으로 회신이 어렵습니다. 관련 문의 사항은 담당 스페셜리스트에게 문의해 주시면 자세히 안내해 드리겠습니다."
                         + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone); 
                 
@@ -1077,6 +1091,7 @@ public class NewcarService {
                 param.put("PAY_HP_NO", row.get("MPHONE_NO").toString()); // 고객 연락처
                 param.put("TEXT", smsText);                   			 // 문자 내용
                 param.put("MSG_TYPE", "3");                  			 // 문자메세지 유형 1:SMS, 3:LMS
+                param.put("SUBJECT", "등록 접수 안내");                  // 문자메세지 제목
 
                 commonService.sendSms(param);
 	        }
@@ -1274,16 +1289,18 @@ public class NewcarService {
 			logger.info("REQUEST PROC_ST: {}", procSt);
 			logger.info("mExemption: {}", mExemption);
 			
-			// 감면신청서 생성 및 PDF 병합이 필요한 경우
-			if (
-			    !"W_REQ".equals(beforeProcSt)
-			    && "W_REQ".equals(procSt)
-			    && "Y".equals(mExemption.get("CREATE_YN"))
-			) {
-		    	
-		        attachService.mergePdf(serviceId, mExemption);
-		    }
-		    
+			if (!"W_REQ".equals(beforeProcSt) && "W_REQ".equals(procSt)) {
+			
+				// 감면신청서 생성 및 PDF 병합
+			    if ("Y".equals(mExemption.get("CREATE_YN"))) {
+			        attachService.mergePdf(serviceId, mExemption);
+			    }
+			    // 미성년자 확인서류 PDF 병합
+			    if ("Y".equals(mExemption.get("MINOR_YN"))) {
+			        attachService.mergeMinorPdf(serviceId);
+			    }
+			}
+			
 		    // 신청 여부 확인
 		    // 신청 상태: S_WAIT(심사대기), P_REQ(납부요청)
 		    boolean isRequest = "S_WAIT".equals(procSt)|| "P_REQ".equals(procSt);
@@ -1994,16 +2011,30 @@ public class NewcarService {
 	}
 	
 	public void updateChangeSu(Map<String, Object> param, UserDto user) {
-
-		param.put("SERVICE_ID", param.get("SERVICE_ID"));
-		param.put("MEMBER_ID", param.get("CHAGE_SU_ID"));
-		param.put("UPD_USER", user.getLOGIN_ID());
-	
-		int result = common.update(param, "updateTrService");
 		
-		if(result < 1) {
-		    throw new BusinessException("담당자 변경 실패");
-		}
+		List<Map<String,Object>> list = (List<Map<String,Object>>) param.get("LIST");
+		
+		for(Map<String,Object> row : list) {
+
+	        row.put("MEMBER_ID", param.get("CHAGE_SU_ID"));
+	        row.put("RECEIVE_NM", param.get("CHAGE_SU_NM"));
+	        row.put("RECEIVE_TEL_NO", param.get("CHAGE_SU_HP"));
+	        row.put("UPD_USER", user.getLOGIN_ID());
+
+	        common.update(row, "updateTrService");
+	        common.update(row, "updateTrCarNoDetach");
+	    }
+		
+	}
+
+	public void cancel(Map<String, Object> param, UserDto user) {
+		
+		param.put("UPD_USER", user.getLOGIN_ID());
+		// 처리상태 변경
+		common.update(param, "updateTrService");
+		// 알림 띄우기
+		commonService.procedureTmBoard(param);
+		
 	}
 	
     private boolean isBlank(String value) {
