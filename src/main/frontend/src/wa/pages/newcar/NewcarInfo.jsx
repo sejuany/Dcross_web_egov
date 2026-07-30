@@ -695,7 +695,7 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
                                 현재 감면 차량을 보유하신 경우, 동일한 조건의 감면을 적용할 수 없습니다.
                             </p>
                             <p className="wa-exemption-warning-note">
-                                ※ 기존 차량을 말소 또는 이전 등록 후 60일 이내 새 차량 등록 시 감면 가능
+                                ※ 새 차량 등록일부터 60일 내에 기존 감면 차량을 말소 또는 이전 등록하면, 새 차량 감면 적용 가능
                             </p>
                             <div className="wa-exemption-warning-example">
                                 (예시) 현재 다자녀(2자녀) 감면 적용 차량 보유 시, 다자녀(2자녀) 감면 적용 불가
