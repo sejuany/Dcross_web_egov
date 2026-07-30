@@ -421,17 +421,18 @@ public class NewcarController {
     public ResponseEntity<Map<String, Object>> uploadWaNewcarAttachFile(
             @RequestParam("serviceId") String serviceId,
             @RequestParam("code") String code,
+            @RequestParam("docName") String docName,
             @RequestParam("gubun") String gubun,
             @RequestParam("file") MultipartFile file,
             HttpSession session
-    ) {
+    ) { 
     	
-    	logger.info("[NewcarController] WA 신규등록 첨부파일 업로드 - serviceId: {}, code: {}, gubun: {}", serviceId, code, gubun);
+    	logger.info("[NewcarController] WA 신규등록 첨부파일 업로드 - serviceId: {}, code: {}, gubun: {}, docName: {}", serviceId, code, gubun);
 
         UserDto user = AuthUtil.getLoginUser(session);
 
         List<Map<String, Object>> list 
-        	= attachService.uploadAttachFile(serviceId, code, gubun, file, user, null);
+        	= attachService.uploadAttachFile(serviceId, code, gubun, docName, file, user, null);
 
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }

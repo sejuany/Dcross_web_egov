@@ -134,11 +134,25 @@
 	    WHERE MT.LOGIN_ID = #{loginId}
 	</select>
 
-	<select id="selectMemberSuInfo" parameterType="string" resultType="java.util.Map">
-		SELECT COMPANY_ID, MEMBER_NM, LOGIN_ID, BRANCH_ID
-		FROM TM_MEMBER_DT
-		WHERE MEMBER_GB = 'SU'
-		  AND COMPANY_ID = #{companyId}
+	<select id="selectMemberSuInfo" resultType="java.util.Map">
+		SELECT MD.COMPANY_ID,
+		       MD.MEMBER_NM,
+		       MD.LOGIN_ID,
+		       MD.BRANCH_ID,
+		       TB.BRANCH_NM
+		FROM TM_MEMBER_DT MD
+		INNER JOIN TM_BRANCH TB
+			ON TB.COMPANY_ID = MD.COMPANY_ID
+		   AND TB.BRANCH_ID = MD.BRANCH_ID
+		WHERE MD.COMPANY_ID = #{companyId}
+		  AND MD.BRANCH_ID = (
+		      SELECT TB.BRANCH_ID
+		      FROM TM_BRANCH TB
+		      WHERE TB.COMPANY_ID = #{companyId}
+		        AND TB.BRANCH_NM = #{branchNm}
+		  )
+		  AND MD.USE_YN = 'Y'
+		  AND MD.MEMBER_NM = #{memberNm}
 	</select>	
 	
     <!-- BCrypt 비밀번호로 업데이트 (단계적 전환용) -->

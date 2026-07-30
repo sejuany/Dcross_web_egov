@@ -128,6 +128,9 @@ const CustomerUpload = () => {
 	    formData.append('gubun', doc.gubun);
 	    formData.append('file', file);
 		formData.append('token', token);
+		
+		// 한글 파일명을 같이 보냄
+		formData.append('docName', doc.name);
 
 	    try {
 

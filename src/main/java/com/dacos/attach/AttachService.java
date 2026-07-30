@@ -168,10 +168,13 @@ public class AttachService {
 
 	/**
 	 * 첨부파일 업로드 및 DB 저장
+	 * 파라미터값 변경하면 두 군데 수정해야 됨
+	 * 신규등록 첨부파일 업로드 - /api/newcar/wa-attach-upload
+	 * 고객 첨부파일 업로드 - /api/customer/file/upload
 	 */
 	@Transactional
 	public List<Map<String, Object>> uploadAttachFile(
-	        String serviceId, String code, String gubun,
+	        String serviceId, String code, String gubun, String docName,
 	        MultipartFile file, UserDto user, String token
 	) {
 		
@@ -232,6 +235,9 @@ public class AttachService {
 		
 			 String originalFileName = sanitizeOriginalFileName(file.getOriginalFilename());
 			 String extension = getFileExtension(originalFileName);
+			 
+			 // 화면에 표시할 한글 파일명
+			 String koreanFileName = docName + extension;
 		
 			 // {서비스아이디}_{첨부파일코드}.{확장자}
 			 String savedFileName =
@@ -243,7 +249,7 @@ public class AttachService {
 	        logger.info("[WA 첨부 업로드] serviceId={}, code={}, gubun={}, seq={}",
 	                cleanServiceId, cleanCode, cleanGubun, seq);
 
-	        logger.info("[WA 첨부 업로드] originalName={}", originalFileName);
+	        logger.info("[WA 첨부 업로드] koreanFileName={}", koreanFileName);
 	        logger.info("[WA 첨부 업로드] contentType={}", file.getContentType());
 	        logger.info("[WA 첨부 업로드] fileSize={}", file.getSize());
 	        logger.info("[WA 첨부 업로드] savePath={}", savePath);
@@ -262,7 +268,7 @@ public class AttachService {
 
 		    param.put("SERVICE_ID", cleanServiceId);
 		    param.put("SEQ", String.valueOf(seq));
-		    param.put("ATCHFILE_NM", originalFileName);
+		    param.put("ATCHFILE_NM", koreanFileName);
 		    param.put("ATCHSVRFILE_NM", savedFileName);
 		    param.put("ATCHFILEPATH_NM", WA_ATTACH_PATH_NM);
 		    param.put("GUBUN", cleanGubun);
@@ -824,7 +830,7 @@ public class AttachService {
 	    Map<String, Object> deleteParam = new HashMap<>();
 	    deleteParam.put("SERVICE_ID", serviceId);
 	    deleteParam.put("GUBUN", "NWEB");
-	    deleteParam.put("ATCHSVRFILE_NM", serviceId + "_MERGE.pdf");
+	    deleteParam.put("ATCHSVRFILE_NM", pdfPath.getFileName().toString());
 
 	    attachMapper.deleteAttachFile(deleteParam);
 
@@ -848,7 +854,7 @@ public class AttachService {
 	    Map<String, Object> insertParam = new HashMap<>();
 	    insertParam.put("SERVICE_ID", serviceId);
 	    insertParam.put("SEQ", String.valueOf(seq));
-	    insertParam.put("ATCHFILE_NM", "MERGE.pdf");
+	    insertParam.put("ATCHFILE_NM", pdfPath.getFileName().toString());
 	    insertParam.put("ATCHSVRFILE_NM", pdfPath.getFileName().toString());
 	    insertParam.put("ATCHFILEPATH_NM", WA_ATTACH_PATH_NM);
 	    insertParam.put("GUBUN", "NWEB");

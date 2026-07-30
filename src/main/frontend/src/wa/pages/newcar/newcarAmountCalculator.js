@@ -1,5 +1,19 @@
 ﻿// 신규등록 예상금액 계산 전용 모듈
-// 화면 입력/상태 변경은 NewcarInfo.jsx에서 처리함. 금액 산출 규칙은 이 파일에서만 관리함.
+/**
+ * 신규등록 예상금액 계산 전용 모듈.
+ *
+ * 전체 호출 순서
+ * 1. NewcarInfo.jsx가 차량명으로 TR_CAR_SPEC, WORK_CD=010의 TM_TAX를 조회한다.
+ * 2. 차량제원과 사용본거지로 TM_BOND 조회 조건을 만들고 현재 공채 매입률을 조회한다.
+ * 3. 조회값을 dsNewCar에 임시로 합쳐 calculateNewcarEstimate()를 한 번 호출한다.
+ * 4. 반환된 금액은 화면 요약 카드와 TR_NEWCAR/TR_PAYMENT 저장값에 함께 반영된다.
+ *
+ * 이 파일은 서버 호출이나 React state 변경을 하지 않는 순수 계산 모듈이다.
+ * 계산 규칙을 바꿀 때는 화면에 별도 계산식을 추가하지 말고 이 파일과 단위 테스트를 같이 수정한다.
+ * 취득세 친환경 감면과 공채 친환경 감면은 대상 차량/지역 규칙이 서로 다르므로 합치지 않는다.
+ *
+ * 상세 운영·인수인계 문서: WA_신규등록_예상금액_처리_가이드.txt
+ */
 const ROUND_UNIT = 10;
 
 // 결제항목 표시/정렬 순서
@@ -209,7 +223,12 @@ const normalizeExemptionCode = (value) => {
 const resolveExemptionCode = (dsNewCar, codes) => {
     const selectedCode = normalizeExemptionCode(dsNewCar.NTAX_TRGET_CD);
 
-    if (!selectedCode || selectedCode === '00' || EXEMPTION_NAMES[selectedCode]) {
+    // 화면의 빈 값도 프로시저의 비과세 미적용 코드 '00'과 같은 의미다.
+    if (!selectedCode) {
+        return '00';
+    }
+
+    if (selectedCode === '00' || EXEMPTION_NAMES[selectedCode]) {
         return selectedCode;
     }
 
@@ -450,7 +469,10 @@ const resolveAcqTaxExemption = ({ dsNewCar, codes, grossAcqTax }) => {
     return unchanged('침수차량 취득세 확인 필요');
 };
 
-// 전기·수소차 여부와 프로시저의 친환경 감면 대상 여부를 분리함.
+// 전기·수소차 여부와 운영 프로시저의 친환경 감면 대상 여부를 분리함.
+// resolveEcoEligibility()는 취득세용 acquisitionEligible과 공채용 bondEligible을 따로 반환한다.
+// 특정 차명이 취득세 친환경 감면에서 제외되더라도 지역별 공채 감면은 받을 수 있으므로
+// 예외 차명을 bondEligible에도 적용하면 안 된다.
 const isElectricVehicle = (dsNewCar) => {
     const fuelCode = String(dsNewCar.FUEL_CD ?? '').trim().toLowerCase();
     const maker = String(dsNewCar.CAR_SPEC_MAKER ?? dsNewCar.MAKER ?? '').replace(/\s+/g, '').toUpperCase();
@@ -548,9 +570,9 @@ const applyEcoAcqTaxExemption = ({
         : electricResult;
 };
 
-// 과세표준 금액 결정함.
-// 첨부 로직처럼 표준과세금액/신고금액이 있으면 BUY_AMT와 비교해 큰 금액 사용함.
-// STANDARD_AMT/TAX_AMT가 없으면 현재 화면에서 입력 가능한 BUY_AMT 기준으로 계산함.
+// 현재 예상금액의 과세표준은 운영 요청에 따라 차량 세금계산서 금액(BUY_AMT)만 사용한다.
+// STANDARD_AMT는 계산 결과를 저장하는 필드이므로 입력 기준으로 다시 사용하지 않는다.
+// 향후 신고가액/시가표준액 비교 규칙을 도입하면 이 함수와 buildNewcarEstimateKey(), 테스트를 함께 수정한다.
 const resolveTaxableStandard = (dsNewCar) => getNumber(dsNewCar.BUY_AMT);
 
 // 번호판대 계산함.
@@ -853,8 +875,27 @@ export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsWorkCp.FEE ?? ''
 ].join('|');
 
-// 신규등록 예상금액 전체 계산함.
-// 반환값은 화면 요약, TR_NEWCAR 금액 필드, TR_PAYMENT row 갱신에 함께 사용함.
+/**
+ * 신규등록 예상금액 전체 계산의 단일 진입점.
+ *
+ * 입력
+ * - dsNewCar: 사용자 입력값 + 차량제원 + TM_TAX + TM_BOND 조회 결과
+ * - dsPaymentList: 기존 TR_PAYMENT 목록. 없는 예상 결제항목은 이 함수에서 생성한다.
+ * - dsWorkCp: 회사별 등록수수료(TM_WORK_CP.FEE)
+ * - codes: 감면 코드(NTTCD), 공채 할인율(TUSE/SBOND) 등 공통코드
+ *
+ * 처리 순서
+ * 1. BUY_AMT 기준 취득세 산출 -> 일반 감면 -> 친환경 감면 -> 10원 미만 절사
+ * 2. 공채 매입의무 금액 산출 -> 사전 전액면제 -> 친환경 감면 -> 지역별 절사/반올림
+ * 3. 채권 매입(BUY)은 매입기준금액, 매도(SELL)는 할인액을 실제 납부액으로 결정
+ * 4. 등록수수료/인지/증지/번호판대 등을 합쳐 TR_PAYMENT 예상금액과 총액 생성
+ *
+ * 중요 반환값
+ * - totalAmt: TR_NEWCAR.PREREG_AMT/TOTAL_AMT에 반영할 예상 납부 합계
+ * - updatedPaymentList: TR_PAYMENT에 저장할 항목별 금액
+ * - bondBaseAmt: 공채 감면 후 실제 매입기준금액(BOND row의 REAL_ALOAN)
+ * - bond: 선택한 채권 처리방식에 따라 실제 납부할 금액(BOND row의 PRE_PAY_AMT/PAY_AMT)
+ */
 export const calculateNewcarEstimate = ({
     dsNewCar = {},
     dsPaymentList = [],
@@ -865,6 +906,8 @@ export const calculateNewcarEstimate = ({
     const paymentRows = buildPaymentRows(dsPaymentList);
 
     // 1. 운영 프로시저 순서로 취득세 계산함.
+    // 감면 전 세액(grossAcqTax)과 실제 납부세액(acqTax)을 분리해야
+    // 화면 감면 카드에서 10원 미만 절삭액을 감면액으로 잘못 표시하지 않는다.
     const taxableStandard = resolveTaxableStandard(dsNewCar);
     const taxInfo = getTaxInfo({ dsNewCar, codes });
     const procedureRates = resolveProcedureTaxRates(dsNewCar);
@@ -890,7 +933,8 @@ export const calculateNewcarEstimate = ({
     const acqTax = roundDown(Math.max(0, exemptionResult.acqTax));
     const acqReductionAmt = Math.max(0, exemptionResult.acqReductionAmt);
 
-    // 2. 비과세·차종·지역·리스 사전면제 후 친환경 공채감면 적용함.
+    // 2. 비과세·차종·지역·리스 사전면제를 먼저 적용하고, 남은 금액에 친환경 공채감면을 적용함.
+    // BOND_RATE는 0~1이면 과세표준에 곱하는 비율, 1 이상이면 이미 계산된 정액으로 해석한다.
     const bondArea = resolveBondArea(dsNewCar);
     const bondValue = getNumber(config.bondRate);
     const bondValueType = bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT';
@@ -911,7 +955,10 @@ export const calculateNewcarEstimate = ({
         }
         : resolveEcoBondRelief({ dsNewCar, bondGrossAmt, ecoEligibility });
     const bondBaseAmt = roundBondPurchaseAmount(bondReliefResult.bondBaseAmt, bondArea);
-    const bondDiscountAmt = Math.floor(bondBaseAmt * normalizePercent(config.bondDiscountRate));
+    const bondDiscountRate = normalizePercent(config.bondDiscountRate);
+    const bondDiscountAmt = Math.floor(bondBaseAmt * bondDiscountRate);
+    // BUY(매입): 감면 후 채권 원금 전체를 납부한다.
+    // SELL(매도/할인): 채권 원금은 REAL_ALOAN에 보관하고 할인액만 납부한다.
     const bond = dsNewCar.BOND_DC === 'BUY' ? bondBaseAmt : bondDiscountAmt;
     const bondFee = Math.floor(
         (bondBaseAmt * normalizePercent(config.bondFeeRate)) + getNumber(config.bondFeeBaseAmount)
@@ -966,7 +1013,9 @@ export const calculateNewcarEstimate = ({
     };
 
     // 계산 금액을 결제 row에 반영함.
-    // BOND row의 T_VBANK_ID에는 첨부 로직처럼 채권 매입 기준금액을 보관함.
+    // PRE_PAY_AMT와 PAY_AMT에는 현재 예상 실제 납부액을 동일하게 넣는다.
+    // BOND row만 REAL_ALOAN에 공채 매입기준금액을 별도 보관한다.
+    // 특히 SELL은 PAY_AMT=할인액, REAL_ALOAN=감면 후 채권 원금이므로 두 값을 바꾸면 안 된다.
     const updatedPaymentList = paymentRows.map(row => {
         if (!Object.prototype.hasOwnProperty.call(calculatedAmounts, row.PAY_KD)) {
             return row;
@@ -1014,15 +1063,18 @@ export const calculateNewcarEstimate = ({
         electricVehicle: isElectricVehicle(dsNewCar),
         bondArea,
         bondGb: dsNewCar.BOND_GB ?? '',
+        bondDc: dsNewCar.BOND_DC ?? '',
         bondRate,
         bondValue,
         bondValueType,
         bondGrossAmt,
+        bondPreExempt: bondPreExemption.exempt,
         bondReductionLimit: bondReliefResult.limit,
         bondReductionAmt: bondReliefResult.bondReductionAmt,
         bondReliefApplied: bondReliefResult.applied,
         bondReliefReason: bondReliefResult.reason,
         bondBaseAmt,
+        bondDiscountRate,
         bondDiscountAmt,
         bond,
         bondFee,

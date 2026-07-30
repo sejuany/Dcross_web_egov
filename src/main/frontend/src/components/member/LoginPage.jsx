@@ -162,7 +162,7 @@ const LoginPage = () => {
                     <div className="brand-content">
                         <img src="/logo.png" alt="DACOS Logo" className="main-logo" />
                         <p className="brand-tagline">Dream Of All Car Online Service</p>
-                        <p className="brand-tagline">GOVT Version V1.0</p>
+
                         <div className="notice-box">
                             <p>본 시스템은 인가된 사용자만 접근할 수 있습니다.</p>
                             <p>인가되지 않은 접근은 즉시 차단되며 관련 법규에 따라 처벌받을 수 있습니다.</p>

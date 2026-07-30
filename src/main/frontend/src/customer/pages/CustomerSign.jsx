@@ -200,6 +200,8 @@ const CustomerSign = () => {
 		formData.append("gubun", SIGN_DOC.SIGN.gubun);
 		formData.append("file", file);
 		formData.append("token", token);
+		// 한글 파일명을 같이 보냄
+		formData.append('docName', '감면신청서 서명');
 
 	    try {
 

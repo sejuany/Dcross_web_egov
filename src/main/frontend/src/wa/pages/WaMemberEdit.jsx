@@ -156,22 +156,10 @@ const MemberEdit = () => {
       return false;
     }
 
-    if (!form.TEL_NO.trim()) {
-      alert('전화번호를 입력하세요.');
-      return false;
-    }
-
     if (!form.REGIST_NO.trim()) {
       alert('로그인 등록번호를 입력하세요.');
       return false;
     }
-
-    const telOnly = form.TEL_NO.replace(/\D/g, '');
-    if (telOnly.length < 9) {
-      alert('전화번호 형식을 확인하세요.');
-      return false;
-    }
-
     if (form.MPHONE_NO.trim()) {
       const mobileOnly = form.MPHONE_NO.replace(/\D/g, '');
       if (mobileOnly.length < 10) {
@@ -274,20 +262,6 @@ const MemberEdit = () => {
               />
             </div>
           </div>
-
-          <div className="profile-row">
-            <div className="profile-label">전화번호</div>
-            <div className="profile-value">
-              <input
-                name="TEL_NO"
-                value={form.TEL_NO}
-                onChange={handleChange}
-                className="profile-input"
-                placeholder="예: 02-1234-5678"
-              />
-            </div>
-          </div>
-
           <div className="profile-row">
             <div className="profile-label">휴대폰번호</div>
             <div className="profile-value">

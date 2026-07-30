@@ -71,11 +71,13 @@ public class CustomerController {
 
     /**
      * 고객 첨부파일 업로드
+     * POST /api/customer/file/upload
      */
     @PostMapping("/file/upload")
     public ResponseEntity<Map<String, Object>> fileUpload(
             @RequestParam("serviceId") String serviceId,
             @RequestParam("code") String code,
+            @RequestParam("docName") String docName,
             @RequestParam("gubun") String gubun,
             @RequestParam("file") MultipartFile file,
             @RequestParam("token") String token,
@@ -89,6 +91,7 @@ public class CustomerController {
                         serviceId,
                         code,
                         gubun,
+                        docName,
                         file,
                         null,
                         token

@@ -37,7 +37,10 @@ public interface AuthMapper {
     
     Map<String, Object> selectMBCount(Map<String, Object> request);
     
-    List<Map<String, Object>> selectMemberSuInfo(@Param("companyId") String companyId);
+    Map<String, Object> selectMemberSuInfo(
+            @Param("companyId") String companyId,
+            @Param("branchNm") String branchNm,
+            @Param("memberNm") String memberNm);
     
     void insertMemberMaster(Map<String, Object> memberMT);
 

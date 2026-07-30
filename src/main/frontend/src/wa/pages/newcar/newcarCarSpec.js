@@ -1,6 +1,25 @@
 const getAmount = (value) => Number(String(value ?? 0).replace(/,/g, '')) || 0;
 const hasValue = (value) => value !== undefined && value !== null && value !== '';
 
+/**
+ * 차량제원과 사용본거지를 TM_BOND 조회 파라미터로 변환하는 모듈.
+ *
+ * 이 함수들은 공채 금액을 직접 계산하지 않는다.
+ * 운영 프로시저의 지역·차종 분기를 재현하여 TM_BOND에서 어느 요율 row를 조회할지 결정한다.
+ *
+ * CAR_GB 의미
+ * - 1: 승용/경차
+ * - 2: 승합
+ * - 3: 화물
+ * - e: 서울 전기 승용차의 크기 구간 조회
+ *
+ * baseValue는 차종과 지역에 따라 배기량, 승차정원, 적재량 또는 차체 크기 구간값이 된다.
+ * 따라서 공채 요율이 0이거나 잘못 조회되면 계산식보다 먼저 이 함수의
+ * area/carGb/baseValue와 TR_CAR_SPEC 제원값을 확인한다.
+ *
+ * 상세 운영·인수인계 문서: WA_신규등록_예상금액_처리_가이드.txt
+ */
+
 // 사용본거지 주소에서 프로시저 공채 분기에 사용할 지역명 가져옴.
 const resolveBondArea = (baseAddress) => {
     const source = String(baseAddress ?? '').trim();
@@ -15,6 +34,7 @@ const resolveBondArea = (baseAddress) => {
 };
 
 // sp_NewCarTaxBondConfirm의 지역·차종별 TM_BOND 조회 기준 생성함.
+// 반환값은 NewcarInfo.jsx가 GET /api/newcar/bond-rate 요청 파라미터로 사용한다.
 export const resolveBondSearchCriteria = (newCar = {}) => {
     let area = resolveBondArea(newCar.BASE_ADDRESS);
     const carCc = Math.max(0, getAmount(newCar.CAR_CC));
@@ -126,7 +146,10 @@ export const resolveBondSearchCriteria = (newCar = {}) => {
 };
 
 // TR_CAR_SPEC 조회 결과 중 TR_NEWCAR와 예상금액 계산에 필요한 필드만 추출함.
-// 공급가액은 사용자가 직접 입력한 값이 있으면 유지하고, 없을 때만 제원 테이블 값을 사용함.
+// 이 patch를 먼저 dsNewCar에 합쳐야 취득세 차량조건과 TM_BOND 검색조건이 같은 제원을 사용한다.
+// 공급가액은 사용자가 직접 입력한 값이 있으면 유지하고, 없을 때만 제원 테이블 값을 사용한다.
+// 새 제원 컬럼을 추가할 때는 아래 매핑뿐 아니라 resolveBondSearchCriteria()와
+// buildNewcarEstimateKey()가 그 값을 계산/재계산 기준으로 사용하는지도 확인한다.
 export const buildCarSpecPatch = (dsNewCar = {}, carSpec = {}) => {
     const preferValue = (...values) => values.find(
         value => value !== undefined && value !== null && value !== ''

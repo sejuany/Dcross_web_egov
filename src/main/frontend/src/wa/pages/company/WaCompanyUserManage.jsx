@@ -818,15 +818,6 @@ function WaCompanyUserManage() {
 
     const memberColumnDefs = useMemo(() => [
         {
-            headerName: '번호',
-            valueGetter: 'node.rowIndex + 1',
-            width: 70,
-            minWidth: 70,
-            maxWidth: 80,
-            cellClass: 'wum-ag-center',
-            headerClass: 'wum-ag-center',
-        },
-        {
             headerName: 'SPACE',
             field: 'CBS_NM',
             flex: 1.5,

@@ -277,7 +277,7 @@ public class NewcarService {
                 normalizedCarName);
 
         if (carSpec == null || carSpec.isEmpty()) {
-            throw new BusinessException("TR_CAR_SPEC에서 차량제원을 찾을 수 없습니다: " + normalizedCarName, 404);
+            throw new BusinessException(normalizedCarName + " 차량제원을 찾을 수 없습니다.", 404);
         }
 
         // 회사별 차종구분과 연료구분을 세금 및 공채 감면 계산에 사용함.
@@ -450,7 +450,7 @@ public class NewcarService {
     /**
      * 엑셀 검증 - 필수값, 형식, 중복 등
      */
-	private List<String> validateExcelRow(Map<String, Object> row, Set<String> excelCarIds, Set<String> excelLinkId, Map<String, String> dlvMap, Map<String, Map<String, String>> suMap) {
+	private List<String> validateExcelRow(Map<String, Object> row, Set<String> excelCarIds, Set<String> excelLinkId, Map<String, String> dlvMap, String companyId) {
 		List<String> errors = new ArrayList<>();
 		String registDate = Objects.toString(row.get("REGIST_DATE"), "").trim();
 
@@ -538,26 +538,23 @@ public class NewcarService {
 		if (isEmpty(spaceNm)) {
 			errors.add("담당 Specialist 없음");
 		} else {
-			// 담당 SP확인
-			if (!suMap.containsKey(spaceNm)) {
-		        errors.add("존재하지 않는 Specialist : " + spaceNm);
+			// SPACE_GB에 해당하는 Specialist만 허용
+			Map<String, Object> memberInfo = authMapper.selectMemberSuInfo(companyId, spaceGb, spaceNm);
+			if (memberInfo == null) {
+		        errors.add("Space 명과 담당 Specialist 정보 매칭 불가");
 		    } else {
 		        // 해당 SU login_id, branch_id 넣어주기
-		    	Map<String, String> memberInfo = suMap.get(spaceNm);
-
 		    	row.put("SU_LOGIN_ID", memberInfo.get("LOGIN_ID"));
 		    	row.put("SU_BRANCH_ID", memberInfo.get("BRANCH_ID"));
 		    }
 		}
 
-
 		String directYn = Objects.toString(row.get("DIRECT_YN"), "").trim();
-		logger.info("자가등록여부 directYn 값 확인 중 : {}", directYn);
+		logger.info("차량 등록 방법 directYn 값 확인 중 : {}", directYn);
 		if (isEmpty(directYn)) {
 			errors.add("등록방법(Agency/자가등록) 없음");
 		} else {
-			// 직접입력여부 체크
-			if (!"자가등록".equals(directYn) && !"Agency".equals(directYn)) {
+			if (!"자가등록".equals(directYn) && !"Agency".equalsIgnoreCase(directYn)) {
 				errors.add("등록방법(Agency/자가등록) 아님");
 			}
 		}
@@ -574,21 +571,25 @@ public class NewcarService {
 		try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
 			DataFormatter formatter = new DataFormatter();
+			var evaluator = workbook.getCreationHelper().createFormulaEvaluator();
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
 				Row excelRow = sheet.getRow(i);
 				if (excelRow == null) {
 					continue;
 				}
 				Map<String, Object> row = new HashMap<>();
-				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter)); 																			//Space명(배송지)
-				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter));																			//담당 Specialist명
-				row.put("LINK_ID", getCellValue(excelRow.getCell(0), formatter));																				//주문번호
-				row.put("OWNER_NM", getCellValue(excelRow.getCell(11), formatter));																			//계약자명(고객명)
-				row.put("CAR_NM", getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"모델") + " " + getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"엔진")); //차명
-				row.put("CARID_NO", getCellValue(excelRow.getCell(1), formatter));																			//차대번호
-				row.put("BUY_AMT", getCellValue(excelRow.getCell(13), formatter).replace(",", ""));										 //공급가액
-				row.put("REGIST_DATE", getCellValue(excelRow.getCell(7), formatter).replace("-", "").replace(".", ""));	  //등록일자
-				row.put("DIRECT_YN", getCellValue(excelRow.getCell(8), formatter));																			//직접입력여부
+				row.put("LINK_ID", getCellValue(excelRow.getCell(0), formatter)); // A: 주문번호
+				row.put("CARID_NO", getCellValue(excelRow.getCell(1), formatter)); // B: 차대번호
+				row.put("CAR_NM", (getCellValue(excelRow.getCell(2), formatter) + " "
+						+ getCellValue(excelRow.getCell(4), formatter)).trim()); // C + E: 차명
+				row.put("REGIST_DATE", getCellValue(excelRow.getCell(7), formatter)
+						.replace("-", "").replace(".", "")); // H: 차량등록예정일
+				row.put("DIRECT_YN", getCellValue(excelRow.getCell(8), formatter)); // I: 차량 등록 방법
+				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter)); // J: SPACE 명
+				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter)); // K: 담당 Specialist
+				row.put("OWNER_NM", getCellValue(excelRow.getCell(11), formatter)); // L: 계약자(고객명)
+				row.put("BUY_AMT", formatter.formatCellValue(excelRow.getCell(13), evaluator)
+						.trim().replace(",", "")); // N: 차량 세금 계산서 금액
 				result.add(row);
 			}
 		} catch (Exception e) {
@@ -663,26 +664,15 @@ public class NewcarService {
 		Set<String> excelLinkId = new HashSet<>();
 
 		List<Map<String, Object>> dlvCodes = codeMapper.findCodesByGroupId("DLVGB");
-		List<Map<String, Object>> suInfo = authMapper.selectMemberSuInfo(user.getCOMPANY_ID());
 		List<Map<String, Object>> dlaCodes = codeMapper.findCodesByGroupId("DLADD");
 
 		Map<String, String> dlvMap = new HashMap<>();
-		Map<String, Map<String, String>> suMap = new HashMap<>();
 		Map<String, String> dlaMap = new HashMap<>();
 
 		for (Map<String, Object> code : dlvCodes) {
 			dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
 		}
-		for (Map<String, Object> code : suInfo) {
-			Map<String, String> memberInfo = new HashMap<>();
-		    memberInfo.put("LOGIN_ID", Objects.toString(code.get("LOGIN_ID"), ""));
-		    memberInfo.put("BRANCH_ID", Objects.toString(code.get("BRANCH_ID"), ""));
 
-		    suMap.put(
-		        Objects.toString(code.get("MEMBER_NM"), "").trim(),
-		        memberInfo
-		    );
-		}
 		for (Map<String, Object> code : dlaCodes) {
 			dlaMap.put(Objects.toString(code.get("CODE_ID"), "").trim(), Objects.toString(code.get("CODE_NM"), ""));
 		}
@@ -691,7 +681,8 @@ public class NewcarService {
 		// =========================
 		for (int i = 0; i < rows.size(); i++) {
 			Map<String, Object> row = rows.get(i);
-			List<String> errors = validateExcelRow(row, excelCarIds, excelLinkId, dlvMap, suMap);
+			List<String> errors = validateExcelRow(
+					row, excelCarIds, excelLinkId, dlvMap, user.getCOMPANY_ID());
 			if (errors.isEmpty()) {
 				try {
 					applyExcelCarSpec(row, user);
@@ -962,11 +953,11 @@ public class NewcarService {
 	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
 	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 						   // 등록일자
 	    dsNewCar.put("STAMP_GB", "TOTAL"); 			  	 	 					   // 인지세
-		String directYnText = Objects.toString(row.get("DIRECT_YN"), "");
+		String directYnText = Objects.toString(row.get("DIRECT_YN"), "").trim();
 		String directyn = "N";
 		if ("자가등록".equals(directYnText) || "Y".equalsIgnoreCase(directYnText)) {
 			directyn = "Y";
-			dsService.put("PROC_ST", "INPUT");  // 직접등록이면 상태값 INPUT으로 변경
+			dsService.put("PROC_ST", "INPUT");  // 자가등록이면 상태값 INPUT으로 변경
 		}
 	    dsNewCar.put("DIRECT_YN", directyn);	// 직접등록여부		
 	    // =========================

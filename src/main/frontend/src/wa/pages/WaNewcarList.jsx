@@ -77,7 +77,7 @@ const columns = [
     { key: 'CHK', label: '', type: 'checkbox', width: 44, minWidth: 40, sortable: false },
     { key: 'SEQ', label: '순번', width: 44, minWidth: 20, sortable: false },
     { key: 'REGIST_DATE', label: '등록예정일자', width: 116, minWidth: 50, sortType: 'date' },
-    { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 100, minWidth: 60 },
+    { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 120, minWidth: 70 },
     { key: 'LINK_ID', label: '주문번호', width: 82, minWidth: 60 },
     { key: 'CARID_NO', label: '차대번호', width: 150, minWidth: 60 },
     { key: 'CAR_NO', label: '차량번호', width: 96, minWidth: 60 },
@@ -256,7 +256,7 @@ const getStatusClass = (statusLabel, statusCode) => {
     const code = String(statusCode || '').trim().toUpperCase();
     const label = String(statusLabel || '').trim();
 
-    if (/^(RET|REJECT)$/.test(code) || /반려/.test(label)) {
+    if (/^(RET)$/.test(code)) {
         return 'reject';
     }
 
@@ -273,7 +273,10 @@ const getStatusClass = (statusLabel, statusCode) => {
 
 const getProcessGroupCode = (row) => toStringValue(row.NPROC_ST || row.PROC_ST);
 
-const isRejectRow = (row) => getProcessGroupCode(row) === 'RET' || /반려|RET/.test([row.processStatus, row.PROC_ST].join(' '));
+const isRejectRow = (row) => {
+    const code = String(row.PROC_ST || '').trim().toUpperCase();
+    return /^(RET|REJECT)$/.test(code);
+};
 
 const isStatusIn = (row, statusCodes) => statusCodes.includes(getProcessGroupCode(row));
 

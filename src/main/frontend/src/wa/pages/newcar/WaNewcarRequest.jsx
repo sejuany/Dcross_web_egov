@@ -1,4 +1,4 @@
-﻿﻿/* =========================================================
+﻿﻿﻿ /* =========================================================
  * Import
  * ========================================================= */
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -188,7 +188,7 @@ const resolveBondBankFields = (baseAddress, busanBond, bondDc) => {
 
 
 // 상세조회 화면 표시 대상 상태
-const DETAIL_PROC_STATUS = ['REQ', 'S_REQ', 'RET', 'END'];
+const DETAIL_PROC_STATUS = ['REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END'];
 
 // 신청 단계
 const REQUEST_STEPS = [
@@ -400,6 +400,9 @@ const formatNumberData = (dataSet) => {
 		    DEBTOR_MPHONE_NO: gf.onlyNumber(String(dataSet.dsOwnerInfo1.DEBTOR_MPHONE_NO || ''))
 		},
 		
+		// 예상금액 계산 결과 저장 필드:
+		// PRE_PAY_AMT/PAY_AMT는 항목별 실제 예상 납부액이고,
+		// BOND row의 REAL_ALOAN은 매도 여부와 무관한 공채 매입기준금액이다.
 		dsPaymentList: dataSet.dsPaymentList.map(item => ({
 		    ...item,
 
@@ -901,13 +904,15 @@ const WaNewcarRequest = ({
 		}
 		
 	    if (!skipNotice) {
-	        if (openNotice(step, nextStep)) {
+	        if (await openNotice(step, nextStep)) {
 	            return;
 	        }
 	    }
 		
 		let newCarForSave = null;
 		// 3 -> 4로 넘어갈 때 주소와 채권 처리방식에 맞는 채권은행 값을 저장한다.
+		// 이때 NewcarInfo의 예상금액 확인 버튼이 갱신한 dsPaymentList도 saveProcess() 요청에 포함되어
+		// TR_PAYMENT의 PRE_PAY_AMT/PAY_AMT/REAL_ALOAN으로 함께 저장된다.
 	    if (step === 3 && nextStep === 4) {
 			const busanBond = (
 				dsNewCar.BUSAN_BOND
@@ -971,34 +976,91 @@ const WaNewcarRequest = ({
 	};
 	
 	// 서류안내 모달창
-	const openNotice = (currentStep, nextStep) => {
+	const openNotice = async (currentStep, nextStep) => {
 
 	    // 1 -> 2
 	    if (currentStep === 1 && nextStep === 2) {
-			
-	        if (noticeCheck.items.length || noticeCheck.checks.length) {
-	            setNotice(noticeCheck);
-	            setNextStep(2);
-	            setNoticeOpen(true);
-	            return true;
-	        }
+
+			// 첨부 파일이 필요한 경우
+			if (noticeCheck.items.length || noticeCheck.checks.length) {
+
+			    // 필요한 첨부파일이 없으면 검사하지 않음
+			    if (attachPolicy.requiredDocs.length === 0) {
+			        return false;
+			    }
+
+				// 업로드된 파일 조회
+			    const files = await getAttachFiles(serviceId);
+
+				// 업로드된 파일 CODE 목록
+			    const uploadedCodes = new Set(
+			        files.map(file => file.CODE)
+			    );
+
+			    // 필요한 서류 중 하나라도 업로드되지 않았는지 확인
+				// 여기서는 이용자명의 리스, 공동소유, 외국인만 체크한다. 
+			    const hasMissingDoc = attachPolicy.requiredDocs.some(
+			        doc => !uploadedCodes.has(doc.code)
+			    );
+
+			    if (hasMissingDoc) {
+			        setNotice(noticeCheck);
+			        setNoticeOpen(true);
+			        setNextStep(2);
+			        return true;
+			    }
+			}
 	    }
 
 	    // 3 -> 4
 	    if (currentStep === 3 && nextStep === 4) {
-
+			
+			// 필요한 첨부파일 없으면 검사하지 않음
 			if (
-			    exemptionNotice &&
-			    (exemptionNotice.items.length || exemptionNotice.checks.length)
+			    attachPolicy.requiredSigns.length === 0 &&
+			    ntaxPolicy.requiredDocs.length === 0
 			) {
+			    return false;
+			}
+			
+			// 업로드 된 첨부파일 조회
+			const files = await getAttachFiles(serviceId);
+
+			// 업로드된 파일 CODE 목록
+			const uploadedCodes = new Set(
+			    files.map(file => file.CODE)
+			);
+
+			// 전자서명 누락 여부
+			const hasMissingSign = attachPolicy.requiredSigns.some(
+			    sign => !uploadedCodes.has(sign.code)
+			);
+			
+			// 비과세 첨부파일 누락 여부
+			const hasMissingDoc = ntaxPolicy.requiredDocs.some(
+			    doc => !uploadedCodes.has(doc.code)
+			);
+
+			if (hasMissingDoc || hasMissingSign) {
 			    setNotice(exemptionNotice);
 			    setNextStep(4);
 			    setNoticeOpen(true);
 			    return true;
 			}
-	    }
+		}
 
 	    return false;
+	};
+	
+	// 서류 업로드 여부 확인
+	const getAttachFiles = async (serviceId) => {
+	    const res = await axios.get('/api/newcar/wa-attach-files', {
+	        params: { serviceId }
+	    });
+
+	    return Array.isArray(res.data?.list)
+	        ? res.data.list
+	        : [];
 	};
 	
 	// 차량 구매 방식 정보 저장
@@ -1727,23 +1789,25 @@ const WaNewcarRequest = ({
 			dsTaxReceipt,
 	        dsPaymentList: [...dsPaymentList]
 	    };
+
+		// 감면신청서 데이터
+		newDataSet.dsExemption = {
+		    CREATE_YN: attachPolicy.needSign ? 'Y' : 'N',
+		    REASON: '',
+		    DOCUMENT: ''
+		};
 		
 		// 감면신청서 데이터 추가
 		if (attachPolicy.needSign) {
+			
+			newDataSet.dsExemption.REASON =
+			    NTAX_POLICY[dsNewCar.NTAX_TRGET_CD]?.NAME || '';
 
-		    const ntaxReason =
-		        NTAX_POLICY[dsNewCar.NTAX_TRGET_CD]?.NAME || '';
-
-		    const ntaxDocuments =
-		        (ntaxPolicy.requiredDocs || [])
-		            .map(doc => doc.name)
-		            .join(', ');
-
-		    newDataSet.dsExemption = {
-		        REASON: ntaxReason,
-		        DOCUMENT: ntaxDocuments
-		    };
-		}
+			newDataSet.dsExemption.DOCUMENT =
+			    (ntaxPolicy.requiredDocs || [])
+			        .map(doc => doc.name)
+			        .join(', ');
+		} 
 
 		await processService(newDataSet, "REQ");
 	};
@@ -2131,8 +2195,10 @@ const WaNewcarRequest = ({
 	// 감면 안내창
 	const exemptionNotice = useMemo(() => {
 		
+		const isExempt = attachPolicy.needSign || ntaxPolicy.needUpload;
+		
 		// 감면 안내가 필요 없으면 모달 자체를 띄우지 않음
-		if (!showAttach) {
+		if (!isExempt) {
 		    return null;
 		}
 		

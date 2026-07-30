@@ -157,6 +157,39 @@ describe('신규등록 예상금액', () => {
         expect(result.bondBaseAmt).toBe(2500000);
     });
 
+    test('Polestar 4 Coupe Long Range Dual Motor의 서울 공채 250만원 감면 산식을 유지한다', () => {
+        const result = calculateNewcarEstimate({
+            dsNewCar: {
+                CAR_NM: 'Polestar 4 Coupe Long Range Dual Motor',
+                CAR_CD: '승용',
+                CAR_CC: 0,
+                GETIN_NO: 5,
+                FOM_NM: 'EV-MOTOR',
+                FUEL_CD: 'e',
+                BUY_AMT: 71909091,
+                // 화면에서 비과세 미적용을 선택하지 않은 초기 상태
+                NTAX_TRGET_CD: '',
+                BOND_DC: 'SELL',
+                BOND_RATE: 0.05,
+                BOND_DISCOUNT_RATE: 0.1,
+                BASE_ADDRESS: '서울특별시 중구',
+                TM_TAX_INFO: {
+                    HYBRID_FM_EXCLUSIONS: '',
+                    HYBRID_OK_PATTERNS: '|EV-MOTOR|'
+                }
+            }
+        });
+
+        expect(result.acqReductionAmt).toBe(1400000);
+        expect(result.acqTax).toBe(3633630);
+        expect(result.bondPreExempt).toBe(false);
+        expect(result.bondGrossAmt).toBe(3595454);
+        expect(result.bondReductionLimit).toBe(2500000);
+        expect(result.bondReductionAmt).toBe(2500000);
+        expect(result.bondBaseAmt).toBe(1095000);
+        expect(result.bond).toBe(109500);
+    });
+
     test('서울 전기차 공채 조회값은 차체 크기로 정한다', () => {
         expect(resolveBondSearchCriteria({
             BASE_ADDRESS: '서울특별시 중구',

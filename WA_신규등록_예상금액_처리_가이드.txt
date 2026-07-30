@@ -1,0 +1,533 @@
+WA 신규등록 예상금액 처리 가이드
+
+1. 문서 목적
+
+이 문서는 WA 신규등록 화면 3단계의 "예상납부금액 확인" 기능을 수정하거나
+장애를 확인할 때 필요한 인수인계 자료입니다.
+
+현재 예상금액의 계산 주체는 프런트의 newcarAmountCalculator.js입니다.
+서버는 차량제원, 세율, 공채 매입률을 조회하고, 3단계에서 4단계로 이동할 때
+프런트가 계산한 TR_NEWCAR와 TR_PAYMENT 값을 저장합니다.
+
+NewcarService.requestProcess() 안에 과거 금액 계산 코드가 남아 있지만
+주석 처리되어 있으며 현재 예상금액 계산에는 사용되지 않습니다.
+계산 규칙을 수정할 때 해당 주석 코드를 먼저 고치면 화면 결과는 바뀌지 않습니다.
+
+
+2. 가장 먼저 확인할 파일
+
+- NewcarInfo.jsx
+  예상금액 확인 버튼, 기준정보 API 호출, 계산 결과의 화면 state 반영
+
+- newcarAmountCalculator.js
+  취득세, 공채, 기타 비용을 실제로 계산하는 단일 진입점
+
+- newcarCarSpec.js
+  TR_CAR_SPEC 응답 매핑 및 지역별 TM_BOND 검색조건 생성
+
+- WaNewcarRequest.jsx
+  3단계에서 4단계로 이동할 때 dsNewCar와 dsPaymentList 저장
+
+- NewcarController.java
+  /car-spec, /tax-info, /bond-rate, /process API 진입점
+
+- NewcarService.java
+  로그인 회사별 차량 Maker 결정, 기준정보 조회, 신청 데이터 저장
+
+- NewcarMapper.xml
+  TR_CAR_SPEC, TM_BOND 조회 SQL
+
+- PaymentMapper.xml
+  TR_PAYMENT 저장 SQL
+
+- newcarAmountCalculator.test.js
+  예상금액 핵심 규칙 회귀 테스트
+
+
+3. 전체 처리 순서
+
+1) 사용자가 신규등록 3단계에서 채권 처리 방식인 매도(할인) 또는 매입을 선택합니다.
+
+2) 사용자가 "예상납부금액 확인" 버튼을 누릅니다.
+
+3) NewcarInfo.getCarSpecForEstimate()가 차량명과 사용본거지 필수값을 확인합니다.
+
+4) 다음 API를 병렬 호출합니다.
+   - GET /api/newcar/car-spec?carName=...
+   - GET /api/newcar/tax-info
+
+5) buildCarSpecPatch()가 차량제원을 dsNewCar 계산 필드로 변환합니다.
+
+6) resolveBondSearchCriteria()가 사용본거지와 차량제원으로
+   area, carGb, baseValue를 만듭니다.
+
+7) resolveBondPreExemption()이 공채 사전 전액면제 여부를 확인합니다.
+   - 전액면제면 TM_BOND를 조회하지 않고 0%로 계산합니다.
+   - 전액면제가 아니면 GET /api/newcar/bond-rate로 현재 매입률을 조회합니다.
+
+8) 조회 결과를 기존 dsNewCar에 합쳐 calculateNewcarEstimate()를 호출합니다.
+
+9) 계산 결과를 다음 state에 반영합니다.
+   - dsNewCar: 합계, 공채금액, 과세표준, 감면 적용코드, 차량제원
+   - dsPaymentList: 결제항목별 예상 납부액과 공채 매입기준금액
+   - estimateSummary: 화면의 취득세 및 공채 감면 카드
+
+10) 사용자가 3단계에서 "다음"을 누르면
+    WaNewcarRequest.changeStep(4)가 saveProcess()를 호출합니다.
+
+11) POST /api/newcar/process가 TR_NEWCAR를 갱신하고
+    TR_PAYMENT 목록을 삭제 후 다시 등록합니다.
+
+12) 저장 성공 후 상세 데이터를 다시 조회하여 화면과 DB 값을 동기화합니다.
+
+중요:
+예상금액 확인 버튼은 계산 결과를 state에 반영할 뿐 즉시 DB에 저장하지 않습니다.
+3단계에서 4단계로 정상 이동하여 /api/newcar/process가 성공해야 DB에 반영됩니다.
+
+
+4. 차량제원 조회
+
+API:
+GET /api/newcar/car-spec?carName=...
+
+조회 테이블:
+TR_CAR_SPEC
+
+현재 NewcarService.CAR_SPEC_SEARCH_CONFIG_BY_COMPANY 설정:
+- WA001: Maker POLESTAR, 차종구분 1, 연료코드 e
+
+Maker와 차명은 공백을 제거하고 대문자로 비교합니다.
+같은 차량이 여러 건이면 첫 번째 row를 사용하므로 중복 데이터가 없어야 합니다.
+
+주요 차량제원 매핑:
+
+- CAR_NM -> CAR_NM
+  친환경 차명 예외 확인
+
+- CAR_CC -> CAR_CC
+  감면 차량조건 및 공채 구간
+
+- GETIN_NO -> GETIN_NO
+  감면 차량조건 및 승합/다목적 구간
+
+- CAR_CD -> CAR_CD
+  승용, 승합, 화물, 경차 구분
+
+- FM_NM -> FM_NM
+  친환경 형식명 제외조건
+
+- FOM_NM -> FOM_NM
+  친환경 원동기형식 허용조건
+
+- CARLENGTH -> LENGTH
+  서울 전기차 크기 구간
+
+- CARWIDTH -> WIDTH
+  서울 전기차 크기 구간
+
+- CARHEIGTH -> HEIGHT
+  서울 전기차 크기 구간
+
+- CARPAYLOAD -> MAX_CAP
+  화물 및 감면 조건
+
+- CARWEIGHT -> TOTAL_CAP
+  화물 공채 구간
+
+- CAR_US_KD -> CAR_US_KD, VH_TY_CD
+  다목적 차체 여부
+
+BUY_AMT는 화면에 사용자가 입력한 값이 있으면 그 값을 유지하고,
+값이 없을 때만 차량제원 값을 사용합니다.
+
+
+5. 취득세 및 기타 세금 기준 조회
+
+API:
+GET /api/newcar/tax-info
+
+조회 기준:
+- TM_TAX: WORK_CD=010, 사용 중이며 현재 적용기간인 최신 row
+- 공통코드 TUSE/BUBYN: 하이브리드 취득세 적용 여부
+- 공통코드 HYBRID: 친환경 감면 제외 형식명 목록
+- 공통코드 HYB_OK: 친환경 감면 허용 원동기형식 목록
+
+조회 결과는 dsNewCar.TM_TAX_INFO에 계산용으로 합쳐집니다.
+getTaxInfo()의 적용 우선순위는 다음과 같습니다.
+
+1) dsNewCar 직접값
+2) 조회한 TM_TAX
+3) 프런트 기본값
+
+
+6. 공채 매입률 조회
+
+API:
+GET /api/newcar/bond-rate?baseAddress=...&carGb=...&baseValue=...
+
+조회 테이블:
+TM_BOND
+
+기본 조회조건:
+- USE_YN='Y'
+- 현재 날짜가 START_DT와 END_DT 사이
+- BOND_GB='N'
+- CAR_GB 일치
+- BASE1 <= baseValue < BASE2
+- 사용본거지가 AREA로 시작
+
+carGb 의미:
+- 1: 승용 또는 경차
+- 2: 승합
+- 3: 화물
+- e: 서울 전기 승용차 크기 구간
+
+baseValue는 고정된 한 종류의 값이 아닙니다.
+지역과 차종에 따라 배기량, 승차정원, 최대적재량 또는 차체 크기 구간값으로 사용됩니다.
+
+공채 요율이 잘못 나오면 계산식보다 먼저
+newcarCarSpec.resolveBondSearchCriteria()가 만든
+area, carGb, baseValue를 확인해야 합니다.
+
+
+7. 취득세 계산
+
+계산 위치:
+calculateNewcarEstimate()의 1단계
+
+처리 순서:
+
+1) 과세표준은 현재 BUY_AMT만 사용합니다.
+2) PROC_CD, TASK_CD, 차종에 따라 취득세율을 결정합니다.
+3) 과세표준 × 취득세율로 감면 전 취득세를 계산합니다.
+4) 경차는 감면 전 세액에서 750,000원을 차감합니다.
+5) 사용자가 선택한 일반 감면을 적용합니다.
+6) 친환경차 감면을 적용합니다.
+7) 최종 납부세액을 10원 단위로 절사합니다.
+
+일반 등록 기본 취득세율:
+- 경차 및 영업: 4%
+- 승합 및 화물: 5%
+- 승용: 7%
+
+PROC_CD='C':
+- 취득세 2%
+- 등록면허세 별도 계산
+
+
+8. 일반 감면
+
+resolveAcqTaxExemption()이 다음 값을 확인합니다.
+
+- NTAX_TRGET_CD
+- NTAX_TRGET_GR_CD
+- 차종
+- 배기량
+- 승차정원
+- 적재량
+- 사용본거지 지역
+
+대표 규칙:
+
+- 국가유공자 및 장애인 중증 등 일반 전액면제 대상은
+  차량조건을 충족하면 취득세가 0원입니다.
+
+- 장애인 코드 04는 등급 1~3,
+  시각장애 코드 05는 등급 1~4까지 해당 규칙을 적용합니다.
+
+- 인천 시각장애 4급은 운영 규칙에 따른 별도 15% 과세 분기가 있습니다.
+
+- 3자녀와 2자녀는 일반 전액면제와 다른 한도 및 비율 규칙을 사용합니다.
+
+
+9. 친환경 취득세 감면
+
+resolveEcoEligibility()는 친환경 적용 여부를 두 값으로 분리합니다.
+
+- acquisitionEligible: 취득세 친환경 감면 가능
+- bondEligible: 공채 친환경 감면 가능
+
+이 둘을 하나로 합치면 안 됩니다.
+특정 차량이 취득세 친환경 감면에서 제외되어도
+지역별 공채 감면은 가능할 수 있습니다.
+
+현재 취득세 친환경 감면 제외 차명:
+
+- 타이칸 크로스 투리스모 터보 (5인승)
+- Polestar 4 Coupe Performance
+- Polestar 4 Long Range Dual Motor
+
+위 예외는 취득세 친환경 감면에만 적용됩니다.
+
+Polestar 4 Long Range Single Motor는 형식명 및 원동기형식의 친환경 조건을 충족하면
+전기차 취득세 감면 대상입니다.
+
+감면 우선순위:
+
+- 일반 감면과 친환경 취득세 감면은 원칙적으로 중복 적용하지 않습니다.
+- 장애인 중증처럼 일반 전액면제를 받으면 해당 결과를 유지합니다.
+- 2자녀는 기존 감면액과 전기차 최대 140만원 감면액 중 큰 금액을 적용합니다.
+- 하이브리드는 조건 충족 시 최대 40만원을 감면합니다.
+- 전기 및 수소차는 조건 충족 시 최대 140만원을 감면합니다.
+
+
+10. 감면액과 절삭액
+
+화면의 취득세 감면액은 다음 값입니다.
+
+감면 전 세액 - 감면 적용 후 세액
+
+최종 취득세의 10원 미만 절삭액은 감면액에 포함하지 않습니다.
+
+관련 결과값:
+
+- grossAcqTax
+  감면 전 취득세
+
+- acqReductionAmt
+  실제 감면 규칙으로 줄어든 금액
+
+- acqTax
+  10원 단위 절사 후 실제 취득세 납부액
+
+
+11. 공채 계산
+
+계산 위치:
+calculateNewcarEstimate()의 2단계
+
+처리 순서:
+
+1) resolveBondPreExemption()으로
+   비과세, 차종, 지역, 연료, 리스 조건의 사전 전액면제를 확인합니다.
+
+2) 사전면제가 아니면 TM_BOND 매입률로 감면 전 공채금액을 계산합니다.
+
+3) 전기, 수소, 하이브리드 지역별 정액감면 또는 전액면제를 적용합니다.
+
+4) 지역별 규칙으로 5천원 또는 1만원 단위를 절사하거나 반올림합니다.
+
+5) 채권 처리 방식에 따라 실제 납부액을 결정합니다.
+
+6) 감면 후 공채 매입기준금액으로 채권취급수수료를 계산합니다.
+
+BOND_RATE 해석:
+
+- 0보다 크고 1보다 작으면 비율
+  BUY_AMT × BOND_RATE
+
+- 1 이상이면 이미 산출된 정액
+
+
+12. 채권 매입과 매도
+
+BOND_DC='BUY':
+- 실제 납부액은 감면 후 공채 매입기준금액 전체입니다.
+
+BOND_DC='SELL':
+- 실제 납부액은 공채 매입기준금액에 할인율을 곱한 할인액입니다.
+
+따라서 매도 건은 아래 두 금액이 다릅니다.
+
+- TR_PAYMENT.PAY_AMT, PRE_PAY_AMT
+  고객이 실제 납부할 할인액
+
+- TR_PAYMENT.REAL_ALOAN
+  감면 후 공채 매입기준금액
+
+REAL_ALOAN을 할인액으로 저장하거나
+PAY_AMT에 공채 원금을 넣으면 후속 채권 처리에서 금액이 잘못됩니다.
+
+
+13. 취득세와 공채 감면의 관계
+
+취득세와 공채는 별도로 판정합니다.
+
+- 장애인 중증 등 일반 비과세 대상이고 차량조건을 충족하면
+  취득세와 공채 모두 0원이 됩니다.
+
+- Polestar 4 Coupe Performance와 Polestar 4 Long Range Dual Motor는
+  취득세 친환경 감면 예외지만,
+  bondEligible과 지역 규칙을 충족하면 공채 감면은 적용될 수 있습니다.
+
+- 지역별 공채 전액면제 조건은 TM_BOND 조회 전에 적용될 수 있습니다.
+  따라서 공채가 0원이어도 반드시 조회 장애라고 판단하면 안 됩니다.
+
+
+14. 기타 결제항목
+
+- ACQ: 취득세
+- BFEE: 채권취급수수료
+- BOND: 공채 실제 납부액
+- FEE: 등록수수료, TM_WORK_CP.FEE
+- INJI: 인지세, TM_TAX.REGIST 계열
+- SPARE: 예비비
+- STAMP: 증지대, TM_TAX.STAMP 계열
+- TNUM: 번호판대
+- UNUM: 번호판대행
+- UREG: 등록면허세
+
+CARD_YN='Y'이면 취득세 ACQ는 카드로 별도 납부하므로
+TOTAL_AMT 합계에서만 제외합니다.
+
+TR_PAYMENT의 ACQ row 자체를 삭제하거나 0원으로 만들지는 않습니다.
+
+
+15. 계산 결과와 DB 저장 필드
+
+TR_NEWCAR:
+
+- totalAmt -> PREREG_AMT
+  예상 납부 합계
+
+- totalAmt -> TOTAL_AMT
+  현재 총 납부 대상 합계
+
+- bond -> BOND_AMT
+  선택한 매입 또는 매도 방식의 실제 공채 납부액
+
+- taxableStandard -> STANDARD_AMT
+  계산에 사용한 과세표준
+
+- ntaxApplyCode -> NTAX_APPLC_CD
+  감면 적용 결과 코드
+
+TR_PAYMENT:
+
+- PRE_PAY_AMT
+  항목별 예상 납부액
+
+- PAY_AMT
+  항목별 현재 납부 대상액
+
+- PAY_KD='BOND'의 REAL_ALOAN
+  감면 후 공채 매입기준금액
+
+PaymentMapper.insertTrPayment가 위 세 금액을 실제 테이블에 저장합니다.
+
+기존 신청을 저장할 때 NewcarService.updateNewCar()는
+TR_PAYMENT를 부분 수정하지 않고 기존 목록 전체를 삭제한 뒤
+현재 화면 목록 전체를 다시 등록합니다.
+
+특정 row가 화면 목록에서 빠지면 DB에서도 빠질 수 있으므로
+결제목록 필터링에 주의해야 합니다.
+
+
+16. 재계산 필요 상태
+
+buildNewcarEstimateKey()는 계산에 영향을 주는 입력값을 문자열 key로 만듭니다.
+
+계산 후 차량금액, 주소, 채권 방식, 감면, 카드납부, 차량제원 등이 바뀌어
+key가 달라지면 화면에 재계산 안내가 표시됩니다.
+
+새 계산 입력값을 추가할 때는 반드시 다음도 같이 처리합니다.
+
+1) 계산 함수에서 새 필드 사용
+2) buildNewcarEstimateKey()에 새 필드 추가
+3) 단위 테스트 추가
+
+key에 빠뜨리면 입력값을 바꿔도 기존 계산 결과가 최신인 것처럼 보입니다.
+
+
+17. 장애 확인 순서
+
+차량제원 조회 실패:
+
+1) 로그인 회사가 CAR_SPEC_SEARCH_CONFIG_BY_COMPANY에 있는지 확인
+2) TR_CAR_SPEC.MAKER와 CAR_NM 확인
+3) 브라우저 Network에서 /api/newcar/car-spec 응답 확인
+
+취득세가 예상과 다름:
+
+1) BUY_AMT, PROC_CD, TASK_CD, CAR_CD, VHCTY_ASORT_CODE 확인
+2) /api/newcar/tax-info 응답의 TM_TAX 세율 확인
+3) NTAX_TRGET_CD, NTAX_TRGET_GR_CD와 차량조건 확인
+4) 친환경 문제면 FUEL_CD, FM_NM, FOM_NM, HYBRID, HYB_OK 확인
+5) 취득세 차명 예외 Set 포함 여부 확인
+
+공채가 예상과 다름:
+
+1) bondReliefReason에서 사전 전액면제 사유 확인
+2) resolveBondSearchCriteria() 결과의 area, carGb, baseValue 확인
+3) /api/newcar/bond-rate 요청과 응답의 BOND_RATE, BASE1, BASE2 확인
+4) TM_BOND의 사용여부와 적용기간 확인
+5) BOND_DC가 BUY인지 SELL인지 확인
+6) PAY_AMT와 REAL_ALOAN을 바꿔 이해하지 않았는지 확인
+
+화면은 맞지만 DB가 다름:
+
+1) 예상금액 확인 후 3단계에서 4단계 이동이 성공했는지 확인
+2) POST /api/newcar/process 요청의 dsNewCar와 dsPaymentList 확인
+3) BOND row에 PRE_PAY_AMT, PAY_AMT, REAL_ALOAN이 모두 있는지 확인
+4) 저장 후 /api/newcar/detail/{SERVICE_ID} 재조회 결과 확인
+5) PaymentMapper.insertTrPayment와 NewcarMapper.updateTrNewCar 매핑 확인
+
+
+18. 업무 규칙 변경 위치
+
+- 취득세율 및 등록면허세율
+  resolveProcedureTaxRates()
+
+- 일반 감면 조건
+  resolveAcqTaxExemption()
+
+- 친환경 형식명 판정
+  resolveEcoEligibility() 및 공통코드
+
+- 취득세 감면 제외 차량 추가
+  ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES
+
+- 지역별 공채 사전면제
+  resolveBondPreExemption()
+
+- 지역별 친환경 공채 감면 한도
+  resolveEcoBondRelief()
+
+- 공채 지역별 절사 및 반올림
+  roundBondPurchaseAmount()
+
+- 공채 조회 구간
+  newcarCarSpec.resolveBondSearchCriteria() 및 TM_BOND
+
+- 차량제원 필드 추가
+  buildCarSpecPatch()
+
+- 결제항목 추가
+  ESTIMATE_PAYMENT_KINDS
+  PAYMENT_ORDER
+  calculatedAmounts
+  서버 초기 결제목록
+
+취득세 예외 차량을 추가할 때 공채까지 제외하려는 업무 요구가 명시되지 않았다면
+bondEligible은 수정하지 않습니다.
+
+
+19. 필수 회귀 테스트
+
+현재 단위 테스트의 대표 시나리오:
+
+- 취득세 절삭액이 감면액에 포함되지 않는지
+- Polestar 4 Long Range Single Motor 취득세 감면
+- 공채 매입기준금액과 실제 납부액 분리
+- 전기 승용차 중증장애의 취득세 및 공채 전액면제
+- 취득세 감면 제외 차량의 공채 별도 처리
+- PROC_CD='C'의 취득세와 등록면허세
+- Polestar 4 Coupe Performance 예외
+- 서울 및 서울 외 전기차 TM_BOND 조회조건
+
+프런트 단위 테스트:
+
+cd src/main/frontend
+npm test -- --watchAll=false --runTestsByPath src/wa/pages/newcar/newcarAmountCalculator.test.js
+
+프런트 빌드:
+
+cd src/main/frontend
+npm run build
+
+백엔드 컴파일:
+
+mvn -q -DskipTests compile
+
+업무 규칙을 수정했으면 정상 차량 한 건만 확인하지 말고
+최소한 일반 차량, 일반 감면, 전기차, 취득세 예외 전기차, 매입, 매도를 각각 확인합니다.

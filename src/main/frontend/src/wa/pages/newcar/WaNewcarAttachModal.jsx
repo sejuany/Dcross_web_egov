@@ -187,15 +187,13 @@ const WaNewcarAttachModal = ({
 		// ex. {서비스아이디}_{파일코드명}.{확장자}
 		formData.append('code', doc.code);
 		formData.append('gubun', doc.gubun);
-
+		
+		// 한글 파일명을 같이 보냄
+		formData.append('docName', doc.name);
+		
 		// 압축된 파일 업로드
 		formData.append('file', uploadFile);
 		
-		console.log(uploadFile);
-		console.log(uploadFile instanceof File);
-		console.log(uploadFile.name);
-		console.log(uploadFile.type);
-
         try {
             const res = await axios.post('/api/newcar/wa-attach-upload', formData, {
                 headers: {
@@ -208,6 +206,9 @@ const WaNewcarAttachModal = ({
                 : [];
 
             setAttachFiles(list);
+			
+			await gf.alert('첨부파일 업로드가 완료되었습니다.');
+			
         } catch (error) {
             console.error('[WaNewcarAttachModal] 첨부파일 업로드 실패:', error);
 
@@ -246,7 +247,7 @@ const WaNewcarAttachModal = ({
 		if (isImageFile(fileName)) {
 		    return (
 		        <img
-		            src={fileUrl}
+		            src={`${fileUrl}&t=${Date.now()}`}
 		            alt={doc.name}
 		            className="wa-attach-preview-img"
 		        />
