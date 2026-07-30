@@ -21,9 +21,13 @@ import {
     calculateNewcarEstimate,
     calculateTotalFromRows,
     formatAmount,
+    resolveBondPreExemption,
     sortPaymentRows
 } from './newcarAmountCalculator';
-import { buildCarSpecPatch } from './newcarCarSpec';
+import {
+    buildCarSpecPatch,
+    resolveBondSearchCriteria
+} from './newcarCarSpec';
 
 const BOND_OPTIONS = [
     { value: 'SELL', label: '매도(할인)' },
@@ -111,84 +115,62 @@ const VEHICLE_EXEMPTION_REFERENCE = [
     '최대적재량 1톤 이하 화물차',
     '배기량 250cc 이하 이륜자동차'
 ].join('\n');
-const DIVORCED_FAMILY_REFERENCE = [
-    '이혼가정 다자녀 요청 서류(양육권 있으나 별거하는 경우)',
-    '함양: 주민등록등본, 가족관계증명서(상세)',
-    '창원/대구: 주민등록등본, 가족관계증명서(상세), 등본에 자녀 확인이 안 되면 양육권 판결서 또는 관청 확인 필요',
-    '부산: 가족관계증명서(상세)',
-    '함안: 감면여부 판단이 필요하므로 사용본거지 관청 문의 안내',
-    '주민등록등본은 양육권 판결 및 세대당 1대 감면 여부 확인 목적'
-].join('\n');
-
 const EXEMPTION_DOCUMENT_INFO = {
     '15': {
         name: '다자녀(2자녀)',
         documents: [
-            '감면 신청서',
             '가족관계증명서 (차소유자 기준)',
             '주민등록등본 (차소유주 기준)'
         ],
-        note: [
-            '재혼가정이 전배우자의 자녀를 포함해 신청하는 경우',
-            '1. 혼인관계증명서',
-            '2. 주민등록등본',
-            '3-1. 가족관계증명서 일반(본인, 현배우자, 본인과 현배우자의 자녀)',
-            '3-2. 가족관계증명서 상세(본인, 본인과 전배우자의 자녀)'
-        ].join('\n'),
-        amount: '70만원',
-        reference: DIVORCED_FAMILY_REFERENCE
+        amount: [
+            '취득세 50% 감면',
+            '6인승 이하 (최대 70만원)',
+            '7인승 ~ 10인승 (제한없음)'
+        ].join('\n')
     },
     '06': {
         name: '다자녀(3자녀)',
         documents: [
-            '감면 신청서',
             '가족관계증명서 (차소유자 기준)',
             '주민등록등본 (차소유주 기준)'
         ],
-        note: [
-            '재혼가정이 전배우자의 자녀를 포함해 신청하는 경우',
-            '1. 혼인관계증명서',
-            '2. 주민등록등본',
-            '3-1. 가족관계증명서 일반(본인, 현배우자, 본인과 현배우자의 자녀)',
-            '3-2. 가족관계증명서 상세(본인, 본인과 전배우자의 자녀)'
-        ].join('\n'),
-        amount: '140만원',
-        reference: DIVORCED_FAMILY_REFERENCE
+        amount: [
+            '취득세 100% 감면',
+            '6인승 이하 (최대 140만원)',
+            '7인승 ~ 10인승\n - 200만원 이상인 경우 : 취득세 85% 감면,\n - 200만원 이하인 경우 : 취득세 100% 감면)'
+        ].join('\n')
     },
     '01': {
         name: '국가유공자',
         documents: [
-            '감면신청서',
             '국가유공자증 또는 국가유공자증명서'
         ],
         note: JOINT_OWNER_DOCUMENT_NOTE,
         amount: '취득세 100% 면제',
-        reference: [
-            VEHICLE_EXEMPTION_REFERENCE,
-            '미성년자 장애인 공동명의건: 미성년자 자동차 취득 동의서, 법정대리인의 인감증명서 또는 본인서명사실확인서, 가족관계증명서 및 기본증명서(상세)'
-        ].join('\n')
+        reference: VEHICLE_EXEMPTION_REFERENCE
     },
     '04': {
         name: '장애인',
         documents: [
-            '감면신청서',
             '장애인증명서 또는 장애인등록증(복지카드)'
         ],
-        note: `${JOINT_OWNER_DOCUMENT_NOTE}\n장애정도가 심한 장애인만 감면 대상`,
+        note: JOINT_OWNER_DOCUMENT_NOTE,
         amount: [
-            '장애정도가 심한 장애인(기존 1급~3급 중증 장애인) 취득세 100% 면제',
-            '차량 1대만 가능',
-            '경증 장애인(기존 4급~6급)은 취득세 면제 대상 제외'
-        ].join('\n')
+            '1급~3급, 중증 장애인만 취득세 100% 면제',
+            '차량 1대만 가능'            
+        ],
+        reference: VEHICLE_EXEMPTION_REFERENCE
     },
     '05': {
         name: '시각장애',
         documents: [
-            '감면신청서',
             '장애인증명서 또는 장애인등록증(복지카드)'
         ],
-        note: `${JOINT_OWNER_DOCUMENT_NOTE}\n장애정도가 심하지 않은 장애 중 기존 4급일 경우 장애정도결정서 필요`,
-        amount: '시각장애 중 기존 4급 취득세 100% 면제'
+        note: `${JOINT_OWNER_DOCUMENT_NOTE}`,
+        amount: [
+            '시각장애 중 기존 4급 취득세 100% 면제'           
+        ],
+        reference: VEHICLE_EXEMPTION_REFERENCE
     },
     '02': {
         name: '5.18 민주화운동대상',
@@ -197,7 +179,8 @@ const EXEMPTION_DOCUMENT_INFO = {
             '5.18 민주화운동부상자로서 신체장애등급 1~14급 대상'
         ],
         note: `${JOINT_OWNER_DOCUMENT_NOTE}\n부상자 본인이 포함되어 있어야 함`,
-        amount: '취득세 100% 면제'
+        amount: '취득세 100% 면제',
+        reference: VEHICLE_EXEMPTION_REFERENCE
     },
     '03': {
         name: '고엽제 후유증 대상',
@@ -512,6 +495,12 @@ const RequiredDocuments = memo(({
                 <div className="wa-required-docs-section">
                     <strong>비고</strong>
                     <p>{documentInfo.note}</p>
+                    
+                    {showFamilyRelationNumberNote && (
+                        <p className="wa-required-docs-footnote">
+                            * {FAMILY_RELATION_NUMBER_NOTE}
+                        </p>
+                    )}
                 </div>
             )}
 
@@ -529,11 +518,6 @@ const RequiredDocuments = memo(({
                 </div>
             )}
 
-            {showFamilyRelationNumberNote && (
-                <p className="wa-required-docs-footnote">
-                    * {FAMILY_RELATION_NUMBER_NOTE}
-                </p>
-            )}
         </div>
     );
 });
@@ -641,6 +625,9 @@ const ExemptionSection = memo(({
 
 ExemptionSection.displayName = 'ExemptionSection';
 
+// 계산 금액이 0원이어도 계산 사유가 전액면제라면 감면 카드를 표시한다.
+const hasFullExemptionReason = (reason) => /전액\s*(?:면제|감면)/.test(String(reason ?? ''));
+
 /**
  * 예상금액 결과 표시 전용 컴포넌트다.
  * 계산 중 여부나 계산 결과가 바뀌지 않으면 React.memo가 기존 결과 DOM을 재사용한다.
@@ -658,6 +645,15 @@ const EstimateResultPanel = memo(({
             : [],
         [estimateSummary]
     );
+    const isAcqFullyExempt = Boolean(estimateSummary)
+        && Number(estimateSummary.acqTax) === 0
+        && hasFullExemptionReason(estimateSummary.exemptionReason);
+    const isBondFullyExempt = Boolean(estimateSummary)
+        && Number(estimateSummary.bondBaseAmt) === 0
+        && hasFullExemptionReason(estimateSummary.bondReliefReason);
+    const showAcqReductionCard = Number(estimateSummary?.acqReductionAmt) > 0 || isAcqFullyExempt;
+    const showBondReductionCard = Boolean(estimateSummary)
+        && (Number(estimateSummary?.bondReductionAmt) > 0 || isBondFullyExempt);
 
     return (
         <>
@@ -684,19 +680,23 @@ const EstimateResultPanel = memo(({
                             취득세 카드납부 금액 {formatAmount(estimateSummary.acqTax)} 원
                         </div>
                     )}
-                    {estimateSummary.exemptionCode && (
+                    {showAcqReductionCard && (
                         <div className={[
                             'wa-acq-reduction',
-                            estimateSummary.exemptionApplied ? 'applied' : 'review'
+                            estimateSummary.exemptionApplied || isAcqFullyExempt ? 'applied' : 'review'
                         ].join(' ')}>
                             <div className="wa-acq-reduction-title">
                                 <span>{estimateSummary.exemptionName || '취득세 감면'}</span>
-                                <strong>- {formatAmount(estimateSummary.acqReductionAmt)} 원</strong>
+                                <strong>{isAcqFullyExempt
+                                    ? '전액 감면'
+                                    : `- ${formatAmount(estimateSummary.acqReductionAmt)} 원`}</strong>
                             </div>
                             <p>
                                 감면 전 {formatAmount(estimateSummary.grossAcqTax)} 원
                                 {' / '}
-                                납부 {formatAmount(estimateSummary.acqTax)} 원
+                                납부 {Number(estimateSummary.acqTax) === 0
+                                    ? '전액 감면'
+                                    : `${formatAmount(estimateSummary.acqTax)} 원`}
                             </p>
                             {estimateSummary.exemptionReason && <p>{estimateSummary.exemptionReason}</p>}
                             {estimateSummary.exemptionMissingRequirements.length > 0 && (
@@ -705,14 +705,16 @@ const EstimateResultPanel = memo(({
                         </div>
                     )}
 
-                    {estimateSummary.electricVehicle && (
+                    {showBondReductionCard && (
                         <div className={[
                             'wa-acq-reduction',
-                            estimateSummary.bondReliefApplied ? 'applied' : 'review'
+                            estimateSummary.bondReliefApplied || isBondFullyExempt ? 'applied' : 'review'
                         ].join(' ')}>
                             <div className="wa-acq-reduction-title">
-                                <span>전기차 공채 감면 · {estimateSummary.bondArea || '지역 확인'}</span>
-                                <strong>- {formatAmount(estimateSummary.bondReductionAmt)} 원</strong>
+                                <span>공채 감면 · {estimateSummary.bondArea || '지역 확인'}</span>
+                                <strong>{isBondFullyExempt
+                                    ? '전액 감면'
+                                    : `- ${formatAmount(estimateSummary.bondReductionAmt)} 원`}</strong>
                             </div>
                             <p>
                                 {estimateSummary.bondValueType === 'RATE'
@@ -721,7 +723,9 @@ const EstimateResultPanel = memo(({
                                 {' / '}
                                 감면 전 {formatAmount(estimateSummary.bondGrossAmt)} 원
                                 {' / '}
-                                감면 후 {formatAmount(estimateSummary.bondBaseAmt)} 원
+                                감면 후 {Number(estimateSummary.bondBaseAmt) === 0
+                                    ? '전액 감면'
+                                    : `${formatAmount(estimateSummary.bondBaseAmt)} 원`}
                             </p>
                             {estimateSummary.bondReliefReason && <p>{estimateSummary.bondReliefReason}</p>}
                         </div>
@@ -1059,17 +1063,17 @@ const NewcarInfo = ({
 
     // 금액 계산은 newcarAmountCalculator에서 처리함.
     // 화면 컴포넌트는 계산 결과를 상태와 결제목록에 반영하는 역할만 담당함.
-    const getEstimateResult = (newCar = dsNewCar, coreEstimate = null) => calculateNewcarEstimate({
+    const getEstimateResult = (newCar = dsNewCar) => calculateNewcarEstimate({
         dsNewCar: newCar,
         dsService,
         dsPaymentList,
         dsWorkCp,
-        codes,
-        coreEstimate
+        codes
     });
 
-    // 운영 프로시저와 같은 서버 계산 API에서 차량제원, 취득세, 공채 기준금액을 한 번에 가져옴.
-    const getServerEstimate = async () => {
+    // 차명과 로그인 회사에 설정된 Maker로 TR_CAR_SPEC 차량제원 가져옴.
+    // 차량제원의 CAR_CC와 TR_NEWCAR.BASE_ADDRESS로 TM_BOND 공채 매입률을 이어서 가져옴.
+    const getCarSpecForEstimate = async () => {
         const carName = String(dsNewCar.CAR_NM ?? '').trim();
         const baseAddress = String(dsNewCar.BASE_ADDRESS ?? '').trim();
 
@@ -1081,43 +1085,74 @@ const NewcarInfo = ({
             throw new Error('사용본거지 주소를 입력해주세요.');
         }
 
-        const response = await axios.post('/api/newcar/estimate', {
-            dsService: { ...dsService },
-            dsNewCar: { ...dsNewCar }
-        });
-        const coreEstimate = response.data?.data;
+        // 로그인 회사에 연결된 Maker와 차명이 같은 차량제원 한 건 가져옴.
+        const [carSpecResponse, taxInfoResponse] = await Promise.all([
+            axios.get('/api/newcar/car-spec', { params: { carName } }),
+            axios.get('/api/newcar/tax-info')
+        ]);
+        const carSpec = carSpecResponse.data?.data;
+        const taxInfo = taxInfoResponse.data?.data;
 
-        if (
-            !coreEstimate
-            || coreEstimate.ACQ_AMT === undefined
-            || coreEstimate.ACQ_AMT === null
-            || coreEstimate.BOND_PURCHASE_AMT === undefined
-            || coreEstimate.BOND_PURCHASE_AMT === null
-        ) {
-            throw new Error(
-                response.data?.message
-                || '예상금액 계산 결과가 올바르지 않습니다.'
-            );
+        if (!carSpec) {
+            throw new Error('차량제원 조회 결과가 없습니다.');
         }
 
-        const carSpec = coreEstimate.CAR_SPEC || {};
         const carSpecPatch = buildCarSpecPatch(dsNewCar, carSpec);
-        // 서버가 사용한 공채 조회 기준도 state에 보관해 계산 기준 변경 여부를 판별함.
+        const bondSearchCriteria = resolveBondSearchCriteria({
+            ...dsNewCar,
+            ...carSpecPatch
+        });
+
+        const estimateNewCar = { ...dsNewCar, ...carSpecPatch, TM_TAX_INFO: taxInfo };
+        const bondPreExemption = resolveBondPreExemption(estimateNewCar, codes);
+
+        // 비과세·1600cc 미만·친환경 지역·리스 면제는 TM_BOND 조회 전에 종료함.
+        const bondRateRequest = bondPreExemption.exempt
+            ? Promise.resolve({
+                data: {
+                    data: {
+                        BOND_RATE: 0,
+                        AREA: bondSearchCriteria.area,
+                        BOND_GB: 'N',
+                        FULL_EXEMPT_YN: 'Y',
+                        EXEMPT_REASON: bondPreExemption.reason
+                    }
+                }
+            })
+            : axios.get('/api/newcar/bond-rate', {
+                params: {
+                    baseAddress: bondSearchCriteria.area,
+                    carGb: bondSearchCriteria.carGb,
+                    baseValue: bondSearchCriteria.baseValue
+                }
+            });
+        const bondRateResponse = await bondRateRequest;
+        const bondRateInfo = bondRateResponse.data?.data;
+
+        if (!bondRateInfo || bondRateInfo.BOND_RATE === undefined || bondRateInfo.BOND_RATE === null) {
+            throw new Error('공채 매입률 조회 결과가 없습니다.');
+        }
+
+        if (!taxInfo) {
+            throw new Error('신규등록 세율정보 조회 결과가 없습니다.');
+        }
+
+        // 조회 기준값은 예상금액 계산에만 합치며 TR_NEWCAR 저장 필드에는 별도 매핑하지 않음.
         const estimatePatch = {
             ...carSpecPatch,
-            BOND_AREA: coreEstimate.BOND_AREA ?? '',
-            BOND_VALUE: coreEstimate.BOND_VALUE ?? '',
-            BOND_VALUE_TYPE: coreEstimate.BOND_VALUE_TYPE ?? '',
-            BOND_RATE: coreEstimate.BOND_VALUE ?? '',
-            BOND_CAR_GB: coreEstimate.BOND_CAR_GB ?? '',
-            BOND_COMPARE: coreEstimate.BOND_COMPARE ?? '',
-            BOND_SEARCH_CAR_GB: coreEstimate.BOND_CAR_GB ?? '',
-            BOND_SEARCH_BASE_VALUE: coreEstimate.BOND_COMPARE ?? ''
+            BOND_RATE: bondRateInfo.BOND_RATE,
+            BOND_AREA: bondRateInfo.AREA ?? '',
+            BOND_GB: bondRateInfo.BOND_GB ?? '',
+            BOND_FULL_EXEMPT_YN: bondRateInfo.FULL_EXEMPT_YN ?? 'N',
+            BOND_RATE_BASE1: bondRateInfo.BASE1 ?? '',
+            BOND_RATE_BASE2: bondRateInfo.BASE2 ?? '',
+            BOND_SEARCH_CAR_GB: bondSearchCriteria.carGb,
+            BOND_SEARCH_BASE_VALUE: bondSearchCriteria.baseValue,
+            TM_TAX_INFO: taxInfo
         };
 
         return {
             carSpecPatch: estimatePatch,
-            coreEstimate,
             newCar: {
                 ...dsNewCar,
                 ...estimatePatch
@@ -1177,8 +1212,8 @@ const NewcarInfo = ({
         setEstimating(true);
 
         try {
-            const { carSpecPatch, coreEstimate, newCar } = await getServerEstimate();
-            const result = getEstimateResult(newCar, coreEstimate);
+            const { carSpecPatch, newCar } = await getCarSpecForEstimate();
+            const result = getEstimateResult(newCar);
 
             // 계산된 TR_PAYMENT 목록 반영함.
             setDsPaymentList?.(result.updatedPaymentList);

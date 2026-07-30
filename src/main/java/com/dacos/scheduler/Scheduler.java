@@ -12,6 +12,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.dacos.common.CommonService;
+
 import lombok.RequiredArgsConstructor;
 
 @RestController
@@ -22,16 +24,27 @@ public class Scheduler {
     private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
 
     private final SchedulerService schedulerService;
-
+    private final CommonService commonService;
+    
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarWaitingServices() {
-        runTodayNewcarWaitingServices("scheduled");
+    	String serverIp = commonService.getServerAddress("IP");
+    	
+    	// 운영, 개발 서버에서만 실행되도록 조건 추가
+	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp)) {
+	    	runTodayNewcarWaitingServices("scheduled");
+	    }
     }
 
     @Scheduled(cron = "0 0 15 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarNonPayed() {
-        runTodayNewcarNonPayed("scheduled");
-        runTodayNewcarCardNonPayed("scheduled");
+    	String serverIp = commonService.getServerAddress("IP");
+    	
+    	// 운영, 개발 서버에서만 실행되도록 조건 추가
+	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp)) {
+	    	runTodayNewcarNonPayed("scheduled");
+	    	runTodayNewcarCardNonPayed("scheduled");
+	    }
     }
 
     @GetMapping("/newcar/waiting-services/run")

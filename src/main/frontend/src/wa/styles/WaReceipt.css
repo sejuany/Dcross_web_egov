@@ -209,3 +209,68 @@
     line-height:1.7;
     text-align:center;
 }
+.receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+/* 영수증 버튼 */
+.receipt-header-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.receipt-action-btn {
+    padding: 8px 16px;
+    border: 1px solid #cfd6df;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: .2s;
+}
+
+.receipt-action-btn:hover {
+    background: #f5f7fa;
+}
+
+.receipt-page {
+    width: 900px;
+    margin: 0 auto;
+    padding: 32px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+/*pdf 저장할 때*/
+.receipt-blue-box.pdf-mode {
+    margin-bottom: 10px;
+}
+
+.receipt-footer.pdf-mode {
+	margin-top: 10px;
+}
+
+
+@media print {
+
+	/* 인쇄 할 때 드래그 생성 방지*/
+    html,
+    body {
+        overflow: visible !important;
+    }
+	
+	/* 영수증 인쇄 할 때 드래그 생성 방지*/
+    .receipt-wrapper,
+    .receipt-page,
+    .receipt-pdf {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+}

@@ -568,7 +568,7 @@ const WaNumPlateSelectModal = ({
 	                            <input
 	                                autoComplete="off"
 	                                value={keyword}
-	                                placeholder="번호를 입력하세요."
+	                                placeholder="조건 선택 후 조회 버튼을 눌러 차량번호를 조회해 주세요."
 	                                onChange={e => setKeyword(e.target.value)}
 									onKeyDown={(e) => {
 									        if (e.key === 'Enter') {
@@ -596,18 +596,18 @@ const WaNumPlateSelectModal = ({
 					    <div className="notice-content">
 						
 					        <p>
-					            번호 조회는 <strong>총 2회</strong>까지 가능합니다.
+					            번호 조회는 <strong>총 2회</strong> 가능하며, 이후에는 조회된 번호 내에서만 선택할 수 있습니다.
 					        </p>
 
 					        <p>
-					            아래 조건에 해당하는 차량번호는 <strong className="gold-text">골드번호</strong>로
-					            분류됩니다.
+					            <strong>※ 골드번호 선택 시 유의사항</strong>
 					        </p>
 
 					        <div className="notice-warning">
-					            골드번호 선택 후 신규등록 진행 중 다른 번호로 변경하는 경우,
-					            골드번호는 재사용이 불가하여 폐기 처리되며
-					            <strong> 폐번호판 비용이 추가 발생</strong>합니다.
+								골드번호 선택 후 신규등록 진행 중 번호를 변경 시, 취소된 골드번호판 비용과 변경된 번호판 비용이 함께 청구됩니다.<br />
+								<strong>번호판 청구 비용 : 취소된 골드번호판 비용 + 변경 번호판 비용</strong><br />
+					             사유 : 골드번호판은 취소 시 폐기 처리됨 (재사용 불가)<br /><br />
+								 골드번호 선택 고객님께 해당 내용 반드시 안내해 주시기 바랍니다.
 					        </div>
 
 					        <div className="notice-title">
@@ -628,9 +628,6 @@ const WaNumPlateSelectModal = ({
 						<div className="list-header">
 						    <div className="list-header-left">
 						        <span className="list-title">번호 목록</span>
-						        <span className="list-info">
-						        (번호판은 최대 2회 조회 가능하며, 이후에는 조회된 번호판 내에서만 선택할 수 있습니다.)
-						        </span>
 						    </div>
 	
 						    <span className="list-count">총 {list.length}건</span>

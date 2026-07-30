@@ -147,7 +147,7 @@ const WaNewcarDetail = ({
 	    }
 
 	    window.open(
-	        `https://service.epost.go.kr/trace.RetrieveRegiPrclDeliv.postal?sid1=${songjangNo}`,
+	        `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${songjangNo}&displayHeader=N`,
 	        '_blank'
 	    );
 	};
@@ -184,7 +184,22 @@ const WaNewcarDetail = ({
 		        gf.alert("등록이 완료되면 등록증 다운로드가 가능합니다.");
 		        return;
 		    }
+			
+			const judgeDate = new Date(dsService.JUDGE_DT);
+			const today = new Date();
 
+			// 시간 제거 (날짜만 비교)
+			judgeDate.setHours(0, 0, 0, 0);
+			today.setHours(0, 0, 0, 0);
+
+			// 날짜 차이 계산
+			const diffDays = Math.floor((today - judgeDate) / (1000 * 60 * 60 * 24));
+
+			if (diffDays > 7) {
+			    gf.alert("등록일로부터 7일까지만 등록증 다운로드가 가능합니다.");
+			    return;
+			}
+			
 		    const judgeDt = dsService.JUDGE_DT
 		        .replace(/[^0-9]/g, '')   // 숫자만
 		        .slice(2);                // 앞의 20 제거 → 260715

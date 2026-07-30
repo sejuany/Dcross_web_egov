@@ -31,6 +31,7 @@
 			WHERE USE_YN = 'Y'
 			AND SYSDATE BETWEEN START_DT AND END_DT
 			AND LOWER(TRIM(CAR_GB)) = LOWER(TRIM(#{carGb}))
+			AND UPPER(TRIM(BOND_GB)) = 'N'
 			AND #{baseValue} &gt;= NVL(BASE1, 0)
 			AND #{baseValue} &lt; NVL(BASE2, 999999999)
 			AND (
@@ -48,45 +49,15 @@
 		)
 		WHERE ROWNUM = 1
 	</select>
-	<!-- 운영 프로시저가 취득세 친환경 감면 판정에 사용하는 공통코드 상세 설정 -->
-	<select id="getEstimateCodeConfig" resultType="java.util.Map">
-		SELECT
-			(
-				SELECT DETAIL_NM
-				FROM TM_CODE
-				WHERE GROUP_ID = 'TUSE'
-				AND CODE_ID = 'BUBYN'
-			) AS BUBYN,
-			(
-				SELECT DETAIL_NM
-				FROM TM_CODE
-				WHERE CODE_ID = 'HYBRID'
-			) AS HYBRID,
-			(
-				SELECT DETAIL_NM
-				FROM TM_CODE
-				WHERE CODE_ID = 'HYB_OK'
-			) AS HYB_OK
-		FROM DUAL
-	</select>
-	<!-- 운영 프로시저와 동일한 지역/차량구분/구간의 현재 공채 규칙 -->
-	<select id="getActiveBondRule" resultType="java.util.Map">
-		SELECT
-			AREA,
-			CAR_GB,
-			BASE1,
-			BASE2,
-			VALUE AS BOND_VALUE
-		FROM TM_BOND
-		WHERE AREA = #{area}
-		AND CAR_GB = #{carGb}
-		AND BASE1 &lt;= #{compare}
-		AND BASE2 &gt; #{compare}
-		AND SYSDATE BETWEEN START_DT AND END_DT
-		AND USE_YN = 'Y'
-		AND BOND_GB = 'N'
-	</select>
-	<!-- ============================================================ -->
+	<!-- 운영 프로시저에서 사용하는 친환경 감면 코드 -->
+    <select id="getEstimateCodeConfig" resultType="java.util.Map">
+        SELECT
+            (SELECT DETAIL_NM FROM TM_CODE WHERE GROUP_ID = 'TUSE' AND CODE_ID = 'BUBYN') AS BUBYN,
+            (SELECT DETAIL_NM FROM TM_CODE WHERE CODE_ID = 'HYBRID') AS HYBRID_FM_EXCLUSIONS,
+            (SELECT DETAIL_NM FROM TM_CODE WHERE CODE_ID = 'HYB_OK') AS HYBRID_OK_PATTERNS
+        FROM DUAL
+    </select>
+    <!-- ============================================================ -->
 	<!-- 신차 등록 목록 조회 (동적 SQL)                                -->
 	<!-- ============================================================ -->
 	<select id="getNewCarList" parameterType="com.dacos.newcar.dto.NewcarSearchRequest" resultType="java.util.Map">

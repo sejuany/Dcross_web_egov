@@ -1,9 +1,11 @@
-﻿const getAmount = (value) => Number(String(value ?? 0).replace(/,/g, '')) || 0;
+const getAmount = (value) => Number(String(value ?? 0).replace(/,/g, '')) || 0;
+const hasValue = (value) => value !== undefined && value !== null && value !== '';
 
-// 사용본거지 주소에서 프로시저 공채 분기에 사용할 시도명 가져옴.
+// 사용본거지 주소에서 프로시저 공채 분기에 사용할 지역명 가져옴.
 const resolveBondArea = (baseAddress) => {
     const source = String(baseAddress ?? '').trim();
     const areas = [
+        '경상남도 함양군', '경상남도 함안군', '경상남도 창원시',
         '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시',
         '대전광역시', '울산광역시', '세종특별자치시', '경기도', '강원특별자치도',
         '강원도', '충청북도', '충청남도', '전북특별자치도', '전라북도',
@@ -12,55 +14,117 @@ const resolveBondArea = (baseAddress) => {
     return areas.find(area => source.startsWith(area)) || source.split(/\s+/)[0] || '';
 };
 
-// 프로시저에서 TM_BOND 조회 전에 전기차 공채를 전액면제하는 지역인지 확인함.
-// 해당 지역은 사용 가능한 매입률 행이 없어도 예상금액을 0원으로 계산해야 함.
-export const isElectricBondLookupExemptArea = (baseAddress) => [
-    '경기도', '부산광역시', '대구광역시', '경상남도'
-].includes(resolveBondArea(baseAddress));
-
-// sp_NewCarTaxBondConfirm의 승용 다목적형 지역별 TM_BOND 조회 기준 생성함.
-// 폴스타는 전기 승용차이며 VH_TY_CD=3인 경우 아래 비교값으로 조회함.
+// sp_NewCarTaxBondConfirm의 지역·차종별 TM_BOND 조회 기준 생성함.
 export const resolveBondSearchCriteria = (newCar = {}) => {
-    const area = resolveBondArea(newCar.BASE_ADDRESS);
+    let area = resolveBondArea(newCar.BASE_ADDRESS);
     const carCc = Math.max(0, getAmount(newCar.CAR_CC));
     const passengers = Math.max(0, getAmount(newCar.GETIN_NO));
-    const multiPurpose = String(newCar.VH_TY_CD ?? '').trim() === '3';
+    const length = getAmount(newCar.LENGTH ?? newCar.CARLENGTH);
+    const width = getAmount(newCar.WIDTH ?? newCar.CARWIDTH);
+    const height = getAmount(newCar.HEIGHT ?? newCar.CARHEIGTH);
+    const maxCap = getAmount(newCar.MAX_CAP ?? newCar.CARPAYLOAD ?? newCar.MXMM_LDG);
+    const totalCap = getAmount(newCar.TOTAL_CAP ?? newCar.CARWEIGHT);
+    const bodyType = String(newCar.VH_TY_CD ?? newCar.CAR_US_KD ?? '').trim();
+    const fuelCode = String(newCar.FUEL_CD ?? '').trim().toLowerCase();
+    const carTypeText = String(newCar.CAR_CD ?? newCar.CAR_KD ?? '').trim();
+    const vehicleType = String(newCar.VHCTY_ASORT_CODE ?? '').trim();
+    const carType = ['경차', '승용', '승합', '화물', '영업'].includes(carTypeText)
+        ? carTypeText
+        : (vehicleType === '2' ? '승합' : (vehicleType === '3' ? '화물' : '승용'));
+    const multiPurpose = bodyType === '3';
+    const electric = fuelCode === 'e' || fuelCode === 'q';
+    const hasDimensions = [
+        newCar.LENGTH ?? newCar.CARLENGTH,
+        newCar.WIDTH ?? newCar.CARWIDTH,
+        newCar.HEIGHT ?? newCar.CARHEIGTH
+    ].every(hasValue);
+    const small = hasDimensions && length <= 4700 && width <= 1700 && height <= 2000;
+    const large = hasDimensions && length > 4700 && width > 1700 && height > 2000;
+    let carGb;
+    let baseValue;
 
-    if (!multiPurpose) {
-        return { area, carGb: 'e', baseValue: carCc, multiPurpose };
+    if (carType === '승용' || carType === '경차') {
+        carGb = '1';
+        baseValue = carCc;
+
+        if (area === '서울특별시') {
+            if (carType === '승용' && passengers >= 7 && passengers <= 10) {
+                carGb = '2';
+                baseValue = 1011;
+            } else if (electric) {
+                carGb = 'e';
+                baseValue = multiPurpose && passengers < 7
+                    ? 10000
+                    : (small ? 500 : (large ? 5000 : 1500));
+            } else if (multiPurpose) {
+                baseValue = 10000;
+            } else if (carCc < 1000) {
+                baseValue = carCc;
+            } else if (carCc >= 1000 && carCc < 1600 && small) {
+                baseValue = carCc;
+            } else if (carCc >= 2000 || large) {
+                baseValue = carCc;
+            } else {
+                baseValue = 1800;
+            }
+        } else if (area === '부산광역시') {
+            if ((carCc >= 2000 || large) && carType === '승용') baseValue = 20000;
+            else if (multiPurpose) baseValue = 1000;
+            else if (passengers >= 7 && passengers <= 10) baseValue = 20000;
+        } else if (area === '대구광역시') {
+            if (multiPurpose) baseValue = 1000;
+            else if (passengers >= 7 && passengers <= 10) baseValue = 20000;
+        } else if (['경상남도', '경상남도 함양군', '경상남도 함안군'].includes(area)) {
+            area = '경상남도';
+            if (passengers >= 7 && passengers <= 10) baseValue = 20000;
+            else if (multiPurpose) baseValue = 1600;
+        } else if (area === '인천광역시') {
+            carGb = '1';
+            if (electric && hasDimensions && (length > 4700 || width > 1700 || height > 2000)) {
+                baseValue = 0;
+            } else if (!electric) {
+                if ((passengers >= 7 && passengers <= 10) || carCc < 2000) baseValue = 0;
+                else if (carCc >= 2000) baseValue = multiPurpose ? 0 : 2000;
+            }
+        } else if (area === '제주특별자치도') {
+            if (multiPurpose) baseValue = 1600;
+            else if (passengers >= 7 && passengers <= 10) baseValue = 20000;
+        }
+    } else if (carType === '승합') {
+        carGb = '2';
+        if (['경상남도', '경상남도 함양군', '경상남도 함안군'].includes(area)) {
+            area = '경상남도';
+        }
+        baseValue = passengers >= 11 ? passengers + 1000 : carCc;
+        if (area === '인천광역시' && passengers >= 11) baseValue = 0;
+        if ([
+            '강원특별자치도', '경기도', '경상북도', '전라남도', '울산광역시',
+            '대전광역시', '세종특별자치시', '광주광역시', '충청남도'
+        ].includes(area)) {
+            baseValue = carCc;
+        }
+    } else {
+        carGb = '3';
+        if (area === '서울특별시') {
+            baseValue = String(newCar.CAR_NM ?? '').includes('Cybertruck')
+                ? 3500
+                : (totalCap >= 10000 ? 4700 : maxCap);
+        } else if (carCc < 1000) {
+            baseValue = 20000;
+        } else if (area === '인천광역시') {
+            baseValue = 0;
+        } else {
+            if (['경상남도 함양군', '경상남도 함안군'].includes(area)) area = '경상남도';
+            baseValue = maxCap;
+        }
+        if (['경상북도', '충청남도', '대전광역시', '세종특별자치시'].includes(area)) {
+            baseValue = carCc;
+        }
     }
 
-    if (area === '서울특별시') {
-        // 서울 7~10인승 승용은 승합 기준, 그 외 다목적 전기차는 전기 다목적 기준 사용함.
-        return passengers >= 7 && passengers <= 10
-            ? { area, carGb: '2', baseValue: 1011, multiPurpose }
-            : { area, carGb: 'e', baseValue: 10000, multiPurpose };
-    }
-
-    if (['부산광역시', '대구광역시'].includes(area)) {
-        return { area, carGb: '1', baseValue: 1000, multiPurpose };
-    }
-
-    if (area === '경상남도') {
-        return {
-            area,
-            carGb: '1',
-            baseValue: passengers >= 7 && passengers <= 10 ? 20000 : 1600,
-            multiPurpose
-        };
-    }
-
-    if (area === '인천광역시') {
-        return { area, carGb: '1', baseValue: 0, multiPurpose };
-    }
-
-    if (area === '제주특별자치도') {
-        return { area, carGb: '1', baseValue: 1600, multiPurpose };
-    }
-
-    // 경기 및 별도 다목적 분기가 없는 지역은 프로시저처럼 승용 배기량 기준 사용함.
-    return { area, carGb: '1', baseValue: carCc, multiPurpose };
+    return { area, carGb, baseValue, multiPurpose };
 };
+
 // TR_CAR_SPEC 조회 결과 중 TR_NEWCAR와 예상금액 계산에 필요한 필드만 추출함.
 // 공급가액은 사용자가 직접 입력한 값이 있으면 유지하고, 없을 때만 제원 테이블 값을 사용함.
 export const buildCarSpecPatch = (dsNewCar = {}, carSpec = {}) => {
@@ -71,6 +135,10 @@ export const buildCarSpecPatch = (dsNewCar = {}, carSpec = {}) => {
         carSpec.MULTI_PURPOSE_YN,
         dsNewCar.MULTI_PURPOSE_YN
     );
+    const carUseKind = String(preferValue(
+        carSpec.CAR_US_KD,
+        dsNewCar.CAR_US_KD
+    )).trim();
 
     const patch = {
         CAR_NM: carSpec.CAR_NM ?? dsNewCar.CAR_NM ?? '',
@@ -79,39 +147,56 @@ export const buildCarSpecPatch = (dsNewCar = {}, carSpec = {}) => {
         CAR_CC: carSpec.CAR_CC ?? dsNewCar.CAR_CC ?? '',
         GETIN_NO: carSpec.GETIN_NO ?? dsNewCar.GETIN_NO ?? '',
         CAR_KD: carSpec.CAR_KD ?? dsNewCar.CAR_KD ?? '',
+        CAR_CD: carSpec.CAR_CD ?? dsNewCar.CAR_CD ?? '',
         CAR_KD_CD: carSpec.CAR_KD_CD ?? dsNewCar.CAR_KD_CD ?? '',
         FM_NM: carSpec.FM_NM ?? dsNewCar.FM_NM ?? '',
         FOM_NM: preferValue(carSpec.FOM_NM, dsNewCar.FOM_NM),
         FUEL_CD: carSpec.FUEL_CD ?? dsNewCar.FUEL_CD ?? '',
         LENGTH: preferValue(
+            carSpec.CARLENGTH,
             carSpec.LENGTH,
             carSpec.CAR_LENGTH,
+            dsNewCar.CARLENGTH,
             dsNewCar.LENGTH,
             dsNewCar.CAR_LENGTH
         ),
         WIDTH: preferValue(
+            carSpec.CARWIDTH,
             carSpec.WIDTH,
             carSpec.CAR_WIDTH,
+            dsNewCar.CARWIDTH,
             dsNewCar.WIDTH,
             dsNewCar.CAR_WIDTH
         ),
         HEIGHT: preferValue(
+            carSpec.CARHEIGTH,
             carSpec.HEIGHT,
             carSpec.CAR_HEIGHT,
+            dsNewCar.CARHEIGTH,
             dsNewCar.HEIGHT,
             dsNewCar.CAR_HEIGHT
         ),
         MAX_CAP: preferValue(
+            carSpec.CARPAYLOAD,
             carSpec.MAX_CAP,
             carSpec.MXMM_LDG,
+            dsNewCar.CARPAYLOAD,
             dsNewCar.MAX_CAP,
             dsNewCar.MXMM_LDG
         ),
-        TOTAL_CAP: preferValue(carSpec.TOTAL_CAP, dsNewCar.TOTAL_CAP),
+        TOTAL_CAP: preferValue(
+            carSpec.CARWEIGHT,
+            carSpec.TOTAL_CAP,
+            dsNewCar.CARWEIGHT,
+            dsNewCar.TOTAL_CAP
+        ),
+        CAR_US_KD: carUseKind,
         MULTI_PURPOSE_YN: multiPurposeYn,
-        VH_TY_CD: String(multiPurposeYn).trim().toUpperCase() === 'Y'
-            ? '3'
-            : (dsNewCar.VH_TY_CD ?? ''),
+        VH_TY_CD: carUseKind || (
+            String(multiPurposeYn).trim().toUpperCase() === 'Y'
+                ? '3'
+                : (dsNewCar.VH_TY_CD ?? '')
+        ),
         BUY_AMT: getAmount(dsNewCar.BUY_AMT) > 0
             ? dsNewCar.BUY_AMT
             : (carSpec.BUY_AMT ?? 0),

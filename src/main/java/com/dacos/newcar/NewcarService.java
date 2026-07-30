@@ -304,7 +304,7 @@ public class NewcarService {
         }
 
         // 폴스타 승용/다목적 공채 분기에서 사용하는 차량구분만 허용함.
-        if (!Set.of("e", "1", "2").contains(normalizedCarGb)) {
+        if (!Set.of("e", "1", "2", "3").contains(normalizedCarGb)) {
             throw new BusinessException("지원하지 않는 공채 차량구분입니다: " + normalizedCarGb, 400);
         }
 
@@ -337,7 +337,12 @@ public class NewcarService {
             throw new BusinessException("TM_TAX에서 사용 가능한 신규등록 세율정보를 찾을 수 없습니다: 010", 404);
         }
 
-        return taxInfo;
+        Map<String, Object> result = new HashMap<>(taxInfo);
+        Map<String, Object> codeConfig = newcarMapper.getEstimateCodeConfig();
+        if (codeConfig != null) {
+            result.putAll(codeConfig);
+        }
+        return result;
     }
     private record CarSpecSearchConfig(String maker, String vehicleTypeCode, String fuelCode) {
     }
@@ -547,13 +552,13 @@ public class NewcarService {
 
 
 		String directYn = Objects.toString(row.get("DIRECT_YN"), "").trim();
-		logger.info("직접등록여부 directYn 값 확인 중 : {}", directYn);
+		logger.info("자가등록여부 directYn 값 확인 중 : {}", directYn);
 		if (isEmpty(directYn)) {
-			errors.add("등록방법(대행등록/직접등록) 없음");
+			errors.add("등록방법(Agency/자가등록) 없음");
 		} else {
 			// 직접입력여부 체크
-			if (!"직접등록".equals(directYn) && !"대행등록".equals(directYn)) {
-				errors.add("등록방법(대행등록/직접등록) 아님");
+			if (!"자가등록".equals(directYn) && !"Agency".equals(directYn)) {
+				errors.add("등록방법(Agency/자가등록) 아님");
 			}
 		}
 
@@ -575,15 +580,15 @@ public class NewcarService {
 					continue;
 				}
 				Map<String, Object> row = new HashMap<>();
-				row.put("SPACE_GB", getCellValue(excelRow.getCell(2), formatter)); 						//Space명(배송지)
-				row.put("SPACE_NM", getCellValue(excelRow.getCell(3), formatter));						//담당 Specialist명
-				row.put("LINK_ID", getCellValue(excelRow.getCell(5), formatter));						//주문번호
-				row.put("OWNER_NM", getCellValue(excelRow.getCell(6), formatter));						//소유자명
-				row.put("CAR_NM", getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"모델") + " " + getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"Engine")); //차명
-				row.put("CARID_NO", getCellValue(excelRow.getCell(11), formatter));						//차대번호
-				row.put("BUY_AMT", getCellValue(excelRow.getCell(28), formatter).replace(",", ""));		//공급가액
-				row.put("REGIST_DATE", getCellValue(excelRow.getCell(41), formatter).replace("-", "").replace(".", ""));	//등록일자
-				row.put("DIRECT_YN", getCellValue(excelRow.getCell(40), formatter));						//직접입력여부
+				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter)); 																			//Space명(배송지)
+				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter));																			//담당 Specialist명
+				row.put("LINK_ID", getCellValue(excelRow.getCell(0), formatter));																				//주문번호
+				row.put("OWNER_NM", getCellValue(excelRow.getCell(11), formatter));																			//계약자명(고객명)
+				row.put("CAR_NM", getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"모델") + " " + getExcelCellValue(sheet.getRow(0), excelRow, formatter, -1,"엔진")); //차명
+				row.put("CARID_NO", getCellValue(excelRow.getCell(1), formatter));																			//차대번호
+				row.put("BUY_AMT", getCellValue(excelRow.getCell(13), formatter).replace(",", ""));										 //공급가액
+				row.put("REGIST_DATE", getCellValue(excelRow.getCell(7), formatter).replace("-", "").replace(".", ""));	  //등록일자
+				row.put("DIRECT_YN", getCellValue(excelRow.getCell(8), formatter));																			//직접입력여부
 				result.add(row);
 			}
 		} catch (Exception e) {
@@ -957,9 +962,9 @@ public class NewcarService {
 	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
 	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 						   // 등록일자
 	    dsNewCar.put("STAMP_GB", "TOTAL"); 			  	 	 					   // 인지세
-		String directYnText = Objects.toString(row.get("DIRECT_YN"), "");				
+		String directYnText = Objects.toString(row.get("DIRECT_YN"), "");
 		String directyn = "N";
-		if ("직접등록".equals(directYnText) || "Y".equalsIgnoreCase(directYnText)) {
+		if ("자가등록".equals(directYnText) || "Y".equalsIgnoreCase(directYnText)) {
 			directyn = "Y";
 			dsService.put("PROC_ST", "INPUT");  // 직접등록이면 상태값 INPUT으로 변경
 		}

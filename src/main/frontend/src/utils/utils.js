@@ -754,8 +754,10 @@ export const gf = {
 
 		address = (address || '').trim();
 		
+		// 한글+숫자 중 한글 부분의 공백 개수 확인
 		const spaceCount = (address.match(/\s+/g) || []).length;
 
+		// 공백이 1개 이하인 약식 주소 처리
 		if (spaceCount <= 1) {
 
 		    const match = address.match(/^(.+?)(\d+(?:-\d+)?)$/);

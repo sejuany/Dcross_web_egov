@@ -28,28 +28,56 @@ const getColumnName = (index) => {
     return columnName;
 };
 
+// Excel의 글자 폭은 단순 문자열 길이와 달라 한글·한자·이모지를 약 2칸으로 계산한다.
+const getTextDisplayWidth = (value) => String(value ?? '')
+    .split(/\r?\n/)
+    .reduce((maxLineWidth, line) => {
+        const lineWidth = Array.from(line).reduce((width, character) => {
+            if (character === '\t') return width + 4;
+
+            const codePoint = character.codePointAt(0);
+            const isWideCharacter = codePoint > 0xffff || (
+                codePoint >= 0x1100 && (
+                    codePoint <= 0x11ff
+                    || (codePoint >= 0x2e80 && codePoint <= 0xa4cf)
+                    || (codePoint >= 0xac00 && codePoint <= 0xd7a3)
+                    || (codePoint >= 0xf900 && codePoint <= 0xfaff)
+                    || (codePoint >= 0xfe10 && codePoint <= 0xfe6f)
+                    || (codePoint >= 0xff00 && codePoint <= 0xff60)
+                    || (codePoint >= 0xffe0 && codePoint <= 0xffe6)
+                )
+            );
+
+            return width + (isWideCharacter ? 2 : 1);
+        }, 0);
+
+        return Math.max(maxLineWidth, lineWidth);
+    }, 0);
+
 const getColumnWidth = (rows, columnIndex) => {
     const maxLength = rows.reduce((max, row) => {
-        const valueLength = String(row[columnIndex] ?? '').length;
+        const valueLength = getTextDisplayWidth(row[columnIndex]);
         return Math.max(max, valueLength);
     }, 8);
 
-    return Math.min(Math.max(maxLength + 2, 10), 40);
+    // Excel 열 너비의 최대 허용값(255) 안에서 가장 긴 셀에 여백 2칸을 더한다.
+    return Math.min(Math.max(maxLength + 2, 10), 255);
 };
 
-const createSheetXml = (rows) => {
+export const createSheetXml = (rows) => {
     const rowCount = Math.max(rows.length, 1);
     const columnCount = Math.max(rows[0]?.length || 1, 1);
     const dimension = `A1:${getColumnName(columnCount - 1)}${rowCount}`;
     const columnXml = Array.from({ length: columnCount }, (_, columnIndex) => (
-        `<col min="${columnIndex + 1}" max="${columnIndex + 1}" width="${getColumnWidth(rows, columnIndex)}" customWidth="1"/>`
+        `<col min="${columnIndex + 1}" max="${columnIndex + 1}" width="${getColumnWidth(rows, columnIndex)}" bestFit="1" customWidth="1"/>`
     )).join('');
     const rowsXml = rows.map((row, rowIndex) => {
         const cellsXml = Array.from({ length: columnCount }, (_, columnIndex) => {
             const cellRef = `${getColumnName(columnIndex)}${rowIndex + 1}`;
             const value = escapeXml(row[columnIndex]);
+            const styleAttribute = rowIndex === 0 ? ' s="1"' : '';
 
-            return `<c r="${cellRef}" t="inlineStr"><is><t>${value}</t></is></c>`;
+            return `<c r="${cellRef}"${styleAttribute} t="inlineStr"><is><t>${value}</t></is></c>`;
         }).join('');
 
         return `<row r="${rowIndex + 1}">${cellsXml}</row>`;
@@ -62,8 +90,26 @@ const createSheetXml = (rows) => {
 <sheetFormatPr defaultRowHeight="15"/>
 <cols>${columnXml}</cols>
 <sheetData>${rowsXml}</sheetData>
+<autoFilter ref="${dimension}"/>
 </worksheet>`;
 };
+
+export const createStylesXml = () => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
+<fills count="3">
+<fill><patternFill patternType="none"/></fill>
+<fill><patternFill patternType="gray125"/></fill>
+<fill><patternFill patternType="solid"><fgColor rgb="FFF8FAFC"/><bgColor indexed="64"/></patternFill></fill>
+</fills>
+<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
+<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
+<cellXfs count="2">
+<xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
+<xf numFmtId="0" fontId="0" fillId="2" borderId="0" xfId="0" applyFill="1"/>
+</cellXfs>
+<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
+</styleSheet>`;
 
 const createWorkbookXml = (sheetName) => `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">
@@ -92,15 +138,7 @@ const xlsxStaticFiles = {
 <Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/>
 <Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/styles" Target="styles.xml"/>
 </Relationships>`,
-    'xl/styles.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
-<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
-<fonts count="1"><font><sz val="11"/><name val="Calibri"/></font></fonts>
-<fills count="1"><fill><patternFill patternType="none"/></fill></fills>
-<borders count="1"><border><left/><right/><top/><bottom/><diagonal/></border></borders>
-<cellStyleXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0"/></cellStyleXfs>
-<cellXfs count="1"><xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/></cellXfs>
-<cellStyles count="1"><cellStyle name="Normal" xfId="0" builtinId="0"/></cellStyles>
-</styleSheet>`,
+    'xl/styles.xml': createStylesXml(),
     'docProps/app.xml': `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">
 <Application>DACOS</Application>

@@ -215,7 +215,7 @@ public class SchedulerService {
     				// 고객 안내 문자
     				String smsText = "[" + safeValue(target.getREQ_CAR_NO()) + "] 차량의 취득세가 아직 확인되지 않아 안내드립니다.\n\n"
     								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
-    								+ "2) 납부금액 : " + safeValue(target.getACQ_PAY_AMT()) + "원\n"
+    								+ "2) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
     								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n\n"
     								+ "※ 미결제 시 당일 관청 등록 처리가 마감되어 부득이하게 출고 일정이 지연될 수 있으니, 원활한 차량 인도를 위해 시간 내 결제 마무리를 당부드립니다.\n"
     								+ "※ 이미 납부하신 경우, 전산 반영 시차로 인해 본 안내문이 발송된 것이니 양해 부탁드립니다.";
@@ -236,9 +236,9 @@ public class SchedulerService {
     				}
     				
     				// 담당자 안내 문자
-    				smsText = "[" + safeValue(target.getCAR_NO()) + "] 차량의 취득세가 납부되지 않았습니다. 고객께 납부요청 부탁드립니다.\n\n"
+    				smsText = "[" + safeValue(target.getREQ_CAR_NO()) + "] 차량의 취득세가 납부되지 않았습니다. 고객께 납부요청 부탁드립니다.\n\n"
     								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
-    								+ "2) 납부금액 : " + safeValue(target.getACQ_PAY_AMT()) + "원\n"
+    								+ "2) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
     								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n"
     								+ "4) 납부기한 : 당일 15:00\n\n"
     								+ "고객 연락처 : " + safeValue(target.getMPHONE_NO());
@@ -273,5 +273,17 @@ public class SchedulerService {
 
     private String safeValue(String value) {
         return value == null ? "" : value;
+    }
+    
+    private String safeAmount(Object amount) {
+        if (amount == null || amount.toString().trim().isEmpty()) {
+            return "0";
+        }
+
+        try {
+            return String.format("%,d", Long.parseLong(amount.toString()));
+        } catch (Exception e) {
+            return amount.toString();
+        }
     }
 }

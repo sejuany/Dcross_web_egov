@@ -253,17 +253,27 @@ const buildCodeMap = (codes) => Object.entries(codes || {}).reduce((acc, [groupI
 }, {});
 
 const getStatusClass = (statusLabel, statusCode) => {
-    const text = `${statusLabel || ''} ${statusCode || ''}`;
+    const code = String(statusCode || '').trim().toUpperCase();
+    const label = String(statusLabel || '').trim();
 
-    if (/RET/.test(text)) return 'reject';
-    if (/END/.test(text)) return 'done';
-    if (/REQ/.test(text)) return 'progress';
+    if (/^(RET|REJECT)$/.test(code) || /반려/.test(label)) {
+        return 'reject';
+    }
+
+    if (/^(REQ|C_REQ|SAV|INPUT|W_REQ|B_REQ|P_REQ|PREND|PBEND|P_END|S_REQ|S_END|D_MAN|D_PAM|D_DAC)$/.test(code)) {
+        return 'progress';
+    }
+
+    if (/^(J_REQ|J_ING|J_END|J_WTX|D_REQ|D_ING|D_END|D_CON|D_DLY|D_PAY|D_PAQ|P_RET|END)$/.test(code)) {
+        return 'done';
+    }
+
     return 'ready';
 };
 
 const getProcessGroupCode = (row) => toStringValue(row.NPROC_ST || row.PROC_ST);
 
-const isRejectRow = (row) => getProcessGroupCode(row) === 'RET' || /반려|RET|REJECT/.test([row.processStatus, row.PROC_ST].join(' '));
+const isRejectRow = (row) => getProcessGroupCode(row) === 'RET' || /반려|RET/.test([row.processStatus, row.PROC_ST].join(' '));
 
 const isStatusIn = (row, statusCodes) => statusCodes.includes(getProcessGroupCode(row));
 
@@ -926,13 +936,10 @@ const WaNewcarList = () => {
         });
     }, []);
 
+    // 신규등록 상세 모달을 닫으면 현재 조회조건으로 목록을 다시 조회한다.
+    // 조회 버튼과 같은 함수를 호출하므로 모달에서 변경된 처리상태와 금액이 즉시 반영된다.
     const handleCloseRequestFrame = useCallback(() => {
         setActiveRequest(null);
-    }, []);
-
-
-
-    const handleRequestSaved = useCallback(() => {
         fetchNewCarList(searchFilters);
     }, [fetchNewCarList, searchFilters]);
 
@@ -941,14 +948,14 @@ const WaNewcarList = () => {
 
         const handleKeyDown = (event) => {
             if (event.key === 'Escape') {
-                setActiveRequest(null);
+                handleCloseRequestFrame();
             }
         };
 
         window.addEventListener('keydown', handleKeyDown);
 
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [activeRequest]);
+    }, [activeRequest, handleCloseRequestFrame]);
 
     const getColumnWidth = useCallback((column) => (
         columnWidths[column.key] ?? column.width ?? column.minWidth ?? DEFAULT_MIN_COLUMN_WIDTH
@@ -1332,7 +1339,6 @@ const WaNewcarList = () => {
                                 initialServiceId={activeRequest.serviceId}
 								stepMemory={stepMemoryRef.current}
                                 onClose={handleCloseRequestFrame}
-                                onSaved={handleRequestSaved}
                             />
                         </div>
                     </section>

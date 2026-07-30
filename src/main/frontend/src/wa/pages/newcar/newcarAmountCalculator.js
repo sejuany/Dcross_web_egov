@@ -87,8 +87,8 @@ export const getNumber = (value) => Number(String(value ?? 0).replace(/,/g, ''))
 // 0도 정상 설정값으로 인정하도록 null/빈 문자열만 누락으로 판단함.
 const hasValue = (value) => value !== undefined && value !== null && value !== '';
 
-// 화면 표시용 금액 포맷 처리함.
-export const formatAmount = (value) => getNumber(value).toLocaleString();
+// 원 단위 금액은 소수점 이하를 절사하고 표시함.
+export const formatAmount = (value) => Math.trunc(getNumber(value)).toLocaleString();
 
 // 첨부 금액처리 로직 기준으로 10원 단위 절사함.
 const roundDown = (value, unit = ROUND_UNIT) => Math.floor(getNumber(value) / unit) * unit;
@@ -254,6 +254,40 @@ const resolveVehicleType = (dsNewCar) => {
     return '1';
 };
 
+// 프로시저의 CAR_CD 값으로 승용/승합/화물/경차/영업 구분함.
+const resolveProcedureCarType = (dsNewCar) => {
+    const explicitType = String(dsNewCar.CAR_CD ?? dsNewCar.CAR_KD ?? '').trim();
+    if (['승용', '승합', '화물', '경차', '영업'].includes(explicitType)) {
+        return explicitType;
+    }
+
+    const vehicleType = resolveVehicleType(dsNewCar);
+    if (vehicleType === '2') return '승합';
+    if (vehicleType === '3') return '화물';
+    if (String(dsNewCar.CAR_KD_CD ?? '').trim() === '4' && getNumber(dsNewCar.CAR_CC) <= 1000) {
+        return '경차';
+    }
+    return '승용';
+};
+
+// sp_NewCarTaxBondConfirm의 PROC_CD/TASK_CD/차종별 세율.
+const resolveProcedureTaxRates = (dsNewCar) => {
+    const carType = resolveProcedureCarType(dsNewCar);
+    if (String(dsNewCar.PROC_CD ?? '').trim() === 'C') {
+        const uregRate = String(dsNewCar.TASK_CD ?? '').trim() === 'ADD'
+            ? 0.02
+            : (['경차', '영업'].includes(carType)
+                ? 0.02
+                : (['승합', '화물'].includes(carType) ? 0.03 : 0.05));
+        return { acqRate: 0.02, uregRate, acqRateField: 'PROCEDURE' };
+    }
+
+    const acqRate = ['경차', '영업'].includes(carType)
+        ? 0.04
+        : (['승합', '화물'].includes(carType) ? 0.05 : 0.07);
+    return { acqRate, uregRate: null, acqRateField: 'PROCEDURE' };
+};
+
 // 감면 차량조건에 필요한 최대적재량 가져옴.
 // 원부 연계 응답별 필드명이 다른 경우를 고려해 사용 가능한 값을 순서대로 확인함.
 const getMaxLoad = (dsNewCar) => getNumber(
@@ -267,20 +301,22 @@ const getMaxLoad = (dsNewCar) => getNumber(
 // 엑셀 참고사항의 배기량, 승차정원, 최대적재량 기준을 그대로 적용함.
 const resolveSpecialVehicleEligibility = (dsNewCar) => {
     const vehicleType = resolveVehicleType(dsNewCar);
-    const carCc = getNumber(dsNewCar.CAR_CC);
+    const carCcValue = dsNewCar.CAR_CC;
+    const carCc = getNumber(carCcValue);
+    const carCcPresent = hasValue(carCcValue);
     const passengers = getNumber(dsNewCar.GETIN_NO);
     const maxLoad = getMaxLoad(dsNewCar);
 
     if (vehicleType === '1') {
-        if ((carCc > 0 && carCc <= 2000) || (passengers >= 7 && passengers <= 10)) {
+        // 전기차의 0cc도 프로시저의 "2000cc 이하" 조건에 포함함.
+        if ((carCcPresent && carCc <= 2000) || passengers >= 7) {
             return { eligible: true, reason: '감면 차량조건 충족' };
         }
-
-        const missingRequirements = [];
-        if (!carCc) missingRequirements.push('배기량(CAR_CC)');
-        if (!passengers) missingRequirements.push('승차정원(GETIN_NO)');
-
-        return { eligible: false, reason: '승용차 감면 차량조건 미충족', missingRequirements };
+        return {
+            eligible: false,
+            reason: '승용차 감면 차량조건 미충족',
+            missingRequirements: carCcPresent ? [] : ['배기량(CAR_CC)']
+        };
     }
 
     if (vehicleType === '2') {
@@ -294,22 +330,12 @@ const resolveSpecialVehicleEligibility = (dsNewCar) => {
     }
 
     if (vehicleType === '3') {
-        return maxLoad > 0 && maxLoad <= 1000
+        return hasValue(dsNewCar.MXMM_LDG ?? dsNewCar.MAX_CAP ?? dsNewCar.CARPAYLOAD) && maxLoad <= 1000
             ? { eligible: true, reason: '최대적재량 1톤 이하 화물차' }
             : {
                 eligible: false,
                 reason: '화물차 감면 차량조건 확인 필요',
-                missingRequirements: maxLoad ? [] : ['최대적재량(MXMM_LDG)']
-            };
-    }
-
-    if (vehicleType === '5') {
-        return carCc > 0 && carCc <= 250
-            ? { eligible: true, reason: '배기량 250cc 이하 이륜자동차' }
-            : {
-                eligible: false,
-                reason: '이륜자동차 감면 차량조건 미충족',
-                missingRequirements: carCc ? [] : ['배기량(CAR_CC)']
+                missingRequirements: ['최대적재량(MXMM_LDG)']
             };
     }
 
@@ -346,9 +372,10 @@ const buildExemptionResult = ({
 // 차량조건이나 기존 차량 세액이 부족한 유형은 세액을 임의 면제하지 않고 확인 필요값 반환함.
 const resolveAcqTaxExemption = ({ dsNewCar, codes, grossAcqTax }) => {
     const code = resolveExemptionCode(dsNewCar, codes);
-    const vehicleType = resolveVehicleType(dsNewCar);
+    const carType = resolveProcedureCarType(dsNewCar);
     const passengers = getNumber(dsNewCar.GETIN_NO);
-    const grade = getNumber(dsNewCar.NTAX_TRGET_GR_CD);
+    const passengersPresent = hasValue(dsNewCar.GETIN_NO);
+    const maxLoad = getMaxLoad(dsNewCar);
     const unchanged = (reason = '', missingRequirements = []) => buildExemptionResult({
         code,
         grossAcqTax,
@@ -356,188 +383,156 @@ const resolveAcqTaxExemption = ({ dsNewCar, codes, grossAcqTax }) => {
         missingRequirements
     });
 
-    if (!code || code === '00') {
+    if (!code || code === '00' || code === '10') {
         return unchanged();
     }
 
-    // 2자녀: 취득세 50% 감면, 6인승 이하 승용차는 최대 70만원 감면함.
-    if (code === '15') {
-        const missingRequirements = vehicleType === '1' && !passengers ? ['승차정원(GETIN_NO)'] : [];
-        let reduction = Math.ceil((grossAcqTax * 0.5) / ROUND_UNIT) * ROUND_UNIT;
-
-        if (vehicleType === '1' && (!passengers || passengers <= 6)) {
-            reduction = Math.min(reduction, 700000);
+    // 프로시저의 일반 비과세 대상: 3자녀·침수·이용자명의리스·2자녀를 제외한 코드.
+    if (!['06', '07', '10', '15'].includes(code)) {
+        const grade = getNumber(dsNewCar.NTAX_TRGET_GR_CD);
+        if ((code === '04' && grade > 3) || (code === '05' && grade > 4)) {
+            return unchanged('선택한 장애등급은 취득세 면제 대상 아님');
         }
 
-        return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax: grossAcqTax - reduction,
-            reason: vehicleType === '1' && passengers > 0 && passengers <= 6
-                ? '취득세 50% 감면, 6인승 이하 최대 70만원 한도 적용'
-                : '취득세 50% 감면 적용',
-            missingRequirements
-        });
+        // 운영 프로시저는 인천 시각장애 4급이 200만원 이상일 때만 15% 과세함.
+        if (resolveBondArea(dsNewCar) === '인천광역시' && code === '05' && String(dsNewCar.NTAX_TRGET_GR_CD) === '4') {
+            return grossAcqTax >= 2000000
+                ? buildExemptionResult({
+                    code,
+                    grossAcqTax,
+                    payableAcqTax: grossAcqTax * 0.15,
+                    reason: '인천 시각장애 4급 취득세 15% 과세'
+                })
+                : unchanged('인천 시각장애 4급 200만원 미만 프로시저 기준 세액 유지');
+        }
+
+        const eligibility = resolveSpecialVehicleEligibility(dsNewCar);
+        return eligibility.eligible
+            ? buildExemptionResult({ code, grossAcqTax, payableAcqTax: 0, reason: eligibility.reason })
+            : unchanged(eligibility.reason, eligibility.missingRequirements);
     }
 
-    // 3자녀: 6인승 이하 승용차는 최대 140만원 감면함.
-    // 그 외 대상차량은 200만원 이하 전액면제, 200만원 초과 시 85% 감면함.
     if (code === '06') {
-        if (vehicleType === '1' && (!passengers || passengers <= 6)) {
+        if (carType === '승용' && passengersPresent && passengers <= 6) {
             return buildExemptionResult({
                 code,
                 grossAcqTax,
                 payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 1400000),
-                reason: '6인승 이하 승용차 최대 140만원 감면 적용',
-                missingRequirements: passengers ? [] : ['승차정원(GETIN_NO)']
+                reason: '3자녀 승용차 취득세 최대 140만원 감면'
             });
         }
-
-        const payableAcqTax = grossAcqTax <= 2000000 ? 0 : roundDown(grossAcqTax * 0.15);
-        return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax,
-            reason: grossAcqTax <= 2000000 ? '취득세 전액면제 적용' : '취득세 85% 감면 적용'
-        });
-    }
-
-    // 국가유공자·5.18·고엽제는 엑셀의 공통 차량조건 충족 시 전액면제함.
-    if (['01', '02', '03'].includes(code)) {
-        const eligibility = resolveSpecialVehicleEligibility(dsNewCar);
-        return eligibility.eligible
-            ? buildExemptionResult({ code, grossAcqTax, payableAcqTax: 0, reason: eligibility.reason })
-            : unchanged(eligibility.reason, eligibility.missingRequirements);
-    }
-
-    // 장애인은 기존 1~3급, 시각장애인은 기존 1~4급까지만 취득세 면제함.
-    if (code === '04' || code === '05') {
-        const maxEligibleGrade = code === '04' ? 3 : 4;
-
-        if (!grade || grade > maxEligibleGrade) {
-            return unchanged(
-                grade ? '선택한 장애등급은 취득세 면제 대상 아님' : '장애등급 확인 필요',
-                grade ? [] : ['감면등급(NTAX_TRGET_GR_CD)']
-            );
-        }
-
-        const eligibility = resolveSpecialVehicleEligibility(dsNewCar);
-        return eligibility.eligible
-            ? buildExemptionResult({ code, grossAcqTax, payableAcqTax: 0, reason: eligibility.reason })
-            : unchanged(eligibility.reason, eligibility.missingRequirements);
-    }
-
-    // 교환자동차는 새 차량 세액에서 기존 차량 세액을 뺀 차액만 납부함.
-    if (code === '09') {
-        const oldAcqTax = getNumber(
-            dsNewCar.EXCHANGE_OLD_ACQ_AMT
-            ?? dsNewCar.OLD_ACQ_AMT
-            ?? dsNewCar.PREV_ACQ_AMT
-        );
-
-        if (!oldAcqTax) {
-            return unchanged('기존 차량 취득세액 확인 필요', ['기존 차량 취득세액(EXCHANGE_OLD_ACQ_AMT)']);
-        }
-
-        return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax: Math.max(grossAcqTax - oldAcqTax, 0),
-            reason: '새 차량과 기존 차량 취득세 차액 적용'
-        });
-    }
-
-    // 수출용중고자동차는 200만원 이하 전액면제, 초과 시 85% 감면함.
-    if (code === '11') {
-        return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax: grossAcqTax <= 2000000 ? 0 : roundDown(grossAcqTax * 0.15),
-            reason: grossAcqTax <= 2000000 ? '취득세 전액면제 적용' : '취득세 85% 감면 적용'
-        });
-    }
-
-    // JSA 거주자 항목은 엑셀에 감면율과 금액이 없어 자동 계산하지 않음.
-    if (code === '12') {
-		return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax: 0,
-            reason: '공동경비구역(JSA) 거주자 취득세 전액면제 적용'
-        });
-	
-    }
-
-    // 비영리사업자는 관용차량 요건을 확인하고 선택한 것으로 보고 전액면제함.
-    if (code === '13') {
-        return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax: 0,
-            reason: '관용차량 비영리사업자 취득세 전액면제 적용'
-        });
-    }
-
-    // 보훈보상대상자는 공통 차량조건 충족 시 취득세 50% 감면함.
-    if (code === '14') {
-        const eligibility = resolveSpecialVehicleEligibility(dsNewCar);
-        return eligibility.eligible
+        const eligible = (carType === '승용' && passengers >= 7)
+            || (carType === '승합' && passengersPresent && passengers <= 15)
+            || (carType === '화물' && hasValue(dsNewCar.MAX_CAP ?? dsNewCar.CARPAYLOAD ?? dsNewCar.MXMM_LDG) && maxLoad <= 1000);
+        return eligible
             ? buildExemptionResult({
                 code,
                 grossAcqTax,
-                payableAcqTax: roundDown(grossAcqTax * 0.5),
-                reason: '취득세 50% 감면 적용'
+                payableAcqTax: grossAcqTax >= 2000000 ? grossAcqTax * 0.15 : 0,
+                reason: grossAcqTax >= 2000000 ? '3자녀 취득세 15% 과세' : '3자녀 취득세 전액면제'
             })
-            : unchanged(eligibility.reason, eligibility.missingRequirements);
+            : unchanged('3자녀 감면 차량조건 미충족');
     }
 
-    // 중복감면은 엑셀의 중복 불가 기준에 따라 다자녀 정액 감면만 적용함.
-    if (['18', '19'].includes(code)) {
+    if (code === '15') {
+        let reduction = grossAcqTax * 0.5;
+        if (carType === '승용' && passengersPresent && passengers <= 6) {
+            reduction = Math.min(reduction, 700000);
+        }
         return buildExemptionResult({
             code,
             grossAcqTax,
-            payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 700000),
-            reason: '중복감면 불가, 다자녀2 기준 최대 70만원 감면 적용'
+            payableAcqTax: grossAcqTax - reduction,
+            reason: '2자녀 취득세 50% 감면'
         });
     }
 
-    if (['16', '17'].includes(code)) {
-        return buildExemptionResult({
-            code,
-            grossAcqTax,
-            payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 1400000),
-            reason: '중복감면 불가, 다자녀3 기준 최대 140만원 감면 적용'
-        });
-    }
-
-    return unchanged('등록되지 않은 감면유형 확인 필요', ['감면 계산 규칙']);
+    return unchanged('침수차량 취득세 확인 필요');
 };
 
-// 폴스타 전기차 여부 확인함.
-// WA001 차량제원 응답은 서버에서 FUEL_CD=e로 통일하며 Maker 값은 저장 데이터 보완용으로 확인함.
+// 전기·수소차 여부와 프로시저의 친환경 감면 대상 여부를 분리함.
 const isElectricVehicle = (dsNewCar) => {
     const fuelCode = String(dsNewCar.FUEL_CD ?? '').trim().toLowerCase();
     const maker = String(dsNewCar.CAR_SPEC_MAKER ?? dsNewCar.MAKER ?? '').replace(/\s+/g, '').toUpperCase();
     return ['e', 'q', 'r'].includes(fuelCode) || maker === 'POLESTAR';
 };
-
-// 전기차이지만 취득세 전기차 감면 대상이 아닌 차종.
-// 대소문자와 앞뒤/중복 공백 차이로 감면이 다시 적용되지 않도록 정규화해서 비교함.
+const isElectricOrHydrogen = (dsNewCar) => ['e', 'q'].includes(
+    String(dsNewCar.FUEL_CD ?? '').trim().toLowerCase()
+);
+const isHybridFuel = (dsNewCar) => {
+    const fuelCode = String(dsNewCar.FUEL_CD ?? '').trim().toLowerCase();
+    return fuelCode >= 'l' && fuelCode <= 'p';
+};
+const pipeContains = (pipeValues, value) => {
+    if (!hasValue(pipeValues) || !hasValue(value)) return false;
+    return String(pipeValues).includes('|' + String(value) + '|');
+};
 const normalizeCarName = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
+const ORIGINAL_ECO_EXCLUDED_CAR_NAME = normalizeCarName('타이칸 크로스 투리스모 터보 (5인승)');
 const ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES = new Set([
+    '타이칸 크로스 투리스모 터보 (5인승)',
     'Polestar 4 Coupe Performance',
     'Polestar 4 Long Range Dual Motor'
 ].map(normalizeCarName));
 
-const isElectricAcqTaxExemptionEligible = (dsNewCar) => (
-    isElectricVehicle(dsNewCar)
-    && !ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES.has(normalizeCarName(dsNewCar.CAR_NM))
-);
+const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
+    const taxInfo = getTaxInfo({ dsNewCar, codes });
+    const fmExclusions = taxInfo.HYBRID_FM_EXCLUSIONS ?? taxInfo.HYBRID ?? '';
+    const enginePatterns = taxInfo.HYBRID_OK_PATTERNS ?? taxInfo.HYB_OK ?? '';
+    const fmName = String(dsNewCar.FM_NM ?? '').trim();
+    const fomName = String(dsNewCar.FOM_NM ?? '').trim();
+    const carName = normalizeCarName(dsNewCar.CAR_NM);
+    const hasEcoConfig = hasValue(fmExclusions) || hasValue(enginePatterns);
+    const fmExcluded = pipeContains(fmExclusions, fmName);
+    const originalNameExcluded = carName === ORIGINAL_ECO_EXCLUDED_CAR_NAME;
+    const engineEligible = pipeContains(enginePatterns, fomName)
+        || pipeContains(enginePatterns, fomName + '{' + fmName.slice(0, 5) + '}');
+    const baseEligible = hasEcoConfig
+        ? (!fmExcluded && !originalNameExcluded && engineEligible)
+        : isElectricVehicle(dsNewCar);
 
-// 일반 감면과 전기차 취득세 감면은 중복 적용하지 않고 감면액이 큰 한 건만 적용함.
-// 전기차 취득세는 금액처리 파일 기준 최대 140만원 감면함.
-const applyElectricAcqTaxExemption = ({ dsNewCar, grossAcqTax, targetExemptionResult }) => {
-    if (!isElectricAcqTaxExemptionEligible(dsNewCar)) {
+    return {
+        acquisitionEligible: baseEligible && !ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES.has(carName),
+        bondEligible: baseEligible
+    };
+};
+
+// 일반 감면과 친환경차 감면은 프로시저처럼 중복 적용하지 않음.
+// 2자녀만 기존 감면액보다 전기차 140만원 감면이 크면 전기차 감면으로 교체함.
+const applyEcoAcqTaxExemption = ({
+    dsNewCar,
+    codes,
+    grossAcqTax,
+    targetExemptionResult,
+    ecoEligibility
+}) => {
+    const targetCode = targetExemptionResult.code;
+    const taxInfo = getTaxInfo({ dsNewCar, codes });
+
+    if (isHybridFuel(dsNewCar)
+        && String(taxInfo.BUBYN ?? '').trim() === 'N'
+        && ecoEligibility.acquisitionEligible
+        && (!targetCode || targetCode === '00')) {
+        return buildExemptionResult({
+            code: 'EV',
+            grossAcqTax,
+            payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 400000),
+            reason: '하이브리드 취득세 40만원 감면'
+        });
+    }
+
+    if (!isElectricOrHydrogen(dsNewCar)) {
+        return targetExemptionResult;
+    }
+
+    const taycanFallback = normalizeCarName(dsNewCar.CAR_NM) !== ORIGINAL_ECO_EXCLUDED_CAR_NAME
+        && getNumber(dsNewCar.GETIN_NO) === 5
+        && String(dsNewCar.CAR_NM ?? '').includes('타이칸');
+    if (!ecoEligibility.acquisitionEligible && !taycanFallback) {
+        return targetExemptionResult;
+    }
+
+    if (targetCode && !['00', '15'].includes(targetCode)) {
         return targetExemptionResult;
     }
 
@@ -545,66 +540,18 @@ const applyElectricAcqTaxExemption = ({ dsNewCar, grossAcqTax, targetExemptionRe
         code: 'EV',
         grossAcqTax,
         payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 1400000),
-        reason: '전기자동차 취득세 최대 140만원 감면 적용'
+        reason: '전기자동차 취득세 최대 140만원 감면'
     });
 
-    // 감면액이 같으면 사용자가 선택한 감면대상 결과를 유지함.
     return targetExemptionResult.acqReductionAmt >= electricResult.acqReductionAmt
         ? targetExemptionResult
         : electricResult;
 };
+
 // 과세표준 금액 결정함.
 // 첨부 로직처럼 표준과세금액/신고금액이 있으면 BUY_AMT와 비교해 큰 금액 사용함.
 // STANDARD_AMT/TAX_AMT가 없으면 현재 화면에서 입력 가능한 BUY_AMT 기준으로 계산함.
-const resolveTaxableStandard = (dsNewCar) => {
-    const explicitStandard = getNumber(dsNewCar.STANDARD_AMT ?? dsNewCar.TAX_AMT);
-    const buyAmt = getNumber(dsNewCar.BUY_AMT);
-
-    if (!explicitStandard) {
-        return buyAmt;
-    }
-
-    return Math.max(explicitStandard, buyAmt);
-};
-
-// 적용할 취득세율 컬럼명 결정함.
-// 첨부 로직의 VHCTY_ASORT_CODE, GETIN_NO, CAR_KD_CD, CAR_CC 분기 기준을 프론트 보유값으로 축약 반영함.
-const resolveAcqRateField = (dsNewCar) => {
-    const vehicleKind = String(
-        dsNewCar.VHCTY_ASORT_CODE
-        ?? dsNewCar.VEHICLE_ASORT_CODE
-        ?? dsNewCar.CAR_ASORT_CD
-        ?? dsNewCar.CAR_KD
-        ?? '1'
-    );
-    const carKindCode = String(dsNewCar.CAR_KD_CD ?? '');
-    const carCc = getNumber(dsNewCar.CAR_CC);
-    const passengers = getNumber(dsNewCar.GETIN_NO);
-    const carName = String(dsNewCar.CAR_NM ?? '');
-
-    // 경차: 차종코드 4 + 1000cc 이하이면 ACQ0_PER 적용함.
-    if (carKindCode === '4' && carCc > 0 && carCc <= 1000) {
-        return 'ACQ0_PER';
-    }
-
-    // 캠핑카: 첨부 로직처럼 11인승 이상 승합 세율 컬럼 적용함.
-    if (carName.includes('\uCEA0\uD551')) {
-        return 'ACQ211_PER';
-    }
-
-    // 승합: 11인승 이상/미만에 따라 다른 세율 컬럼 사용함.
-    if (vehicleKind === '2') {
-        return passengers >= 11 ? 'ACQ211_PER' : 'ACQ210_PER';
-    }
-
-    // 화물/특수 계열로 넘어온 값은 ACQ3_PER 사용함.
-    if (vehicleKind === '3') {
-        return 'ACQ3_PER';
-    }
-
-    // 기본 승용 세율 사용함.
-    return 'ACQ1_PER';
-};
+const resolveTaxableStandard = (dsNewCar) => getNumber(dsNewCar.BUY_AMT);
 
 // 번호판대 계산함.
 // 이미 TR_PAYMENT에 금액이 있으면 해당 금액 유지하고, 없을 때만 현재 화면의 간단 규칙 사용함.
@@ -626,87 +573,188 @@ const resolveNumplateAmount = (dsNewCar, paymentRows) => {
     return 0;
 };
 
-// TM_BOND 조회 지역명과 사용본거지 주소에서 시도명 가져옴.
-// 특별자치도 개편 전 명칭은 현재 명칭으로 통일해 동일한 감면 규칙 적용함.
+// TM_BOND 조회 지역명과 사용본거지 주소에서 프로시저 지역명 가져옴.
 const resolveBondArea = (dsNewCar) => {
     const source = String(dsNewCar.BOND_AREA ?? dsNewCar.BASE_ADDRESS ?? '').trim();
-    const aliases = {
-        강원도: '강원특별자치도',
-        전라북도: '전북특별자치도'
-    };
     const areas = [
+        '경상남도 함양군', '경상남도 함안군', '경상남도 창원시',
         '서울특별시', '부산광역시', '대구광역시', '인천광역시', '광주광역시',
         '대전광역시', '울산광역시', '세종특별자치시', '경기도', '강원특별자치도',
         '강원도', '충청북도', '충청남도', '전북특별자치도', '전라북도',
         '전라남도', '경상북도', '경상남도', '제주특별자치도'
     ];
-    const area = areas.find(candidate => source.startsWith(candidate)) || source.split(/\s+/)[0] || '';
-    return aliases[area] || area;
+    return areas.find(candidate => source.startsWith(candidate)) || source.split(/\s+/)[0] || '';
+};
+
+// TM_BOND 조회 전에 끝나는 운영 프로시저의 공채 전액면제 조건.
+export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
+    const area = resolveBondArea(dsNewCar);
+    const carType = resolveProcedureCarType(dsNewCar);
+    const carCc = getNumber(dsNewCar.CAR_CC);
+    const carCcPresent = hasValue(dsNewCar.CAR_CC);
+    const passengers = getNumber(dsNewCar.GETIN_NO);
+    const bodyType = String(dsNewCar.VH_TY_CD ?? dsNewCar.CAR_US_KD ?? '').trim();
+    const fuelCode = String(dsNewCar.FUEL_CD ?? '').trim().toLowerCase();
+    const procCd = String(dsNewCar.PROC_CD ?? '').trim();
+    const taskCd = String(dsNewCar.TASK_CD ?? '').trim();
+    const targetCode = resolveExemptionCode(dsNewCar, codes);
+    const friendlyFuel = fuelCode === 'e' || (fuelCode >= 'l' && fuelCode <= 'q');
+    const exempt = (reason) => ({ exempt: true, area, reason });
+
+    if ((targetCode >= '01' && targetCode <= '05') || ['07', '13'].includes(targetCode)) {
+        if (targetCode === '01') {
+            return exempt('국가유공자 공채 전액면제');
+        }
+        if (targetCode === '02') {
+            return exempt('5.18 민주화운동대상 공채 전액면제');
+        }
+        if (targetCode === '03') {
+            return exempt('고엽제 후유증 대상 공채 전액면제');
+        }
+        if (targetCode === '04') {
+            return exempt('장애인 공채 전액면제');
+        }
+        if (targetCode === '05') {
+            return exempt('시각장애 공채 전액면제');
+        }
+        if (targetCode === '07') {
+            return exempt('침수차량 공채 전액면제');
+        }
+        if (targetCode === '13') {
+            return exempt('비영리사업자 공채 전액면제');
+        }
+        return exempt('비과세 대상 공채 전액면제');
+    }
+    if (carType === '영업') {
+        return exempt('영업용 공채 전액면제');
+    }
+    if (['부산광역시', '대구광역시', '경상남도 창원시'].includes(area)
+        && (carType !== '승용' || (carCcPresent && carCc < 2000)
+            || bodyType === '3' || (passengers >= 7 && passengers <= 10))) {
+        return exempt(area + ' 차종 조건 공채 전액면제');
+    }
+    if (carType === '승용' && carCcPresent && carCc < 1600) {
+        const seoulElectricNormal = area === '서울특별시'
+            && ['e', 'q'].includes(fuelCode) && targetCode === '00';
+        const seoulUnderOneThousand = area === '서울특별시'
+            && carCc < 1000 && ['00', '15'].includes(targetCode);
+        if (!seoulElectricNormal && !seoulUnderOneThousand) {
+            return exempt('1600cc 미만 승용차 공채 매입의무 면제');
+        }
+    }
+    if (area === '경기도' && ['e', 'q', 'r'].includes(fuelCode)) {
+        return exempt('경기도 전기차 공채 전액면제');
+    }
+    if (area === '인천광역시' && fuelCode >= 'l' && fuelCode <= 'p') {
+        return exempt('인천 하이브리드 공채 전액면제');
+    }
+    if (['부산광역시', '대구광역시'].includes(area) && friendlyFuel) {
+        return exempt(area + ' 친환경차 공채 전액면제');
+    }
+    if (['경상남도', '경상남도 함양군', '경상남도 함안군', '경상남도 창원시'].includes(area)
+        && friendlyFuel) {
+        return exempt('경상남도 친환경차 공채 전액면제');
+    }
+    if (['전라북도', '전북특별자치도'].includes(area) && ['06', '15'].includes(targetCode)) {
+        return exempt('전북 다자녀 공채 전액면제');
+    }
+    if (area === '경기도' && taskCd === 'LEASE' && procCd !== 'C') {
+        return exempt('경기도 리스차량 공채 전액면제');
+    }
+    if (area === '인천광역시' && carCc >= 2000 && (procCd === 'C' || taskCd === 'LEASE')) {
+        return exempt('인천 리스차량 공채 전액면제');
+    }
+    if (area === '대구광역시' && (procCd === 'C' || taskCd === 'LEASE')) {
+        return exempt('대구 리스차량 공채 전액면제');
+    }
+    if (area === '충청북도' && (procCd === 'C' || taskCd === 'LEASE')) {
+        return exempt('충북 리스차량 공채 전액면제');
+    }
+    const ecoEligibility = resolveEcoEligibility({ dsNewCar, codes });
+    const fixedElectricAreas = [
+        '서울특별시', '부산광역시', '대구광역시', '인천광역시',
+        '강원도', '강원특별자치도', '광주광역시', '경상북도', '충청북도',
+        '충청남도', '전라북도', '전북특별자치도', '전남광주통합특별시',
+        '제주특별자치도', '울산광역시'
+    ];
+    if (isElectricOrHydrogen(dsNewCar)
+        && ecoEligibility.bondEligible
+        && !fixedElectricAreas.includes(area)) {
+        return exempt('전기·수소차 공채 전액면제');
+    }
+    if (String(dsNewCar.BOND_FULL_EXEMPT_YN ?? '').trim().toUpperCase() === 'Y') {
+        return exempt('공채 전액면제');
+    }
+    return { exempt: false, area, reason: '' };
 };
 
 // 금액처리 파일의 지역별 공채 절사/반올림 규칙 적용함.
 const roundBondPurchaseAmount = (value, area) => {
     const amount = Math.max(0, Math.floor(getNumber(value)));
-
     if (['서울특별시', '부산광역시', '대구광역시'].includes(area)) {
         return Math.round(amount / 5000) * 5000;
     }
-
     if (area === '충청북도') {
         return amount < 10000 ? amount : Math.floor(amount / 10000) * 10000;
     }
-
     return Math.floor(amount / 5000) * 5000;
 };
 
-// sp_NewCarTaxBondConfirm 기준 전기차 공채 감면액 계산함.
-// 경기·부산·대구·경남은 전액면제하며 나머지 지역은 프로시저의 정액/전액 규칙 적용함.
-const resolveElectricBondRelief = ({ dsNewCar, bondGrossAmt }) => {
+// 운영 프로시저의 전기·수소·하이브리드 공채 정액감면.
+const resolveEcoBondRelief = ({ dsNewCar, bondGrossAmt, ecoEligibility }) => {
     const area = resolveBondArea(dsNewCar);
-    const electric = isElectricVehicle(dsNewCar);
-    const forcedFullExemption = String(dsNewCar.BOND_FULL_EXEMPT_YN ?? '').trim().toUpperCase() === 'Y';
     const passengers = getNumber(dsNewCar.GETIN_NO);
-    const fullExemptionAreas = ['경기도', '부산광역시', '대구광역시', '경상남도'];
-    const reducedBy150Areas = [
-        '강원특별자치도', '광주광역시', '경상북도', '충청북도',
-        '충청남도', '전북특별자치도', '전남광주통합특별시'
-    ];
+    const electric = isElectricOrHydrogen(dsNewCar);
+    const hybrid = isHybridFuel(dsNewCar);
     let limit = 0;
-    let reason = electric ? '해당 지역 전기차 공채 감면 없음' : '전기차 공채 감면 대상 아님';
+    let fullExemption = false;
+    let reason = '친환경차 공채 감면 대상 아님';
 
-    if (electric) {
-        if (forcedFullExemption || fullExemptionAreas.includes(area)) {
-            limit = bondGrossAmt;
-            reason = '전기자동차 공채 매입 전액면제 적용';
-        } else if (area === '서울특별시') {
-            limit = passengers >= 7 ? 0 : 2500000;
-            reason = passengers >= 7
-                ? '서울 7인승 이상 승용 전기차 공채 감면 없음'
-                : '전기자동차 공채 최대 250만원 감면 적용';
-        } else if (area === '인천광역시') {
+    if (electric && ecoEligibility.bondEligible) {
+        if (area === '부산광역시') {
             limit = 2500000;
-            reason = '전기자동차 공채 최대 250만원 감면 적용';
-        } else if (reducedBy150Areas.includes(area)) {
+        } else if (area === '서울특별시') {
+            limit = passengers <= 6 ? 2500000 : 0;
+        } else if (['대구광역시', '인천광역시'].includes(area)) {
+            limit = 2500000;
+        } else if ([
+            '강원도', '강원특별자치도', '광주광역시', '경상북도', '충청북도',
+            '충청남도', '전라북도', '전북특별자치도', '전남광주통합특별시'
+        ].includes(area)) {
             limit = 1500000;
-            reason = '전기자동차 공채 최대 150만원 감면 적용';
-        } else if (!['울산광역시', '제주특별자치도'].includes(area)) {
-            // 프로시저 ELSE 분기처럼 별도 정액감면 지역이 아니면 공채 전액면제 처리함.
-            limit = bondGrossAmt;
-            reason = '전기자동차 공채 매입 전액면제 적용';
+        } else if (!['제주특별자치도', '울산광역시'].includes(area)) {
+            fullExemption = true;
         }
+        reason = fullExemption
+            ? '전기·수소차 공채 전액면제'
+            : (limit > 0 ? '전기·수소차 공채 정액감면' : '해당 지역 전기·수소차 공채 감면 없음');
+    } else if (hybrid && ecoEligibility.bondEligible) {
+        if (['서울특별시', '부산광역시', '대구광역시'].includes(area)) {
+            limit = passengers < 7 ? 1400000 : 0;
+        } else if (![
+            '제주특별자치도', '강원도', '강원특별자치도', '광주광역시',
+            '경상북도', '충청북도', '충청남도', '울산광역시',
+            '전라북도', '전북특별자치도', '경기도'
+        ].includes(area)) {
+            limit = 1500000;
+        }
+        reason = limit > 0 ? '하이브리드 공채 정액감면' : '해당 지역 하이브리드 공채 감면 없음';
     }
 
-    const reduction = Math.min(bondGrossAmt, Math.max(0, limit));
+    const reduction = fullExemption
+        ? bondGrossAmt
+        : Math.min(bondGrossAmt, Math.max(0, limit));
     return {
         area,
         electric,
         limit,
         bondReductionAmt: reduction,
         bondBaseAmt: Math.max(0, bondGrossAmt - reduction),
-        applied: electric && (forcedFullExemption || reduction > 0),
+        applied: fullExemption || reduction > 0,
         reason
     };
 };
+
 // 금액처리 파일의 TUSE/SBOND 상세값에서 서울, 그 외 지역 공채 할인율 가져옴.
 // DETAIL_NM 형식은 "서울할인율,기타지역할인율"로 처리함.
 const getBondSaleCodeRate = ({ dsNewCar = {}, codes = {} }) => {
@@ -749,7 +797,7 @@ const getConfig = ({ dsNewCar = {}, codes = {} }) => {
 
 // 첨부 로직과 100% 일치하려면 추가로 필요한 기준값 목록 생성함.
 // 현재는 화면에 표시하지 않지만, 개발 중 디버깅/안내용으로 결과 객체에 같이 반환함.
-const getMissingRequirements = ({ dsNewCar, codes, exemptionResult }) => {
+const getMissingRequirements = ({ dsNewCar, codes, exemptionResult, bondPreExemption }) => {
     const missing = [];
     const hasTaxInfo = Boolean(dsNewCar?.TM_TAX_INFO || codes?.TM_TAX || codes?.TAX || codes?.taxInfo);
 
@@ -757,11 +805,7 @@ const getMissingRequirements = ({ dsNewCar, codes, exemptionResult }) => {
         missing.push('TM_TAX rates');
     }
 
-    if (!dsNewCar.STANDARD_AMT && !dsNewCar.TAX_AMT) {
-        missing.push('standard taxable amount / residual rate');
-    }
-
-    if (!hasValue(dsNewCar.BOND_RATE)) {
+    if (!bondPreExemption?.exempt && !hasValue(dsNewCar.BOND_RATE)) {
         missing.push('bond purchase rate');
     }
 
@@ -778,8 +822,6 @@ const getMissingRequirements = ({ dsNewCar, codes, exemptionResult }) => {
 // 채권/카드/감면/차량제원/번호판 정보가 바뀌면 재계산 필요 상태로 보이게 처리함.
 export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.BUY_AMT ?? '',
-    dsNewCar.PROC_CD ?? '',
-    dsNewCar.TASK_CD ?? '',
     dsNewCar.STANDARD_AMT ?? '',
     dsNewCar.TAX_AMT ?? '',
     JSON.stringify(dsNewCar.TM_TAX_INFO ?? {}),
@@ -799,13 +841,6 @@ export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.NTAX_TRGET_CD ?? '',
     dsNewCar.NTAX_TRGET_GR_CD ?? '',
     dsNewCar.CAR_NM ?? '',
-    dsNewCar.FOM_NM ?? '',
-    dsNewCar.LENGTH ?? '',
-    dsNewCar.WIDTH ?? '',
-    dsNewCar.HEIGHT ?? '',
-    dsNewCar.MAX_CAP ?? '',
-    dsNewCar.TOTAL_CAP ?? '',
-    dsNewCar.MULTI_PURPOSE_YN ?? '',
     dsNewCar.MADE_YY ?? '',
     dsNewCar.VHCTY_ASORT_CODE ?? '',
     dsNewCar.CAR_KD ?? '',
@@ -824,91 +859,58 @@ export const calculateNewcarEstimate = ({
     dsNewCar = {},
     dsPaymentList = [],
     dsWorkCp = {},
-    codes = {},
-    coreEstimate = null
+    codes = {}
 }) => {
     const config = getConfig({ dsNewCar, codes });
     const paymentRows = buildPaymentRows(dsPaymentList);
-    // 서버가 취득세와 공채 매입액을 모두 계산한 경우에만 운영 프로시저 결과를 사용함.
-    // 둘 중 하나라도 없으면 기존 프런트 계산을 그대로 유지함.
-    const useCoreEstimate = hasValue(coreEstimate?.ACQ_AMT)
-        && hasValue(coreEstimate?.BOND_PURCHASE_AMT);
 
-    // 1. 과세표준 및 취득세 계산함.
-    // 서버 계산은 운영 프로시저와 동일하게 BUY_AMT를 과세표준으로 사용함.
-    const taxableStandard = useCoreEstimate
-        ? getNumber(dsNewCar.BUY_AMT)
-        : resolveTaxableStandard(dsNewCar);
-    const acqRateField = resolveAcqRateField(dsNewCar);
+    // 1. 운영 프로시저 순서로 취득세 계산함.
+    const taxableStandard = resolveTaxableStandard(dsNewCar);
     const taxInfo = getTaxInfo({ dsNewCar, codes });
-    const acqRate = useCoreEstimate
-        ? getNumber(coreEstimate.ACQ_RATIO)
-        : normalizePercent(taxInfo[acqRateField]);
-    const grossAcqTax = useCoreEstimate
-        ? getNumber(coreEstimate.GROSS_ACQ_AMT)
-        : roundDown(taxableStandard * acqRate);
-    const exemptionResult = useCoreEstimate
-        ? {
-            code: resolveExemptionCode(dsNewCar, codes),
-            name: EXEMPTION_NAMES[resolveExemptionCode(dsNewCar, codes)] || '',
-            grossAcqTax,
-            acqReductionAmt: getNumber(coreEstimate.ACQ_SUBTRACT_AMT),
-            acqTax: getNumber(coreEstimate.ACQ_AMT),
-            applied: getNumber(coreEstimate.ACQ_SUBTRACT_AMT) > 0,
-            reason: String(coreEstimate.ACQ_REASON ?? ''),
-            missingRequirements: [],
-            ntaxApplyCode: String(
-                coreEstimate.NTAX_APPLC_CD
-                ?? dsNewCar.NTAX_APPLC_CD
-                ?? '0'
-            )
-        }
-        : (() => {
-            const targetExemptionResult = resolveAcqTaxExemption({
-                dsNewCar,
-                codes,
-                grossAcqTax
-            });
+    const procedureRates = resolveProcedureTaxRates(dsNewCar);
+    const acqRateField = procedureRates.acqRateField;
+    const acqRate = procedureRates.acqRate;
+    const grossAcqTax = Number((taxableStandard * acqRate).toFixed(6));
+    const baseAcqTax = resolveProcedureCarType(dsNewCar) === '경차'
+        ? Math.max(0, grossAcqTax - 750000)
+        : grossAcqTax;
+    const ecoEligibility = resolveEcoEligibility({ dsNewCar, codes });
+    const targetExemptionResult = resolveAcqTaxExemption({
+        dsNewCar,
+        codes,
+        grossAcqTax: baseAcqTax
+    });
+    const exemptionResult = applyEcoAcqTaxExemption({
+        dsNewCar,
+        codes,
+        grossAcqTax: baseAcqTax,
+        targetExemptionResult,
+        ecoEligibility
+    });
+    const acqTax = roundDown(Math.max(0, exemptionResult.acqTax));
+    const acqReductionAmt = Math.max(0, exemptionResult.acqReductionAmt);
 
-            return applyElectricAcqTaxExemption({
-                dsNewCar,
-                grossAcqTax,
-                targetExemptionResult
-            });
-        })();
-    const acqTax = exemptionResult.acqTax;
-
-    // 2. 공채 계산함.
-    // TM_BOND.VALUE로 감면 전 매입액을 만든 뒤 지역별 전기차 공채 감면을 차감함.
-    // BUY는 감면 후 매입액 전체, SELL은 감면 후 매입액에 할인율을 적용한 금액 납부함.
-    const bondArea = useCoreEstimate
-        ? String(coreEstimate.BOND_AREA ?? '')
-        : resolveBondArea(dsNewCar);
-    const bondValue = useCoreEstimate
-        ? getNumber(coreEstimate.BOND_VALUE)
-        : getNumber(config.bondRate);
-    const bondValueType = useCoreEstimate
-        ? (String(coreEstimate.BOND_VALUE_TYPE ?? '').trim().toUpperCase()
-            || (bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT'))
-        : (bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT');
+    // 2. 비과세·차종·지역·리스 사전면제 후 친환경 공채감면 적용함.
+    const bondArea = resolveBondArea(dsNewCar);
+    const bondValue = getNumber(config.bondRate);
+    const bondValueType = bondValue > 0 && bondValue < 1 ? 'RATE' : 'AMOUNT';
     const bondRate = bondValueType === 'RATE' ? bondValue : 0;
-    // 프로시저처럼 VALUE가 소수면 취득가액에 곱하고 정수면 고정 공채금액으로 사용함.
-    const bondGrossAmt = useCoreEstimate
-        ? getNumber(coreEstimate.BOND_GROSS_AMT)
-        : Math.floor(bondValueType === 'RATE' ? taxableStandard * bondValue : bondValue);
-    const bondReliefResult = useCoreEstimate
+    const bondGrossAmt = Math.floor(
+        bondValueType === 'RATE' ? taxableStandard * bondValue : bondValue
+    );
+    const bondPreExemption = resolveBondPreExemption(dsNewCar, codes);
+    const bondReliefResult = bondPreExemption.exempt
         ? {
-            limit: getNumber(coreEstimate.BOND_SUBTRACT_AMT),
-            bondReductionAmt: getNumber(coreEstimate.BOND_SUBTRACT_AMT),
-            bondBaseAmt: getNumber(coreEstimate.BOND_PURCHASE_AMT),
-            applied: getNumber(coreEstimate.BOND_SUBTRACT_AMT) > 0,
-            reason: String(coreEstimate.BOND_REASON ?? '')
+            area: bondArea,
+            electric: isElectricVehicle(dsNewCar),
+            limit: bondGrossAmt,
+            bondReductionAmt: bondGrossAmt,
+            bondBaseAmt: 0,
+            applied: true,
+            reason: bondPreExemption.reason
         }
-        : resolveElectricBondRelief({ dsNewCar, bondGrossAmt });
-    // 프로시저 순서대로 감면액을 먼저 차감한 뒤 지역별 5천원/1만원 단위 처리함.
-    const bondBaseAmt = useCoreEstimate
-        ? getNumber(coreEstimate.BOND_PURCHASE_AMT)
-        : roundBondPurchaseAmount(bondReliefResult.bondBaseAmt, bondArea);
+        : resolveEcoBondRelief({ dsNewCar, bondGrossAmt, ecoEligibility });
+    const bondBaseAmt = roundBondPurchaseAmount(bondReliefResult.bondBaseAmt, bondArea);
     const bondDiscountAmt = Math.floor(bondBaseAmt * normalizePercent(config.bondDiscountRate));
     const bond = dsNewCar.BOND_DC === 'BUY' ? bondBaseAmt : bondDiscountAmt;
     const bondFee = Math.floor(
@@ -943,11 +945,9 @@ export const calculateNewcarEstimate = ({
         : getPaymentAmount(paymentRows, 'INJI', calculatedInji);
     const tnum = resolveNumplateAmount(dsNewCar, paymentRows);
     const unum = getPaymentAmount(paymentRows, 'UNUM', 0);
-    // 서버가 등록면허세를 계산하지 않은(null/미제공) 경우 기존 결제 row를 보존함.
-    const preserveExistingUregRow = useCoreEstimate && !hasValue(coreEstimate.UREG_AMT);
-    const ureg = useCoreEstimate && hasValue(coreEstimate.UREG_AMT)
-        ? getNumber(coreEstimate.UREG_AMT)
-        : getPaymentAmount(paymentRows, 'UREG', 0);
+    const ureg = procedureRates.uregRate === null
+        ? getPaymentAmount(paymentRows, 'UREG', 0)
+        : roundDown(taxableStandard * procedureRates.uregRate);
     const spare = getPaymentAmount(paymentRows, 'SPARE', 0);
     const isCardPay = dsNewCar.CARD_YN === 'Y';
 
@@ -966,12 +966,8 @@ export const calculateNewcarEstimate = ({
     };
 
     // 계산 금액을 결제 row에 반영함.
-    // BOND row는 실제 납부액과 공채 매입 기준금액을 분리해서 보관함.
+    // BOND row의 T_VBANK_ID에는 첨부 로직처럼 채권 매입 기준금액을 보관함.
     const updatedPaymentList = paymentRows.map(row => {
-        if (preserveExistingUregRow && row.PAY_KD === 'UREG') {
-            return row;
-        }
-
         if (!Object.prototype.hasOwnProperty.call(calculatedAmounts, row.PAY_KD)) {
             return row;
         }
@@ -1001,20 +997,13 @@ export const calculateNewcarEstimate = ({
 
     // 화면 표시와 상태 저장에 필요한 계산 결과 반환함.
     return {
-        // 화면 state에는 계산이 확정한 과세표준을 저장하므로 같은 값으로 key를 생성함.
-        key: buildNewcarEstimateKey({
-            dsNewCar: {
-                ...dsNewCar,
-                STANDARD_AMT: taxableStandard
-            },
-            dsWorkCp
-        }),
+        key: buildNewcarEstimateKey({ dsNewCar, dsWorkCp }),
         buyAmt: getNumber(dsNewCar.BUY_AMT),
         taxableStandard,
         acqRateField,
         acqRate,
         grossAcqTax,
-        acqReductionAmt: exemptionResult.acqReductionAmt,
+        acqReductionAmt,
         acqTax,
         exemptionCode: exemptionResult.code,
         exemptionName: exemptionResult.name,
@@ -1047,9 +1036,6 @@ export const calculateNewcarEstimate = ({
         isCardPay,
         totalAmt,
         updatedPaymentList,
-        // 서버 핵심 계산을 사용한 경우 클라이언트 TM_TAX/TM_BOND 누락 안내를 섞지 않음.
-        missingRequirements: useCoreEstimate
-            ? []
-            : getMissingRequirements({ dsNewCar, codes, exemptionResult })
+        missingRequirements: getMissingRequirements({ dsNewCar, codes, exemptionResult, bondPreExemption })
     };
 };
