@@ -519,6 +519,11 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     };
 };
 
+// 화면 안내와 예상금액 계산이 동일한 친환경 취득세 대상 판정을 사용한다.
+export const isEcoAcquisitionEligible = ({ dsNewCar = {}, codes = {} }) => (
+    resolveEcoEligibility({ dsNewCar, codes }).acquisitionEligible
+);
+
 // 일반 감면과 친환경차 감면은 프로시저처럼 중복 적용하지 않음.
 // 2자녀만 기존 감면액보다 전기차 140만원 감면이 크면 전기차 감면으로 교체함.
 const applyEcoAcqTaxExemption = ({

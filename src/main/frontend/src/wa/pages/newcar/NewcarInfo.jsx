@@ -5,6 +5,7 @@ import {
     Calculator,
     CheckCircle2,
     CircleHelp,
+    CircleAlert,
     CreditCard,
     LoaderCircle,
     ReceiptText,
@@ -21,6 +22,7 @@ import {
     calculateNewcarEstimate,
     calculateTotalFromRows,
     formatAmount,
+    isEcoAcquisitionEligible,
     resolveBondPreExemption,
     sortPaymentRows
 } from './newcarAmountCalculator';
@@ -33,6 +35,48 @@ const BOND_OPTIONS = [
     { value: 'SELL', label: '매도(할인)' },
     { value: 'BUY', label: '매입' }
 ];
+
+const ECO_EXEMPTION_NOTICE_BY_CODE = {
+    '15': {
+        targetName: '다자녀 감면',
+        benefit: '다자녀(2자녀) – 취득세 70만원 감면'
+    },
+    '06': {
+        targetName: '다자녀 감면',
+        benefit: '다자녀(3자녀) – 취득세 140만원 감면'
+    },
+    '14': {
+        targetName: '보훈보상대상자 감면',
+        benefit: '보훈보상대상자 – 취득세 50% 감면 (정확한 감면 금액은 [예상납부금액 확인] 클릭)'
+    }
+};
+
+const getEstimateVehicleInfo = async (newCar) => {
+    const carName = String(newCar.CAR_NM ?? '').trim();
+
+    if (!carName) {
+        throw new Error('차량명을 입력해주세요.');
+    }
+
+    const [carSpecResponse, taxInfoResponse] = await Promise.all([
+        axios.get('/api/newcar/car-spec', { params: { carName } }),
+        axios.get('/api/newcar/tax-info')
+    ]);
+    const carSpec = carSpecResponse.data?.data;
+    const taxInfo = taxInfoResponse.data?.data;
+
+    if (!carSpec) {
+        throw new Error('차량제원 조회 결과가 없습니다.');
+    }
+    if (!taxInfo) {
+        throw new Error('신규등록 세율정보 조회 결과가 없습니다.');
+    }
+
+    return {
+        carSpecPatch: buildCarSpecPatch(newCar, carSpec),
+        taxInfo
+    };
+};
 
 const FALLBACK_EXEMPTION_TARGETS = [
     { CODE_ID: '15', CODE_NM: '다자녀(2자녀)' },
@@ -563,7 +607,7 @@ const ExemptionSection = memo(({
             aria-pressed={open}
             onClick={onToggle}
         >
-            <CircleHelp size={18} />
+            <CircleAlert size={18} />
             감면 대상자 해당 시 클릭
             {open && <CheckCircle2 size={16} />}
         </button>
@@ -595,6 +639,85 @@ const ExemptionSection = memo(({
 ));
 
 ExemptionSection.displayName = 'ExemptionSection';
+
+const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
+    if (!notice) {
+        return null;
+    }
+
+    const ecoNotice = notice.type === 'eco'
+        ? ECO_EXEMPTION_NOTICE_BY_CODE[notice.targetCode]
+        : null;
+    const title = ecoNotice ? '친환경 차량 감면 안내' : '기감면 조건 적용 불가 안내';
+
+    return (
+        <div className="wa-attach-modal-backdrop" onClick={onClose}>
+            <div
+                className="wa-attach-modal wa-notice-modal wa-exemption-warning-modal"
+                role="dialog"
+                aria-modal="true"
+                aria-labelledby="wa-exemption-warning-title"
+                onClick={event => event.stopPropagation()}
+            >
+                <div className="wa-attach-modal-header">
+                    <h3 id="wa-exemption-warning-title">{title}</h3>
+                    <button
+                        type="button"
+                        className="wa-attach-modal-close"
+                        aria-label={`${title} 닫기`}
+                        onClick={onClose}
+                    >
+                        <X size={22} />
+                    </button>
+                </div>
+
+                <div className="wa-attach-modal-body wa-exemption-warning-body">
+                    {ecoNotice ? (
+                        <>
+                            <p className="wa-exemption-warning-main">
+                                해당 차량은 친환경 차량으로 취득세 140만원 감면 대상입니다.
+                                <br />
+                                {ecoNotice.targetName} 선택 시 친환경 감면은 적용되지 않습니다.
+                                {' '}
+                                <span className="wa-exemption-warning-highlight-inline">(중복감면 불가)</span>
+                            </p>
+                            <div className="wa-eco-exemption-list">
+                                <div>■ 친환경 차량 – 취득세 140만원 감면</div>
+                                <div>■ {ecoNotice.benefit}</div>
+                            </div>
+                        </>
+                    ) : (
+                        <>
+                            <strong className="wa-exemption-warning-highlight">
+                                같은 감면 조건 여러 차량에 적용 불가
+                            </strong>
+                            <p className="wa-exemption-warning-main">
+                                현재 감면 차량을 보유하신 경우, 동일한 조건의 감면을 적용할 수 없습니다.
+                            </p>
+                            <p className="wa-exemption-warning-note">
+                                ※ 기존 차량을 말소 또는 이전 등록 후 60일 이내 새 차량 등록 시 감면 가능
+                            </p>
+                            <div className="wa-exemption-warning-example">
+                                (예시) 현재 다자녀(2자녀) 감면 적용 차량 보유 시, 다자녀(2자녀) 감면 적용 불가
+                            </div>
+                        </>
+                    )}
+
+                    <div className="wa-attach-btn-div">
+                        <button type="button" className="wa-attach-cancel-btn" onClick={onClose}>
+                            닫기
+                        </button>
+                        <button type="button" className="wa-attach-confirm-btn" onClick={onConfirm}>
+                            확인
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    );
+});
+
+ExemptionWarningModal.displayName = 'ExemptionWarningModal';
 
 // 계산 금액이 0원이어도 계산 사유가 전액면제라면 감면 카드를 표시한다.
 const hasFullExemptionReason = (reason) => /전액\s*(?:면제|감면)/.test(String(reason ?? ''));
@@ -714,7 +837,7 @@ const EstimateResultPanel = memo(({
                             </p>
                             <p>
                                 {estimateSummary.bondPreExempt
-                                    ? '사전 전액면제로 공채 매입률 조회 생략'
+                                    ? '전액 면제'
                                     : (estimateSummary.bondDc === 'BUY'
                                         ? '매입 선택'
                                         : `매도(할인율 ${(estimateSummary.bondDiscountRate * 100).toLocaleString()}%)`)}
@@ -837,6 +960,7 @@ const NewcarInfo = ({
 }) => {
     const hasExemption = Boolean(dsNewCar.NTAX_TRGET_CD && dsNewCar.NTAX_TRGET_CD !== '00');
     const [isExemptionOpen, setIsExemptionOpen] = useState(hasExemption);
+    const [exemptionNotice, setExemptionNotice] = useState(null);
     const [estimating, setEstimating] = useState(false);
     const [estimateSummary, setEstimateSummary] = useState(null);
     const [receiptType, setReceiptType] = useState('');
@@ -1045,14 +1169,14 @@ const NewcarInfo = ({
         POST_NO: dsNewCar.BASE_POST_NO || dsNewCar.POST_NO || ''
     });
 
-    const showAlert = (message) => {
+    const showAlert = useCallback((message) => {
         if (gf?.alert) {
             return gf.alert(message);
         }
 
         window.alert(message);
         return Promise.resolve();
-    };
+    }, []);
 
     // 실제 계산식은 newcarAmountCalculator.js의 calculateNewcarEstimate() 한 곳에서 처리한다.
     // 이 화면은 조회가 끝난 dsNewCar와 현재 결제목록을 계산기에 전달하고 결과를 state에 반영한다.
@@ -1088,19 +1212,8 @@ const NewcarInfo = ({
             throw new Error('사용본거지 주소를 입력해주세요.');
         }
 
-        // 로그인 회사에 연결된 Maker와 차명이 같은 차량제원 한 건 가져옴.
-        const [carSpecResponse, taxInfoResponse] = await Promise.all([
-            axios.get('/api/newcar/car-spec', { params: { carName } }),
-            axios.get('/api/newcar/tax-info')
-        ]);
-        const carSpec = carSpecResponse.data?.data;
-        const taxInfo = taxInfoResponse.data?.data;
-
-        if (!carSpec) {
-            throw new Error('차량제원 조회 결과가 없습니다.');
-        }
-
-        const carSpecPatch = buildCarSpecPatch(dsNewCar, carSpec);
+        // 친환경 감면 안내와 동일한 차량제원/세율정보 조회를 사용한다.
+        const { carSpecPatch, taxInfo } = await getEstimateVehicleInfo(dsNewCar);
         const bondSearchCriteria = resolveBondSearchCriteria({
             ...dsNewCar,
             ...carSpecPatch
@@ -1135,10 +1248,6 @@ const NewcarInfo = ({
 
         if (!bondRateInfo || bondRateInfo.BOND_RATE === undefined || bondRateInfo.BOND_RATE === null) {
             throw new Error('공채 매입률 조회 결과가 없습니다.');
-        }
-
-        if (!taxInfo) {
-            throw new Error('신규등록 세율정보 조회 결과가 없습니다.');
         }
 
         // 조회 기준값은 예상금액 계산에만 합치며 TR_NEWCAR 저장 필드에는 별도 매핑하지 않음.
@@ -1185,6 +1294,20 @@ const NewcarInfo = ({
             return;
         }
 
+        setExemptionNotice({ type: 'existing' });
+    }, [isExemptionOpen, updateNewCar]);
+
+    const handleExemptionWarningConfirm = useCallback(() => {
+        if (exemptionNotice?.type === 'eco') {
+            updateNewCar(prev => ({
+                ...prev,
+                NTAX_TRGET_CD: exemptionNotice.targetCode
+            }));
+            setExemptionNotice(null);
+            return;
+        }
+
+        setExemptionNotice(null);
         updateNewCar(prev => ({
             ...prev,
             NTAX_WHO: prev.NTAX_WHO || 'REPRE',
@@ -1192,7 +1315,46 @@ const NewcarInfo = ({
             NTAX_TRGET_GR_CD: prev.NTAX_TRGET_GR_CD || '0'
         }));
         setIsExemptionOpen(true);
-    }, [isExemptionOpen, updateNewCar]);
+    }, [exemptionNotice, updateNewCar]);
+
+    const handleExemptionFieldChange = useCallback(async (event) => {
+        const { name, value } = event.target;
+        const ecoNotice = name === 'NTAX_TRGET_CD'
+            ? ECO_EXEMPTION_NOTICE_BY_CODE[String(value)]
+            : null;
+
+        if (!ecoNotice) {
+            handleNewCarFieldChange(event);
+            return;
+        }
+
+        try {
+            const { carSpecPatch, taxInfo } = await getEstimateVehicleInfo(dsNewCar);
+            const ecoEligible = isEcoAcquisitionEligible({
+                dsNewCar: {
+                    ...dsNewCar,
+                    ...carSpecPatch,
+                    TM_TAX_INFO: taxInfo
+                },
+                codes
+            });
+
+            if (ecoEligible) {
+                setExemptionNotice({
+                    type: 'eco',
+                    targetCode: String(value)
+                });
+                return;
+            }
+
+            updateNewCar(prev => (
+                prev[name] === value ? prev : { ...prev, [name]: value }
+            ));
+        } catch (error) {
+            const message = error.response?.data?.message || error.message || '친환경 차량 여부를 확인하지 못했습니다.';
+            await showAlert(message);
+        }
+    }, [codes, dsNewCar, handleNewCarFieldChange, showAlert, updateNewCar]);
 
     const handleCardToggle = () => {
         updateNewCar(prev => {
@@ -1338,7 +1500,7 @@ const NewcarInfo = ({
                     selectedDocumentInfo={selectedExemptionDocInfo}
                     showFamilyRelationNumberNote={showFamilyRelationNumberNote}
                     onToggle={handleExemptionToggle}
-                    onFieldChange={handleNewCarFieldChange}
+                    onFieldChange={handleExemptionFieldChange}
                 />
 
                 <button
@@ -1613,6 +1775,12 @@ const NewcarInfo = ({
                 />
 
             </div>
+
+            <ExemptionWarningModal
+                notice={exemptionNotice}
+                onClose={() => setExemptionNotice(null)}
+                onConfirm={handleExemptionWarningConfirm}
+            />
         </div>
     );
 };

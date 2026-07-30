@@ -2208,6 +2208,80 @@ hr.wa-divider.hr2 {
     cursor: not-allowed;
 }
 
+.wa-exemption-warning-modal {
+    width: min(760px, 94vw);
+}
+
+.wa-exemption-warning-modal .wa-attach-modal-header {
+    min-height: 44px;
+    padding: 8px 18px;
+}
+
+.wa-exemption-warning-modal .wa-attach-modal-header h3 {
+    font-size: 20px;
+}
+
+.wa-exemption-warning-body {
+    padding: 32px 36px 28px;
+    text-align: center;
+}
+
+.wa-exemption-warning-highlight {
+    display: block;
+    margin-bottom: 8px;
+    color: #2f80ed;
+    font-size: 20px;
+}
+
+.wa-exemption-warning-main {
+    margin: 0 0 10px;
+    color: #111827;
+    font-size: 19px;
+    font-weight: 700;
+}
+
+.wa-exemption-warning-note {
+    margin: 0 0 16px;
+    color: #666;
+    font-size: 15px;
+}
+
+.wa-exemption-warning-example {
+    padding: 14px 18px;
+    background: #e8f1ff;
+    color: #1f2937;
+    font-size: 15px;
+    font-weight: 700;
+}
+
+.wa-exemption-warning-highlight-inline {
+    color: #2f80ed;
+}
+
+.wa-eco-exemption-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 22px;
+    padding: 16px 20px;
+    background: #e8f1ff;
+    color: #111827;
+    font-size: 16px;
+    font-weight: 700;
+    line-height: 1.5;
+    text-align: left;
+}
+
+@media (max-width: 640px) {
+    .wa-exemption-warning-body {
+        padding: 24px 18px;
+    }
+
+    .wa-exemption-warning-main {
+        font-size: 16px;
+    }
+}
+
 .wa-disabled {
     opacity: 0.5;
     cursor: not-allowed;
