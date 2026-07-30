@@ -14,7 +14,7 @@
 	<select id="selectProcSt" parameterType="map" resultType="map">
 	    SELECT 
 	    	PROC_ST, TO_CHAR(PROC_DT, 'YYYYMMDD'), 
-	    	JUDGE_ST, TO_CHAR(JUDGE_ST, 'YYYYMMDD')
+	    	JUDGE_ST, TO_CHAR(JUDGE_DT, 'YYYYMMDD')
 	      FROM TR_SERVICE
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</select>

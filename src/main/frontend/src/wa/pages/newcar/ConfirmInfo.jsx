@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { ChevronRight, FileText } from 'lucide-react';
+import { ChevronRight, FileText, X } from 'lucide-react';
 
 // 첨부서류 모달
 import WaNewcarAttachModal from './WaNewcarAttachModal';
@@ -33,6 +33,16 @@ const ConfirmInfo = ({
 	// 첨부서류 모달
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
 	const [showAttachButton, setShowAttachButton] = useState(false);
+	const [rejectModalOpen, setRejectModalOpen] = useState(false);
+	const isRejected = String(dsService?.PROC_ST ?? '').trim() === 'RET';
+	const rejectReason = String(dsService?.RETURN_TX ?? '');
+
+	// 반려 상세를 처음 열었을 때 전체 반려 사유를 한 번 보여준다.
+	useEffect(() => {
+		if (isRejected) {
+			setRejectModalOpen(true);
+		}
+	}, [dsService?.SERVICE_ID, isRejected]);
 	
 	// 첨부파일 버튼 보이는 조건
 	useEffect(() => {
@@ -71,16 +81,26 @@ const ConfirmInfo = ({
     return (
         <>
 			<div className="wa-confirm-body">
+				{isRejected && (
+					<div className="wa-reject-summary">
+						<span className="wa-reject-summary-label">반려 사유</span>
+						<button
+							type="button"
+							className="wa-reject-summary-box"
+							onClick={() => setRejectModalOpen(true)}
+						>
+							{rejectReason || '반려 사유가 등록되지 않았습니다.'}
+						</button>
+					</div>
+				)}
 		
 		        {/* 소유자 정보 */}
 				<div className="wa-confirm-card">
-
 				    <div className="wa-confirm-title"
 						onClick={() => onMoveStep?.(1)}>
 				        소유자 정보
 				        <ChevronRight size={18} />
 				    </div>
-
 				    <div className="wa-owner-wrap">
 
 				        {/* 대표소유자 */}
@@ -388,6 +408,50 @@ const ConfirmInfo = ({
 					    onAttachClose?.();
 					}}
 				/>
+
+				{rejectModalOpen && (
+					<div className="wa-attach-modal-backdrop" onClick={() => setRejectModalOpen(false)}>
+						<div
+							className="wa-attach-modal wa-reject-modal"
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="wa-reject-modal-title"
+							onClick={event => event.stopPropagation()}
+						>
+							<div className="wa-attach-modal-header">
+								<h3 id="wa-reject-modal-title">반려 확인</h3>
+								<button
+									type="button"
+									className="wa-attach-modal-close"
+									aria-label="반려 확인 닫기"
+									onClick={() => setRejectModalOpen(false)}
+								>
+									<X size={22} />
+								</button>
+							</div>
+							<div className="wa-attach-modal-body wa-reject-modal-body">
+								<p>
+									반려 사유 확인하여 내용 수정 후 재요청해 주세요.
+									<br />
+									요청 시 바로 등록요청으로 넘어갑니다.
+									{' '}
+									<span>(Admin 확인 생략)</span>
+								</p>
+								<strong>반려 사유</strong>
+								<div className="wa-reject-modal-reason">
+									{rejectReason || '반려 사유가 등록되지 않았습니다.'}
+								</div>
+								<button
+									type="button"
+									className="wa-reject-modal-confirm"
+									onClick={() => setRejectModalOpen(false)}
+								>
+									확인
+								</button>
+							</div>
+						</div>
+					</div>
+				)}
 		    </div>
         </>
     );

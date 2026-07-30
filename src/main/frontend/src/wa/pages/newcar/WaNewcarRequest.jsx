@@ -549,8 +549,14 @@ const WaNewcarRequest = ({
 	const current = hoverStep ?? step;
 	// 처리상태가 '입력'이고, 신규등록 구분이 '렌트'인 경우 특정 화면을 보여줌  
 	const isRentInput = dsService.PROC_ST === 'INPUT' && dsNewCar.TASK_CD === 'ADD';
+	// 반려건은 조회 전용 화면이 아니라 4단계 수정/재요청 화면으로 연다.
+	const isRejectedRequest = dsService.PROC_ST === 'RET';
 	// 상세조회 화면 여부
 	const isDetailPage = useMemo(() => {
+	    if (isRejectedRequest) {
+	        return false;
+	    }
+
 	    if (DETAIL_PROC_STATUS.includes(dsService.PROC_ST)) {
 	        return true;
 	    }
@@ -566,7 +572,8 @@ const WaNewcarRequest = ({
 	}, [
 	    dsService.PROC_ST,
 	    dsService.JUDGE_ST,
-	    dsUserInfo.MEMBER_GB
+	    dsUserInfo.MEMBER_GB,
+	    isRejectedRequest
 	]);
 
 /* =========================================================
@@ -636,6 +643,11 @@ const WaNewcarRequest = ({
 	        return;
 	    }
 
+	    if (isRejectedRequest) {
+	        setStep(4);
+	        return;
+	    }
+
 	    if (isDetailPage) {
 	        return;
 	    }
@@ -651,7 +663,8 @@ const WaNewcarRequest = ({
  
 	}, [
 	    dsService.SERVICE_ID,
-		isDetailPage
+		isDetailPage,
+		isRejectedRequest
 	]);
 	
 	
@@ -779,6 +792,11 @@ const WaNewcarRequest = ({
 	 */
 	const handleNext = async (e) => {
 	    e.preventDefault();
+
+		if (step === 4 && isRejectedRequest) {
+		    await requestRejectedProcess();
+		    return;
+		}
 		
 		// SU 사용자가 최종 확인에서 요청
 		if (step === 4 && dsUserInfo.MEMBER_GB === 'SU') {
@@ -1496,6 +1514,9 @@ const WaNewcarRequest = ({
 				else if (newDataSet.dsService.PROC_ST === "W_REQ" && proc === "REQ") {
 					completeMsg = "요청되었습니다.";
 				}
+				else if (newDataSet.dsService.PROC_ST === "S_REQ" && proc === "REQ") {
+					completeMsg = "요청되었습니다.";
+				}
 				else if (newDataSet.dsService.PROC_ST === "DEL" && proc === "DEL") {
 					completeMsg = "삭제되었습니다.";
 				}
@@ -1749,6 +1770,41 @@ const WaNewcarRequest = ({
             POST_NO: ''
         }));
     };
+
+	/**
+	 * 반려건을 수정 후 재요청한다.
+	 * Admin 재확인 단계를 건너뛰고 등록요청 상태(S_REQ)로 바로 변경한다.
+	 */
+	const requestRejectedProcess = async () => {
+		if (!isRejectedRequest) {
+			return;
+		}
+
+		const validMsg = await validateRequest(true);
+
+		if (validMsg) {
+			await gf.alert(validMsg);
+			return;
+		}
+
+		const ok = await gf.confirm('수정한 내용으로 재요청하시겠습니까?', '반려건 재요청');
+
+		if (!ok) {
+			return;
+		}
+
+		await saveProcess(
+			{ ...dsNewCar },
+			'REQ',
+			null,
+			null,
+			{
+				...dsService,
+				PROC_ST: 'S_REQ',
+				JUDGE_ST: 'S_REQ'
+			}
+		);
+	};
 
 	/**
 	 * SU 사용자가 최종 확인 단계에서 요청할 때 실행한다.
@@ -2672,6 +2728,7 @@ const WaNewcarRequest = ({
 							<span>
 								{
 									purchaseType === 'RENT' ? '확인' 
+									: (step === 4 && isRejectedRequest) ? '요청'
 									: (step === 4 && dsUserInfo.MEMBER_GB === 'SU') ? '요청' 
 									: '다음'
 								}
