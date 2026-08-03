@@ -8,6 +8,7 @@
         SELECT TS.SERVICE_ID,
                TOKEN,
                REG_GB,
+               PKG_COMMON.FN_DECRYPT(TN.REG_NO) AS REG_NO,
                RATIO_NO,
                MEMBER_ID,
                OWNER_NM,
@@ -38,4 +39,20 @@
            AND TS.REQUEST_DT >= ADD_MONTHS(SYSDATE, -1)
 		   AND TOKEN =  #{TOKEN}
 	</select>
+	
+	<select id="getTokenOwnerInfo" parameterType="map" resultType="map">
+		SELECT TS.SERVICE_ID,
+               TOKEN,
+               TOI.DEBTOR_GB AS DEBTOR_GB,
+               PKG_COMMON.FN_DECRYPT(TOI.REG_NO) AS DEBTOR_REG_NO
+          FROM TR_SERVICE TS, 
+               TR_OWNERINFO TOI,
+               TR_CARNO_DETACH TCD
+         WHERE TOI.SERVICE_ID = TCD.SERVICE_ID
+           AND TS.SERVICE_ID = TOI.SERVICE_ID
+           AND TS.REQUEST_DT >= ADD_MONTHS(SYSDATE, -1)
+           AND TOKEN = #{TOKEN}
+           AND TOI.SEQ = '0'
+	</select>
+	
 </mapper>

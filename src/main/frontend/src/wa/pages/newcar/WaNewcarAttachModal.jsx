@@ -37,6 +37,7 @@ const isImageFile = (fileName = '') => {
 const WaNewcarAttachModal = ({
     open,
     dsService,
+	dsOwnerInfo,
     dsNewCar,
 	dsCarNoDetach,
 	setDsCarNoDetach,
@@ -58,8 +59,8 @@ const WaNewcarAttachModal = ({
 	
 	// 일반 첨부 정책
 	const attachPolicy = useMemo(
-	    () => getAttachPolicy(dsNewCar),
-	    [dsNewCar]
+	    () => getAttachPolicy(dsNewCar, dsOwnerInfo),
+	    [dsNewCar, dsOwnerInfo]
 	);
 	
 	// 지방세 감면 신청서 서명 여부
@@ -339,6 +340,7 @@ const WaNewcarAttachModal = ({
                 <div className="wa-attach-modal-body single">
                     <section className="wa-attach-doc-section">
 		
+							console.log(displayDocs);
 						{// 제출해야 하는 서류 목록
 						 displayDocs.map((doc, index) => {
 	

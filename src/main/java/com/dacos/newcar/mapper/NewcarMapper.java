@@ -45,6 +45,9 @@ public interface NewcarMapper {
     /** 다건 상태 변경 */
     int updateProcSt(@Param("SERVICE_IDS") List<String> serviceIds, @Param("PROC_ST") String procSt);
     
+    /** 희망 차량번호 변경 */
+    int updateReqCarNo(@Param("SERVICE_ID") String serviceId, @Param("REQ_CAR_NO") String reqCarNo);
+    
     /**
      *  신규등록 기본정보 초기화
      */

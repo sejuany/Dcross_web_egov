@@ -287,20 +287,23 @@ const OwnerPersonal = ({
 		
 			
 		    {/* 공동소유 */}
-			<button
-			    type="button"
-			    className={`wa-joint-btn ${isJointOwnerOpen ? 'active' : ''}`}
-			    onClick={handleToggleJointOwner}
-			>
-			    <CheckCircle2
-			        size={16}
-			        className={`wa-check-icon ${isJointOwnerOpen ? 'active' : ''}`}
-			    />
+			{!isCorporate && (
+				<button
+				    type="button"
+				    className={`wa-joint-btn ${isJointOwnerOpen ? 'active' : ''}`}
+				    onClick={handleToggleJointOwner}
+				>
+				    <CheckCircle2
+				        size={16}
+				        className={`wa-check-icon ${isJointOwnerOpen ? 'active' : ''}`}
+				    />
 
-			    <Users size={18} className="wa-joint-icon" />
+				    <Users size={18} className="wa-joint-icon" />
 
-			    공동 명의 시 클릭
-			</button>
+				    공동 명의 시 클릭
+				</button>
+			)}
+			
 			
 			{isJointOwnerOpen && (
 			    <div className="wa-joint-owner">

@@ -31,7 +31,7 @@ public class Scheduler {
     	String serverIp = commonService.getServerAddress("IP");
     	
     	// 운영, 개발 서버에서만 실행되도록 조건 추가
-	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp)) {
+	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp) || "172.10.10.2".equals(serverIp)) {
 	    	runTodayNewcarWaitingServices("scheduled");
 	    }
     }
@@ -41,7 +41,7 @@ public class Scheduler {
     	String serverIp = commonService.getServerAddress("IP");
     	
     	// 운영, 개발 서버에서만 실행되도록 조건 추가
-	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp)) {
+	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp) || "172.10.10.2".equals(serverIp)) {
 	    	runTodayNewcarNonPayed("scheduled");
 	    	runTodayNewcarCardNonPayed("scheduled");
 	    }

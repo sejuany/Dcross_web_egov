@@ -9,6 +9,7 @@ const CommonSelect = ({
     className = 'erp-input',
     valueField = 'CODE_ID',
     labelField = 'CODE_NM',
+	placeholder = '선택',
     width, // select 너비
     options,
     ...rest
@@ -25,7 +26,9 @@ const CommonSelect = ({
             style={width ? { width } : undefined}
             {...rest}
         >
-            <option value="">선택</option>
+			{placeholder && (
+			    <option value="">{placeholder}</option>
+			)}
 
             {optionList.map(item => (
                 <option

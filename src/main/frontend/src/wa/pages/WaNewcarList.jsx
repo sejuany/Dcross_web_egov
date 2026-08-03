@@ -61,8 +61,7 @@ const quickDateButtons = [
 const headerActionButtons = [
     { key: 'search', label: '조회', Icon: Search, variant: 'primary' },
     { key: 'export', label: '엑셀', Icon: Download, variant: 'outline' },
-    { key: 'reset', label: '초기화', Icon: RotateCcw, variant: 'outline' },
-    { key: 'close', label: '닫기', Icon: X, variant: 'outline' }
+    { key: 'reset', label: '초기화', Icon: RotateCcw, variant: 'outline' }
 ];
 
 const gridActionButtons = [
@@ -90,11 +89,22 @@ const gridActionButtons = [
 ];
 
 const DEFAULT_MIN_COLUMN_WIDTH = 56;
+// 왼쪽 고정 컬럼
+// CHK부터 주문번호까지 순서대로 고정
+const PINNED_COLUMN_KEYS = [
+    'CHK',
+    'SEQ',
+    'REGIST_DATE',
+    'PROC_ST',
+    'LINK_ID'
+];
+
+const PINNED_COLUMN_SET = new Set(PINNED_COLUMN_KEYS);
 
 const columns = [
     { key: 'CHK', label: '', type: 'checkbox', width: 44, minWidth: 40, sortable: false },
     { key: 'SEQ', label: '순번', width: 44, minWidth: 20, sortable: false },
-    { key: 'REGIST_DATE', label: '등록예정일자', width: 116, minWidth: 50, sortType: 'date' },
+    { key: 'REGIST_DATE', label: '등록예정일자', width: 116, minWidth: 50, sortType: 'date', excelAlign : "left" },
     { key: 'PROC_ST', label: '처리상태', type: 'processStatus', width: 120, minWidth: 70 },
     { key: 'LINK_ID', label: '주문번호', width: 82, minWidth: 60 },
     { key: 'CARID_NO', label: '차대번호', width: 150, minWidth: 60 },
@@ -426,8 +436,8 @@ const WaNewcarList = () => {
             CUSTOMER_NM: row.CUSTOMER_NM || '',
             OWNER_NM: row.OWNER_NM || '',
             BUY_AMT: formatAmount(row.BUY_AMT),
-            ATTACH_YN: formatYn(row.ATTACH_YN),
-            CARD_YN: formatYn(row.CARD_YN),
+			ATTACH_YN: toStringValue(row.ATTACH_YN) === 'Y' ? (toStringValue(row.ATTACH_COMPLETE_YN) === 'Y' ? 'Y' : 'N') : '',
+			CARD_YN: ['Y', 'T'].includes(toStringValue(row.CARD_YN)) ? (toStringValue(row.CARD_PAY_YN) === 'Y' ? 'Y' : 'N') : '',
             NTAX_YN: formatYn(row.NTAX_YN),
             PAY_ST: paymentStatus,
             BPAY_DT: row.BPAY_DT || '',
@@ -996,6 +1006,46 @@ const WaNewcarList = () => {
     const getColumnWidth = useCallback((column) => (
         columnWidths[column.key] ?? column.width ?? column.minWidth ?? DEFAULT_MIN_COLUMN_WIDTH
     ), [columnWidths]);
+	
+	// 고정 컬럼 각각의 left 위치를 현재 컬럼 폭 기준으로 계산
+	const stickyColumnOffsets = useMemo(() => {
+	    const offsets = {};
+	    let nextLeft = 0;
+
+	    columns.forEach(column => {
+	        if (!PINNED_COLUMN_SET.has(column.key)) {
+	            return;
+	        }
+
+	        offsets[column.key] = nextLeft;
+	        nextLeft += getColumnWidth(column);
+	    });
+
+	    return offsets;
+	}, [getColumnWidth]);
+
+	// 헤더와 일반 셀에 적용할 고정 컬럼 클래스
+	const getColumnClassName = useCallback((column) => {
+	    const classNames = [column.className];
+
+	    if (PINNED_COLUMN_SET.has(column.key)) {
+	        classNames.push('wa-status-sticky-column');
+
+	        // 마지막 고정 컬럼인 주문번호 오른쪽에 구분선 표시
+	        if (column.key === PINNED_COLUMN_KEYS[PINNED_COLUMN_KEYS.length - 1]) {
+	            classNames.push('wa-status-sticky-column-last');
+	        }
+	    }
+
+	    return classNames.filter(Boolean).join(' ') || undefined;
+	}, []);
+
+	// 고정 컬럼의 left 값
+	const getStickyColumnStyle = useCallback((column) => (
+	    PINNED_COLUMN_SET.has(column.key)
+	        ? { left: `${stickyColumnOffsets[column.key] ?? 0}px` }
+	        : undefined
+	), [stickyColumnOffsets]);
 
     const handleSortColumn = useCallback((column) => {
         if (column.sortable === false) return;
@@ -1079,24 +1129,29 @@ const WaNewcarList = () => {
         return row.displayValues[column.key] ?? '';
     };
 
-    const getGridCellClassName = (row, column) => {
-        const classNames = [column.className];
+	const getGridCellClassName = (row, column) => {
+	    const classNames = [getColumnClassName(column)];
+	    const processGroupCode = getProcessGroupCode(row);
 
-        if (
-            column.key === 'ATTACH_YN'
-            && !isDirectRegistrationRow(row)
-            && toStringValue(row.ATTACH_YN) === 'Y'
-        ) {
-            classNames.push(
-                toStringValue(row.ATTACH_COMPLETE_YN) === 'Y'
-                    ? 'wa-attach-complete'
-                    : 'wa-attach-incomplete'
-            );
-        }
+	    if (!PINNED_COLUMN_SET.has(column.key)) {
+	        if (processGroupCode === 'S_END') {
+	            classNames.push('wa-row-complete');
+	        } else if (processGroupCode === 'DIRCT') {
+	            classNames.push('wa-row-direct');
+	        } else if (processGroupCode === 'RET') {
+	            classNames.push('wa-row-reject');
+	        }
+	    }
 
-        return classNames.filter(Boolean).join(' ') || undefined;
-    };
-	
+	    if (
+	        ['ATTACH_YN', 'CARD_YN'].includes(column.key)
+	        && row.displayValues[column.key] === 'N'
+	    ) {
+	        classNames.push('wa-requirement-pending');
+	    }
+
+	    return classNames.filter(Boolean).join(' ') || undefined;
+	};
 	// 모달 세로가 화면보다 커진 경우 상단 정렬
 	const frameRef = useRef(null);
 	const [isOverflow, setIsOverflow] = useState(false);
@@ -1277,7 +1332,7 @@ const WaNewcarList = () => {
                                     const sortClassName = isSorted ? ` sort-${sortConfig.direction}` : '';
 
                                     return (
-                                        <th key={column.key} aria-sort={column.sortable === false ? undefined : ariaSort}>
+										<th key={column.key}  className={getColumnClassName(column)} style={getStickyColumnStyle(column)} aria-sort={column.sortable === false ? undefined : ariaSort}>
                                             {column.type === 'checkbox' ? (
                                                 <input type="checkbox" aria-label="전체 선택" checked={allRowsSelected} onChange={event => toggleAllRows(event.target.checked)} />
                                             ) : (
@@ -1316,7 +1371,7 @@ const WaNewcarList = () => {
 									/*onDoubleClick={() => handleRowDoubleClick(row)} */
 									tabIndex={0} onKeyDown={event => event.key === 'Enter' && handleRowDoubleClick(row)}>
                                     {columns.map(column => (
-                                        <td key={`${row.rowKey}-${column.key}`} className={getGridCellClassName(row, column)}>
+                                        <td key={`${row.rowKey}-${column.key}`} className={getGridCellClassName(row, column)} style={getStickyColumnStyle(column)}>
                                             {renderGridCell(row, column, rowIndex)}
                                         </td>
                                     ))}

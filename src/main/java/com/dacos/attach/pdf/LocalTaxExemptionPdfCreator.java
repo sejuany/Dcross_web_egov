@@ -216,9 +216,14 @@ public class LocalTaxExemptionPdfCreator {
         // 상호(법인명) : 공란
         text(cs, font, 10, pdfData.getBIZ_NO(), 506, 235);
 
-        text(cs, font, 10,
-                pdfData.getADDRESS() + ", " + pdfData.getADDRESS_DT(),
-                139, 281);
+        // 상세주소가 있는 경우에만 ", 상세주소"를 추가
+        String address = pdfData.getADDRESS();
+
+        if (pdfData.getADDRESS_DT() != null && !pdfData.getADDRESS_DT().isBlank()) {
+            address += ", " + pdfData.getADDRESS_DT();
+        }
+
+        text(cs, font, 10, address, 139, 281);
 
         // 전자우편주소 : 공란
         text(cs, font, 10, pdfData.getMPHONE_NO(), 506, 333);

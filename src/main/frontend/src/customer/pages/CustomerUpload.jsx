@@ -166,9 +166,15 @@ const CustomerUpload = () => {
 	            TOKEN: token
 	        });
 
-	        const info = res.data.info;
+			log(res.data.result);
 			
-			log(info);
+	        const info = res.data.result.info;
+			const owner = res.data.result.owner;
+
+			console.log(info);
+			console.log(owner);
+
+			console.log('여기 통과');
 
 	        if (!info) {
 
@@ -180,6 +186,8 @@ const CustomerUpload = () => {
 
 	            return;
 	        }
+			
+			console.log('1');
 
 			// 신청 정보 저장
 			setInfo(info);
@@ -188,7 +196,7 @@ const CustomerUpload = () => {
 			setManagerTel(info.MANAGER_TEL ?? '');
 			
 			// 첨부파일 정책 조회
-			const attachPolicy = getAttachPolicy(info);
+			const attachPolicy = getAttachPolicy(info, owner);
 			const ntaxPolicy = getNtaxAttachPolicy(info);
 
 			// 일반 첨부 + 감면 첨부 합치기
@@ -216,6 +224,7 @@ const CustomerUpload = () => {
 			const attachFiles = Array.isArray(res2.data?.list)
 			    ? res2.data.list
 			    : [];
+				
 
 			setAttachFiles(attachFiles);
 

@@ -3,6 +3,7 @@ import axios from 'axios';
 import { BarChart3, Download, RotateCcw, Search, X } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
 import { exportRowsToXlsx } from '../../../utils/xlsxExport';
+import { exportRowsWithSummaryToXlsx } from '../../../utils/xlsxExport';
 import '../../styles/wa.css';
 
 // 검색 기간 기준, 빠른 기간 버튼, 상단 기능 버튼의 고정 옵션을 정의함
@@ -45,7 +46,7 @@ const PINNED_COLUMN_KEYS = ['SEQ', 'LINK_ID', 'CARID_NO', 'CAR_NO', 'PROC_ST', '
 const PINNED_COLUMN_SET = new Set(PINNED_COLUMN_KEYS);
 
 const columns = [
-    { key: 'SEQ', label: '순번', width: 52, minWidth: 44, sortType: 'number' },
+    { key: 'SEQ', label: '순번', width: 52, minWidth: 44, sortType: 'number'},
     { key: 'LINK_ID', label: '주문번호', width: 106, minWidth: 74 },
     { key: 'CARID_NO', label: '차대번호', width: 156, minWidth: 100 },
     { key: 'CAR_NO', label: '차량번호', width: 104, minWidth: 72 },
@@ -931,23 +932,46 @@ const WaPayInfo = () => {
 
         fetchPaymentList(nextFilters);
     };
-    // 현재 정렬된 그리드 결과의 XLSX 파일 다운로드를 실행함
-    const handleExport = () => {
-        if (rows.length === 0) {
-            setErrorMessage('내보낼 데이터가 없습니다.');
-            setNoticeMessage('');
-            return;
-        }
+	// 현재 정렬된 그리드 결과의 XLSX 파일 다운로드를 실행함
+	const handleExport = () => {
+	    if (rows.length === 0) {
+	        setErrorMessage('내보낼 데이터가 없습니다.');
+	        setNoticeMessage('');
+	        return;
+	    }
 
-        exportRowsToXlsx({
-            columns,
-            rows: sortedRows,
-            fileName: `납부현황_${getFormattedDateOffset(0)}.xlsx`,
-            sheetName: '납부현황',
-            getCellValue: (row, column) => row.displayValues[column.key] ?? ''
-        });
-    };
+	    const sumColumnKeys = ['ACQ_AMT', 'REGIS_AMT', 'INJI_AMT', 'STAMP_AMT', 'BOND_AMT', 'BFEE_AMT', 'FEE_AMT', 'NUMP_AMT', 'TOTAL_AMT'];
 
+	    const summaryDisplayValues = columns.reduce((result, column, index) => {
+	        if (index === 0) {
+	            result[column.key] = '합계';
+	        } else if (sumColumnKeys.includes(column.key)) {
+	            result[column.key] = formatAmount(sortedRows.reduce((sum, row) => sum + toNumber(row.rawValues?.[column.key] ?? row[column.key]), 0));
+	        } else {
+	            result[column.key] = '';
+	        }
+
+	        return result;
+	    }, {});
+
+	    const exportRows = [
+	        ...sortedRows,
+			{
+			    rowKey: 'EXCEL_SUMMARY',
+			    isSummary: true,
+			    displayValues: summaryDisplayValues,
+			    rawValues: summaryDisplayValues
+			}
+	    ];
+
+		exportRowsWithSummaryToXlsx({
+		    columns,
+		    rows: exportRows,
+		    fileName: `납부현황_${getFormattedDateOffset(0)}.xlsx`,
+		    sheetName: '납부현황',
+		    getCellValue: (row, column) => row.displayValues[column.key] ?? ''
+		});
+	};
     // 상단 버튼별 동작을 한 곳에서 분기함
     const handleHeaderActionClick = (actionKey) => {
         if (actionKey === 'search') {
@@ -1325,23 +1349,30 @@ const WaPayInfo = () => {
                         >
                             <header className="wa-pay-dashboard-header">
                                 <h2 id="wa-pay-dashboard-title">DACOS 신규등록 통계</h2>
-                                <div className="wa-pay-dashboard-controls" aria-label="납부 통계 조회 조건">
-                                    <select name="dateType" value={searchFilters.dateType} onChange={handleFilterChange}>
-                                        {dateTypeOptions.map(option => (
-                                            <option key={option.value} value={option.value}>{option.label}</option>
-                                        ))}
-                                    </select>
-                                    <input type="date" name="startDate" value={searchFilters.startDate} onChange={handleFilterChange} />
-                                    <span aria-hidden="true">~</span>
-                                    <input type="date" name="endDate" value={searchFilters.endDate} onChange={handleFilterChange} />
-                                    <button type="button" className="wa-pay-dashboard-search" onClick={() => fetchPaymentList(searchFilters)} disabled={loading}>
-                                        <Search size={16} />
-                                        <span>조회</span>
-                                    </button>
-                                    <button type="button" className="wa-pay-dashboard-close" aria-label="통계 닫기" onClick={() => setShowStatistics(false)}>
-                                        <X size={18} />
-                                    </button>
-                                </div>
+								<div className="wa-pay-dashboard-controls" aria-label="납부 통계 조회 조건">
+								    <select name="dateType" value={searchFilters.dateType} onChange={handleFilterChange}>
+								        {dateTypeOptions.map(option => (
+								            <option key={option.value} value={option.value}>{option.label}</option>
+								        ))}
+								    </select>
+								    <input type="date" name="startDate" value={searchFilters.startDate} onChange={handleFilterChange} />
+								    <span aria-hidden="true">~</span>
+								    <input type="date" name="endDate" value={searchFilters.endDate} onChange={handleFilterChange} />
+								    <div className="wa-pay-dashboard-quick-dates" aria-label="통계 기간 빠른 선택">
+								        {quickDateButtons.map(button => (
+								            <button key={button.key} type="button" className="wa-status-action outline" onClick={() => handleDateQuickRange(button.startOffset)} disabled={loading}>
+								                <span>{button.label}</span>
+								            </button>
+								        ))}
+								    </div>
+								    <button type="button" className="wa-pay-dashboard-search" onClick={() => fetchPaymentList(searchFilters)} disabled={loading}>
+								        <Search size={16} />
+								        <span>조회</span>
+								    </button>
+								    <button type="button" className="wa-pay-dashboard-close" aria-label="통계 닫기" onClick={() => setShowStatistics(false)}>
+								        <X size={18} />
+								    </button>
+								</div>
                             </header>
 
                             <section className="wa-pay-dashboard-hero" aria-label="납부현황 통계 요약">

@@ -1,3 +1,7 @@
+// 구분값
+// gubun: 'NWEB' DCROSS 첨부파일에 보여짐
+// gubun: 'MERGE' 비과세대상 파일 밑에 추가로 병합되는 파일
+// gubun: 'MINOR' 소유자/공동소유자 미성년자 일 때 첨부되는 파일 (5개가 넘어서 병합하고 있다) 
 export const SIGN_DOC = {
     SIGN: {
         code: 'SIGN',
@@ -7,6 +11,7 @@ export const SIGN_DOC = {
 };
 
 // 일반 첨부파일
+// 파일명은 겹치면 안 됨 !!
 export const ATTACH_DOC = {
 
     // ===== 외국인 =====
@@ -34,7 +39,7 @@ export const ATTACH_DOC = {
 
     JOINT_OWNER_AGREEMENT: {
         code: 'JOINT_OWNER_AGREEMENT',
-        name: '공동명의 동의서',
+        name: '공동명의 등록조서',
         seq: 40,
         gubun: 'NWEB'
     },
@@ -45,7 +50,40 @@ export const ATTACH_DOC = {
         name: '리스 신청서',
         seq: 50,
         gubun: 'NWEB'
-    }
+    },
+
+	// ===== 미성년자 확인 =====
+	MINOR_AGREEMENT: {
+	    code: 'MINOR_AGREEMENT',
+	    name: '법정대리인 동의서',
+		seq: 60,
+	    gubun: 'MINOR' // 병합 
+	},
+	PARENT_SEAL: {
+	    code: 'PARENT_SEAL',
+	    name: '보호자 인감증명서 또는 본인서명사실확인서',
+		seq: 61,
+		gubun: 'MINOR'
+	},
+	PARENT_ID: {
+	    code: 'PARENT_ID',
+	    name: '보호자 신분증',
+		seq: 62,
+	    gubun: 'MINOR'
+	},
+	FAMILY_CERT_MINOR: {
+	    code: 'FAMILY_CERT_MINOR',
+	    name: '가족관계증명서(상세)',
+		seq: 63,
+	    gubun: 'MINOR'
+	},
+	BASIC_CERT: {
+	    code: 'BASIC_CERT',
+	    name: '기본증명서(상세)',
+		seq: 64,
+	    gubun: 'MINOR'
+	},
+
 };
 
 // 비과세대상자 필요서류
@@ -197,10 +235,12 @@ export const NTAX_ATTACH_DOC = {
         name: '관용차량 정수배정서 또는 차량교체승인서',
         seq: 820,
         gubun: 'MERGE'
-    }
+    },
+
 };
 
 // 비과세대상자 조건
+// 파일명은 겹치면 안 됨 !!
 export const NTAX_POLICY = {
 
     // 국가유공자

@@ -83,6 +83,13 @@ const getValue = (obj, ...keys) => {
 
     return '';
 };
+const formatBizNo = (value) => {
+    const digits = String(value ?? '').replace(/\D/g, '').slice(0, 10);
+
+    if (digits.length <= 3) return digits;
+    if (digits.length <= 5) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+    return `${digits.slice(0, 3)}-${digits.slice(3, 5)}-${digits.slice(5)}`;
+};
 
 const normalizeCompany = (data = {}) => ({
     COMPANY_ID: getValue(data, 'COMPANY_ID', 'company_ID', 'companyId'),
@@ -111,7 +118,7 @@ const normalizeBranch = (row = {}) => ({
     COMPANY_ID: getValue(row, 'COMPANY_ID', 'company_ID', 'companyId'),
     BRANCH_ID: getValue(row, 'BRANCH_ID', 'branch_ID', 'branchId'),
     BRANCH_NM: getValue(row, 'BRANCH_NM', 'branch_NM', 'branchNm'),
-    BIZ_NO: getValue(row, 'BIZ_NO', 'biz_NO', 'bizNo'),
+    BIZ_NO: formatBizNo(getValue(row, 'BIZ_NO', 'biz_NO', 'bizNo')),
     TEL_NO: getValue(row, 'TEL_NO', 'tel_NO', 'telNo'),
     MPHONE_NO: getValue(row, 'MPHONE_NO', 'mphone_NO', 'mphoneNo'),
     POST_NO: getValue(row, 'POST_NO', 'post_NO', 'postNo'),
@@ -504,12 +511,13 @@ const WaCompanyManage = () => {
         setSaving(true);
 
         try {
-            const payload = {
-                ...branchInput,
-                COMPANY_ID: loginCompanyId,
-                BASE_ID: branchInput.BASE_ID || '',
-                INS_USER: loginId,
-            };
+			const payload = {
+			    ...branchInput,
+			    BIZ_NO: String(branchInput.BIZ_NO || '').replace(/\D/g, ''),
+			    COMPANY_ID: loginCompanyId,
+			    BASE_ID: branchInput.BASE_ID || '',
+			    INS_USER: loginId,
+			};
 
             const response = await axios.post('/api/company/branch/manage/save', payload);
 
@@ -760,12 +768,14 @@ const WaCompanyManage = () => {
 
                                 <label>
                                     <span>사업자번호</span>
-                                    <input
-                                        name="BIZ_NO"
-                                        value={branchInput.BIZ_NO}
-                                        onChange={handleBranchChange}
-                                        disabled={saving}
-                                    />
+									<input
+									    name="BIZ_NO"
+									    value={branchInput.BIZ_NO}
+									    onChange={event => setBranchInput(prev => ({ ...prev, BIZ_NO: formatBizNo(event.target.value) }))}
+									    inputMode="numeric"
+									    maxLength={12}
+									    disabled={saving}
+									/>
                                 </label>
 
                                 <label>

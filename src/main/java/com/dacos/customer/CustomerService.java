@@ -40,6 +40,13 @@ public class CustomerService {
         return customerMapper.getTokenInfo(param);
 
     }
+    
+    /**
+     * 토큰으로 공동소유자 정보 조회
+     */
+    public Map<String, Object> getTokenOwnerInfo(Map<String, Object> param) {
+        return customerMapper.getTokenOwnerInfo(param);
+    }
 
     // 서버 IP/HOST 조회
     public String getServerAddress(String sGubun) {

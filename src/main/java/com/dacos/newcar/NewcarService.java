@@ -687,7 +687,8 @@ public class NewcarService {
 				try {
 					applyExcelCarSpec(row, user);
 				} catch (BusinessException e) {
-					errors.add(e.getMessage());
+				    logger.warn("[엑셀 업로드] 차량 제원 적용 오류", e);
+				    errors.add("처리 중 오류가 발생하였습니다.");
 				}
 			}
 			if (!errors.isEmpty()) {
@@ -1248,6 +1249,9 @@ public class NewcarService {
 			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
 			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
 
+			// 기본값 보정
+			normalizeNewCar(mNewCar);
+			
 		    // 데이터 병합
 		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
 
@@ -1422,7 +1426,7 @@ public class NewcarService {
 
 		    logger.error("신규등록 처리 오류", e);
 		    result.put("RESULT_CD", "-2");
-		    result.put("MESSAGE", e.getMessage());
+		    result.put("MESSAGE", "처리 중 오류가 발생하였습니다");
 
 		} catch (Exception e) {
 		    logger.error("신규등록 처리 중 시스템 오류", e);
@@ -1432,6 +1436,24 @@ public class NewcarService {
 		}
 
 		return ApiResponse.withKey("data", result);
+	}
+	
+	// 값이 비어 있는 경우 이곳을 타게 한다.
+	private void normalizeNewCar(Map<String, Object> mNewCar) {
+
+	    if (commonUtil.isEmpty(mNewCar.get("NTAX_TRGET_CD"))) {
+	        mNewCar.put("NTAX_TRGET_CD", "00");
+	    }
+
+	    if (commonUtil.isEmpty(mNewCar.get("NTAX_APPLC_CD"))) {
+	        mNewCar.put("NTAX_APPLC_CD", "0");
+	    }
+
+	    if (!"00".equals(mNewCar.get("NTAX_TRGET_CD"))
+	            && !"11".equals(mNewCar.get("NTAX_APPLC_CD"))) {
+	        mNewCar.put("NTAX_APPLC_CD", "11");
+	    }
+
 	}
 
 	/**
@@ -1986,8 +2008,12 @@ public class NewcarService {
 	
 		System.out.println(param);
 		int result = common.update(param, "updateNumplateUseYn");
+
+		param.put("SERVICE_ID", param.get("serviceId"));
+		param.put("REQ_CAR_NO", "");
+		result += common.update(param, "updateReqCarNo");
 	
-		if(result < 1) {
+		if(result < 2) {
 		    throw new BusinessException("번호판 미사용 처리 실패");
 		}
 	}

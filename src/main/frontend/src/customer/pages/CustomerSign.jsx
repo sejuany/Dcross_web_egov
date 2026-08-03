@@ -74,9 +74,10 @@ const CustomerSign = () => {
 			    TOKEN: token
 			});
 
-	        console.log(res.data);
+			console.log("1");
+	        console.log(res);
 
-			const info = res.data.info;
+			const info = res.data.result.info;
 
 			if (!info) {
 			    await gf.alert('해당 건이 조회되지 않습니다.');
@@ -88,12 +89,16 @@ const CustomerSign = () => {
 			    return;
 			}
 
+			console.log("2");
+			console.log(info);
+			
 			// 서명이 필요 없는 경우 바로 첨부파일 페이지 이동
 			if (info.SIGN_YN === 'N') {
 			    navigate(`/customer/CustomerUpload?t=${token}`);
 			    return;
 			}
 			
+			console.log("3");
 			console.log(info);
 
 			if (!info) {

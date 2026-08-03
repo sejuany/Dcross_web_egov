@@ -1,3 +1,7 @@
+
+
+import { gf } from '../utils/utils';
+
 import {
     SIGN_DOC,
     ATTACH_DOC,
@@ -8,7 +12,7 @@ import {
 /**
  * 일반 첨부파일 정책
  */
-export function getAttachPolicy(dsNewCar) {
+export function getAttachPolicy(dsNewCar, dsOwnerInfo) {
 
     // 서명
     const signs = new Set();
@@ -43,22 +47,45 @@ export function getAttachPolicy(dsNewCar) {
     ) {
         docs.add(ATTACH_DOC.LEASE_AGREEMENT);
     }
-
-/*	console.log(
-		{
-		        needSign: signs.size > 0,
-		        needUpload: docs.size > 0,
-		        requiredSigns: [...signs],
-		        requiredDocs: [...docs]
-		    }
-	);*/
 	
-    return {
-        needSign: signs.size > 0,
-        needUpload: docs.size > 0,
-        requiredSigns: [...signs],
-        requiredDocs: [...docs]
-    };
+	// ===== 미성년자 =====
+	// 대표 소유자: REG_GB가 R 또는 F이고 미성년자인 경우
+	// 공동 소유자: 공동소유(RATIO_NO !== 100)이면서 DEBTOR_GB가 R 또는 F이고 미성년자인 경우
+	const needMinorDocs =
+	    (
+	        ['R', 'F'].includes(dsNewCar.REG_GB) &&
+	        gf.isMinor(dsNewCar.REG_NO)
+	    ) ||
+	    (
+	        Number(dsNewCar.RATIO_NO || 100) !== 100 &&
+	        ['R', 'F'].includes(dsOwnerInfo?.DEBTOR_GB) &&
+	        gf.isMinor(dsOwnerInfo?.DEBTOR_REG_NO)
+	    );
+
+	if (needMinorDocs) {
+		console.log("미성년자");
+	    docs.add(ATTACH_DOC.MINOR_AGREEMENT);
+	    docs.add(ATTACH_DOC.PARENT_SEAL);
+	    docs.add(ATTACH_DOC.PARENT_ID);
+	    docs.add(ATTACH_DOC.FAMILY_CERT_MINOR);
+	    docs.add(ATTACH_DOC.BASIC_CERT);
+	}
+
+	console.log({
+	    needSign: signs.size > 0,
+	    needUpload: docs.size > 0,
+	    requiredSigns: [...signs],
+	    requiredDocs: [...docs],
+		needMinorDocs
+	});
+	
+	return {
+	    needSign: signs.size > 0,
+	    needUpload: docs.size > 0,
+	    needMinorDocs,
+	    requiredSigns: [...signs],
+	    requiredDocs: [...docs]
+	};
 }
 
 // 비과세 대상 
@@ -121,6 +148,7 @@ export function getNtaxAttachPolicy(dsNewCar) {
 	    requiredDocs: [...docs]
 	};
 }
+
 
 
 export {

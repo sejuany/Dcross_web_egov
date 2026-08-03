@@ -792,6 +792,9 @@ const WaNewcarRequest = ({
 	 * 직접등록 상태로 변경한 데이터를 saveProcess()에 전달한다.
 	 */
 	const handleNext = async (e) => {
+		console.log("dsNewCar>>");
+		console.log(dsNewCar);
+		
 	    e.preventDefault();
 
 		if (step === 4 && isRejectedRequest) {
@@ -822,25 +825,34 @@ const WaNewcarRequest = ({
 			
 			console.log("REQ_CAR_NO >>" + dsNewCar.REQ_CAR_NO);
 			
-			// 기존 번호 해제 API 호출
-			await axios.post('/api/newcar/updateNumplateUseYn', {
-			    serviceId: dsService.SERVICE_ID,
-			    carNo: dsNewCar.REQ_CAR_NO
-			});
+			// 번호가 있을 때만 번호판 미사용 처리
+			if (dsNewCar.REQ_CAR_NO) {
+				// 기존 번호 해제 API 호출
+				await axios.post('/api/newcar/updateNumplateUseYn', {
+				    serviceId: dsService.SERVICE_ID,
+				    carNo: dsNewCar.REQ_CAR_NO
+				});
+			}
+			
+		    const newDsNewCar = {
+		        ...dsNewCar,
+		        REQ_CAR_NO: '',
+		        DIRECT_YN: 'Y'
+		    };
 
-			// 상태 초기화
-			setDsNewCar(prev => ({ ...prev, REQ_CAR_NO: '' }));
+		    // 화면 상태도 변경
+		    setDsNewCar(newDsNewCar);
 			
 			const newDsService = {
 			    ...dsService,
-			    PROC_ST: 'DIRCT',
+			    PROC_ST: 'INPUT',
 			    JUDGE_ST: '',
 				JUDGE_DT: '',
 				TASK_CD: 'ADD',
 			};
 
 			const success = await saveProcess(
-			    {...dsNewCar}, 'SAV', null, null, newDsService
+			    newDsNewCar, 'SAV', null, null, newDsService
 			);
 			
 			console.log(success); // true 또는 false
@@ -1924,8 +1936,8 @@ const WaNewcarRequest = ({
 				 && Number(dsNewCar.RATIO_NO) + Number(dsOwnerInfo.DEBTOR_RATIO) + Number(dsOwnerInfo1.DEBTOR_RATIO) !== 100) {
 					return '대표소유자 + 공동소유자1 + 공동소유자2 비율을 확인해주세요 둘의 합은 100%이어야 합니다.';
 				}
-				// 공동소유자 비율 합이 100%인경우 성명, 등록번호 주소체크
-				if (dsOwnerInfo.DEBTOR_NM === '' || dsOwnerInfo.DEBTOR_REG_NO === '' || dsOwnerInfo.DEBTOR_ADDR === '') {
+				// 공동소유자 비율 합이 100%인경우 성명, 등록번호 체크
+				if (dsOwnerInfo.DEBTOR_NM === '' || dsOwnerInfo.DEBTOR_REG_NO === '') {
 					return '공동소유자의 정보를 입력해주세요.';
 				}
 			}
@@ -2046,7 +2058,7 @@ const WaNewcarRequest = ({
 				requireValue(owner.DEBTOR_NM, `공동소유자${ownerNo} 성명`)
 				|| requireValue(owner.DEBTOR_GB, `공동소유자${ownerNo} 등록구분`)
 				|| requireValue(registrationNo, `공동소유자${ownerNo} 등록번호`)
-				|| requireValue(owner.DEBTOR_ADDR, `공동소유자${ownerNo} 주소`)
+				//|| requireValue(owner.DEBTOR_ADDR, `공동소유자${ownerNo} 주소`)
 			);
 
 			if (ownerMessage) {
@@ -2288,7 +2300,7 @@ const WaNewcarRequest = ({
 	            ATTACH_DOC.MINOR_AGREEMENT,
 	            ATTACH_DOC.PARENT_SEAL,
 	            ATTACH_DOC.PARENT_ID,
-	            ATTACH_DOC.FAMILY_CERT,
+	            ATTACH_DOC.FAMILY_CERT_MINOR,
 	            ATTACH_DOC.BASIC_CERT
 	        );
 			

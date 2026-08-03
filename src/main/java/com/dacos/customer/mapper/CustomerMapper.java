@@ -10,5 +10,7 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface CustomerMapper {
 	Map<String, Object> getTokenInfo(Map<String, Object> param);
+
+	Map<String, Object> getTokenOwnerInfo(Map<String, Object> param);
 	
 }

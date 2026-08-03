@@ -410,6 +410,7 @@ const ConfirmInfo = ({
 				    open={attachModalOpen}
 				    dsService={dsService}
 				    dsNewCar={dsNewCar}
+					dsOwnerInfo={dsOwnerInfo}
 					dsUserInfo={dsUserInfo}
 					dsCarNoDetach={dsCarNoDetach}
 					setDsCarNoDetach={setDsCarNoDetach}

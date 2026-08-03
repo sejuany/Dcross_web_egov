@@ -135,7 +135,7 @@ public class AuthController {
             logger.error("[AuthController] Mobile-OK auth request failed", e);
             response.put("success", false);
             response.put("ready", false);
-            response.put("message", e.getMessage());
+            response.put("message", "처리 중 오류가 발생하였습니다");
         }
 
         return ResponseEntity.ok(response);
@@ -180,7 +180,7 @@ public class AuthController {
         } catch (Exception e) {
             logger.error("[AuthController] Mobile-OK confirm failed", e);
             response.put("success", false);
-            response.put("message", e.getMessage());
+            response.put("message", "처리 중 오류가 발생하였습니다");
         }
         return ResponseEntity.ok(response);
     }

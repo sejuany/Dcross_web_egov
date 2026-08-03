@@ -19,7 +19,8 @@
             TN.OWNER_NM,
             PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
             TN.REGIST_DATE,
-            TS.LINK_ID
+            TS.LINK_ID,
+            TN.NTAX_TRGET_CD
         FROM TR_SERVICE TS
              JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
         WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
@@ -38,7 +39,9 @@
             TN.REQ_CAR_NO as CAR_NO,
             TN.OWNER_NM,
             PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
-            TN.REGIST_DATE
+            TN.REGIST_DATE,
+            TS.LINK_ID,
+            TN.NTAX_TRGET_CD
         FROM TR_SERVICE TS
              JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
         WHERE TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)

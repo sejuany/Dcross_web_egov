@@ -121,7 +121,7 @@ const JointOwner = ({
 			                <option value="">선택</option>
 			                <option value="R">주민등록번호</option>
 			                <option value="F">외국인등록번호</option>
-			                <option value="B">법인등록번호</option>
+			                {/*<option value="B">법인등록번호</option>*/}
 			            </select>
 
 						<SplitInput
@@ -195,7 +195,8 @@ const JointOwner = ({
 			    </div>
 			</div>
 			
-			{/* 공동소유자 주소 */}
+			
+			{/* 공동소유자 주소
 			{showAddress && (
 				<AddressSearch
 					data={dsOwnerInfo}
@@ -215,6 +216,7 @@ const JointOwner = ({
 					sameLabel='대표소유자 주소'
 				/>
 			)}
+			*/}
 			
 		</>
 	)

@@ -127,7 +127,7 @@ public class NewcarController {
         } catch (Exception e) {
             return ResponseEntity.ok(Map.of(
                     "success", false,
-                    "message", e.getMessage()
+                    "message", "처리 중 오류가 발생하였습니다"
             ));
         }
     }
@@ -143,7 +143,7 @@ public class NewcarController {
             logger.error("[NewcarController] PDF 제작증 추출 실패", e);
             return ResponseEntity.ok(Map.of(
                     "success", false,
-                    "message", e.getMessage()
+                    "message","처리 중 오류가 발생하였습니다"
             ));
         }
     }
@@ -163,7 +163,7 @@ public class NewcarController {
             logger.error("[NewcarController] PDF 제작증 업로드 신청 실패", e);
             return ResponseEntity.ok(Map.of(
                     "success", false,
-                    "message", e.getMessage()
+                    "message", "처리 중 오류가 발생하였습니다"
             ));
         }
     }

@@ -364,6 +364,7 @@
                    AND INSTR(AF2.ATCHSVRFILE_NM, '.', -1) &gt; LENGTH(AF2.SERVICE_ID) + 2
             ) AS ATTACH_CODES,
             CASE TN.CARD_YN WHEN 'Y' THEN 'Y' ELSE '' END AS CARD_YN,
+            NVL(TN.CARD_PAY_YN, 'N') AS CARD_PAY_YN,
             CASE
                 WHEN NVL(TN.NTAX_TRGET_CD, '00') &lt;&gt; '00' THEN 'Y'
                 ELSE ''
@@ -568,7 +569,7 @@
 	    FROM TR_SERVICE 
 	    WHERE LINK_ID = #{LINK_ID}
 	      AND PROC_ST IN (
-	          'REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END',
+	          'C_REQ', 'REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END',
 	          'PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON',
 	          'J_REQ', 'J_ING', 'J_END', 'END'
 	      )
@@ -1063,6 +1064,9 @@
 			<if test="BOND_LINK_YN != null">
 				BOND_LINK_YN = #{BOND_LINK_YN},
 			</if>
+			<if test="DIRECT_YN != null and DIRECT_YN != ''">
+			    DIRECT_YN = #{DIRECT_YN},
+			</if>
 	        UPD_DATE = SYSDATE
 		</set>
 	
@@ -1094,6 +1098,14 @@
 		<foreach collection="SERVICE_IDS" item="id" open="(" separator="," close=")">
 	       #{id}
 		</foreach>
+	</update>
+	
+	<update id="updateReqCarNo">
+	    UPDATE TR_NEWCAR
+		<set>
+	        REQ_CAR_NO = #{REQ_CAR_NO}
+		</set>
+	    WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
 	<select id="getTrTaxReceipt" parameterType="map" resultType="map">

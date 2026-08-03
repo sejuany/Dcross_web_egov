@@ -865,7 +865,7 @@ export const gf = {
 	 */
 	isMinor(regNo) {
 
-	    if (!regNo || regNo.length < 7) {
+	    if (!regNo || regNo.length < 6) {
 	        return false;
 	    }
 
@@ -874,15 +874,14 @@ export const gf = {
 	    const dd = Number(regNo.substring(4, 6));
 	    const gender = regNo.charAt(6);
 
-	    // 출생연도
-	    const year = ['1', '2', '5', '6'].includes(gender)
-	        ? 1900 + yy
-	        : 2000 + yy;
-
-	    const today = new Date();
-
-	    let age = today.getFullYear() - year;
-
+		const today = new Date();
+		
+		// 앞 6자리만 있으므로 현재 연도를 기준으로 출생연도 판단
+		const currentYY = today.getFullYear() % 100;
+		const year = yy <= currentYY ? 2000 + yy : 1900 + yy;
+		
+    	let age = today.getFullYear() - year;
+		
 	    // 올해 생일이 아직 지나지 않았으면 1살 차감
 	    if (
 	        today.getMonth() + 1 < mm ||

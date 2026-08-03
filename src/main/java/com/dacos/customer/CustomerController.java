@@ -1,5 +1,6 @@
 package com.dacos.customer;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -40,19 +41,30 @@ public class CustomerController {
 
     /**
      * 토큰으로 고객 정보 조회
+     * POST /api/customer/getToken
      */
     @PostMapping("/getToken")
     public ResponseEntity<?> getToken(@RequestBody Map<String, Object> param) {
 
         logger.info("[CustomerController] 고객 정보 조회");
 
+        // 토큰으로 소유자 정보 조회
         Map<String, Object> info = customerService.getTokenInfo(param);
+        // 토큰으로 공동소유자 정보 조회
+        Map<String, Object> owner = customerService.getTokenOwnerInfo(param);
+		
+        Map<String, Object> result = new LinkedHashMap<>();
+		result.put("success", true);
+		result.put("info", info);
+		result.put("owner", owner);
 
-        return ResponseEntity.ok(ApiResponse.withKey("info", info));
+        return ResponseEntity.ok(
+        	    ApiResponse.withKey("result", result));
     }
 
     /**
      * 고객 첨부파일 목록 조회
+     * POST /api/customer/file/list
      */
     @GetMapping("/file/list")
     public ResponseEntity<Map<String, Object>> getFileSearch(

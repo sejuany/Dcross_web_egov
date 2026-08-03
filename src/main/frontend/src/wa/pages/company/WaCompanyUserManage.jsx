@@ -822,6 +822,8 @@ function WaCompanyUserManage() {
             field: 'CBS_NM',
             flex: 1.5,
             minWidth: 180,
+			cellClass: 'wum-ag-center',
+			headerClass: 'wum-ag-center',
         },
         {
             headerName: '업무권한',
@@ -928,21 +930,6 @@ function WaCompanyUserManage() {
                         <h1>기업사용자관리</h1>
                         <p>현재 로그인한 회원사의 사용자 권한과 사용 상태를 관리합니다.</p>
                     </div>
-
-                    <div className="wum-header-actions">
-                        <button type="button" onClick={() => handleSearch()}>
-                            <UsersRound size={15} />
-                            조회
-                        </button>
-                        <button type="button" onClick={handleSave}>
-                            <Save size={15} />
-                            저장
-                        </button>
-                        <button type="button" onClick={handleReload}>
-                            <RefreshCw size={15} />
-                            새로고침
-                        </button>
-                    </div>
                 </div>
 
                 <section className="wum-card">
@@ -1022,6 +1009,11 @@ function WaCompanyUserManage() {
 						        options: WA_MEMBER_GB_OPTIONS,
 						        onChange: (event) => setSearchForm(prev => ({ ...prev, MEMBER_GB: event.target.value })),
 						    })}
+						</div>
+
+						<div className="wum-search-actions">
+						    <button type="button" onClick={() => handleSearch()}><UsersRound size={15} />조회</button>
+						    <button type="button" onClick={handleReload}><RefreshCw size={15} />새로고침</button>
 						</div>
                     </div>
                 </section>
@@ -1175,55 +1167,19 @@ function WaCompanyUserManage() {
                             )}
                         </label>
 
-                        <div className="wum-password-action wide">
-                            <button type="button" onClick={handlePasswordReset} disabled={!selectedUser}>
-                                <RotateCcw size={14} />
-                                패스워드 초기화
-                            </button>
-                            <p>법인용은 사업자번호, 개인용/휴대폰은 주민번호 앞 7자리 기준입니다.</p>
-                        </div>
+						<div className="wum-password-action wide">
+						    <button type="button" onClick={handlePasswordReset} disabled={!selectedUser}>
+						        <RotateCcw size={14} />
+						        패스워드 초기화
+						    </button>
+						    <p>법인용은 사업자번호, 개인용/휴대폰은 주민번호 앞 7자리 기준입니다.</p>
+						    <button type="button" className="wum-detail-save-button" onClick={handleSave} disabled={!selectedUser}>
+						        <Save size={15} />
+						        저장
+						    </button>
+						</div>
                     </div>
-                </section>
-
-                <section className="wum-card">
-                    <div className="wum-section-title">
-                        <ShieldCheck size={18} />
-                        <h2>회원 권한정보</h2>
-                    </div>
-
-                    <div className="wum-work-grid single">
-                        {WORK_ITEMS.map(item => {
-                            const available = isWorkAvailable(item);
-
-                            return (
-                                <div className={`wum-work-card ${!available ? 'disabled' : ''}`} key={item.key}>
-                                    <div className="wum-work-title">{item.title}</div>
-
-                                    <div className="wum-work-line">
-                                        <label>사용</label>
-                                        {renderRadioGroup({
-                                            name: `${item.key}_USE`,
-                                            value: workPerms[item.useField],
-                                            options: YES_NO_OPTIONS,
-                                            onChange: (event) => handleWorkChange(item.useField, event.target.value),
-                                            disabled: !selectedUser || !available,
-                                        })}
-                                    </div>
-
-                                    <div className="wum-work-line">
-                                        <label>권한</label>
-                                        {renderRadioGroup({
-                                            name: `${item.key}_PERM`,
-                                            value: workPerms[item.permField],
-                                            options: PERM_OPTIONS,
-                                            onChange: (event) => handleWorkChange(item.permField, event.target.value),
-                                            disabled: !selectedUser || !available || workPerms[item.useField] === 'N',
-                                        })}
-                                    </div>
-                                </div>
-                            );
-                        })}
-                    </div>
+					
                 </section>
             </div>
         </div>

@@ -41,6 +41,19 @@ public class AttachController {
         return ResponseEntity.ok(ApiResponse.withKey("result", true));
     }
     
+    /**
+     * 사진 병합
+     * POST /api/attach/minor-merge-pdf
+     */
+    @PostMapping("/minor-merge-pdf")
+    public ResponseEntity<?> minorMergePdf(@RequestBody Map<String, Object> param) {
+
+        String serviceId = (String) param.get("SERVICE_ID");
+
+        attachService.mergeMinorPdf(serviceId);
+
+        return ResponseEntity.ok(ApiResponse.withKey("result", true));
+    }
 }
 
 

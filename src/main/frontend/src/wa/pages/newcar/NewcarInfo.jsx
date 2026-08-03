@@ -144,7 +144,6 @@ const EXCLUDED_EXEMPTION_TARGET_NAMES = new Set([
     '경상북도소상공인',
     '3자녀+장애인(중복감면)',
     '2자녀+장애인(중복감면)',
-    '미적용',
     '이용자명의리스'
 ]);
 
@@ -564,7 +563,8 @@ const ExemptionSelectorFields = memo(({
             className="wa-select wa-flex"
             name="NTAX_TRGET_CD"
             data-type="newcar"
-            value={targetCode === '00' ? '' : targetCode}
+            value={targetCode || '00'}
+			placeholder={null}
             options={targetOptions}
             onChange={onFieldChange}
         />
@@ -974,10 +974,18 @@ const NewcarInfo = ({
             )),
         	[codes]
     );
-    const exemptionWhoOptions = useMemo(
-        () => getCodeOptions(codes, 'NTWHO', FALLBACK_EXEMPTION_WHO),
-        [codes]
-    );
+	const hasJointOwner = Number(dsNewCar.RATIO_NO || 100) !== 100;
+	const exemptionWhoOptions = useMemo(() => {
+	    const options = getCodeOptions(codes, 'NTWHO', FALLBACK_EXEMPTION_WHO);
+
+	    if (!hasJointOwner) {
+	        return options.filter(
+	            option => option.CODE_NM !== '공동소유자'
+	        );
+	    }
+
+	    return options;
+	}, [codes, hasJointOwner]);
     const allExemptionGradeOptions = useMemo(
         () => getCodeOptions(codes, 'NTTGR', FALLBACK_EXEMPTION_GRADES),
         [codes]
@@ -1141,9 +1149,12 @@ const NewcarInfo = ({
     // 기존 값과 같으면 이전 객체를 그대로 반환해 불필요한 부모 렌더를 막는다.
     const handleNewCarFieldChange = useCallback((event) => {
         const { name, value } = event.target;
-        updateNewCar(prev => (
-            prev[name] === value ? prev : { ...prev, [name]: value }
-        ));
+		updateNewCar(prev => ({
+		    ...prev,
+		    [name]: value,
+			// 비과세대상 값을 받아서 비과세적용구분 값 세팅
+		    NTAX_APPLC_CD: getApplyCode(value)
+		}));
     }, [updateNewCar]);
 
     // DeferredInput이 조합 완료/debounce/blur 시 전달한 최신 draft를 dsNewCar에 확정한다.
@@ -1310,15 +1321,23 @@ const NewcarInfo = ({
         setExemptionNotice(null);
         updateNewCar(prev => ({
             ...prev,
-            NTAX_WHO: prev.NTAX_WHO || 'REPRE',
+			NTAX_WHO: dsNewCar.RATIO_NO === 100
+			            ? (prev.NTAX_WHO || 'REPRE')
+			            : '',
             NTAX_TRGET_CD: prev.NTAX_TRGET_CD === '00' ? '' : (prev.NTAX_TRGET_CD || ''),
             NTAX_TRGET_GR_CD: prev.NTAX_TRGET_GR_CD || '0'
         }));
         setIsExemptionOpen(true);
     }, [exemptionNotice, updateNewCar]);
 
+	// 비과세대상(NTAX_TRGET_CD)을 받아서 비과세적용구분(NTAX_APPLC_CD) 값 세팅
+	const getApplyCode = value =>
+	    !value || value === '00' ? '0' : '11';
+	
+	// 감면대상 변경
     const handleExemptionFieldChange = useCallback(async (event) => {
         const { name, value } = event.target;
+		
         const ecoNotice = name === 'NTAX_TRGET_CD'
             ? ECO_EXEMPTION_NOTICE_BY_CODE[String(value)]
             : null;
@@ -1347,9 +1366,12 @@ const NewcarInfo = ({
                 return;
             }
 
-            updateNewCar(prev => (
-                prev[name] === value ? prev : { ...prev, [name]: value }
-            ));
+			updateNewCar(prev => ({
+			    ...prev,
+			    [name]: value,
+				// 비과세대상 값을 받아서 비과세적용구분 값 세팅
+			    NTAX_APPLC_CD: getApplyCode(value)
+			}));
         } catch (error) {
             const message = error.response?.data?.message || error.message || '친환경 차량 여부를 확인하지 못했습니다.';
             await showAlert(message);
@@ -1747,7 +1769,11 @@ const NewcarInfo = ({
                 </div>
 
                 <div className="wa-form-row">
-                    <label className="wa-form-label">결제자 연락처</label>
+					<label className="wa-form-label">
+					    {dsNewCar?.PROC_CD === "C" || dsNewCar?.TASK_CD === "LEASE"
+						        ? "리스 담당자 연락처"
+						        : "결제자 연락처"}
+					</label>
 
                     <div className="wa-form-control">
                         <div className="wa-inline-group">

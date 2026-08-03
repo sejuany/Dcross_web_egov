@@ -64,20 +64,39 @@ const getColumnWidth = (rows, columnIndex) => {
     return Math.min(Math.max(maxLength + 2, 10), 255);
 };
 
-export const createSheetXml = (rows) => {
+export const createSheetXml = (rows, options = {}) => {
+    const { columnAlignments = [], rowTypes = [] } = options;
     const rowCount = Math.max(rows.length, 1);
     const columnCount = Math.max(rows[0]?.length || 1, 1);
     const dimension = `A1:${getColumnName(columnCount - 1)}${rowCount}`;
-    const columnXml = Array.from({ length: columnCount }, (_, columnIndex) => (
-        `<col min="${columnIndex + 1}" max="${columnIndex + 1}" width="${getColumnWidth(rows, columnIndex)}" bestFit="1" customWidth="1"/>`
-    )).join('');
+    const lastFilterRow = Math.max(1, rowTypes.reduce((lastRow, rowType, rowIndex) => rowType !== 'summary' ? rowIndex + 1 : lastRow, 1));
+    const filterDimension = `A1:${getColumnName(columnCount - 1)}${lastFilterRow}`;
+    const columnXml = Array.from({ length: columnCount }, (_, columnIndex) => `<col min="${columnIndex + 1}" max="${columnIndex + 1}" width="${getColumnWidth(rows, columnIndex)}" bestFit="1" customWidth="1"/>`).join('');
+
+    const getStyleIndex = (rowIndex, columnIndex) => {
+        if (rowIndex === 0) return 1;
+
+        const rowType = rowTypes[rowIndex] || 'data';
+        const alignment = columnAlignments[columnIndex] || 'center';
+
+        if (rowType === 'summary') {
+            if (alignment === 'left') return 6;
+            if (alignment === 'right') return 7;
+            return 5;
+        }
+
+        if (alignment === 'left') return 3;
+        if (alignment === 'right') return 4;
+        return 2;
+    };
+
     const rowsXml = rows.map((row, rowIndex) => {
         const cellsXml = Array.from({ length: columnCount }, (_, columnIndex) => {
             const cellRef = `${getColumnName(columnIndex)}${rowIndex + 1}`;
             const value = escapeXml(row[columnIndex]);
-            const styleAttribute = rowIndex === 0 ? ' s="1"' : '';
+            const styleIndex = getStyleIndex(rowIndex, columnIndex);
 
-            return `<c r="${cellRef}"${styleAttribute} t="inlineStr"><is><t>${value}</t></is></c>`;
+            return `<c r="${cellRef}" s="${styleIndex}" t="inlineStr"><is><t>${value}</t></is></c>`;
         }).join('');
 
         return `<row r="${rowIndex + 1}">${cellsXml}</row>`;
@@ -90,7 +109,7 @@ export const createSheetXml = (rows) => {
 <sheetFormatPr defaultRowHeight="15"/>
 <cols>${columnXml}</cols>
 <sheetData>${rowsXml}</sheetData>
-<autoFilter ref="${dimension}"/>
+<autoFilter ref="${filterDimension}"/>
 </worksheet>`;
 };
 
@@ -98,43 +117,62 @@ const createStylesXml = () => {
     return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
     <fonts count="2">
-        <font><sz val="11"/><name val="Malgun Gothic"/></font> <!-- 0: 기본 폰트 -->
-        <font><b/><sz val="11"/><name val="Malgun Gothic"/></font> <!-- 1: 굵은 폰트(제목용) -->
+        <font><sz val="11"/><name val="Malgun Gothic"/></font>
+        <font><b/><sz val="11"/><name val="Malgun Gothic"/></font>
     </fonts>
-    
-    <fills count="3">
+
+    <fills count="4">
         <fill><patternFill patternType="none"/></fill>
         <fill><patternFill patternType="gray125"/></fill>
-        <fill> <!-- 2: 제목줄 배경색 (연한 파란색) -->
-            <patternFill patternType="solid">
-                <fgColor rgb="FFD9E1F2"/>
-            </patternFill>
-        </fill>
+        <fill><patternFill patternType="solid"><fgColor rgb="FFD9E1F2"/></patternFill></fill>
+        <fill><patternFill patternType="solid"><fgColor rgb="FFFFF2CC"/></patternFill></fill>
     </fills>
-    
-    <!-- ▼ 테두리(borders) 정의: 모든 방향(좌우상하)에 얇은 실선(thin) 지정 -->
-    <borders count="2">
-        <border><left/><right/><top/><bottom/><diagonal/></border> <!-- 0: 선 없음 -->
-        <border> <!-- 1: 가로세로 격자선 -->
+
+    <borders count="3">
+        <border><left/><right/><top/><bottom/><diagonal/></border>
+        <border>
             <left style="thin"><color auto="1"/></left>
             <right style="thin"><color auto="1"/></right>
             <top style="thin"><color auto="1"/></top>
             <bottom style="thin"><color auto="1"/></bottom>
         </border>
+        <border>
+            <left style="thin"><color auto="1"/></left>
+            <right style="thin"><color auto="1"/></right>
+            <top style="medium"><color rgb="FF243447"/></top>
+            <bottom style="thin"><color auto="1"/></bottom>
+        </border>
     </borders>
-    
-    <cellXfs count="3">
-        <!-- 인덱스 0: 기본 셀 -->
+
+    <cellXfs count="8">
         <xf numFmtId="0" fontId="0" fillId="0" borderId="0" xfId="0"/>
-        
-        <!-- 인덱스 1: 제목줄 (배경색 + 굵은 글씨 + 테두리 + 가운데 정렬) -->
-        <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1">
+
+        <xf numFmtId="0" fontId="1" fillId="2" borderId="1" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
             <alignment horizontal="center" vertical="center"/>
         </xf>
-        
-        <!-- 인덱스 2: 데이터 본문 (테두리 + 가운데 정렬) -->
-        <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1">
+
+        <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
             <alignment horizontal="center" vertical="center"/>
+        </xf>
+
+        <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+            <alignment horizontal="left" vertical="center"/>
+        </xf>
+
+        <xf numFmtId="0" fontId="0" fillId="0" borderId="1" xfId="0" applyBorder="1" applyAlignment="1">
+            <alignment horizontal="right" vertical="center"/>
+        </xf>
+
+        <xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+            <alignment horizontal="center" vertical="center"/>
+        </xf>
+
+        <xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+            <alignment horizontal="left" vertical="center"/>
+        </xf>
+
+        <xf numFmtId="0" fontId="1" fillId="3" borderId="2" xfId="0" applyFont="1" applyFill="1" applyBorder="1" applyAlignment="1">
+            <alignment horizontal="right" vertical="center"/>
         </xf>
     </cellXfs>
 </styleSheet>`;
@@ -298,7 +336,7 @@ const createZip = (files) => {
     return concatBytes([localDirectory, centralDirectory, endRecord]);
 };
 
-const createXlsxBlob = (rows, sheetName) => {
+const createXlsxBlob = (rows, sheetName, options = {}) => {
     const safeRows = rows.length > 0 ? rows : [['']];
     const files = [
         { path: '[Content_Types].xml', content: xlsxStaticFiles['[Content_Types].xml'] },
@@ -308,13 +346,23 @@ const createXlsxBlob = (rows, sheetName) => {
         { path: 'xl/workbook.xml', content: createWorkbookXml(sheetName) },
         { path: 'xl/_rels/workbook.xml.rels', content: xlsxStaticFiles['xl/_rels/workbook.xml.rels'] },
         { path: 'xl/styles.xml', content: xlsxStaticFiles['xl/styles.xml'] },
-        { path: 'xl/worksheets/sheet1.xml', content: createSheetXml(safeRows) }
+        { path: 'xl/worksheets/sheet1.xml', content: createSheetXml(safeRows, options) }
     ];
     const zipBytes = createZip(files);
 
     return new Blob([zipBytes], {
         type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     });
+};
+
+const buildRowsExportData = ({ columns, rows, getCellValue, isSummaryRow }) => {
+    const exportColumns = (columns || []).filter(column => column.export !== false && column.type !== 'checkbox' && column.label !== '');
+    const dataRows = rows || [];
+    const outputRows = [exportColumns.map(column => column.label), ...dataRows.map(row => exportColumns.map(column => getCellValue(row, column)))];
+    const columnAlignments = exportColumns.map(column => ['left', 'center', 'right'].includes(column.excelAlign) ? column.excelAlign : 'center');
+    const rowTypes = ['header', ...dataRows.map(row => isSummaryRow?.(row) ? 'summary' : 'data')];
+
+    return { outputRows, columnAlignments, rowTypes };
 };
 
 const downloadBlob = (blob, fileName) => {
@@ -336,13 +384,38 @@ export const exportRowsToXlsx = ({
     sheetName = 'Sheet1',
     getCellValue = (row, column) => row?.[column.key] ?? ''
 }) => {
-    const exportColumns = (columns || []).filter(column => column.export !== false && column.type !== 'checkbox' && column.label !== '');
-    const outputRows = [
-        exportColumns.map(column => column.label),
-        ...(rows || []).map(row => exportColumns.map(column => getCellValue(row, column)))
-    ];
+    const { outputRows, columnAlignments, rowTypes } = buildRowsExportData({
+        columns,
+        rows,
+        getCellValue
+    });
 
-    downloadBlob(createXlsxBlob(outputRows, sheetName), fileName);
+    downloadBlob(
+        createXlsxBlob(outputRows, sheetName, {
+            columnAlignments,
+            rowTypes
+        }),
+        fileName
+    );
+};
+
+// 합계 포함 엑셀
+export const exportRowsWithSummaryToXlsx = ({
+    columns,
+    rows,
+    fileName,
+    sheetName = 'Sheet1',
+    getCellValue = (row, column) => row?.[column.key] ?? '',
+    isSummaryRow = row => row?.isSummary === true
+}) => {
+    const { outputRows, columnAlignments, rowTypes } = buildRowsExportData({
+        columns,
+        rows,
+        getCellValue,
+        isSummaryRow
+    });
+
+    downloadBlob(createXlsxBlob(outputRows, sheetName, { columnAlignments, rowTypes }), fileName);
 };
 
 const formatAgGridValue = ({ api, column, colDef, node, value }) => {

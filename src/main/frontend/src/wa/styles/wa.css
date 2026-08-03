@@ -1292,12 +1292,9 @@
     background-color: #ccffcc;
 }
 
-.wa-status-table td.wa-attach-complete {
-    background-color: #c5dbfb;
-}
-
-.wa-status-table td.wa-attach-incomplete {
-    background-color: #f7c8c8;
+.wa-status-table td.wa-requirement-pending {
+    color: #2f6df6;
+    font-weight: 900;
 }
 
 .wa-status-table tbody tr:hover {
@@ -2567,4 +2564,23 @@
         grid-template-columns: 1fr;
         padding: 0 12px 14px;
     }
+}
+
+
+.wa-pay-dashboard-quick-dates { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
+.wa-pay-dashboard-quick-dates .wa-status-action { min-width: 58px; width: auto; height: 36px; min-height: 36px; padding: 0 10px; background: #ffffff; border: 1px solid #d8e0ea; color: #243044; }
+.wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action span { color: #243044; font-size: 12px; font-weight: 900; }
+.wa-pay-dashboard-quick-dates .wa-status-action:hover { border-color: #2f6df6; color: #2f6df6; }
+.wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action:hover span { color: #2f6df6; }
+
+.wa-newcar-list-page .wa-status-table td.wa-row-complete {
+    background-color: #e6f4ea;
+}
+
+.wa-newcar-list-page .wa-status-table td.wa-row-direct {
+    background-color: #eeeeee;
+}
+
+.wa-newcar-list-page .wa-status-table td.wa-row-reject {
+    background-color: #fde8e8;
 }

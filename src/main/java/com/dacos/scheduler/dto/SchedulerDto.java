@@ -29,4 +29,5 @@ public class SchedulerDto {
     private String ACQ_PAY_AMT;
     private String REQ_CAR_NO;
     private String LINK_ID;
+    private String NTAX_TRGET_CD;
 }

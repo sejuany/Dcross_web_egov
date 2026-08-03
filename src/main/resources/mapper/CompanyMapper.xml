@@ -59,7 +59,7 @@
             A.ASSOCIATION_ID,
             A.COMPANY_ID,
             A.BRANCH_ID,
-            E.COMPANY_NM || ' ' || B.BRANCH_NM AS BRANCH_NM,
+            B.BRANCH_NM AS BRANCH_NM,
             A.SANGSA_ID,
             C.SANGSA_NM,
             A.MEMBER_NM,

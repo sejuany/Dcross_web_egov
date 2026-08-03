@@ -243,7 +243,7 @@ const WaNewcarDetail = ({
 			await axios.post("/api/newcar/cancel", {
 			    SERVICE_ID: dsService.SERVICE_ID,
 				PROC_ST: 'W_RET',
-				JUDGE_ST: '',
+				JUDGE_ST: 'W_RET',
 				CONTENT_TX: "[신차사업] 등록 취소!! 관청에 확인 필요",
 	            GUBUN: "2"
 			});
@@ -455,7 +455,9 @@ const WaNewcarDetail = ({
 					            </div>
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">리스 계약자 등록번호</span>
-					                <span>{dsOwnerInfo.DEBTOR_REG_NO || '-'}</span>
+					                <span>{dsOwnerInfo.DEBTOR_GB === 'C'
+								            ? dsOwnerInfo.DEBTOR_BIZ_NO
+								            : dsOwnerInfo.DEBTOR_REG_NO || '-'}</span>
 					            </div>
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">리스 계약자 휴대폰번호</span>
@@ -797,6 +799,7 @@ const WaNewcarDetail = ({
 				    open={attachModalOpen}
 				    dsService={dsService}
 				    dsNewCar={dsNewCar}
+					dsOwnerInfo={dsOwnerInfo}
 					dsUserInfo={dsUserInfo}
 					dsCarNoDetach={dsCarNoDetach}
 					setDsCarNoDetach={setDsCarNoDetach}

@@ -120,7 +120,7 @@ export const initialDsNewCar = {
 	// 기타
 	MEMO_TX: '',
 	NEWCAR_REG_DT: '',
-	NTAX_TRGET_CD: '',
+	NTAX_TRGET_CD: '00',
 	NTAX_TRGET_GR_CD: '0',
 	NTAX_APPLC_CD: '0',
 	NTAX_WHO: 'REPRE',

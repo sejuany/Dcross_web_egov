@@ -531,51 +531,90 @@ public class AttachService {
 
     
     /* *******************************************************************
-     * - PDF 생성
+     * - 감면신청서 PDF 생성 및 병합
      * *******************************************************************/
-	@Transactional
-	public void mergePdf(String serviceId, Map<String, Object> exemption) {
+    @Transactional
+    public void mergePdf(String serviceId, Map<String, Object> exemption) {
+
+        // 1. 병합 대상 조회
+        List<Map<String, Object>> attachList =
+                getMergeAttachFiles(serviceId, "MERGE", "SIGN");
+
+        if (attachList.isEmpty()) {
+            logger.info("병합 대상 첨부파일이 없어 PDF 생성을 건너뜁니다. serviceId={}", serviceId);
+            return;
+        }
+
+        // 2. 병합할 실제 파일 조회
+        List<Path> mergeFiles = getMergeFiles(attachList);
+
+        // 3. PDF 생성
+        Path pdfPath = createMergePdf(
+                serviceId,
+                serviceId + "_감면신청서.pdf",
+                mergeFiles,
+                exemption);
+
+        if (pdfPath == null || Files.notExists(pdfPath)) {
+            logger.warn("감면신청서 PDF 생성 실패");
+            return;
+        }
+
+        // 4. 서버 저장 및 DB 저장
+        saveMergePdf(serviceId, pdfPath);
+    }
 	
-	    // 1. 병합 대상 조회
-	    List<Map<String, Object>> attachList = getMergeAttachFiles(serviceId);
-	
-	    if (attachList.isEmpty()) {
-	    	logger.info("병합 대상 첨부파일이 없어 PDF 생성을 건너뜁니다. serviceId={}", serviceId);
-	        return;
-	    }
-	    
-	    // 2. 병합할 실제 파일 조회
-	    List<Path> mergeFiles = getMergeFiles(attachList);
-	
-	    // 3. PDF 생성 (첨부파일 없이 감면 신청서만 필요한 경우도 있음)
-	    Path pdfPath = createMergePdf(serviceId, mergeFiles, exemption);
-	
-	    if (pdfPath == null || Files.notExists(pdfPath)) {
-	        logger.warn("병합 PDF 생성 실패");
-	        return;
-	    }
-	    
-	    // 4. 서버 저장 및 DB 저장
-	    saveMergePdf(serviceId, pdfPath);
-	}
-	
+    /* *******************************************************************
+     * - 미성년자 확인서류 병합
+     * *******************************************************************/
+    @Transactional
+    public void mergeMinorPdf(String serviceId) {
+
+        // 1. 병합 대상 조회
+        List<Map<String, Object>> attachList =
+                getMergeAttachFiles(serviceId, "MINOR", null);
+
+        if (attachList.isEmpty()) {
+            logger.info("미성년자 확인서류가 없어 PDF 생성을 건너뜁니다. serviceId={}", serviceId);
+            return;
+        }
+
+        // 2. 병합할 실제 파일 조회
+        List<Path> mergeFiles = getMergeFiles(attachList);
+
+        // 3. PDF 생성
+        Path pdfPath = createMergePdf(
+                serviceId,
+                serviceId + "_미성년자확인서류.pdf",
+                mergeFiles,
+                null);
+
+        if (pdfPath == null || Files.notExists(pdfPath)) {
+            logger.warn("미성년자 확인서류 PDF 생성 실패");
+            return;
+        }
+
+        // 4. 서버 저장 및 DB 저장
+        saveMergePdf(serviceId, pdfPath);
+    }
+    
 	/*
 	 * 1. 병합 대상 조회
 	 */
-	private List<Map<String, Object>> getMergeAttachFiles(String serviceId) {
-
+	private List<Map<String, Object>> getMergeAttachFiles(
+	        String serviceId,
+	        String gubun,
+	        String gubun2) {
+	
 	    Map<String, Object> param = new HashMap<>();
 	    param.put("SERVICE_ID", serviceId);
-	    param.put("GUBUN", "MERGE");
-	    // 첨부파일 없이 감면 신청서만 필요한 경우도 있어서 두번째 구분값을 넣음 
-	    param.put("GUBUN2", "SIGN");
-
-	    List<Map<String, Object>> attachList =
-	            attachMapper.getAttachFiles(param);
-
-	    logger.info("merge attach count={}", attachList.size());
-
-	    return attachList;
+	    param.put("GUBUN", gubun);
+	
+	    if (gubun2 != null) {
+	        param.put("GUBUN2", gubun2);
+	    }
+	
+	    return attachMapper.getAttachFiles(param);
 	}
 	
 	/*
@@ -610,69 +649,86 @@ public class AttachService {
 	}
 	
 	/*
-	 * 3. PDF 생성
-	 * - 이미지(JPG/PNG)는 임시 PDF로 변환
-	 * - PDF는 그대로 사용
-	 * - 모든 PDF를 하나로 병합
+	 * PDF 생성 및 병합
+	 * - exemption != null : 감면신청서 생성 후 병합
+	 * - exemption == null : 전달받은 파일만 병합
 	 */
 	private Path createMergePdf(
 	        String serviceId,
+	        String fileName,
 	        List<Path> mergeFiles,
 	        Map<String, Object> exemption) {
 
 	    Path uploadRoot = Paths.get(getAttachUploadRoot());
-	    Path pdfPath = uploadRoot.resolve(serviceId + "_감면신청서.pdf"); // 이름 설정
+	    Path pdfPath = uploadRoot.resolve(fileName);
 
 	    // 이미지를 변환한 임시 PDF 목록
 	    List<Path> tempPdfList = new ArrayList<>();
 
 	    try {
 
-	    	// 1. 기존 PDF 삭제
+	        // 기존 PDF 삭제
 	        Files.deleteIfExists(pdfPath);
 
 	        PDFMergerUtility merger = new PDFMergerUtility();
 	        merger.setDestinationFileName(pdfPath.toString());
-	        
-	        // 감면신청서 PDF 생성에 필요한 데이터 조회
-	        Map<String, Object> pdfData =
-	                common.select(Map.of("SERVICE_ID", serviceId), "selectExemptionInfo");
 
-		     // 프론트에서 전달된 감면 정보 병합
-		     if (exemption != null && !exemption.isEmpty()) {
-		         pdfData.putAll(exemption);
-		     }
-	     
-		     Path signFile = null;
-	
-			  // 먼저 서명 파일 찾기
-			  for (Path file : mergeFiles) {
-			      String fileName = file.getFileName().toString().toUpperCase();
-	
-			      if (fileName.contains("_SIGN")) {
-			          signFile = file;
-			          break;
-			      }
-			  }
+	        // ===============================
+	        // 감면신청서 생성
+	        // ===============================
+	        if (exemption != null) {
 
-	        // 지방세 감면 신청서 추가
-		    addTaxExemptionPdf(merger, tempPdfList, pdfData, signFile);
-	        
-	        // 첨부파일 병합 시작
+	            // 감면신청서 PDF 생성에 필요한 데이터 조회
+	            Map<String, Object> pdfData =
+	                    common.select(
+	                            Map.of("SERVICE_ID", serviceId),
+	                            "selectExemptionInfo");
+
+	            // 프론트에서 전달된 감면 정보 병합
+	            if (!exemption.isEmpty()) {
+	                pdfData.putAll(exemption);
+	            }
+
+	            Path signFile = null;
+
+	            // 서명파일 찾기
+	            for (Path file : mergeFiles) {
+
+	                String name =
+	                        file.getFileName().toString().toUpperCase();
+
+	                if (name.contains("_SIGN")) {
+	                    signFile = file;
+	                    break;
+	                }
+	            }
+
+	            // 지방세 감면 신청서 추가
+	            addTaxExemptionPdf(
+	                    merger,
+	                    tempPdfList,
+	                    pdfData,
+	                    signFile);
+	        }
+
+	        // ===============================
+	        // 첨부파일 병합
+	        // ===============================
 	        for (Path file : mergeFiles) {
-	        	
-	        	logger.info("처리 : {}", file.getFileName());
 
-	            String fileName = file.getFileName().toString().toLowerCase();
-	            
+	            logger.info("처리 : {}", file.getFileName());
+
+	            String name =
+	                    file.getFileName().toString().toLowerCase();
+
 	            try {
-	            	
-	            	// 서명파일은 병합 제외
-	            	if (fileName.contains("_sign")) {
-		                continue;
-		            }
 
-	                if (fileName.endsWith(".pdf")) {
+	                // 감면신청서 생성 시에는 서명파일 제외
+	                if (exemption != null && name.contains("_sign")) {
+	                    continue;
+	                }
+
+	                if (name.endsWith(".pdf")) {
 
 	                    merger.addSource(file.toFile());
 
@@ -685,17 +741,18 @@ public class AttachService {
 	                    merger.addSource(tempPdf.toFile());
 	                }
 
-	                logger.info("[PDF 병합] 추가 : {}", fileName);
+	                logger.info("[PDF 병합] 추가 : {}", name);
 
 	            } catch (Exception e) {
-	                logger.error("[PDF 병합] 제외 : {}", fileName, e);
+
+	                logger.error("[PDF 병합] 제외 : {}", name, e);
 	            }
 	        }
 
 	        logger.info("===== mergeDocuments 시작 =====");
-	        
+
 	        merger.mergeDocuments(IOUtils.createTempFileOnlyStreamCache());
-	        
+
 	        logger.info("===== mergeDocuments 완료 =====");
 
 	        return pdfPath;
@@ -705,7 +762,7 @@ public class AttachService {
 	        logger.error("[PDF 병합] 생성 실패", e);
 
 	        return null;
-	        
+
 	    } finally {
 
 	        for (Path temp : tempPdfList) {
@@ -820,7 +877,6 @@ public class AttachService {
 	/*
 	 * DB 저장
 	 */
-
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	private void saveMergePdf(
 	        String serviceId,

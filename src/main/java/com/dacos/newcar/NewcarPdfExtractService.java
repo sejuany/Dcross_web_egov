@@ -67,7 +67,7 @@ public class NewcarPdfExtractService {
                 item.put("success", true);
             } catch (Exception e) {
                 item.put("success", false);
-                item.put("message", e.getMessage());
+                item.put("message", "처리 중 오류가 발생하였습니다");
             }
 
             results.add(item);
