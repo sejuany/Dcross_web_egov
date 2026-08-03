@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { LoaderCircle } from 'lucide-react';
 
 // 통신
 import axios from 'axios';
@@ -32,6 +33,8 @@ const CustomerSign = () => {
 	let token = searchParams.get('t');
 	const [info, setInfo] = useState({});
 	const [codes, setCodes] = useState({});
+	// 로딩 상태
+	const [loading, setLoading] = useState(false);
 	
 	// 공통코드 데이터 로딩
 	useEffect(() => {
@@ -67,6 +70,9 @@ const CustomerSign = () => {
 	 * 신청 정보 조회
 	========================================================= */
 	const loadData = async () => {
+		
+		const startTime = Date.now();
+		setLoading(true);
 
 	    try {
 			
@@ -119,6 +125,8 @@ const CustomerSign = () => {
 			    state: { success: false }
 			});
 
+	    } finally {
+	        gf.loadingDelay(startTime, () => setLoading(false), 1000);
 	    }
 
 	};
@@ -321,7 +329,14 @@ const CustomerSign = () => {
 
 
 	return (
+		<>
 	    <div className="customer-page">
+			{loading && (
+			    <div className="customer-loading">
+			        <LoaderCircle size={24} className="customer-spin" />
+			        <span>잠시만 기다려주세요</span>
+			    </div>
+			)}
 
 	        <div className="customer-card">
 
@@ -443,6 +458,7 @@ const CustomerSign = () => {
 	        </div>
 
 	    </div>
+		</>
 	);
 };
 

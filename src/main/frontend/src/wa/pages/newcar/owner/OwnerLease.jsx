@@ -25,7 +25,7 @@ const OwnerLease = ({
 	// 외국인등록번호 선택 시 최종확인 단계에서 첨부해야 하는 서류를 안내한다.
 	const showForeignerGuide = dsNewCar.REG_GB === 'F';
 	// 법인 등록번호 선택 시 화면 변경 
-		const isCorporate = dsNewCar.REG_GB === 'B';
+	const isCorporate = dsNewCar.REG_GB === 'B';
 	// 그 외 리스사 모달창
 	const [showLeaseModal, setShowLeaseModal] = useState(false);
 	// 자주 사용하는 리스사
@@ -47,8 +47,10 @@ const OwnerLease = ({
 
 	};
 
-	// 현재 선택된 리스사
+	// 선택된 리스사 정보를 화면 표시용 형식으로 변환한다.
 	const currentCompany = useMemo(() => {
+
+	    // 선택된 지점(BASE_ID)과 일치하는 리스사 조회
 	    const base = dsBaseList.find(item =>
 	        String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
 	    );
@@ -57,13 +59,15 @@ const OwnerLease = ({
 	        return null;
 	    }
 
+	    // 화면 표시를 위해 회사명에서 '주식회사'와 지점명(괄호)을 제거
 	    return {
 	        BASE_ID: base.BASE_ID,
-	        BASE_NM: base.BASE_NM.replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim()
+	        BASE_NM: base.BASE_NM.replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim(),
+			BASE_CD: base.BASE_CD
 	    };
 
 	}, [dsBaseList, dsNewCar.BASE_BRANCH_ID]);
-
+	
 
 	// 자주 사용하는 리스사 (본점만)
 	const leaseCompanies = useMemo(() => {
@@ -152,6 +156,27 @@ const OwnerLease = ({
 
 			</div>
 			
+			{/* INPUT 리스사인 경우에만 표시 */}
+			{currentCompany?.BASE_NM === '직접입력' && (
+				
+			<div className="wa-form-row">
+			    <div className="wa-form-label-wrap">
+			        <label className="wa-form-label">리스사명</label>
+			    </div>
+			    <div className="wa-form-control">
+			        <input
+			            className="wa-input wa-disabled"
+			            autoComplete="off"
+			            name="OWNER_NM"
+			            data-type="newcar"
+			            value={dsNewCar.OWNER_NM ?? ''}
+			            onChange={handleChange}
+			            placeholder="리스사명을 입력하세요"
+			        />
+			    </div>
+			</div>
+			)}
+			
 			{/* 그 외 캐피탈 선택 모달창 */}
 			{showLeaseModal && (
 				<LeaseCompanyModal
@@ -233,6 +258,7 @@ const OwnerLease = ({
 								key={dsOwnerInfo.DEBTOR_GB}
 						        value={dsOwnerInfo.DEBTOR_REG_NO}
 						        lengths={[6, 7]}
+								maskLast={['R', 'F'].includes(dsOwnerInfo.DEBTOR_GB)}
 						        onChange={value =>
 						            setDsOwnerInfo(prev => ({
 						                ...prev,

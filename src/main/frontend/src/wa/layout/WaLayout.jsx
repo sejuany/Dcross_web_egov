@@ -33,7 +33,7 @@ const getUserMemberGb = (user) => {
 };
 
 const WaLayout = () => {
-    const { user, logout } = useAuth();
+    const { user, logout, sessionWarningOpen, setSessionWarningOpen } = useAuth();
     const location = useLocation();
 	const navigate = useNavigate();
 
@@ -167,7 +167,29 @@ const WaLayout = () => {
 					</div>
                 </div>
             </header>
+			{sessionWarningOpen && (
+			    <div className="wa-session-warning-overlay">
+			        <div className="wa-session-warning-modal" role="dialog" aria-modal="true">
+			            <button type="button" className="wa-session-warning-close" onClick={() => setSessionWarningOpen(false)}>×</button>
 
+			            <h2>로그인 세션 만료 안내</h2>
+
+			            <div className="wa-session-warning-content">
+			                <strong>1분</strong>
+			                <span>후 자동 로그아웃됩니다.</span>
+			            </div>
+
+			            <p>
+			                장시간 서비스 이용이 없어 로그인 세션이 곧 만료됩니다.<br />
+			                서비스를 계속 이용하면 로그인 시간이 자동으로 연장됩니다.
+			            </p>
+
+			            <button type="button" className="wa-session-warning-confirm" onClick={() => setSessionWarningOpen(false)}>
+			                확인
+			            </button>
+			        </div>
+			    </div>
+			)}
             <main className="wa-content">
                 <Outlet />
             </main>

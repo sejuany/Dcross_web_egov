@@ -482,16 +482,15 @@
     min-width: 0;
 }
 
-/* 1행: 사용자ID / 성명 / 전화번호 / 휴대폰번호 */
+/* 1행: 사용자ID / 성명 / 휴대폰번호 */
 .wum-detail-grid > label:nth-of-type(1),
 .wum-detail-grid > label:nth-of-type(2),
-.wum-detail-grid > label:nth-of-type(3),
-.wum-detail-grid > label:nth-of-type(4) {
-    grid-column: span 3;
+.wum-detail-grid > label:nth-of-type(3) {
+    grid-column: span 4;
 }
 
 /* 2행: 이메일 + 업무권한 */
-.wum-detail-grid > label:nth-of-type(5) {
+.wum-detail-grid > label:nth-of-type(4) {
     grid-column: span 6;
 }
 
@@ -502,7 +501,7 @@
 /* 3행: 사용여부 / 인증구분 / 로그인 등록번호 */
 .wum-detail-grid > .wum-detail-radio:nth-of-type(2),
 .wum-detail-grid > .wum-detail-radio:nth-of-type(3),
-.wum-detail-grid > label:nth-of-type(6) {
+.wum-detail-grid > label:nth-of-type(5) {
     grid-column: span 4;
 }
 
@@ -845,3 +844,9 @@
 .wum-detail-save-action { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 .wum-detail-save-action button:disabled { background: #94a3b8; cursor: not-allowed; }
 .wum-password-action .wum-detail-save-button { margin-left: auto; }
+
+.wum-search-role-filter .wum-radio-group > label:nth-child(3) {
+    min-width: 108px;
+    padding: 0 14px;
+    font-size: 13px;
+}

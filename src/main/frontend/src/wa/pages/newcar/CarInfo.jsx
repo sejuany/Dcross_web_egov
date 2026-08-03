@@ -27,7 +27,7 @@ const CarInfo = ({
 	const [isNumplateModalOpen, setIsNumplateModalOpen] = useState(false);
 	// 법인 번호판 (등록구분 : 법인, 8,000만원 이상)
 	const isCorpNumplate =
-	    dsNewCar.REG_GB === 'B' && Number(dsNewCar.BUY_AMT) > 80000000;
+	    dsNewCar.REG_GB === 'B' && Number(dsNewCar.BUY_AMT) >= 80000000;
 	// 하이브리드 차량 여부
 	const isHybrid =
 	    ['l', 'm', 'n', 'o', 'p'].includes(dsNewCar.FUEL_CD);

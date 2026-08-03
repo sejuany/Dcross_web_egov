@@ -320,7 +320,7 @@ const createStatusCards = (rows) => [
     { label: '등록 중', value: rows.filter(row => isStatusIn(row, ['S_REQ'])).length },
     { label: '등록 완료', value: rows.filter(row => isStatusIn(row, ['S_END'])).length },
     { label: '반려', value: rows.filter(isRejectRow).length, danger: true },
-    { label: '고객 직접 납부', value: rows.filter(row => isStatusIn(row, ['DIRCT'])).length , muted: true }
+    { label: '자가등록', value: rows.filter(row => isStatusIn(row, ['DIRCT'])).length , muted: true }
 ];
 
 const WaNewcarList = () => {

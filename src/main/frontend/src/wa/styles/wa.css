@@ -2567,11 +2567,38 @@
 }
 
 
-.wa-pay-dashboard-quick-dates { display: flex; align-items: center; gap: 4px; flex-shrink: 0; }
-.wa-pay-dashboard-quick-dates .wa-status-action { min-width: 58px; width: auto; height: 36px; min-height: 36px; padding: 0 10px; background: #ffffff; border: 1px solid #d8e0ea; color: #243044; }
-.wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action span { color: #243044; font-size: 12px; font-weight: 900; }
-.wa-pay-dashboard-quick-dates .wa-status-action:hover { border-color: #2f6df6; color: #2f6df6; }
-.wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action:hover span { color: #2f6df6; }
+.wa-pay-dashboard-quick-dates {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-shrink: 0;
+}
+
+.wa-pay-dashboard-quick-dates .wa-status-action {
+    min-width: 58px;
+    width: auto;
+    height: 36px;
+    min-height: 36px;
+    padding: 0 10px;
+    background: #ffffff;
+    border: 1px solid #d8e0ea;
+    color: #243044;
+}
+
+.wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action span {
+    color: #243044;
+    font-size: 12px;
+    font-weight: 900;
+}
+
+.wa-pay-dashboard-quick-dates .wa-status-action:hover {
+    border-color: #2f6df6;
+    color: #2f6df6;
+}
+
+.wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action:hover span {
+    color: #2f6df6;
+}
 
 .wa-newcar-list-page .wa-status-table td.wa-row-complete {
     background-color: #e6f4ea;
@@ -2583,4 +2610,94 @@
 
 .wa-newcar-list-page .wa-status-table td.wa-row-reject {
     background-color: #fde8e8;
+}
+
+.wa-session-warning-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 99999;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, 0.58);
+}
+
+.wa-session-warning-modal {
+    position: relative;
+    width: min(460px, calc(100vw - 40px));
+    padding: 36px 40px 32px;
+    border-radius: 22px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.3);
+    text-align: center;
+}
+
+.wa-session-warning-modal h2 {
+    margin: 0 0 26px;
+    color: #111827;
+    font-size: 23px;
+    font-weight: 900;
+    text-align: left;
+}
+
+.wa-session-warning-close {
+    position: absolute;
+    top: 20px;
+    right: 22px;
+    width: 34px;
+    height: 34px;
+    border: 0;
+    background: transparent;
+    color: #111827;
+    font-size: 32px;
+    line-height: 1;
+    cursor: pointer;
+}
+
+.wa-session-warning-content {
+    height: 120px;
+    border-radius: 18px;
+    background: #f7f8fa;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 8px;
+}
+
+.wa-session-warning-content strong {
+    color: #2f6bdd;
+    font-size: 34px;
+    font-weight: 900;
+}
+
+.wa-session-warning-content span {
+    margin-top: 18px;
+    color: #4b5563;
+    font-size: 16px;
+    font-weight: 800;
+}
+
+.wa-session-warning-modal p {
+    margin: 28px 0 24px;
+    color: #59616d;
+    font-size: 15px;
+    font-weight: 700;
+    line-height: 1.7;
+}
+
+.wa-session-warning-confirm {
+    width: 100%;
+    height: 50px;
+    border: 0;
+    border-radius: 10px;
+    background: #2f6bdd;
+    color: #ffffff;
+    font-size: 16px;
+    font-weight: 900;
+    cursor: pointer;
+}
+
+.wa-session-warning-confirm:hover {
+    background: #245ac0;
 }

@@ -54,6 +54,7 @@ export const useAuth = () => useContext(AuthContext);
  */
 export const AuthProvider = ({ children }) => {
     // user 상태: 새로고침해도 유지되도록 localStorage에서 초기값 로드
+	const [sessionWarningOpen, setSessionWarningOpen] = useState(false);
     const [user, setUser] = useState(() => {
 		//const savedUser = localStorage.getItem('user'); 기존 localStorage로 로그인정보저장
         const savedUser = sessionStorage.getItem('user');
@@ -101,6 +102,12 @@ export const AuthProvider = ({ children }) => {
 	        clearTimeout(window.sessionTimeout);
 	        window.sessionTimeout = null;
 	    }
+		
+		if (window.sessionWarningTimeout) {
+		    clearTimeout(window.sessionWarningTimeout);
+		    window.sessionWarningTimeout = null;
+		}
+		
         const redirectTo = options.redirectTo || getDefaultLogoutRedirect();
 
         window.location.replace(redirectTo);
@@ -124,13 +131,22 @@ export const AuthProvider = ({ children }) => {
      * resetTimer - 세션 만료 타이머 초기화
      * 사용자 활동(마우스, 키보드 등)이 감지되면 호출됩니다.
      */
-    const resetTimer = useCallback(() => {
-        if (window.sessionTimeout) clearTimeout(window.sessionTimeout);
-        window.sessionTimeout = setTimeout(() => {
-            alert('세션이 만료되었습니다. 다시 로그인해 주세요.');
-            logout();
-        }, SESSION_TIMEOUT_MS);
-    }, [logout]);
+	const resetTimer = useCallback(() => {
+	    if (window.sessionWarningTimeout) clearTimeout(window.sessionWarningTimeout);
+	    if (window.sessionTimeout) clearTimeout(window.sessionTimeout);
+
+	    setSessionWarningOpen(false);
+
+	    window.sessionWarningTimeout = setTimeout(() => {
+	        setSessionWarningOpen(true);
+	    }, SESSION_TIMEOUT_MS - 60 * 1000);
+
+	    window.sessionTimeout = setTimeout(() => {
+	        setSessionWarningOpen(false);
+	        alert('세션이 만료되었습니다. 다시 로그인해 주세요.');
+	        logout();
+	    }, SESSION_TIMEOUT_MS);
+	}, [logout]);
 
     /**
      * useEffect - 로그인 상태일 때 사용자 활동 감지 이벤트 등록
@@ -146,16 +162,17 @@ export const AuthProvider = ({ children }) => {
             resetTimer(); // 로그인 직후 타이머 시작
 
             // 컴포넌트 언마운트 시 이벤트 리스너 정리 (메모리 누수 방지)
-            return () => {
-                events.forEach(event => document.removeEventListener(event, handleActivity));
-                if (window.sessionTimeout) clearTimeout(window.sessionTimeout);
-            };
+			return () => {
+			    events.forEach(event => document.removeEventListener(event, handleActivity));
+			    if (window.sessionWarningTimeout) clearTimeout(window.sessionWarningTimeout);
+			    if (window.sessionTimeout) clearTimeout(window.sessionTimeout);
+			};
         }
     }, [user, resetTimer]);
 
     // Context로 제공할 값: user(사용자 정보), login(로그인), logout(로그아웃)
     return (
-        <AuthContext.Provider value={{ user, login, logout }}>
+        <AuthContext.Provider value={{ user, login, logout, sessionWarningOpen, setSessionWarningOpen }}>
             {children}
         </AuthContext.Provider>
     );

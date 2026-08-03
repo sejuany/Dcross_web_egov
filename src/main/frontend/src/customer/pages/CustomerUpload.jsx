@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { FileText } from 'lucide-react';
+import { FileText, LoaderCircle } from 'lucide-react';
 
 import axios from 'axios';
 
@@ -45,6 +45,11 @@ const CustomerUpload = () => {
 	// 이미지 모달
 	const [previewFile, setPreviewFile] = useState(null);
 	
+	// 로딩 상태
+	const [loading, setLoading] = useState(false);
+	
+	// 썸네일 버전 (이미지 변경 시 갱신)
+	const [thumbVersion, setThumbVersion] = useState(0);
 	
 	useEffect(() => {
 	    loadData();
@@ -86,8 +91,17 @@ const CustomerUpload = () => {
 	const renderThumb = (doc) => {
 
 	    const file = attachFileMap[doc.code];
-	    const fileUrl = file?.FILE_URL;
-	    const fileName = file?.ATCHFILE_NM;
+
+	    if (!file) {
+	        return <FileText size={28} />;
+	    }
+
+	    const fileName = file.ATCHFILE_NM || '';
+
+	    // FILE_URL에 이미 ?가 있으면 &v=, 없으면 ?v=
+	    const fileUrl = file.FILE_URL
+	        ? `${file.FILE_URL}${file.FILE_URL.includes('?') ? '&' : '?'}v=${thumbVersion}`
+	        : '';
 
 	    if (!fileUrl) {
 	        return <FileText size={28} />;
@@ -108,6 +122,25 @@ const CustomerUpload = () => {
 	    }
 
 	    return <FileText size={28} />;
+	};
+	
+	// 첨부파일 목록 조회
+	const loadAttachFiles = async (currentServiceId = serviceId) => {
+
+	    const res = await axios.get('/api/customer/file/list', {
+	        params: {
+	            serviceId: currentServiceId,
+	            token
+	        }
+	    });
+
+		console.log("attachFiles", res.data.list);
+		
+	    const attachFiles = Array.isArray(res.data?.list)
+	        ? res.data.list
+	        : [];
+
+	    setAttachFiles(attachFiles);
 	};
 
 	// 첨부파일 업로드
@@ -131,27 +164,75 @@ const CustomerUpload = () => {
 		
 		// 한글 파일명을 같이 보냄
 		formData.append('docName', doc.name);
+		
+		setLoading(true);
+		
+		try {
+
+			console.log(gf);
+			console.log(gf.delay);
+			
+		    await gf.delay(1500, async () => {
+
+		        const res = await axios.post(
+		            '/api/customer/file/upload',
+		            formData,
+		            {
+		                headers: {
+		                    'Content-Type': 'multipart/form-data'
+		                }
+		            }
+		        );
+
+				// 업로드 후 목록만 다시 조회
+			    await loadAttachFiles();
+				setThumbVersion(Date.now());
+		    });
+
+		} catch (e) {
+
+			console.error(e);
+			console.error(e.response);
+			console.error(e.response?.data);
+		    gf.alert('첨부파일 업로드 중 오류가 발생했습니다.');
+
+		} finally {
+		    setLoading(false);
+		}
+		
+	};
+	
+	// 양식 다운로드
+	const handleDownloadForm = async (doc) => {
 
 	    try {
 
 	        const res = await axios.post(
-	            '/api/customer/file/upload',
-	            formData,
-	            {
-	                headers: {
-	                    'Content-Type': 'multipart/form-data'
-	                }
-	            }
+	            '/api/attach/form',
+	            { 
+					CODE: doc.code,
+					NAME: doc.name
+				 },
+	            { responseType: 'blob' }
 	        );
 
-	        // 업로드 후 목록 다시 저장
-	        setAttachFiles(res.data.list ?? []);
+	        const blob = new Blob([res.data]);
+	        const url = window.URL.createObjectURL(blob);
+
+	        const link = document.createElement('a');
+	        link.href = url;
+	        link.download = `${doc.name}.pdf`;
+	        link.click();
+
+	        window.URL.revokeObjectURL(url);
 
 	    } catch (e) {
 
 	        console.error(e);
 
-	        gf.alert('첨부파일 업로드 중 오류가 발생했습니다.');
+	        gf.alert(
+	            e.response?.data?.message || '양식 다운로드 중 오류가 발생했습니다.'
+	        );
 	    }
 	};
 	
@@ -160,6 +241,9 @@ const CustomerUpload = () => {
 	 ========================================================= */
 	const loadData = async () => {
 
+		const startTime = Date.now();
+		setLoading(true);
+		
 	    try {
 
 	        const res = await axios.post('/api/customer/getToken', {
@@ -213,20 +297,8 @@ const CustomerUpload = () => {
 			// 화면에 표시할 첨부 목록 저장
 			setUploadList(uploadList);
 
-			// 업로드된 파일 조회
-			const res2 = await axios.get('/api/customer/file/list', {
-			    params: {
-			        serviceId: info.SERVICE_ID,
-					token: token
-			    }
-			});
-
-			const attachFiles = Array.isArray(res2.data?.list)
-			    ? res2.data.list
-			    : [];
-				
-
-			setAttachFiles(attachFiles);
+			// 첨부파일 목록 조회
+			await loadAttachFiles(info.SERVICE_ID);
 
 	    } catch (e) {
 
@@ -237,11 +309,20 @@ const CustomerUpload = () => {
 	        navigate('/customer/CustomerResult', {
 	            state: { success: false }
 	        });
+	    } finally {
+	        gf.loadingDelay(startTime, () => setLoading(false), 1000);
 	    }
 	};
 
     return (
+		<>
 		<div className="customer-page customer-upload-page">
+			{loading && (
+			    <div className="customer-loading">
+			        <LoaderCircle size={24} className="customer-spin" />
+			        <span>잠시만 기다려주세요</span>
+			    </div>
+			)}
 
 		    <div className="customer-card customer-upload-card">
 				<h3>추가 제출 서류</h3>
@@ -271,9 +352,7 @@ const CustomerUpload = () => {
 				{uploadList.map(doc => {
 
 				    const file = attachFileMap[doc.code];
-					
-					console.log(doc.code, file);
-					
+
 				    return (
 				        <div
 				            key={doc.code}
@@ -281,58 +360,60 @@ const CustomerUpload = () => {
 				        >
 
 				            {!file ? (
-
 				                <>
 				                    <div className="customer-upload-title">
 				                        {doc.name}
 				                    </div>
-
-				                    <button
-				                        type="button"
-				                        className="customer-btn-upload"
-				                        onClick={() => fileInputRefs.current[doc.code]?.click()}
-				                    >
-				                        업로드
-				                    </button>
 				                </>
-
 				            ) : (
-
 				                <>
 				                    <div className="customer-upload-file">
-	
-										<button
-										    type="button"
-										    className="customer-upload-thumb"
-										    onClick={() => setPreviewFile(file)}
-										>
-										    {renderThumb(doc)}
-										</button>
+
+				                        <button
+				                            type="button"
+				                            className="customer-upload-thumb"
+				                            onClick={() => setPreviewFile(file)}
+				                        >
+				                            {renderThumb(doc)}
+				                        </button>
 
 				                        <span className="customer-upload-name">
 				                            {doc.name}
 				                        </span>
 
 				                    </div>
+				                </>
+				            )}
 
+				            {/* 버튼 영역 */}
+				            <div className="customer-upload-btn-group">
+
+				                {doc.formYn === 'Y' && (
 				                    <button
 				                        type="button"
-				                        className="customer-btn-upload outline"
-				                        onClick={() => fileInputRefs.current[doc.code]?.click()}
+				                        className="customer-btn-form"
+				                        onClick={() => handleDownloadForm(doc)}
 				                    >
-				                        재업로드
+				                        양식 다운로드
 				                    </button>
-				                </>
+				                )}
 
-				            )}
-							
+				                <button
+				                    type="button"
+				                    className={`customer-btn-upload ${file ? 'outline' : ''}`}
+				                    onClick={() => fileInputRefs.current[doc.code]?.click()}
+				                >
+				                    {file ? '재업로드' : '업로드'}
+				                </button>
 
-							<input
-							    type="file"
-							    hidden
-							    ref={el => (fileInputRefs.current[doc.code] = el)}
-							    onChange={(e) => handleFileChange(doc, e)}
-							/>
+				            </div>
+
+				            <input
+				                type="file"
+				                hidden
+				                ref={el => (fileInputRefs.current[doc.code] = el)}
+				                onChange={(e) => handleFileChange(doc, e)}
+				            />
 				        </div>
 				    );
 
@@ -398,6 +479,7 @@ const CustomerUpload = () => {
 
 			)}
 		</div>
+	</>
     );
 };
 

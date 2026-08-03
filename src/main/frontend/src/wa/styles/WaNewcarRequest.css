@@ -432,6 +432,48 @@
     flex:1;
 }
 
+.wa-masked-input{
+    position:relative;
+    display:flex;
+    flex:1;
+    min-width:0;
+}
+
+.wa-masked-input .wa-input{
+    padding-left:44px;
+}
+
+.wa-text-masked{
+    -webkit-text-security:disc;
+}
+
+.wa-mask-toggle{
+    position:absolute;
+    z-index:1;
+    left:14px;
+    top:50%;
+    display:flex;
+    padding:0;
+    border:0;
+    background:transparent;
+    color:#64748b;
+    cursor:pointer;
+    transform:translateY(-50%);
+}
+
+.wa-required-error .wa-input,
+.wa-required-error .wa-select,
+.wa-required-error .wa-option-btn,
+.wa-required-error .wa-radio-btn,
+.wa-owner-tabs.wa-required-error button{
+    border-color:#dc2626 !important;
+    box-shadow:0 0 0 3px rgba(220,38,38,.12) !important;
+}
+
+.summary-item.wa-required-error{
+    border:2px solid #dc2626;
+}
+
 .wa-inline-group .wa-select{
     width:160px;
 }
@@ -2262,6 +2304,19 @@ hr.wa-divider.hr2 {
     font-weight: 700;
 }
 
+.wa-receipt-phone-presets {
+    display: flex;
+    justify-content: flex-end;
+    gap: 16px;
+    margin: -4px 2px 10px;
+}
+
+.wa-receipt-phone-presets .wa-form-sub-label {
+    margin: 0;
+    color: #2563eb;
+    font-weight: 700;
+}
+
 .wa-reject-summary {
     display: grid;
     grid-template-columns: 74px minmax(0, 1fr);
@@ -2385,6 +2440,10 @@ hr.wa-divider.hr2 {
     opacity: 0.5;
     cursor: not-allowed;
     transition: opacity 0.2s ease;
+    
+    background: #f1f3f5;
+    color: #000;
+    border-color: #ced4da !important;
 }
 
 @media (max-width: 760px) {

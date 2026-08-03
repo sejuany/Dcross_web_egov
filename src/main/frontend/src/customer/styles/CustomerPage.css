@@ -349,12 +349,41 @@
     border-top: 1px dashed #d9d9d9;
 }
 
-
 .text-primary {
 	color: #0D6EFD;
 	font-weight: 700;
 }
 
+.customer-upload-btn-group {
+    display: flex;
+    gap: 8px;
+    margin-top: 10px;
+}
+
+/* 양식 다운로드 버튼 */
+.customer-btn-form {
+    width: 90px;
+    height: 36px;
+
+    color: #10B981;
+    border: 1px solid #10B981;
+    background: #fff;
+    border-radius: 6px;
+
+    font-size: 14px;
+    font-weight: 600;
+
+    cursor: pointer;
+    transition: all 0.2s ease;
+}
+
+.customer-btn-form:hover {
+    background: #ECFDF5;
+}
+
+.customer-btn-form:active {
+    background: #D1FAE5;
+}
 
 /* =========================================================
  * Customer re-Upload
@@ -498,6 +527,45 @@
     color:#64748b;
     font-size:14px;
 }
+
+/*************
+ * Loading	
+**************/
+.customer-loading {
+    position: fixed;
+    inset: 0;
+
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+
+    background: rgba(255, 255, 255, 0.55);
+    backdrop-filter: blur(2px);
+
+    z-index: 9999;
+}
+
+.customer-loading .customer-spin {
+    animation: customer-spin 1s linear infinite;
+}
+
+.customer-loading span {
+    margin-top: 10px;
+    font-size: 15px;
+    font-weight: 600;
+    color: #555;
+}
+
+@keyframes customer-spin {
+    from {
+        transform: rotate(0deg);
+    }
+    to {
+        transform: rotate(360deg);
+    }
+}
+
 /* =========================================================
  * Result
 ========================================================= */

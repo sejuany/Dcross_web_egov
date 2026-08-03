@@ -30,6 +30,7 @@ import org.apache.pdfbox.pdmodel.graphics.image.JPEGFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
 import org.springframework.http.ContentDisposition;
@@ -158,12 +159,57 @@ public class AttachService {
 	}
 
 	/**
-	 * 첨부파일 전체 경로 생성
+	 * 첨부파일 업로드 전체 경로 생성
 	 */
 	public Path getAttachFilePath(String fileName) {
 	    return Paths.get(getAttachUploadRoot())
 	            .resolve(fileName)
 	            .normalize();
+	}
+
+	/**
+	 * 양식 다운로드
+	 */
+	public Resource getFormFile(Map<String, Object> param) {
+
+	    String name = (String) param.get("NAME");
+	    
+	    // attachDoc.jsp의 name에 있는 파일명으로 조회 후 다운
+	    String fileName = name + ".pdf";
+
+	    Path path = Paths.get(getFormRoot()).resolve(fileName);
+		
+		if (!Files.exists(path) || !Files.isRegularFile(path)) {
+		    throw new BusinessException("양식 파일이 없습니다.", 404);
+		}
+
+	    return new FileSystemResource(path);
+	}
+		
+	
+	/*
+	 * 양식 파일 저장 루트 경로 조회
+	 */
+	private String getFormRoot() {
+
+	    String serverIp = getServerAddress("IP");
+
+	    // 운영 WAS2
+	    if ("10.109.111.40".equals(serverIp)) {
+	        return "/web/forms";
+	    }
+	    
+	    logger.info("serverIp = {}", serverIp);
+	    
+        // 로컬
+        if ("127.0.0.1".equals(serverIp)
+        		|| "169.254.242.223".equals(serverIp)
+                || "localhost".equalsIgnoreCase(serverIp)) {
+        	return "C:/Users/다코스/Downloads/forms";
+        }
+
+	    // 개발
+	    return "D:\\webapps\\DaCOS\\forms";
 	}
 
 	/**

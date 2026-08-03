@@ -206,8 +206,7 @@ const EXEMPTION_DOCUMENT_INFO = {
     '03': {
         name: '고엽제 후유증 대상',
         documents: [
-            '고엽제 적용 대상확인원',
-            '고엽제후유의증 환자로서 경도장애 이상'
+            '고엽제 적용 대상확인원'
         ],
         note: JOINT_OWNER_DOCUMENT_NOTE,
     },
@@ -956,7 +955,8 @@ const NewcarInfo = ({
     setDsTaxReceipt,
     onTaxReceiptAddressSelect,
     onTaxReceiptAddressClear,
-    setDsPaymentList
+    setDsPaymentList,
+    dsBaseList = []
 }) => {
     const hasExemption = Boolean(dsNewCar.NTAX_TRGET_CD && dsNewCar.NTAX_TRGET_CD !== '00');
     const [isExemptionOpen, setIsExemptionOpen] = useState(hasExemption);
@@ -965,14 +965,19 @@ const NewcarInfo = ({
     const [estimateSummary, setEstimateSummary] = useState(null);
     const [receiptType, setReceiptType] = useState('');
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
+    const [cashReceiptPhoneSource, setCashReceiptPhoneSource] = useState('');
+    const isJsaEligibleAddress = ['대성동길', '조산리'].some(
+        keyword => String(dsNewCar.BASE_ADDRESS ?? '').includes(keyword)
+    );
 
     const exemptionTargetOptions = useMemo(
         () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS)
             .filter(item => (
                 !['07','11', '17', '19'].includes(item.CODE_ID)
                 && !EXCLUDED_EXEMPTION_TARGET_NAMES.has(normalizeExemptionTargetName(item.CODE_NM))
+                && (String(item.CODE_ID) !== '12' || isJsaEligibleAddress)
             )),
-        	[codes]
+        [codes, isJsaEligibleAddress]
     );
 	const hasJointOwner = Number(dsNewCar.RATIO_NO || 100) !== 100;
 	const exemptionWhoOptions = useMemo(() => {
@@ -1075,7 +1080,11 @@ const NewcarInfo = ({
         if (nextReceiptType !== 'TAX' && taxReceiptSameOwner) {
             setTaxReceiptSameOwner(false);
         }
-    }, [dsTaxReceipt.GUBUN, receiptType, taxReceiptSameOwner]);
+
+        if (nextReceiptType !== 'CASH' && cashReceiptPhoneSource) {
+            setCashReceiptPhoneSource('');
+        }
+    }, [cashReceiptPhoneSource, dsTaxReceipt.GUBUN, receiptType, taxReceiptSameOwner]);
 
     useEffect(() => {
         if (!setDsNewCar) {
@@ -1093,39 +1102,6 @@ const NewcarInfo = ({
             PAY_HP_NO: prev.PAY_HP_NO || prev.MPHONE_NO || ''
         }));
     }, [dsNewCar.MPHONE_NO, dsNewCar.PAY_HP_NO, dsNewCar.PROC_CD, dsNewCar.TASK_CD, setDsNewCar]);
-
-	// 사용본거지가 '대송동길'이면, 자동으로 공동경비구역(JSA) 거주자로 전환
-	useEffect(() => {
-
-	    const checkJsa = async () => {
-
-	        const baseAddr = dsNewCar.BASE_ADDRESS || '';
-
-	        if (
-	            baseAddr.includes('파주') &&
-	            baseAddr.includes('대성동길')
-	        ) {
-
-	            if (dsNewCar.NTAX_TRGET_CD !== '' && 
-					dsNewCar.NTAX_TRGET_CD !== '00' &&
-					dsNewCar.NTAX_TRGET_CD !== '12'
-				) {
-	                await gf.alert('공동경비구역(JSA) 거주자 대상으로 비과세 혜택을 받으실 수 있으니, 참고 바랍니다.');
-	                return;
-	            }
-
-	            setIsExemptionOpen(true);
-
-	            setDsNewCar(prev => ({
-	                ...prev,
-	                NTAX_TRGET_CD: '12'
-	            }));
-	        }
-	    };
-
-	    checkJsa();
-
-    }, [dsNewCar.BASE_ADDRESS]);
 
     // 하위 memo 컴포넌트에 전달하는 함수의 참조가 매 렌더마다 바뀌지 않도록
     // useCallback으로 고정한다. updater 함수와 단순 patch 객체를 모두 받을 수 있다.
@@ -1171,14 +1147,43 @@ const NewcarInfo = ({
         ));
     }, [updateTaxReceipt]);
 
-    const getOwnerTaxReceiptDefaults = () => ({
-        REG_NO: dsNewCar.BIZ_NO || dsNewCar.REG_NO || '',
-        COMPANY_NM: dsNewCar.OWNER_NM || '',
-        NAME: dsNewCar.OWNER_NM || '',
-        ADDR: dsNewCar.BASE_ADDRESS || dsNewCar.ADDRESS || '',
-        ADDR_DT: dsNewCar.BASE_ADDRESS_DT || dsNewCar.ADDRESS_DT || '',
-        POST_NO: dsNewCar.BASE_POST_NO || dsNewCar.POST_NO || ''
-    });
+    const getOwnerTaxReceiptDefaults = () => {
+        const isLease = dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'I';
+        const isUserLease = dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C';
+        const isCorporateOwner = ['B', 'C'].includes(dsNewCar.REG_GB);
+        const selectedLeaseBase = dsBaseList.find(item => (
+            String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
+        ));
+        const leaseCompanyName = String(selectedLeaseBase?.BASE_NM ?? '')
+            .replace(/주식회사/g, '')
+            .replace(/\(.*?\)/g, '')
+            .trim();
+        const useLeaseCompany = isLease || isUserLease;
+
+        return {
+            // 주민/외국인 등록번호는 세금계산서 사업자번호로 사용할 수 없다.
+            REG_NO: useLeaseCompany
+                ? (selectedLeaseBase?.BIZ_NO || '')
+                : (isCorporateOwner ? (dsNewCar.BIZ_NO || '') : ''),
+            COMPANY_NM: isUserLease
+                ? leaseCompanyName
+                : ((isLease || isCorporateOwner) ? (dsNewCar.OWNER_NM || '') : ''),
+            NAME: '',
+            ADDR: useLeaseCompany
+                ? (selectedLeaseBase?.ADDRESS || '')
+                : (isCorporateOwner ? (dsNewCar.ADDRESS || '') : ''),
+            ADDR_DT: useLeaseCompany
+                ? (selectedLeaseBase?.ADDRESS_DT || '')
+                : (isCorporateOwner ? (dsNewCar.ADDRESS_DT || '') : ''),
+            POST_NO: useLeaseCompany
+                ? (selectedLeaseBase?.POST_NO || '')
+                : (isCorporateOwner ? (dsNewCar.POST_NO || '') : ''),
+            BUSINESS_TYPE: '',
+            INDUSTRY_TYPE: '',
+            MAIL1: '',
+            MAIL2: ''
+        };
+    };
 
     const showAlert = useCallback((message) => {
         if (gf?.alert) {
@@ -1337,6 +1342,11 @@ const NewcarInfo = ({
 	// 감면대상 변경
     const handleExemptionFieldChange = useCallback(async (event) => {
         const { name, value } = event.target;
+
+        if (name === 'NTAX_TRGET_CD' && String(value) === '12' && !isJsaEligibleAddress) {
+            await showAlert('사용본거지 주소가 대성동길 또는 조산리인 경우에만 공동경비구역 거주자를 선택할 수 있습니다.');
+            return;
+        }
 		
         const ecoNotice = name === 'NTAX_TRGET_CD'
             ? ECO_EXEMPTION_NOTICE_BY_CODE[String(value)]
@@ -1376,7 +1386,7 @@ const NewcarInfo = ({
             const message = error.response?.data?.message || error.message || '친환경 차량 여부를 확인하지 못했습니다.';
             await showAlert(message);
         }
-    }, [codes, dsNewCar, handleNewCarFieldChange, showAlert, updateNewCar]);
+    }, [codes, dsNewCar, handleNewCarFieldChange, isJsaEligibleAddress, showAlert, updateNewCar]);
 
     const handleCardToggle = () => {
         updateNewCar(prev => {
@@ -1433,10 +1443,11 @@ const NewcarInfo = ({
         setReceiptType(type);
 
         if (type === 'CASH') {
+            setCashReceiptPhoneSource('');
             updateTaxReceipt(prev => ({
                 ...prev,
                 GUBUN: type,
-                PHONE_NO: prev.PHONE_NO || dsNewCar.PAY_HP_NO || dsNewCar.MPHONE_NO || '',
+                PHONE_NO: prev.GUBUN === 'CASH' ? prev.PHONE_NO : '',
                 REG_NO: '',
                 NAME: '',
                 COMPANY_NM: '',
@@ -1450,8 +1461,6 @@ const NewcarInfo = ({
             }));
             return;
         }
-
-        const defaults = getOwnerTaxReceiptDefaults();
 
         updateTaxReceipt(prev => ({
             ...prev,
@@ -1469,13 +1478,41 @@ const NewcarInfo = ({
     const handleReceiptClose = () => {
         setReceiptType('');
         setTaxReceiptSameOwner(false);
+        setCashReceiptPhoneSource('');
         updateTaxReceipt({ GUBUN: '' });
+    };
+
+    const handleCashReceiptPhoneSource = (source, checked) => {
+        setCashReceiptPhoneSource(checked ? source : '');
+
+        if (!checked) {
+            updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: '' });
+            return;
+        }
+
+        updateTaxReceipt({
+            GUBUN: 'CASH',
+            PHONE_NO: source === 'OWNER' ? dsNewCar.MPHONE_NO : dsNewCar.PAY_HP_NO
+        });
     };
 
     const handleTaxReceiptSameOwner = (checked) => {
         setTaxReceiptSameOwner(checked);
 
         if (!checked) {
+            updateTaxReceipt(prev => ({
+                ...prev,
+                REG_NO: '',
+                COMPANY_NM: '',
+                NAME: '',
+                ADDR: '',
+                ADDR_DT: '',
+                POST_NO: '',
+                BUSINESS_TYPE: '',
+                INDUSTRY_TYPE: '',
+                MAIL1: '',
+                MAIL2: ''
+            }));
             return;
         }
 
@@ -1605,21 +1642,44 @@ const NewcarInfo = ({
                                 </div>
 
                                 {receiptType === 'CASH' ? (
-                                    <div className="wa-form-row compact">
-                                        <label className="wa-form-label">휴대폰번호</label>
-                                        <div className="wa-form-control">
-                                            <div className="wa-inline-group">
-                                                <SplitInput
-                                                    value={dsTaxReceipt.PHONE_NO ?? ''}
-                                                    lengths={PHONE_PART_LENGTHS}
-                                                    fixedValues={PHONE_FIXED_VALUES}
-                                                    placeholders={PHONE_PLACEHOLDERS}
-                                                    deferred
-                                                    onChange={value => updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value })}
+                                    <>
+                                        <div className="wa-receipt-phone-presets">
+                                            <label className="wa-form-sub-label">
+                                                소유자와 동일
+                                                <input
+                                                    type="checkbox"
+                                                    checked={cashReceiptPhoneSource === 'OWNER'}
+                                                    onChange={event => handleCashReceiptPhoneSource('OWNER', event.target.checked)}
                                                 />
+                                            </label>
+                                            <label className="wa-form-sub-label">
+                                                결제자와 동일
+                                                <input
+                                                    type="checkbox"
+                                                    checked={cashReceiptPhoneSource === 'PAYER'}
+                                                    onChange={event => handleCashReceiptPhoneSource('PAYER', event.target.checked)}
+                                                />
+                                            </label>
+                                        </div>
+                                        <div className="wa-form-row compact">
+                                            <label className="wa-form-label">휴대폰번호</label>
+                                            <div className="wa-form-control">
+                                                <div className="wa-inline-group">
+                                                    <SplitInput
+                                                        value={dsTaxReceipt.PHONE_NO ?? ''}
+                                                        lengths={PHONE_PART_LENGTHS}
+                                                        fixedValues={PHONE_FIXED_VALUES}
+                                                        placeholders={PHONE_PLACEHOLDERS}
+                                                        deferred
+                                                        onChange={value => {
+                                                            setCashReceiptPhoneSource('');
+                                                            updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value });
+                                                        }}
+                                                    />
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    </>
                                 ) : (
                                     <>
                                         <label className="wa-form-sub-label receipt-same-owner">

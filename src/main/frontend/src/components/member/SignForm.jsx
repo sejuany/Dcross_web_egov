@@ -1315,7 +1315,10 @@ const SignForm = () => {
 
                     <div className="form-row split">
                         <div className="field">
-                            <label className="req">비밀번호</label>
+                            <label className="password-label">
+                                <span className="req">비밀번호</span>
+                                <span className="password-guide">8자 이상 영문+숫자+특수문자를 입력해 주세요.</span>
+                            </label>
                             <input
                                 type="password"
                                 name="passWd"
@@ -1327,7 +1330,10 @@ const SignForm = () => {
                         </div>
 
                         <div className="field">
-                            <label className="req">비밀번호 확인</label>
+                            <label className="password-label">
+                                <span className="req">비밀번호 확인</span>
+                                <span className="password-guide">8자 이상 영문+숫자+특수문자를 입력해 주세요.</span>
+                            </label>
                             <input
                                 type="password"
                                 name="passWdConfirm"

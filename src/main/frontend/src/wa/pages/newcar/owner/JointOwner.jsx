@@ -127,6 +127,7 @@ const JointOwner = ({
 						<SplitInput
 						    value={dsOwnerInfo.DEBTOR_REG_NO}
 						    lengths={[6, 7]}
+							maskLast={['R', 'F'].includes(dsOwnerInfo.DEBTOR_GB)}
 						    onChange={value =>
 						        setDsOwnerInfo(prev => ({
 						            ...prev,

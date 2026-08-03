@@ -339,8 +339,6 @@ const WaNewcarAttachModal = ({
 
                 <div className="wa-attach-modal-body single">
                     <section className="wa-attach-doc-section">
-		
-							console.log(displayDocs);
 						{// 제출해야 하는 서류 목록
 						 displayDocs.map((doc, index) => {
 	

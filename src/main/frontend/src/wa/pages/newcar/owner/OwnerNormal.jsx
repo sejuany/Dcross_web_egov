@@ -180,6 +180,7 @@ const OwnerPersonal = ({
 						<SplitInput
 						    value={dsNewCar.REG_NO}
 						    lengths={[6, 7]}
+							maskLast={['R', 'F'].includes(dsNewCar.REG_GB)}
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,

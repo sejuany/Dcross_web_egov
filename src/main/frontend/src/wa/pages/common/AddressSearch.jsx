@@ -3,6 +3,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Search } from 'lucide-react';
 
 import useAddressSearch from '../../../hooks/useAddressSearch';
+import { gf } from '../../../utils/utils';
 
 // 연속 입력이 잠시 멈춘 뒤 상위 화면 state에 값을 반영한다.
 const DEFERRED_INPUT_SYNC_DELAY = 220;
@@ -132,6 +133,25 @@ const AddressSearch = ({
 
 	// 선택 버튼 클릭시 상세주소로 이동
 	const detailRef = useRef(null); 
+
+	// 상세주소 입력 완료 후 포커스를 벗어날 때 처리
+	// - 입력값을 상위 state에 반영
+	// - 주소를 선택했는데 상세주소가 비어 있으면 안내 후 다시 포커스 이동
+	const handleDetailBlur = async () => {
+	    detailInput.onBlur(); // 기존 commit
+
+	    if (addressInput.value && !detailInput.value.trim()) {
+
+			const ok = await gf.confirm(
+			    '상세주소가 입력되지 않았습니다.\n상세주소 없이 진행하시겠습니까?',
+				'상세주소 확인'
+			);
+
+			if (!ok) {
+			    detailRef.current?.focus();
+			}
+	    }
+	};
 	
     return (
         <div className="wa-form-row"
@@ -372,7 +392,7 @@ const AddressSearch = ({
 				        onChange={detailInput.onChange}
 						onCompositionStart={detailInput.onCompositionStart}
 						onCompositionEnd={detailInput.onCompositionEnd}
-						onBlur={detailInput.onBlur}
+						onBlur={handleDetailBlur}
 				        placeholder="상세주소 입력"
 						maxLength={detailMaxLength}
 				    />

@@ -123,6 +123,49 @@ const isEmptyRequiredValue = (value) => (
 
 const onlyDigits = (value) => String(value || '').replace(/\D/g, '');
 
+const REQUIRED_FOCUS_LABELS = {
+	'업무구분': '차량 구매 방식',
+	'리스 계약자 등록구분': '리스 계약자 등록번호',
+	'등록번호 구분': '등록번호',
+	'리스사 사용본거지 주소': '리스사 선택',
+	'차량번호': '번호 선택',
+	'채권 처리 방식': '채권 처리 선택',
+	'현금영수증 또는 세금계산서': '수수료 증빙 선택',
+	'환불 계좌 은행': '환불 계좌',
+	'환불 계좌번호': '환불 계좌',
+	'감면 대상자': '감면 대상 정보',
+	'감면 등급': '감면 대상 정보',
+	'세금계산서 등록번호': '등록번호',
+	'세금계산서 상호명': '상호명',
+	'세금계산서 대표자명': '대표자명',
+	'세금계산서 사업장주소': '사업장주소',
+	'세금계산서 업태': '업태',
+	'세금계산서 업종': '업종',
+	'세금계산서 이메일주소': '이메일주소',
+	'현금영수증 휴대폰번호': '휴대폰번호',
+	'공동소유자1 성명': '공동소유자 성명',
+	'공동소유자1 등록구분': '공동소유자 등록번호',
+	'공동소유자1 등록번호': '공동소유자 등록번호',
+	'공동소유자1 비율': '공동소유자 비율',
+	'대표소유자와 공동소유자 비율의 합': '공동소유자 비율'
+};
+
+const getRequiredFocusLabel = (message) => {
+	const validationMessage = String(message || '');
+	const fieldLabel = validationMessage
+		.replace(/를\(을\).*$/, '')
+		.replace(/\s+\d+자리를.*$/, '')
+		.replace(/는 11자리.*$/, '')
+		.replace(/을 입력.*$/, '')
+		.replace(/을 확인.*$/, '')
+		.trim();
+	const matchingLabel = Object.entries(REQUIRED_FOCUS_LABELS).find(([key]) => (
+		validationMessage.startsWith(key) || fieldLabel.startsWith(key)
+	));
+
+	return matchingLabel?.[1] || fieldLabel;
+};
+
 const NH_BOND_AREAS = new Set([
     '울산광역시',
     '강원도',
@@ -519,12 +562,8 @@ const WaNewcarRequest = ({
 	// 마지막 조회한 상세조회 구분값
 	const loadedDetailOpenKeyRef = useRef('');
 	
-	// 소유자 정보 입력(탭)
-	const ownerRef = useRef(null);
-	// 자동차 정보 입력(탭)
-	const deliveryRef = useRef(null);
-	// 신규등록 정보 입력(탭)
-	const paymentRef = useRef(null);
+	// 필수값 누락 시 현재 입력 화면 안에서 해당 항목을 찾기 위한 Ref
+	const requestPageRef = useRef(null);
 
 	
 /* =========================================================
@@ -785,6 +824,61 @@ const WaNewcarRequest = ({
 /* =========================================================
  * * Event
  * ========================================================= */	
+	const clearRequiredFocus = (event) => {
+		event.target.closest?.('.wa-required-error')?.classList.remove('wa-required-error');
+	};
+
+	const focusRequiredField = (message) => {
+		const focusLabel = getRequiredFocusLabel(message);
+
+		window.requestAnimationFrame(() => window.requestAnimationFrame(() => {
+			const page = requestPageRef.current;
+
+			if (!page || !focusLabel) {
+				return;
+			}
+
+			page.querySelectorAll('.wa-required-error').forEach(element => (
+				element.classList.remove('wa-required-error')
+			));
+
+			let errorArea = focusLabel === '차량 구매 방식'
+				? page.querySelector('.wa-owner-tabs')
+				: null;
+
+			if (!errorArea) {
+				const labelCandidates = focusLabel === '결제자 연락처'
+					? ['결제자 연락처', '리스 담당자 연락처']
+					: [focusLabel];
+				const fieldLabel = [...page.querySelectorAll('.wa-form-label')].find(label => (
+					labelCandidates.some(candidate => label.textContent.trim().includes(candidate))
+				));
+
+				errorArea = fieldLabel?.closest('.wa-form-row');
+			}
+
+			if (!errorArea && focusLabel === '차대번호') {
+				const summaryLabel = [...page.querySelectorAll('.summary-label')].find(label => (
+					label.textContent.trim() === '차대번호'
+				));
+
+				errorArea = summaryLabel?.closest('.summary-item');
+			}
+
+			if (!errorArea) {
+				return;
+			}
+
+			errorArea.classList.add('wa-required-error');
+			errorArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+			const focusTarget = errorArea.querySelector(
+				'input:not([readonly]):not([disabled]), select:not([disabled]), button:not([disabled])'
+			);
+			focusTarget?.focus({ preventScroll: true });
+		}));
+	};
+
 	/**
 	 * 하단의 다음/요청 버튼 진입점.
 	 * 1~3단계는 changeStep()으로 넘기고, 최종 확인 단계의 SU 요청은
@@ -813,6 +907,7 @@ const WaNewcarRequest = ({
 		    onClose();
 		    return;
 		}
+		
 		
 		// 렌트 선택하고 확인 눌렀을 때
 	    if (purchaseType === 'RENT') {
@@ -917,7 +1012,7 @@ const WaNewcarRequest = ({
 	 * - 상세조회 화면이 아니면 stepMemory에 마지막 작업 단계를 보관한다.
 	 */
 	const changeStep = async (nextStep, skipNotice = false) => {
-
+		
 		// 앞으로 이동할 때는 현재 탭부터 이동 직전 탭까지 순서대로 검사한다.
 		// 상단 단계 번호로 여러 단계를 건너뛰어도 중간 단계의 필수값을 빠뜨릴 수 없다.
 		if (nextStep > step) {
@@ -925,15 +1020,33 @@ const WaNewcarRequest = ({
 
 			if (validation.message) {
 				await gf.alert(validation.message);
-
+				
 				if (validation.step !== step) {
 					setStep(validation.step);
 				}
 
+				focusRequiredField(validation.message);
+
 				return false;
 			}
+			
+			// 단계별 추가 검증
+			if (step === 1) {
+				// 공동소유자 값 체크
+				if (!(await ownerValueCheck())) {
+				    return false;
+				}
+			}
+			else if (step === 2) {
+
+			}
+			else if (step === 3) {
+
+			}
+
 		}
 		
+		// 안내 서류 띄우기		
 	    if (!skipNotice) {
 	        if (await openNotice(step, nextStep)) {
 	            return;
@@ -1082,6 +1195,32 @@ const WaNewcarRequest = ({
 		}
 
 	    return false;
+	};
+	
+	/* 
+	 * validateJointOwner()에서 처리할 수 없는 경우를 검사한다.
+	 * 공동소유 선택 후 아무 정보도 입력하지 않은 경우
+	 * 단독명의로 진행된다는 안내만 표시한다.
+	 */
+	const ownerValueCheck = async () => {
+		
+		const hasOwnerInfo =
+		    dsOwnerInfo.DEBTOR_NM ||
+		    dsOwnerInfo.DEBTOR_REG_NO ||
+		    dsOwnerInfo.DEBTOR_BIZ_NO;
+			
+		const hasRatio = !!dsOwnerInfo.DEBTOR_RATIO;
+
+		const button = document.querySelector('.wa-joint-btn');
+
+		if (button?.classList.contains('active') && !hasOwnerInfo && !hasRatio) {
+			await gf.alert(
+				'공동소유자 정보를 입력하지 않아 단독명의로 진행됩니다.', 
+				'공동소유자 확인'
+			);
+		}
+		
+		return true;
 	};
 	
 	// 서류 업로드 여부 확인
@@ -1798,6 +1937,7 @@ const WaNewcarRequest = ({
 
 		if (validMsg) {
 			await gf.alert(validMsg);
+			focusRequiredField(validMsg);
 			return;
 		}
 
@@ -1837,7 +1977,8 @@ const WaNewcarRequest = ({
 		const validMsg = await validateRequest(true);
 
 		if (validMsg) {
-			gf.alert(validMsg);
+			await gf.alert(validMsg);
+			focusRequiredField(validMsg);
 			return;
 		}
 		
@@ -1894,7 +2035,7 @@ const WaNewcarRequest = ({
 	 * 오류가 있으면 사용자에게 표시할 첫 번째 메시지를 반환한다.
 	 */
 	const validateRequest = async (moveToInvalidStep = false) => {
-
+		
 		// 최종 요청에서는 1~3단계를 처음부터 다시 검사한다.
 		const requiredValidation = validateRequiredSteps(1, 3);
 
@@ -2065,7 +2206,7 @@ const WaNewcarRequest = ({
 				return ownerMessage;
 			}
 		}
-
+		
 		return representativeRatio + firstRatio + secondRatio === 100
 			? ''
 			: '대표소유자와 공동소유자 비율의 합은 100%이어야 합니다.';
@@ -2488,7 +2629,12 @@ const WaNewcarRequest = ({
 	 * 실제 서버 저장은 하단 버튼의 saveProcess() 또는 changeStep()에서 수행한다.
 	 */
 	return (
-		<div className="wa-request-page">
+		<div
+			ref={requestPageRef}
+			className="wa-request-page"
+			onChangeCapture={clearRequiredFocus}
+			onClickCapture={clearRequiredFocus}
+		>
 		
 			{loading && (
 			    <div className="wa-loading">
@@ -2725,6 +2871,7 @@ const WaNewcarRequest = ({
 							onTaxReceiptAddressSelect={handleTaxReceiptAddressSelect}
 							onTaxReceiptAddressClear={handleClearTaxReceiptAddress}
 							setDsPaymentList={setDsPaymentList}
+							dsBaseList={dsBaseList}
 							/>
 						}
 	

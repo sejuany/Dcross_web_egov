@@ -895,6 +895,27 @@ export const gf = {
 
 	    return age < 19;
 	},
+
+	/**
+	 * 최소 로딩 시간 보장
+	 */
+	async delay(minTime = 1500, callback) {
+
+	    const start = Date.now();
+
+	    const result = await callback();
+
+	    const elapsed = Date.now() - start;
+
+	    if (elapsed < minTime) {
+	        await new Promise(resolve =>
+	            setTimeout(resolve, minTime - elapsed)
+	        );
+	    }
+
+	    return result;
+	},
+	
 };
 
  

@@ -41,7 +41,8 @@ export const ATTACH_DOC = {
         code: 'JOINT_OWNER_AGREEMENT',
         name: '공동명의 등록조서',
         seq: 40,
-        gubun: 'NWEB'
+        gubun: 'NWEB',
+		formYn: 'Y'
     },
 
     // ===== 이용자명의 리스 =====
@@ -57,7 +58,8 @@ export const ATTACH_DOC = {
 	    code: 'MINOR_AGREEMENT',
 	    name: '법정대리인 동의서',
 		seq: 60,
-	    gubun: 'MINOR' // 병합 
+	    gubun: 'MINOR', // MINOR 끼리 병합할 예정 
+		formYn: 'Y' 	// 고객페이지에 양식 파일 올라가는 경우
 	},
 	PARENT_SEAL: {
 	    code: 'PARENT_SEAL',

@@ -1,4 +1,5 @@
 import React, { Fragment, useEffect, useRef, useState } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 import { splitValue, mergeValue } from '../../../utils/formUtil';
 
 const DEFAULT_DEBOUNCE_MS = 220;
@@ -21,6 +22,7 @@ const SplitInput = ({
     readOnly = false,
     fixedValues = [],
     onlyNumber = true,
+    maskLast = false,
     deferred = false,
     debounceMs = DEFAULT_DEBOUNCE_MS,
     onChange,
@@ -51,6 +53,13 @@ const SplitInput = ({
         latestMergedValueRef.current = mergeValue(...initialValues);
         return initialValues;
     });
+    const [showLastValue, setShowLastValue] = useState(false);
+
+    useEffect(() => {
+        if (!maskLast) {
+            setShowLastValue(false);
+        }
+    }, [maskLast]);
 
     const clearCommitTimer = () => {
 
@@ -213,13 +222,15 @@ const SplitInput = ({
 
     return (
         <>
-            {values.map((item, index) => (
-                <Fragment key={index}>
+            {values.map((item, index) => {
+                const isMaskedInput = maskLast && index === values.length - 1;
+                const input = (
                     <input
                         {...props}
+                        type="text"
                         autoComplete="off"
                         ref={el => inputRefs.current[index] = el}
-                        className={`wa-input ${inputClassName}`}
+                        className={`wa-input ${inputClassName} ${isMaskedInput && !showLastValue ? 'wa-text-masked' : ''}`}
                         value={fixedValues[index] !== undefined ? fixedValues[index] : item}
                         maxLength={lengths[index]}
                         readOnly={readOnly || fixedValues[index] !== undefined}
@@ -229,12 +240,31 @@ const SplitInput = ({
                         onCompositionStart={handleCompositionStart}
                         onCompositionEnd={handleCompositionEnd}
                     />
+                );
 
-                    {index < values.length - 1 && (
-                        <span className="wa-dash">{separator}</span>
-                    )}
-                </Fragment>
-            ))}
+                return (
+                    <Fragment key={index}>
+                        {isMaskedInput ? (
+                            <span className="wa-masked-input">
+                                <button
+                                    type="button"
+                                    className="wa-mask-toggle"
+                                    aria-label={showLastValue ? '주민번호 뒷자리 숨기기' : '주민번호 뒷자리 보기'}
+                                    aria-pressed={showLastValue}
+                                    onClick={() => setShowLastValue(current => !current)}
+                                >
+                                    {showLastValue ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </button>
+                                {input}
+                            </span>
+                        ) : input}
+
+                        {index < values.length - 1 && (
+                            <span className="wa-dash">{separator}</span>
+                        )}
+                    </Fragment>
+                );
+            })}
         </>
     );
 };

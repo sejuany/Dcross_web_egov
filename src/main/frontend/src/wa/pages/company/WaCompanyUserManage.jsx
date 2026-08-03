@@ -21,13 +21,13 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 const WA_MEMBER_GB_OPTIONS = [
     { code: 'T', name: '전체' },
     { code: 'CA', name: 'Admin' },
-    { code: 'BA', name: 'Super sp' },
+    { code: 'BA', name: 'Space 관리자' },
     { code: 'SU', name: 'sp' },
 ];
 
 const WA_MEMBER_GB_EDIT_OPTIONS = [
     { code: 'CA', name: 'Admin' },
-    { code: 'BA', name: 'Super sp' },
+    { code: 'BA', name: 'Space 관리자' },
     { code: 'SU', name: 'sp' },
 ];
 
@@ -643,17 +643,25 @@ function WaCompanyUserManage() {
         }));
     };
 
-    const handleReload = async () => {
-		initializedKeyRef.current = '';
-        setUserList([]);
-        setSelectedIndex(-1);
-        setDetail(createEmptyDetail());
-        setWorkPerms(createDefaultWorkPerms());
-        setBranchWorkInfo({});
+	const handleReset = async () => {
+	    const resetSearchForm = {
+	        BRANCH_ID: isBranchAdmin ? loginBranchId : '',
+	        MEMBER_NM: '',
+	        ST_DATE: addDays(-3000),
+	        ED_DATE: getToday(),
+	        USE_YN: 'A',
+	        MEMBER_GB: 'T',
+	    };
 
-        await loadBranchOptions();
-        await handleSearch();
-    };
+	    setSearchForm(resetSearchForm);
+	    setUserList([]);
+	    setSelectedIndex(-1);
+	    setDetail(createEmptyDetail());
+	    setWorkPerms(createDefaultWorkPerms());
+	    setBranchWorkInfo({});
+
+	    await handleSearch(resetSearchForm);
+	};
 
     const buildSavePayload = (pwdResetYn = 'N') => {
         if (!selectedUser) {
@@ -1013,7 +1021,7 @@ function WaCompanyUserManage() {
 
 						<div className="wum-search-actions">
 						    <button type="button" onClick={() => handleSearch()}><UsersRound size={15} />조회</button>
-						    <button type="button" onClick={handleReload}><RefreshCw size={15} />새로고침</button>
+						    <button type="button" onClick={handleReset}><RotateCcw size={15} />초기화</button>
 						</div>
                     </div>
                 </section>
@@ -1069,11 +1077,6 @@ function WaCompanyUserManage() {
                         </label>
 
                         <label>
-                            <span>전화번호</span>
-                            <input value={detail.TEL_NO} readOnly />
-                        </label>
-
-                        <label>
                             <span>휴대폰번호</span>
                             <input value={detail.MPHONE_NO} readOnly />
                         </label>
@@ -1111,7 +1114,14 @@ function WaCompanyUserManage() {
                                 name: 'detailUseYn',
                                 value: detail.USE_YN,
                                 options: USE_YN_EDIT_OPTIONS,
-                                onChange: (event) => setDetail(prev => ({ ...prev, USE_YN: event.target.value })),
+								onChange: (event) => {
+								    const value = event.target.value;
+								    setDetail(prev => ({ ...prev, USE_YN: value }));
+
+								    if (value === 'Y') {
+								        setWorkPerms(prev => ({ ...prev, NEWCAR_USE: 'Y', NEWCAR_PERM: 'C' }));
+								    }
+								},
                                 disabled: !selectedUser,
                             })}
                         </div>

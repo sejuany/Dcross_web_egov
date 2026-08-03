@@ -175,6 +175,27 @@ const OwnerUserLease = ({
 
 			</div>
 			
+			{/* INPUT 리스사인 경우에만 표시 */}
+			{currentCompany?.BASE_NM === '직접입력' && (
+				
+			<div className="wa-form-row">
+			    <div className="wa-form-label-wrap">
+			        <label className="wa-form-label">리스사명</label>
+			    </div>
+			    <div className="wa-form-control">
+			        <input
+			            className="wa-input wa-disabled"
+			            autoComplete="off"
+			            name="DEBTOR_NM"
+			            data-type="owner"
+			            value={dsOwnerInfo.DEBTOR_NM ?? ''}
+			            onChange={handleChange}
+			            placeholder="리스사명을 입력하세요"
+			        />
+			    </div>
+			</div>
+			)}
+			
 			{/* 그 외 캐피탈 선택 모달창 */}
 			{showLeaseModal && (
 				<LeaseCompanyModal
@@ -263,6 +284,7 @@ const OwnerUserLease = ({
 						<SplitInput
 						    value={dsNewCar.REG_NO}
 						    lengths={[6, 7]}
+							maskLast={['R', 'F'].includes(dsNewCar.REG_GB)}
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,
