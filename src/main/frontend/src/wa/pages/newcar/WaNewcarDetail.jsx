@@ -1,9 +1,9 @@
 import  React, {useState} from 'react';
 
 import axios from 'axios';
-import { CalendarDays, CarFront, FileText, LoaderCircle, UserRound, Search } from 'lucide-react';
+import { CalendarDays, CarFront, FileText, LoaderCircle, UserRound, Search, X } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import '../../styles/WaNewcarDetail.css';
 // 첨부서류 모달
@@ -39,6 +39,7 @@ const getPaymentRowClass = (payKd) => {
 };
 
 const WaNewcarDetail = ({
+	embedded = false,
     dsService,
     dsNewCar,
     dsOwnerInfo,
@@ -66,8 +67,18 @@ const WaNewcarDetail = ({
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
 	const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const serviceId = searchParams.get('serviceId');
+
+	const handleClose = () => {
+		if (onClose) {
+			onClose();
+			return;
+		}
+
+		navigate('/wa/newcar-status');
+	};
 	
 	// 영수증
 	const handleReceipt = () => {
@@ -272,7 +283,15 @@ const WaNewcarDetail = ({
 			    </div>
 			)}
 			
-			<div className="wa-request-card detail">
+			<div className={`wa-request-card detail${embedded ? ' embedded' : ''}`}>
+				<button
+					type="button"
+					className="wa-detail-top-close"
+					onClick={handleClose}
+					aria-label="상세 화면 닫기"
+				>
+					<X size={20} aria-hidden="true" />
+				</button>
 	
 				{/* 처리상태 / 반려사유 */}
 				<div className="wa-detail-header">
@@ -780,7 +799,7 @@ const WaNewcarDetail = ({
 					<button
 	                    type="button"
 	                    className="wa-btn-primary"
-	                    onClick={onClose}
+	                    onClick={handleClose}
 	                >
 	                    닫기
 	                </button>

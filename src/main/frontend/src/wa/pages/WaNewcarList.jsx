@@ -350,6 +350,8 @@ const WaNewcarList = () => {
 	const [changeUser, setChangeUser] = useState(null);
 	const [userList, setUserList] = useState([]);
     const fileInputRef = useRef(null);
+	const gridPanelRef = useRef(null);
+	const [gridPanelHeight, setGridPanelHeight] = useState(null);
     const searchStartLimitDate = getSearchStartLimitDate();
 	// 더블클릭 했을 때 해당 건으로 들어가기 위해
 	const [clickTimer, setClickTimer] = useState(null);
@@ -452,7 +454,8 @@ const WaNewcarList = () => {
             SPACE: row.SPACE || '',
             DELIVERY_ADDR: row.DELIVERY_ADDR || '',
             MEMBER_ID: row.MEMBER_ID || '',
-            RETURN_TX: row.RETURN_TX || ''
+            RETURN_TX: row.RETURN_TX || '',
+            CAR_NM: row.CAR_NM || ''
         };
 
         return {
@@ -525,9 +528,7 @@ const WaNewcarList = () => {
 	const mobileDetailFilterCount = [
 		!isSpaceFixed && searchFilters.spaceType,
 		searchFilters.plateDeliveryStatus,
-		searchFilters.ownerName,
-		searchFilters.carKeyword,
-		searchFilters.orderNo
+		searchFilters.carKeyword
 	].filter(Boolean).length;
 	const activeMobileFilters = mobileFilterDraft || searchFilters;
 
@@ -667,9 +668,7 @@ const WaNewcarList = () => {
 			...(prev || searchFilters),
 			spaceType: isSpaceFixed ? userBranchId : '',
 			plateDeliveryStatus: '',
-			ownerName: '',
-			carKeyword: '',
-			orderNo: ''
+			carKeyword: ''
 		}));
 	};
 
@@ -1257,9 +1256,51 @@ const WaNewcarList = () => {
 
 	const pageHasModal = Boolean(activeRequest || showRequestConfirm || mobileFilterOpen);
 	
+	useLayoutEffect(() => {
+	    let frameId = null;
+
+	    const updateGridHeight = () => {
+	        if (frameId) cancelAnimationFrame(frameId);
+
+	        frameId = requestAnimationFrame(() => {
+	            if (!gridPanelRef.current) return;
+
+	            const viewportHeight = window.visualViewport?.height || window.innerHeight;
+	            const gridTop = gridPanelRef.current.getBoundingClientRect().top;
+	            const availableHeight = viewportHeight - gridTop - 12;
+
+	            if (availableHeight < 220) {
+	                setGridPanelHeight(420);
+	                return;
+	            }
+
+	            setGridPanelHeight(Math.min(620, availableHeight));
+	        });
+	    };
+
+	    updateGridHeight();
+
+	    window.addEventListener('resize', updateGridHeight);
+	    window.visualViewport?.addEventListener('resize', updateGridHeight);
+
+	    const resizeObserver = new ResizeObserver(updateGridHeight);
+
+	    if (gridPanelRef.current?.parentElement) {
+	        resizeObserver.observe(gridPanelRef.current.parentElement);
+	    }
+
+	    return () => {
+	        if (frameId) cancelAnimationFrame(frameId);
+	        window.removeEventListener('resize', updateGridHeight);
+	        window.visualViewport?.removeEventListener('resize', updateGridHeight);
+	        resizeObserver.disconnect();
+	    };
+	}, [rawRows.length]);
+
     return (
         <div className={`wa-status-page wa-newcar-list-page${pageHasModal ? ' has-modal' : ''}${selectedRows.length > 0 ? ' has-mobile-selection' : ''}`}>
             <div className="wa-status-page-content" aria-hidden={pageHasModal ? 'true' : undefined}>
+            <div className="wa-mobile-sticky-controls">
             <section className="wa-mobile-list-toolbar" aria-label="모바일 신규신청현황 조회 조건">
                 <div className="wa-mobile-period-row">
                     <select name="dateType" value={searchFilters.dateType} onChange={handleFilterChange} aria-label="기준일자">
@@ -1269,6 +1310,11 @@ const WaNewcarList = () => {
                     </select>
                     <input type="date" name="startDate" value={searchFilters.startDate} min={searchStartLimitDate} onChange={handleFilterChange} aria-label="조회 시작일" />
                     <input type="date" name="endDate" value={searchFilters.endDate} onChange={handleFilterChange} aria-label="조회 종료일" />
+                </div>
+
+                <div className="wa-mobile-keyword-row">
+                    <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} placeholder="계약자명" aria-label="계약자명" autoComplete="off" />
+                    <input type="text" name="orderNo" value={searchFilters.orderNo} onChange={handleFilterChange} placeholder="주문번호" aria-label="주문번호" autoComplete="off" />
                 </div>
 
                 <div className="wa-mobile-toolbar-actions">
@@ -1301,6 +1347,30 @@ const WaNewcarList = () => {
                     </details>
                 </div>
             </section>
+
+            <nav className="wa-mobile-status-chips" aria-label="처리상태 필터">
+                {processStatusOptions.map(option => (
+                    <button
+                        key={option.value || 'ALL'}
+                        type="button"
+                        className={searchFilters.processStatus === option.value ? 'active' : ''}
+                        aria-pressed={searchFilters.processStatus === option.value}
+                        onClick={() => handleMobileProcessStatus(option.value)}
+                        disabled={loading}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </nav>
+
+            <div className="wa-mobile-result-heading">
+                <strong>검색 결과 총 {rows.length}건</strong>
+                <label>
+                    <input type="checkbox" checked={allRowsSelected} onChange={event => toggleAllRows(event.target.checked)} />
+                    <span>전체 선택</span>
+                </label>
+            </div>
+            </div>
 
             <section className="wa-status-top-toolbar" aria-label="신규신청현황 조회 조건">
                 <section className="wa-status-period-panel" aria-label="조회 기간">
@@ -1347,21 +1417,6 @@ const WaNewcarList = () => {
                 ))}
             </section>
 
-            <nav className="wa-mobile-status-chips" aria-label="처리상태 필터">
-                {processStatusOptions.map(option => (
-                    <button
-                        key={option.value || 'ALL'}
-                        type="button"
-                        className={searchFilters.processStatus === option.value ? 'active' : ''}
-                        aria-pressed={searchFilters.processStatus === option.value}
-                        onClick={() => handleMobileProcessStatus(option.value)}
-                        disabled={loading}
-                    >
-                        {option.label}
-                    </button>
-                ))}
-            </nav>
-
             <section className="wa-status-filter-panel" aria-label="검색 조건">
                 <label className="wa-status-field">
                     <span>SPACE 구분</span>
@@ -1406,7 +1461,7 @@ const WaNewcarList = () => {
                 </label>
             </section>
 
-            <section className="wa-status-grid-panel" aria-label="신규신청현황 목록">
+			<section ref={gridPanelRef} className="wa-status-grid-panel" aria-label="신규신청현황 목록" style={gridPanelHeight ? { height: `${gridPanelHeight}px`, maxHeight: 'none' } : undefined}>
                 <section className="wa-status-heading">
 					<div className="wa-status-actions" aria-label="목록 처리 버튼">
 					    {gridActionButtons
@@ -1450,14 +1505,6 @@ const WaNewcarList = () => {
 
                 {isMobileView && (
                     <>
-                        <div className="wa-mobile-result-heading">
-                            <strong>검색 결과 총 {rows.length}건</strong>
-                            <label>
-                                <input type="checkbox" checked={allRowsSelected} onChange={event => toggleAllRows(event.target.checked)} />
-                                <span>전체 선택</span>
-                            </label>
-                        </div>
-
                         <div className="wa-mobile-newcar-list">
                             {loading ? (
                                 <div className="wa-mobile-list-empty">조회 중입니다.</div>
@@ -1489,13 +1536,34 @@ const WaNewcarList = () => {
                                                 <strong>{row.displayValues.LINK_ID || '-'}</strong>
                                             </span>
                                             <span className="wa-mobile-card-field">
+                                                <small>담당SP명</small>
+                                                <strong>{row.displayValues.MEMBER_ID || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
                                                 <small>소유자명</small>
-                                                <strong>{row.displayValues.OWNER_NM || row.displayValues.CUSTOMER_NM || '-'}</strong>
+                                                <strong>{row.displayValues.OWNER_NM || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>SPACE</small>
+                                                <strong>{row.displayValues.SPACE || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>계약자명</small>
+                                                <strong>{row.displayValues.CUSTOMER_NM || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>공급가액</small>
+                                                <strong>{row.displayValues.BUY_AMT || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field wide">
+                                                <small>차명</small>
+                                                <strong>{row.displayValues.CAR_NM  || '-'}</strong>
                                             </span>
                                             <span className="wa-mobile-card-field wide">
                                                 <small>차대번호</small>
                                                 <strong>{row.displayValues.CARID_NO || '-'}</strong>
                                             </span>
+
                                             {!directRegistration && <ChevronRight size={20} aria-hidden="true" />}
                                         </button>
                                     </article>
@@ -1624,18 +1692,8 @@ const WaNewcarList = () => {
                             </label>
 
                             <label>
-                                <span>소유자명(계약자명)</span>
-                                <input type="text" name="ownerName" value={activeMobileFilters.ownerName} onChange={handleMobileFilterChange} placeholder="이름 입력" autoComplete="off" />
-                            </label>
-
-                            <label>
                                 <span>차량/차대번호</span>
                                 <input type="text" name="carKeyword" value={activeMobileFilters.carKeyword} onChange={handleMobileFilterChange} placeholder="차량번호 또는 차대번호 입력" autoComplete="off" />
-                            </label>
-
-                            <label>
-                                <span>주문번호</span>
-                                <input type="text" name="orderNo" value={activeMobileFilters.orderNo} onChange={handleMobileFilterChange} placeholder="주문번호 입력" autoComplete="off" />
                             </label>
                         </div>
 

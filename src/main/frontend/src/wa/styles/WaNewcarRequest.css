@@ -247,6 +247,10 @@
  * Step
  * ========================================================= */
 
+.wa-mobile-request-progress {
+    display: none;
+}
+
 .simple-step-wrap {
     position: relative;
     display: flex;
@@ -257,6 +261,10 @@
     position: relative;
     flex: 1;
     height: 64px;
+	padding: 0;
+	border: 0;
+	background: transparent;
+	font-family: inherit;
 
     display: flex;
     justify-content: center;
@@ -2471,4 +2479,660 @@ hr.wa-divider.hr2 {
     .wa-sms-phone-row input:nth-of-type(3) {
         width: 82px;
     }
+}
+
+/* =========================================================
+ * Mobile request shell
+ * 단계별 입력 폼과 업무 로직은 유지하고 공통 화면 골격만 모바일에 맞춘다.
+ * ========================================================= */
+@media (max-width: 760px) {
+    .wa-request-page {
+        min-width: 0;
+    }
+
+    .wa-request-page .wa-request-card {
+        overflow: visible;
+        border-radius: 0;
+        box-shadow: none;
+    }
+
+    .wa-mobile-request-progress {
+        position: sticky;
+        top: 104px;
+        z-index: 40;
+        display: block;
+        padding: 12px 14px 10px;
+        border-bottom: 1px solid var(--wa-line);
+        background: #fff;
+    }
+
+    .wa-request-page.embedded .wa-mobile-request-progress {
+        top: 0;
+    }
+
+    .wa-mobile-request-progress-heading {
+        display: flex;
+        align-items: center;
+        gap: 9px;
+        margin-bottom: 9px;
+        color: var(--wa-text);
+    }
+
+    .wa-mobile-request-progress-heading span {
+        flex: 0 0 auto;
+        padding: 3px 8px;
+        border-radius: 999px;
+        background: #edf4ff;
+        color: var(--wa-blue);
+        font-size: 12px;
+        font-weight: 800;
+    }
+
+    .wa-mobile-request-progress-heading strong {
+        flex: 1 1 auto;
+        min-width: 0;
+        overflow: hidden;
+        font-size: 15px;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .wa-mobile-request-close {
+        flex: 0 0 36px;
+        width: 36px;
+        height: 36px;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        padding: 0;
+        border: 1px solid var(--wa-line-strong);
+        border-radius: 9px;
+        background: #fff;
+        color: #344054;
+        cursor: pointer;
+    }
+
+    .wa-mobile-request-close:focus-visible {
+        outline: 3px solid rgba(47, 109, 246, 0.3);
+        outline-offset: 2px;
+    }
+
+    .wa-mobile-request-progress-track {
+        height: 4px;
+        overflow: hidden;
+        border-radius: 999px;
+        background: #e8edf5;
+    }
+
+    .wa-mobile-request-progress-track span {
+        display: block;
+        height: 100%;
+        border-radius: inherit;
+        background: var(--wa-blue);
+        transition: width 0.2s ease;
+    }
+
+    .simple-step-wrap {
+        display: none;
+    }
+
+    .simple-summary {
+        grid-template-columns: none;
+        grid-auto-flow: column;
+        grid-auto-columns: minmax(190px, 72vw);
+        gap: 8px;
+        margin: 12px 10px;
+        padding-bottom: 4px;
+        overflow-x: auto;
+        overscroll-behavior-x: contain;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        scrollbar-width: none;
+        scroll-snap-type: x proximity;
+        touch-action: pan-x;
+    }
+
+    .simple-summary::-webkit-scrollbar {
+        display: none;
+    }
+
+    .simple-summary .summary-item,
+    .simple-summary .summary-item:last-child {
+        min-width: 0;
+        padding: 12px;
+        border: 1px solid var(--wa-line);
+        border-radius: 12px;
+        background: #fff;
+        scroll-snap-align: start;
+    }
+
+    .simple-summary .summary-item > div:last-child {
+        min-width: 0;
+    }
+
+    .simple-summary .summary-value {
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .wa-form-actions {
+        position: sticky;
+        bottom: 0;
+        z-index: 50;
+        gap: 8px;
+        margin: 0;
+        padding: 10px 12px calc(10px + env(safe-area-inset-bottom));
+        border-top: 1px solid var(--wa-line);
+        background: #fff;
+        box-shadow: 0 -8px 20px rgba(15, 39, 80, 0.08);
+    }
+
+    .wa-form-actions .wa-action-btn {
+        min-height: 48px;
+    }
+
+    .wa-form-actions .wa-prev-btn {
+        flex: 0 0 92px;
+        width: auto;
+    }
+
+    .wa-form-actions .wa-confirm-btn {
+        min-width: 0;
+    }
+
+    .wa-form-actions .wa-save-btn {
+        flex: 0 0 84px;
+        width: auto;
+    }
+
+    /* 모달 안에서는 모달 본문 하나만 스크롤 영역으로 사용한다. */
+    .wa-request-modal-body:has(.wa-request-page) {
+        padding: 0;
+    }
+}
+
+/* =========================================================
+ * Mobile form layout
+ * 기존 입력 컴포넌트를 재사용하면서 라벨과 입력 영역만 모바일 흐름으로 배치한다.
+ * ========================================================= */
+@media (max-width: 760px) {
+    .wa-request-page .wa-title {
+        display: none;
+    }
+
+    .wa-request-page .wa-bold-span1 {
+        margin: 16px 14px 8px;
+        color: #667085;
+        font-size: 13px;
+        line-height: 1.5;
+    }
+
+    .wa-request-page .wa-owner-tabs {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 6px;
+        margin: 0 12px 16px;
+        padding: 6px;
+        border-radius: 16px;
+    }
+
+    .wa-request-page .wa-owner-tabs button {
+        min-width: 0;
+        height: 44px;
+        border-radius: 11px;
+        font-size: 14px;
+    }
+
+    .wa-request-page .wa-form-body,
+    .wa-request-page .simple-content {
+        padding: 18px 14px 24px;
+    }
+
+    .wa-request-page .wa-form-row,
+    .wa-request-page .wa-form-row.compact,
+    .wa-request-page .wa-receipt-panel > .wa-form-row,
+    .wa-request-page .wa-conditional-panel .wa-form-row {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 7px;
+        margin-bottom: 18px;
+    }
+
+    .wa-request-page .wa-form-label,
+    .wa-request-page .wa-form-label-wrap {
+        justify-self: stretch;
+        align-items: flex-start;
+        text-align: left;
+    }
+
+    .wa-request-page .wa-form-label {
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .wa-request-page .wa-form-label-wrap {
+        gap: 5px;
+    }
+
+    .wa-request-page .wa-form-sub-label {
+        margin-top: 0;
+        font-size: 13px;
+    }
+
+    .wa-request-page .wa-form-control,
+    .wa-request-page .wa-inline-group,
+    .wa-request-page .wa-inline-group > .wa-input,
+    .wa-request-page .wa-inline-group > .wa-masked-input {
+        min-width: 0;
+    }
+
+    /* 휴대폰번호·주민번호 등 분할 입력은 작은 화면에서도 한 줄을 유지한다. */
+    .wa-request-page .wa-inline-group {
+        flex-wrap: nowrap;
+        gap: 7px;
+    }
+
+    /* 등록번호처럼 선택박스와 분할 입력이 함께 있으면 선택박스만 윗줄로 보낸다. */
+    .wa-request-page .wa-form-control > .wa-inline-group:has(> .wa-select:not(:only-child)) {
+        flex-wrap: wrap;
+    }
+
+    .wa-request-page .wa-form-control > .wa-inline-group:has(> .wa-select:not(:only-child)) > .wa-select:first-child {
+        flex: 1 0 100%;
+        width: 100%;
+    }
+
+    .wa-request-page .wa-input,
+    .wa-request-page .wa-select {
+        min-width: 0;
+        height: 48px;
+        padding-right: 12px;
+        padding-left: 12px;
+        font-size: 16px;
+    }
+
+    .wa-request-page .wa-masked-input .wa-input {
+        padding-left: 46px;
+    }
+
+    .wa-request-page .wa-search-btn,
+    .wa-request-page .wa-number-btn,
+    .wa-request-page .wa-option-btn,
+    .wa-request-page .wa-radio-btn,
+    .wa-request-page .wa-lease-btn,
+    .wa-request-page .wa-check-btn,
+    .wa-request-page .wa-sub-btn,
+    .wa-request-page .wa-joint-btn {
+        min-height: 48px;
+        touch-action: manipulation;
+    }
+
+    .wa-request-page .wa-inline-group:has(> .wa-lease-btn) {
+        flex-wrap: wrap;
+    }
+
+    .wa-request-page .wa-inline-group > .wa-lease-btn {
+        flex: 1 0 100%;
+        width: 100%;
+    }
+
+    .wa-request-page .wa-select-stack,
+    .wa-request-page .wa-tax-receipt-grid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+
+    .wa-request-page .wa-refund-group {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .wa-request-page .wa-refund-group .wa-select,
+    .wa-request-page .wa-refund-group .refund-owner {
+        flex: 0 0 auto !important;
+    }
+
+    .wa-request-page .wa-refund-group .wa-input {
+        flex: 0 0 52px;
+        width: 100% !important;
+        height: 52px;
+    }
+
+    .wa-request-page .wa-conditional-panel {
+        margin: 0 0 18px;
+        padding: 14px 12px 0;
+    }
+
+    .wa-request-page .wa-receipt-panel {
+        margin-top: 12px;
+        padding: 14px 12px;
+    }
+
+    .wa-request-page .wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-control > .wa-inline-group {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+
+    .wa-request-page .wa-receipt-phone-presets {
+        justify-content: flex-start;
+        flex-wrap: wrap;
+        gap: 10px 16px;
+        margin-bottom: 14px;
+    }
+
+    .wa-request-page .wa-estimate-total {
+        align-items: center;
+    }
+
+    .wa-request-page .wa-acq-reduction-title {
+        align-items: flex-start;
+    }
+
+    .wa-request-page .wa-estimate-total strong {
+        font-size: 18px;
+    }
+
+    .wa-request-page .wa-payment-table {
+        width: calc(100% - 20px);
+        margin: 10px;
+    }
+
+    .wa-request-page .wa-confirm-body {
+        padding: 8px 12px 24px;
+    }
+
+    .wa-request-page .wa-confirm-card {
+        margin-bottom: 12px;
+        padding: 16px 14px;
+        border-radius: 14px;
+    }
+
+    .wa-request-page .wa-confirm-item {
+        grid-template-columns: 108px minmax(0, 1fr);
+        gap: 8px;
+    }
+
+    .wa-request-page .wa-confirm-item strong,
+    .wa-request-page .wa-confirm-guide {
+        min-width: 0;
+        overflow-wrap: anywhere;
+        white-space: normal;
+    }
+
+    .wa-request-page .wa-confirm-guide {
+        margin-left: 0;
+    }
+
+    .wa-request-page .wa-owner-wrap {
+        flex-direction: column;
+        gap: 12px;
+    }
+
+    .wa-request-page .wa-owner-box + .wa-owner-box {
+        padding-top: 12px;
+        padding-left: 0;
+        border-top: 1px solid #e5e5e5;
+        border-left: 0;
+    }
+
+    .wa-request-page .wa-address-item {
+        gap: 10px;
+        padding: 14px 12px;
+    }
+}
+
+/* =========================================================
+ * Mobile dialogs and auxiliary content
+ * 작은 화면에서는 신규등록 관련 팝업을 하단 시트 형태로 통일한다.
+ * ========================================================= */
+@media (max-width: 760px) {
+    .wa-attach-modal-backdrop,
+    .wa-sms-modal-backdrop {
+        align-items: flex-end;
+        padding: 0;
+    }
+
+    .wa-request-modal-body,
+    .wa-attach-modal-body,
+    .wa-sms-modal-body {
+        overscroll-behavior: contain;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .wa-attach-modal,
+    .wa-notice-modal,
+    .wa-exemption-warning-modal,
+    .wa-reject-modal,
+    .wa-sms-modal {
+        width: 100%;
+        max-width: none;
+        max-height: calc(100dvh - 20px);
+        border-width: 1px 0 0;
+        border-radius: 18px 18px 0 0;
+    }
+
+    .wa-attach-modal-header,
+    .wa-exemption-warning-modal .wa-attach-modal-header,
+    .wa-reject-modal .wa-attach-modal-header,
+    .wa-sms-modal-header {
+        min-height: 52px;
+        padding: 8px 14px;
+    }
+
+    .wa-attach-modal-header h3,
+    .wa-exemption-warning-modal .wa-attach-modal-header h3,
+    .wa-reject-modal .wa-attach-modal-header h3 {
+        font-size: 17px;
+    }
+
+    .wa-attach-modal-close,
+    .wa-sms-modal-close {
+        width: 40px;
+        height: 40px;
+    }
+
+    .wa-attach-modal-body,
+    .wa-notice-body,
+    .wa-exemption-warning-body,
+    .wa-reject-modal-body,
+    .wa-sms-modal-body {
+        padding: 18px 16px calc(18px + env(safe-area-inset-bottom));
+    }
+
+    .wa-attach-doc-line,
+    .wa-attach-doc-line.sub {
+        grid-template-columns: 90px minmax(0, 1fr) 18px;
+        gap: 8px;
+    }
+
+    .wa-attach-doc-label,
+    .wa-attach-doc-state {
+        font-size: 12px;
+        overflow-wrap: anywhere;
+    }
+
+    .wa-attach-doc-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 12px;
+    }
+
+    .wa-attach-btn-div {
+        flex-wrap: wrap;
+        gap: 10px;
+        margin-top: 20px;
+    }
+
+    .wa-attach-btn-div > button,
+    .wa-attach-merge-btn,
+    .wa-attach-link-btn,
+    .wa-notice-modal .wa-attach-btn-div button {
+        width: 100%;
+        min-width: 0;
+        min-height: 46px;
+    }
+
+    .wa-exemption-warning-highlight {
+        font-size: 18px;
+    }
+
+    .wa-exemption-warning-main {
+        font-size: 16px;
+        line-height: 1.5;
+    }
+
+    .wa-exemption-warning-example,
+    .wa-eco-exemption-list {
+        padding: 12px;
+        font-size: 14px;
+        text-align: left;
+    }
+
+    .wa-reject-summary {
+        grid-template-columns: minmax(0, 1fr);
+        gap: 7px;
+    }
+
+    .wa-reject-summary-box {
+        white-space: normal;
+        overflow-wrap: anywhere;
+    }
+
+    .wa-reject-modal-body > p {
+        margin-bottom: 18px;
+        font-size: 15px;
+    }
+
+    .wa-reject-modal-reason {
+        min-height: 100px;
+        padding: 14px;
+        border-radius: 12px;
+    }
+
+    .wa-reject-modal-confirm {
+        width: 100%;
+        min-height: 48px;
+        margin-top: 20px;
+    }
+}
+
+/* =========================================================
+ * Tablet layout and final responsive safeguards
+ * ========================================================= */
+.wa-request-page {
+    scroll-margin-top: 60px;
+}
+
+@media (min-width: 761px) and (max-width: 1024px) {
+    .wa-request-page {
+        width: min(100%, 760px);
+        min-width: 0;
+    }
+
+    .wa-request-page .simple-step {
+        gap: 6px;
+        padding: 0 6px;
+        font-size: 13px;
+    }
+
+    .wa-request-page .simple-summary {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        margin: 20px 24px;
+    }
+
+    .wa-request-page .summary-item:nth-child(2) {
+        border-right: 0;
+    }
+
+    .wa-request-page .summary-item:nth-child(-n + 2) {
+        border-bottom: 1px solid var(--wa-line);
+    }
+
+    .wa-request-page .wa-owner-tabs {
+        margin-right: 24px;
+        margin-left: 24px;
+    }
+
+    .wa-request-page .wa-bold-span1 {
+        margin-right: 30px;
+        margin-left: 30px;
+    }
+
+    .wa-request-page .wa-form-body,
+    .wa-request-page .simple-content {
+        padding-right: 30px;
+        padding-left: 30px;
+    }
+
+    .wa-request-page .wa-form-row {
+        grid-template-columns: 120px minmax(0, 1fr);
+        gap: 16px;
+    }
+
+    .wa-request-page .wa-conditional-panel .wa-form-row,
+    .wa-request-page .wa-form-row.compact,
+    .wa-request-page .wa-receipt-panel > .wa-form-row {
+        grid-template-columns: 110px minmax(0, 1fr);
+        gap: 12px;
+    }
+
+    .wa-request-page .wa-receipt-panel {
+        --wa-receipt-offset: 136px;
+    }
+
+    .wa-request-page .wa-confirm-body {
+        padding: 18px 24px;
+    }
+
+    .wa-request-page .wa-form-actions {
+        margin-right: 24px;
+        margin-left: 24px;
+    }
+}
+
+@media (max-width: 760px) {
+    .wa-request-page {
+        scroll-margin-top: 104px;
+    }
+}
+
+@media (max-width: 420px) {
+    .wa-request-page:not(.embedded) .wa-mobile-request-progress {
+        top: 100px;
+    }
+
+    .wa-request-page {
+        scroll-margin-top: 100px;
+    }
+
+    .simple-summary {
+        grid-auto-columns: minmax(180px, 78vw);
+    }
+
+    .wa-request-page .wa-address-item {
+        flex-direction: column;
+    }
+
+    .wa-request-page .wa-address-select-btn {
+        width: 100%;
+        margin: 4px 0 0;
+    }
+
+    .wa-request-page .wa-confirm-item {
+        grid-template-columns: 96px minmax(0, 1fr);
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .wa-mobile-request-progress-track span,
+    .simple-step,
+    .step-circle,
+    .step-indicator {
+        transition: none;
+    }
+}
+
+.simple-step:focus-visible,
+.wa-request-page button:focus-visible {
+    outline: 3px solid rgba(47, 109, 246, 0.35);
+    outline-offset: 2px;
 }

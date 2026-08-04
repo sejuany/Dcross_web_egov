@@ -5,7 +5,7 @@ import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react'
 
 import axios from 'axios';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CalendarDays, CarFront, ChevronLeft, FileText, LoaderCircle, UserRound, CircleAlert } from 'lucide-react';
+import { CalendarDays, CarFront, ChevronLeft, FileText, LoaderCircle, UserRound, CircleAlert, X } from 'lucide-react';
 
 // 공통
 import { gf, log, mapData } from '../../../utils/utils';
@@ -573,6 +573,14 @@ const WaNewcarRequest = ({
 
 	const location = useLocation();
 	const navigate = useNavigate();
+	const handleCloseRequest = useCallback(() => {
+		if (onClose) {
+			onClose();
+			return;
+		}
+
+		navigate('/wa/newcar-status');
+	}, [navigate, onClose]);
 
 	// 접수번호
 	const receiptNo = location.state?.receiptNo ?? '';
@@ -1000,6 +1008,27 @@ const WaNewcarRequest = ({
 		        break;
 		}
 	};
+
+	// 단계 이동이 끝난 뒤 새 단계의 시작 위치를 보여준다.
+	// 모달에서는 모달 본문만, 일반 화면에서는 신청 페이지 위치만 이동한다.
+	const scrollRequestToTop = () => {
+		window.requestAnimationFrame(() => {
+			const page = requestPageRef.current;
+			const behavior = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+				? 'auto'
+				: 'smooth';
+			const modalBody = embedded
+				? page?.closest('.wa-request-modal-body')
+				: null;
+
+			if (modalBody) {
+				modalBody.scrollTo({ top: 0, behavior });
+				return;
+			}
+
+			page?.scrollIntoView({ behavior, block: 'start' });
+		});
+	};
 	
 	/**
 	 * 진행단계 변경과 현재 입력내용 저장을 한 번에 처리한다.
@@ -1107,6 +1136,7 @@ const WaNewcarRequest = ({
 		}
 
 	    setStep(nextStep);
+		scrollRequestToTop();
 
 	    if (
 	        !isDetailPage &&
@@ -2559,6 +2589,7 @@ const WaNewcarRequest = ({
 	if (isDetailPage) {
 	    return (
 	        <WaNewcarDetail 
+				embedded={embedded}
 				dsService={dsService}
 				dsNewCar={dsNewCar}
 				dsOwnerInfo={dsOwnerInfo}
@@ -2631,7 +2662,7 @@ const WaNewcarRequest = ({
 	return (
 		<div
 			ref={requestPageRef}
-			className="wa-request-page"
+			className={`wa-request-page${embedded ? ' embedded' : ''}`}
 			onChangeCapture={clearRequiredFocus}
 			onClickCapture={clearRequiredFocus}
 		>
@@ -2645,19 +2676,47 @@ const WaNewcarRequest = ({
 			
 			<div className="wa-request-card">
 
+				{/* 모바일에서는 현재 단계만 간결하게 보여주고, 기존 단계 이동 로직은 그대로 유지한다. */}
+				<div
+					className="wa-mobile-request-progress"
+					role="progressbar"
+					aria-label={`신규등록 ${step}단계`}
+					aria-valuemin={1}
+					aria-valuemax={REQUEST_STEPS.length}
+					aria-valuenow={step}
+				>
+					<div className="wa-mobile-request-progress-heading">
+						<span>{step} / {REQUEST_STEPS.length}</span>
+						<strong>{REQUEST_STEPS[step - 1].title}</strong>
+						<button
+							type="button"
+							className="wa-mobile-request-close"
+							onClick={handleCloseRequest}
+							aria-label="신규등록 화면 닫기"
+						>
+							<X size={20} aria-hidden="true" />
+						</button>
+					</div>
+					<div className="wa-mobile-request-progress-track" aria-hidden="true">
+						<span style={{ width: `${(step / REQUEST_STEPS.length) * 100}%` }} />
+					</div>
+				</div>
+
 				{/* 진행 단계 */}
 				<div className="simple-step-wrap">
 					{REQUEST_STEPS.map(({ no, label }) => (
-					    <div
+					    <button
 					        key={no}
+							type="button"
 					        className={`simple-step ${step === no ? 'active' : ''}`}
+							aria-current={step === no ? 'step' : undefined}
 					        onMouseEnter={() => setHoverStep(no)}
 					        onMouseLeave={() => setHoverStep(null)}
 					        onClick={() => changeStep(no)}
 					    >
 					        <div className="step-circle">{no}</div>
 					        <span>{label}</span>
-					    </div>
+					    </button>
 					))}
 
 					<div

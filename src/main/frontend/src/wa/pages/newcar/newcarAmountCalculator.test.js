@@ -88,6 +88,26 @@ describe('신규등록 예상금액', () => {
         expect(result.bond).toBe(0);
     });
 
+    test('보훈보상대상자는 취득세를 50% 감면한다', () => {
+        const result = calculateNewcarEstimate({
+            dsNewCar: {
+                CAR_CD: '승용',
+                CAR_CC: 2000,
+                GETIN_NO: 5,
+                FUEL_CD: 'g',
+                BUY_AMT: 100000000,
+                NTAX_TRGET_CD: '14',
+                BOND_DC: 'BUY',
+                BOND_RATE: 0
+            }
+        });
+
+        expect(result.grossAcqTax).toBe(7000000);
+        expect(result.acqReductionAmt).toBe(3500000);
+        expect(result.acqTax).toBe(3500000);
+        expect(result.ntaxApplyCode).toBe('11');
+    });
+
     test('취득세 감면 제외 차종도 일반 공채 면제조건은 별도로 적용한다', () => {
         const result = calculateNewcarEstimate({
             dsNewCar: {

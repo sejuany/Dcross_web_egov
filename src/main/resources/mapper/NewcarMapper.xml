@@ -371,6 +371,7 @@
             END AS NTAX_YN,
             TN.PAY_ST AS PAY_ST,
             TN.PAY_GB AS PAY_GB,
+			TN.CAR_NM AS CAR_NM,
             TO_CHAR(TN.BPAY_DT, 'YYYY-MM-DD') AS BPAY_DT,
             TO_CHAR(TN.PAY_DT, 'YYYY-MM-DD') AS PAY_DT,
             TO_CHAR(TS.INS_DATE, 'YYYY-MM-DD') AS INS_DATE,

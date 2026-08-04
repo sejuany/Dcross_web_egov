@@ -406,6 +406,19 @@ const resolveAcqTaxExemption = ({ dsNewCar, codes, grossAcqTax }) => {
         return unchanged();
     }
 
+    // 보훈보상대상자는 감면 차량조건을 충족하면 취득세의 50%만 면제한다.
+    if (code === '14') {
+        const eligibility = resolveSpecialVehicleEligibility(dsNewCar);
+        return eligibility.eligible
+            ? buildExemptionResult({
+                code,
+                grossAcqTax,
+                payableAcqTax: grossAcqTax * 0.5,
+                reason: '보훈보상대상자 취득세 50% 감면'
+            })
+            : unchanged(eligibility.reason, eligibility.missingRequirements);
+    }
+
     // 프로시저의 일반 비과세 대상: 3자녀·침수·이용자명의리스·2자녀를 제외한 코드.
     if (!['06', '07', '10', '15'].includes(code)) {
         const grade = getNumber(dsNewCar.NTAX_TRGET_GR_CD);

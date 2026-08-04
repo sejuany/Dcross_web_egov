@@ -391,6 +391,7 @@ const PHONE_FIXED_VALUES = ['010'];
 const PHONE_PLACEHOLDERS = ['010', '1234', '5678'];
 const BUSINESS_NO_PART_LENGTHS = [3, 2, 5];
 const BUSINESS_NO_PLACEHOLDERS = ['123', '45', '67890'];
+const removeHangul = (value) => String(value ?? '').replace(/[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uAC00-\uD7AF\uD7B0-\uD7FF]/g, '');
 
 /**
  * 문자 입력 중에는 해당 input만 다시 렌더링하고, 입력이 확정되는 시점에만
@@ -404,6 +405,7 @@ const DeferredInput = memo(({
     name,
     value = '',
     onCommit,
+    sanitizeValue,
     ...inputProps
 }) => {
     // 화면에 보이는 값은 로컬 draft로 관리한다.
@@ -448,14 +450,14 @@ const DeferredInput = memo(({
 
     // 키 입력 시에는 작은 DeferredInput 컴포넌트의 로컬 state만 갱신한다.
     const handleDraftChange = (event) => {
-        const nextValue = event.target.value;
+        const nextValue = sanitizeValue ? sanitizeValue(event.target.value) : event.target.value;
         latestValueRef.current = nextValue;
         setDraftValue(nextValue);
     };
 
     // 한글 조합이 완료되면 완성된 문자열만 상위 state에 반영한다.
     const handleCompositionEnd = (event) => {
-        const nextValue = event.currentTarget.value;
+        const nextValue = sanitizeValue ? sanitizeValue(event.currentTarget.value) : event.currentTarget.value;
         composingRef.current = false;
         latestValueRef.current = nextValue;
         setDraftValue(nextValue);
@@ -1800,6 +1802,7 @@ const NewcarInfo = ({
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL1 ?? ''}
                                                         onCommit={commitTaxReceiptField}
+                                                        sanitizeValue={removeHangul}
                                                         placeholder="example@company.com"
                                                     />
                                                 </div>
@@ -1816,6 +1819,7 @@ const NewcarInfo = ({
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL2 ?? ''}
                                                         onCommit={commitTaxReceiptField}
+                                                        sanitizeValue={removeHangul}
                                                         placeholder="추가 수신 이메일"
                                                     />
                                                 </div>

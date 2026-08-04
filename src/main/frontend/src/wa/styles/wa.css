@@ -1110,7 +1110,7 @@
     width: 100%;
     max-width: 100%;
     min-width: 0;
-    max-height: clamp(300px, 51vh, 620px);
+    min-height: 220px;
     background: #ffffff;
     border: 1px solid var(--wa-line);
     border-radius: 10px;
@@ -2738,6 +2738,7 @@
 /* =========================================================
  * 신규신청현황 모바일 목록
  * ========================================================= */
+.wa-mobile-sticky-controls,
 .wa-mobile-list-toolbar,
 .wa-mobile-status-chips,
 .wa-mobile-result-heading,
@@ -2896,6 +2897,16 @@
         gap: 12px;
     }
 
+    .wa-mobile-sticky-controls {
+        position: sticky;
+        top: 104px;
+        z-index: 18;
+        display: grid;
+        gap: 12px;
+        padding-bottom: 4px;
+        background: #f3f6fa;
+    }
+
     .wa-newcar-list-page .wa-status-top-toolbar,
     .wa-newcar-list-page .wa-status-card-grid,
     .wa-newcar-list-page .wa-status-filter-panel,
@@ -2921,7 +2932,8 @@
     }
 
     .wa-mobile-period-row input,
-    .wa-mobile-period-row select {
+    .wa-mobile-period-row select,
+    .wa-mobile-keyword-row input {
         width: 100%;
         min-width: 0;
         min-height: 44px;
@@ -2932,6 +2944,13 @@
         padding: 0 8px;
         color: #172033;
         font-size: 14px;
+    }
+
+    .wa-mobile-keyword-row {
+        margin-top: 10px;
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
     }
 
     .wa-mobile-toolbar-actions {
@@ -3200,7 +3219,7 @@
     }
 
     .wa-mobile-card-field.primary strong {
-        color: #175cd3;
+        color: #0d4c87;
         font-size: 15px;
     }
 
@@ -3283,6 +3302,12 @@
 
     .wa-newcar-list-page .wa-request-modal-frame {
         max-height: calc(100dvh - 20px);
+    }
+}
+
+@media (max-width: 420px) {
+    .wa-mobile-sticky-controls {
+        top: 100px;
     }
 }
 
