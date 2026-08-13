@@ -5,6 +5,7 @@ import { gf, log } from '../../../../utils/utils';
 
 // 그 외 캐피탈 모달창
 import LeaseCompanyModal from './LeaseCompanyModal';
+import AddressSearch from '../../common/AddressSearch';
 // 분리 입력 (주민번호, 사업자번호, 휴대폰 등)
 import SplitInput from '../../common/SplitInput';
 
@@ -33,7 +34,12 @@ const OwnerLease = ({
 	    '우리금융캐피탈', '산은캐피탈', '비엔케이캐피탈', '엔에이치농협캐피탈', '케이비캐피탈', '오릭스캐피탈', '하나캐피탈'
 	];
 	// 주소 기능 추가
-	const { handleLeaseCompany } = useAddressHandler({ dsNewCar, dsBaseList, setDsNewCar, setDsOwnerInfo });
+	const {
+		handleLeaseCompany,
+		handleAddressSelect,
+		handleSameAddress,
+		handleClearAddress
+	} = useAddressHandler({ dsNewCar, dsBaseList, setDsNewCar, setDsOwnerInfo });
 	
 	// 계약자와 동일
 	const handleSameCustomer = (e) => {
@@ -156,25 +162,87 @@ const OwnerLease = ({
 
 			</div>
 			
-			{/* INPUT 리스사인 경우에만 표시 */}
+			{/* 직접입력 리스사는 TR_NEWCAR의 기존 법인/주소 컬럼에 저장한다. */}
 			{currentCompany?.BASE_NM === '직접입력' && (
-				
-			<div className="wa-form-row">
-			    <div className="wa-form-label-wrap">
-			        <label className="wa-form-label">리스사명</label>
-			    </div>
-			    <div className="wa-form-control">
-			        <input
-			            className="wa-input wa-disabled"
-			            autoComplete="off"
-			            name="OWNER_NM"
-			            data-type="newcar"
-			            value={dsNewCar.OWNER_NM ?? ''}
-			            onChange={handleChange}
-			            placeholder="리스사명을 입력하세요"
-			        />
-			    </div>
-			</div>
+				<>
+					<h3 className="wa-form-section-title">리스사 직접입력 정보</h3>
+
+					<div className="wa-form-row">
+					    <label className="wa-form-label">리스사명</label>
+					    <div className="wa-form-control">
+					        <input
+					            className="wa-input"
+					            autoComplete="off"
+					            name="OWNER_NM"
+					            data-type="newcar"
+					            value={dsNewCar.OWNER_NM ?? ''}
+					            onChange={handleChange}
+					            placeholder="리스사명을 입력하세요"
+					            maxLength={50}
+					        />
+					    </div>
+					</div>
+
+					<div className="wa-form-row">
+					    <label className="wa-form-label">리스사 법인등록번호</label>
+					    <div className="wa-form-control">
+					        <div className="wa-inline-group">
+					            <SplitInput
+					                value={dsNewCar.REG_NO}
+					                lengths={[6, 7]}
+					                inputClassName="wa-number-center"
+					                onChange={value => setDsNewCar(prev => ({ ...prev, REG_GB: 'B', REG_NO: value }))}
+					            />
+					        </div>
+					    </div>
+					</div>
+
+					<div className="wa-form-row">
+					    <label className="wa-form-label">리스사 사업자등록번호</label>
+					    <div className="wa-form-control">
+					        <div className="wa-inline-group">
+					            <SplitInput
+					                value={dsNewCar.BIZ_NO}
+					                lengths={[3, 2, 5]}
+					                inputClassName="wa-number-center"
+					                placeholders={['123', '45', '67890']}
+					                onChange={value => setDsNewCar(prev => ({ ...prev, BIZ_NO: value }))}
+					            />
+					        </div>
+					    </div>
+					</div>
+
+					<AddressSearch
+					    label="리스사 본점 주소"
+					    placeholder="건물, 지번 또는 도로명 검색"
+					    type="ADDRESS"
+					    detailName="ADDRESS_DT"
+					    postName="POST_NO"
+					    dsNewCar={dsNewCar}
+					    handleChange={handleChange}
+					    onSelect={handleAddressSelect}
+					    onClear={handleClearAddress}
+					    addressMaxLength={70}
+					    detailMaxLength={70}
+					/>
+
+					<AddressSearch
+					    label="리스사 사용본거지"
+					    sameLabel="본점 주소"
+					    placeholder="건물, 지번 또는 도로명 검색"
+					    type="BASE_ADDRESS"
+					    detailName="BASE_ADDRESS_DT"
+					    postName="BASE_POST_NO"
+					    dsNewCar={dsNewCar}
+					    handleChange={handleChange}
+					    showSameCheckbox
+					    onSelect={handleAddressSelect}
+					    onClear={handleClearAddress}
+					    onSameChange={handleSameAddress}
+					    addressMaxLength={70}
+					    detailMaxLength={70}
+					/>
+				</>
 			)}
 			
 			{/* 그 외 캐피탈 선택 모달창 */}
@@ -190,6 +258,8 @@ const OwnerLease = ({
 				/>
 			)}
 
+			<hr className="wa-divider" />
+			<h3 className="wa-form-section-title">리스 계약자 정보</h3>
 
 			<div className="wa-form-row">
 
@@ -246,6 +316,7 @@ const OwnerLease = ({
 						        value={dsOwnerInfo.DEBTOR_BIZ_NO}
 						        lengths={[3, 2, 5]}
 						        placeholders={['123', '45', '67890']}
+								inputClassName="wa-number-center"
 						        onChange={value =>
 						            setDsOwnerInfo(prev => ({
 						                ...prev,
@@ -283,6 +354,7 @@ const OwnerLease = ({
 						    lengths={[3, 4, 4]}
 							fixedValues={['010']}
 							placeholders={['010', '1234', '5678']}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsOwnerInfo(prev => ({
 						            ...prev,

@@ -13,6 +13,7 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
 import org.apache.poi.ss.usermodel.DataFormatter;
@@ -47,6 +48,7 @@ import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 
 
@@ -74,6 +76,9 @@ public class NewcarService {
 	public static final String NORMAL = "7";
 	public static final String FILM   = "F";
 	public static final String ETC    = "X";
+	
+	// 번호판 조회 세션 Key
+	private static final String NUMPLATE_SESSION_KEY = "NUMPLATE_LIST";
 
     private final NewcarMapper newcarMapper;
     private final MortgageMapper mortgageMapper;
@@ -1077,19 +1082,20 @@ public class NewcarService {
                 Map<String, Object> detail =
         		newcarMapper.getNewCarDetail(serviceId);
                 
-                String smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
+                String smsText = "안녕하세요. 폴스타 차량의 등록 신청이 관청에 접수되었습니다.\n\n"
                 		+ "주문번호 : " + service.get("LINK_ID") + "\r\n차대번호 : " + detail.get("CARID_NO") + "\r\n\r\n" 
-                        + safeValue(row.get("CAR_NO").toString()) + " 차량의 등록 신청이 관청에 정상 접수되었습니다.\n\n"
                         + "[취득세 감면 대상자 유의사항]\n"
                         + "1. 감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 사유 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n"
                         + "2. 기존 감면과 동일한 감면은 적용할 수 없습니다. 대체 취득의 경우 신규 차량 등록일부터 60일 내에 기존 감면 차량을 말소하거나 소유권을 이전해야 합니다. \r\n\r\n"
                         + "[저공해 차량 대상자 안내사항]\n"
                         + "저공해 차량 등록 정보는 신규 등록을 마친 다음 날부터 무공해차 통합누리집에서 확인하실 수 있습니다.\n\n"
-                        + "※ 본 메시지는 시스템 발신 전용으로 회신이 어렵습니다. 관련 문의 사항은 담당 스페셜리스트에게 문의해 주시면 자세히 안내해 드리겠습니다."
+                        + "[외부 장치용 번호판 수요자 안내사항]\n"
+                        + "외부 장치용 번호판은 신규등록 완료 후 가까운 차량등록관청에 방문하여 외부 장치용 번호판을 신청하실 수 있습니다.\n\n"
+                        + "※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다."
                         + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone); 
                 
                 // 심사요청 문자 발송
-                param.put("PAY_HP_NO", row.get("MPHONE_NO").toString()); // 고객 연락처
+                param.put("PAY_HP_NO", row.get("PAY_HP_NO").toString()); // 결제자 연락처
                 param.put("TEXT", smsText);                   			 // 문자 내용
                 param.put("MSG_TYPE", "3");                  			 // 문자메세지 유형 1:SMS, 3:LMS
                 param.put("SUBJECT", "등록 접수 안내");                  // 문자메세지 제목
@@ -1295,8 +1301,11 @@ public class NewcarService {
 			
 			if (!"W_REQ".equals(beforeProcSt) && "W_REQ".equals(procSt)) {
 			
-				// 감면신청서 생성 및 PDF 병합
-			    if ("Y".equals(mExemption.get("CREATE_YN"))) {
+				// 감면서류 PDF 생성 및 병합
+				// - CREATE_YN : 감면신청서 생성 후 병합
+				// - MERGE_YN  : 감면신청서 없이 증빙서류만 병합
+			    if ("Y".equals(mExemption.get("CREATE_YN")) ||
+			    	"Y".equals(mExemption.get("MERGE_YN"))) {
 			        attachService.mergePdf(serviceId, mExemption);
 			    }
 			    // 미성년자 확인서류 PDF 병합
@@ -1306,44 +1315,44 @@ public class NewcarService {
 			}
 			
 		    // 신청 여부 확인
-		    // 신청 상태: S_WAIT(심사대기), P_REQ(납부요청)
-		    boolean isRequest = "S_WAIT".equals(procSt)|| "P_REQ".equals(procSt);
+		    // 신청 상태: S_WAIT(심사대기), S_REQ(심사요청), P_REQ(납부요청)
+		    boolean isRequest = "S_WAIT".equals(procSt) || "S_REQ".equals(procSt) || "P_REQ".equals(procSt);
 		    logger.info("isRequest : {}",isRequest);
 
 		    if(isRequest) {
 
-			logger.info("PAY_GB : {}", mNewCar.get("PAY_GB"));
-			// 선납건(폴스타 등)은 가상계좌 생성 후 입금 대기 처리
-			if("B".equals(mNewCar.get("PAY_GB"))) {
+				logger.info("PAY_GB : {}", mNewCar.get("PAY_GB"));
+				// 선납건(폴스타 등)은 가상계좌 생성 후 입금 대기 처리
+				if("B".equals(mNewCar.get("PAY_GB")) && "P_REQ".equals(procSt)) {
+	
+					// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
+					try {
+							logger.debug("프로시져 호출 전");
+	
+							input.put("pInput",  input.get("SERVICE_ID"));
+							input.put("pReturn",  "");
+	
+							common.call(input, "processVBank");
+	
+							// OUT 파라미터 확인
+							String pReturn = Objects.toString(input.get("pReturn"), "");
+	
+							logger.debug("프로시져 호출 후 pReturn >> " + pReturn);
+	
+					        if (pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
+					            throw new RuntimeException("가상계좌 발급 실패 : " + pReturn);
+					        }
+	
+						} catch (Exception ex) {
+							logger.error("processVBank 호출 예외", ex);
+							// 예외를 던지면 @Transactional 메서드에서 롤백됩니다.
+							throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
+						}
+	
+				}
 
-				// 가상계좌 방식일 경우엔 가상계좌 발급 프로시져 호출
-				try {
-						logger.debug("프로시져 호출 전");
 
-					input.put("pInput",  input.get("SERVICE_ID"));
-						input.put("pReturn",  "");
-
-						common.call(input, "processVBank");
-
-						// OUT 파라미터 확인
-						String pReturn = Objects.toString(input.get("pReturn"), "");
-
-						logger.debug("프로시져 호출 후 pReturn >> " + pReturn);
-
-				        if (pReturn.isBlank() || "FAIL".equalsIgnoreCase(pReturn)) {
-				            throw new RuntimeException("가상계좌 발급 실패 : " + pReturn);
-				        }
-
-					} catch (Exception ex) {
-						logger.error("processVBank 호출 예외", ex);
-						// 예외를 던지면 @Transactional 메서드에서 롤백됩니다.
-						throw new RuntimeException("가상계좌 발급 프로시저 호출 실패", ex);
-					}
-
-			}
-
-
-			// 선납, 후납 바로 관청 서버 연계
+				// 선납, 후납 바로 관청 서버 연계
 		        Map<String, Object> linkData = commonUtil.filterMap(input,
 		                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
 		                + " REQUEST_DT, COMPANY_ID, COMPANY_NM, COMPANY_NO,"
@@ -1380,7 +1389,7 @@ public class NewcarService {
 		            if ("BUSAN".equals(input.get("GOVT_ID"))) {
 		                ownerInfo.append(joiner.toString()).append("þ");
 		            } else {
-			// date 타입 : 값이 없을 땐 null
+		            	// date 타입 : 값이 없을 땐 null
 						joiner.add("DSIGN_DT»" + (owner.get("DSIGN_DT") == null ? "null" : owner.get("DSIGN_DT")));
 						joiner.add("IDEN_DT»" + (owner.get("IDEN_DT") == null ? "null" : owner.get("IDEN_DT")));
 		                ownerInfo.append(joiner.toString()).append("þ");
@@ -1753,6 +1762,14 @@ public class NewcarService {
 	        StringBuilder ownerInfo = new StringBuilder();
 
 	        for (Map<String, Object> owner : lOwnerInfoList) {
+	        	// 리스건은 계약자 정보 관청 DB에 안 들어가게 초기화
+	            if ("LEASE".equals(input.get("TASK_CD")) && !"C".equals(input.get("PROC_CD"))) {
+	            	owner.put("DEBTOR_NM", null);
+	                owner.put("DEBTOR_GB", null);
+	                owner.put("REG_NO", null);
+	                owner.put("DSIGN_HP_NO", null);
+	            }
+	            
 	            StringJoiner joiner = new StringJoiner("ß");
 
 	            joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
@@ -1911,66 +1928,136 @@ public class NewcarService {
 
 	/**
 	 * 선택 가능한 번호판 조회
-	 *
-	 * 최초 조회 시 번호판 조회 패키지를 2회 호출하여
-	 * 총 20개의 번호판을 조회한 후 반환한다.
+	 * - 최초 조회 : 신규 번호판 최대 20건 조회 후 세션 저장
+	 * - 재조회 : 세션에 저장된 번호판 중 미사용 번호만 조회
 	 */
 	@Transactional
-	public List<String> getNumplateList(Map<String, Object> param, UserDto user) {
+	public List<String> getNumplateList(
+	        Map<String, Object> param,
+	        UserDto user,
+	        HttpSession session) {
 
-	    // 로그인 사용자 정보 설정
-	    param.put("LOGIN_ID", user.getLOGIN_ID());
+	    String serviceId = Objects.toString(param.get("SERVICE_ID"), "");
 
-	    // 조회된 번호판 목록
-	    List<String> result = new ArrayList<>();
+	    List<String> sessionList = getNumplateSession(session, serviceId);
 
-	    // 번호판 조회 패키지를 2회 호출하여 총 20건 조회
-	    for (int i = 0; i < 2; i++) {
-
-	        // 번호판 조회 패키지 호출
-	        callNumplateProcedure(param);
-
-	        // 조회 결과를 목록에 추가
-	        mergeResult(result, (String) param.get("pReturn"));
-
-	        // 다음 조회 시 이미 조회한 번호판은 제외하도록 설정
-	        param.put("PRE_CAR_NO", String.join(",", result));
+	    if (sessionList == null) {
+	        sessionList = new ArrayList<>();
 	    }
 
-	    // 총 20개의 번호판 반환
+	    String condition = Objects.toString(param.get("CONDITION"), "NOT");
+
+	    // 현재까지 조회한 번호판 수
+	    int sessionCount = sessionList.size();
+
+	    List<String> result;
+
+	    // 아직 20개를 채우지 않은 경우
+	    if (sessionCount < 20) {
+
+	        // 무작위 10개 / 끝자리 1개
+	        int limit = "NOT".equals(condition) ? 10 : 1;
+
+	        // 최대 20개를 넘지 않도록 제한
+	        limit = Math.min(limit, 20 - sessionCount);
+
+	        param.put("LIMIT", limit);
+
+	        // 이미 세션에 저장된 번호는 신규 조회에서 제외
+	        param.put("NUM_LIST", sessionList);
+
+	        result = common.selectList(
+	            param,
+	            "selectAvailableNumplateList"
+	        );
+
+	        if (result == null || result.isEmpty()) {
+	            return new ArrayList<>();
+	        }
+
+	        // 새로 조회한 번호를 세션에 누적
+	        saveNumplateSession(session, serviceId, result);
+
+	    } else {
+
+	        // 20개를 모두 조회한 이후에는
+	        // 세션에 저장된 번호 안에서만 조회
+	        param.put("NUM_LIST", sessionList);
+
+	        // 무작위 10개 / 끝자리 1개
+	        param.put(
+	            "LIMIT",
+	            "NOT".equals(condition) ? 10 : 1
+	        );
+
+	        result = common.selectList(
+	            param,
+	            "selectSessionNumplateList"
+	        );
+
+	        if (result == null || result.isEmpty()) {
+	            return new ArrayList<>();
+	        }
+	    }
+
+	    // 실제 화면에 표시할 번호만 P 처리
+	    param.put("NUM_LIST", result);
+	    common.update(param, "updateNumplateAppear");
+
 	    return result;
 	}
+	
 
 	/**
-	 * 업무구분에 따라 번호판 조회 패키지를 호출한다.
-	 * - ADD : 증차배정 번호판 조회
-	 * - 그 외 : 일반 번호판 조회
+	 * 서비스별 조회 번호판을 세션에 누적 저장한다.
+	 * - SERVICE_ID 기준 최대 20개까지 저장
 	 */
-	private void callNumplateProcedure(Map<String, Object> param) {
+	@SuppressWarnings("unchecked")
+	private void saveNumplateSession(
+	        HttpSession session,
+	        String serviceId,
+	        List<String> numList) {
 
-	    String taskCd = Objects.toString(param.get("TASK_CD"), "");
+	    Map<String, List<String>> sessionMap =
+	            (Map<String, List<String>>) session.getAttribute(NUMPLATE_SESSION_KEY);
 
-	    common.call(
-	        param,
-	        "ADD".equals(taskCd)
-	            ? "procedureNewCarAvailNumplateRent"
-	            : "procedureNewCarAvailNumplateHole"
-	    );
-	}
-
-	/**
-	 * 패키지에서 조회된 번호판을 결과 목록에 추가한다.
-	 */
-	private void mergeResult(List<String> result, String pReturn) {
-
-	    // 조회 결과가 없는 경우 종료
-	    if (pReturn == null || pReturn.isBlank()) {
-	        return;
+	    if (sessionMap == null) {
+	        sessionMap = new HashMap<>();
 	    }
 
-	    Arrays.stream(pReturn.split("/"))
-	            .filter(s -> !s.isBlank())
-	            .forEach(result::add);
+	    List<String> savedList =
+	            sessionMap.computeIfAbsent(serviceId, key -> new ArrayList<>());
+
+	    for (String carNo : numList) {
+
+	        if (savedList.size() >= 20) {
+	            break;
+	        }
+
+	        if (!savedList.contains(carNo)) {
+	            savedList.add(carNo);
+	        }
+	    }
+
+	    session.setAttribute(NUMPLATE_SESSION_KEY, sessionMap);
+	}
+	
+	/**
+	 * 서비스별 최초 조회 번호판을 세션에서 조회한다.
+	 */
+	@SuppressWarnings("unchecked")
+	private List<String> getNumplateSession(
+	        HttpSession session,
+	        String serviceId) {
+
+	    Map<String, List<String>> sessionMap =
+	            (Map<String, List<String>>) session.getAttribute(NUMPLATE_SESSION_KEY);
+
+	    if (sessionMap == null) {
+	        return null;
+	    }
+
+	    return sessionMap.get(serviceId);
 	}
 
 	// 번호판 선택
@@ -2026,14 +2113,30 @@ public class NewcarService {
 	public boolean getNumPlateRelease(Map<String, Object> param) {
 
 	    try {
-	        common.call(param, "procedureAvailNumplate");
+	        String preCarNo = Objects.toString(param.get("PRE_CAR_NO"), "");
+
+	        if (preCarNo.isBlank()) {
+	            return true;
+	        }
+
+	        List<String> numList = Arrays.stream(preCarNo.split(","))
+	                .filter(no -> !no.isBlank())
+	                .collect(Collectors.toList());
+
+	        if (numList.isEmpty()) {
+	            return true;
+	        }
+
+	        param.put("NUM_LIST", numList);
+
+	        common.update(param, "releaseNumplateList");
+
 	        return true;
 
 	    } catch (Exception e) {
 	        logger.error("getNumPlateRelease fail", e, " param: ", param);
 	        return false;
 	    }
-
 	}
 	
 	public void updateChangeSu(Map<String, Object> param, UserDto user) {

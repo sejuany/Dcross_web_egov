@@ -241,6 +241,17 @@ const LoginPage = () => {
                             </div>
                         </form>
                     </div>
+					
+					<div className="login-policy">
+						<a
+						    href="/policy"
+						    target="_blank"
+						    rel="noopener noreferrer"
+						    className="footer5-link"
+						>
+						    개인정보 처리방침
+						</a>
+				    </div>
                 </div>
             </div>
         </>

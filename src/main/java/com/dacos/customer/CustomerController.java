@@ -91,6 +91,7 @@ public class CustomerController {
             @RequestParam("code") String code,
             @RequestParam("docName") String docName,
             @RequestParam("gubun") String gubun,
+            @RequestParam(value = "duplicateMinor", defaultValue = "N") String duplicateMinor,
             @RequestParam("file") MultipartFile file,
             @RequestParam("token") String token,
             HttpSession session) {
@@ -99,10 +100,11 @@ public class CustomerController {
                 serviceId, code, gubun);
 
         List<Map<String, Object>> list =
-        		attachService.uploadAttachFile(
+                attachService.uploadAttachFile(
                         serviceId,
                         code,
                         gubun,
+                        duplicateMinor,
                         docName,
                         file,
                         null,

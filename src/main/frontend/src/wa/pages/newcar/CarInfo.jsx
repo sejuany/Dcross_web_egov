@@ -20,11 +20,14 @@ const CarInfo = ({
     handleChange,
     saveProcess,
 	dsDLVGB,
-	address
+	address,
+	dsBranchList
 }) => {
 	
 	// 번호선택 모달창
 	const [isNumplateModalOpen, setIsNumplateModalOpen] = useState(false);
+	// 번호판 배송 지점 목록
+	const [deliveryList, setDeliveryList] = useState([]);
 	// 법인 번호판 (등록구분 : 법인, 8,000만원 이상)
 	const isCorpNumplate =
 	    dsNewCar.REG_GB === 'B' && Number(dsNewCar.BUY_AMT) >= 80000000;
@@ -32,14 +35,61 @@ const CarInfo = ({
 	const isHybrid =
 	    ['l', 'm', 'n', 'o', 'p'].includes(dsNewCar.FUEL_CD);
 	// 배송지 직접입력 여부
-	const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
+	//const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
 	
-	// 주소 기능 추가
-	const {
-	    handleAddressSelect,
-	    handleClearAddress
-	} = address;
+	// 번호판 매니저 및 배송지 설정
+	const setDeliveryInfo = async () => {
+		console.log("setDeliveryInfo");
+		const isBranchInfo = dsBranchList.find(
+		    e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
+		);
+		
+		// 번호판 매니저 조회
+		// - ASSIGN_CD 기준으로 담당 매니저의 회사/매니저번호 정보 추출
+		// - COMPANY_ID : ASSIGN_CD 앞 5자리
+		// - BRANCH_ID  : ASSIGN_CD 뒤 2자리
+		// ex) DL03101 → COMPANY_ID: DL031, BRANCH_ID: 01
+		const assignCd = isBranchInfo.ASSIGN_CD || '';
+		const dlCompanyId = assignCd.substring(0, 5);
+		const dlBranchId = assignCd.slice(-2);
 
+		console.log("dlCompanyId : " + dlCompanyId + " / dlBranchId : " + dlBranchId);
+
+		const result = await axios.post('/api/common/query', {
+		    GUBUN: 'SELECT',
+		    QUERY_ID: 'getNumplateAssignList',
+			COMPANY_ID: dlCompanyId,
+			BRANCH_ID: dlBranchId
+		});
+
+		const managerInfo = result.data;
+		
+		const newDsCarNoDetach = {
+		    ...dsCarNoDetach,
+			// 번호판 택배 발송지
+		    DELIVERY_ADDR: managerInfo.ADDRESS || '',
+		    DELIVERY_ADDR_DT: managerInfo.ADDRESS_DT || '',
+		    DELIVERY_POST_NO: managerInfo.POST_NO || '',
+			// 매니저 정보
+		    INSTALL_NM: managerInfo.TEL_NO || '',
+		    INSTALL_TEL_NO: managerInfo.PHONE_NO || '',
+
+			// 마지막 번호판 배송지
+		    LAST_DELIVERY_ADDR:
+		        (isBranchInfo.ADDRESS || '') +
+		        (isBranchInfo.ADDRESS_DT || ''),
+				
+			// 수령인(딜러사 회원사명)
+		    RECEIVE_NM: isBranchInfo.BRANCH_NM || '',
+			// 수령인 번호(지점 대표번호)
+		    RECEIVE_TEL_NO: dsUserInfo.MPHONE_NO || ''
+		};
+		
+		setDsCarNoDetach(newDsCarNoDetach);	
+		
+		console.log("여기까지 옴");
+		return newDsCarNoDetach;
+	}
 	
 	// 번호선택 버튼 눌렀을 때 체크
 	const handleOpenModal = async () => {
@@ -58,6 +108,12 @@ const CarInfo = ({
 	        }			
 	        return;
 	    }
+		
+		console.log(dsCarNoDetach.DELIVERY_GB);
+		if(!dsCarNoDetach.DELIVERY_GB) {
+			gf.alert('번호판 배송지를 먼저 선택한 후 번호를 선택해주세요.');
+			return;
+		}
 		
 	    // 3. 기존 번호 존재 여부
 	    let reqCarNo = dsNewCar.REQ_CAR_NO;
@@ -80,53 +136,6 @@ const CarInfo = ({
 	    // 4. 모달 오픈
 	    setIsNumplateModalOpen(true);
 	};
-	
-	// 번호판 배송지 변경
-	const handleDeliveryChange = (e) => {
-		
-	    // 기존 공통 처리
-	    handleChange(e);
-		
-	    const deliveryInfo = (codes.DLADD || []).find(
-	        item => item.CODE_ID === e.target.value
-	    );
-
-		// 직접입력은 자동 세팅하지 않음
-		if (e.target.value === 'INPUT') {
-		    return;
-		}
-		
-	    const [
-	        deliveryAddr = '',
-	        deliveryAddrDt = '',
-	        receiveNm = '',
-	        receiveTelNo = ''
-	    ] = (deliveryInfo?.CODE_NM || '').split('/');
-
-		// DETAIL_NM : 우편번호
-		const deliveryPostNo = deliveryInfo?.DETAIL_NM || '';
-		
-	    setDsCarNoDetach(prev => ({
-	        ...prev,
-	        DELIVERY_ADDR: deliveryAddr,
-	        DELIVERY_ADDR_DT: deliveryAddrDt,
-	        DELIVERY_POST_NO: deliveryPostNo,
-	        RECEIVE_NM: receiveNm,
-	        RECEIVE_TEL_NO: receiveTelNo
-	    }));
-		
-	};
-	
-	// 주소 잘 저장 됐는지 확인 하는 용도 
-	useEffect(() => {
-	    console.log({
-	        DELIVERY_ADDR: dsCarNoDetach.DELIVERY_ADDR,
-	        DELIVERY_ADDR_DT: dsCarNoDetach.DELIVERY_ADDR_DT,
-	        RECEIVE_NM: dsCarNoDetach.RECEIVE_NM,
-	        RECEIVE_TEL_NO: dsCarNoDetach.RECEIVE_TEL_NO,
-			DELIVERY_POST_NO: dsCarNoDetach.DELIVERY_POST_NO
-	    });
-	}, [dsCarNoDetach]);
 	
     return (
         <>
@@ -209,6 +218,25 @@ const CarInfo = ({
 						/>
 					</div>
 				)}
+				
+				{/* 번호판 배송지
+				<div className="wa-form-row">
+				    <label className="wa-form-label">
+				        번호판 배송지
+				    </label>
+				    <div className="wa-form-control">
+						<CommonSelect
+							className="wa-select"
+							groupId="DLVGB"
+							name="DELIVERY_GB"
+							value={dsCarNoDetach.DELIVERY_GB ?? ''}
+							data-type="detach"
+							onChange={handleDeliveryChange}
+							options={deliveryList}
+						/>
+				    </div>
+				</div>
+				*/}
 
 				{/* 번호 선택 */}
 				<div className="wa-form-row">
@@ -241,25 +269,7 @@ const CarInfo = ({
 				    </div>
 				</div>
 				
-				{/* 번호판 배송지 */}
-				<div className="wa-form-row">
-				    <label className="wa-form-label">
-				        번호판 배송지
-				    </label>
-				    <div className="wa-form-control">
-						<CommonSelect
-							className="wa-select"
-							groupId="DLVGB"
-							name="DELIVERY_GB"
-							value={dsCarNoDetach.DELIVERY_GB ?? ''}
-							data-type="detach"
-							onChange={handleDeliveryChange}
-							options={dsDLVGB}
-						/>
-				    </div>
-				</div>
-				
-				{/* 번호판 배송지 직접입력 */}
+				{/* 번호판 배송지 직접입력 
 				{isDirectDelivery && (
 				    <>
 				        <AddressSearch
@@ -276,7 +286,7 @@ const CarInfo = ({
 				        />
 				    </>
 				)}
-				
+				*/}
 		    </div>
 			
 
@@ -287,21 +297,32 @@ const CarInfo = ({
 				dsNewCar={dsNewCar}
 				dsCarNoDetach={dsCarNoDetach}
 				dsUserInfo={dsUserInfo}
+				dsBranchList={dsBranchList}
 				onClose={() => setIsNumplateModalOpen(false)}
-				onSelect={(isSucces, carNo) => {
+				onSelect={async (isSucces, carNo) => {
 
 					console.log('선택된 번호:', carNo);
 
-
 					if (isSucces) {
+						console.log("들어옴");
 
-						const newDsNewCar = {
-							...dsNewCar,
-							REQ_CAR_NO: carNo
-						};
+					    const newDsNewCar = {
+					        ...dsNewCar,
+					        REQ_CAR_NO: carNo
+					    };
 
-						setDsNewCar(newDsNewCar);
-						saveProcess(newDsNewCar, "NUM_SAV");
+					    const newDsCarNoDetach = await setDeliveryInfo();
+
+					    if (!newDsCarNoDetach) {
+							console.log("!newDsCarNoDetach");
+					        return;
+					    }
+
+					    setDsNewCar(newDsNewCar);
+
+						await saveProcess(newDsNewCar,"SAV",null,null,null
+							,true); // 메세지 안 띄울 때 true
+						
 					}
 				}}
 

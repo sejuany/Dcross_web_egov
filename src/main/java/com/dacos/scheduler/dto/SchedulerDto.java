@@ -19,6 +19,7 @@ public class SchedulerDto {
     private String CAR_NO;
     private String OWNER_NM;
     private String MPHONE_NO;
+    private String PAY_HP_NO;
     private String TEL_NO;
     private String EMAIL;
     private String CUSTOMER_NM;

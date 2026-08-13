@@ -175,25 +175,74 @@ const OwnerUserLease = ({
 
 			</div>
 			
-			{/* INPUT 리스사인 경우에만 표시 */}
+			{/* 직접입력 리스사는 TR_OWNERINFO의 기존 리스사 정보 컬럼만 사용한다. */}
 			{currentCompany?.BASE_NM === '직접입력' && (
-				
-			<div className="wa-form-row">
-			    <div className="wa-form-label-wrap">
-			        <label className="wa-form-label">리스사명</label>
-			    </div>
-			    <div className="wa-form-control">
-			        <input
-			            className="wa-input wa-disabled"
-			            autoComplete="off"
-			            name="DEBTOR_NM"
-			            data-type="owner"
-			            value={dsOwnerInfo.DEBTOR_NM ?? ''}
-			            onChange={handleChange}
-			            placeholder="리스사명을 입력하세요"
-			        />
-			    </div>
-			</div>
+				<>
+					<h3 className="wa-form-section-title">리스사 직접입력 정보</h3>
+
+					<div className="wa-form-row">
+					    <label className="wa-form-label">리스사명</label>
+					    <div className="wa-form-control">
+					        <input
+					            className="wa-input"
+					            autoComplete="off"
+					            name="DEBTOR_NM"
+					            data-type="owner"
+					            value={dsOwnerInfo.DEBTOR_NM ?? ''}
+					            onChange={handleChange}
+					            placeholder="리스사명을 입력하세요"
+					            maxLength={50}
+					        />
+					    </div>
+					</div>
+
+					<div className="wa-form-row">
+					    <label className="wa-form-label">리스사 법인등록번호</label>
+					    <div className="wa-form-control">
+					        <div className="wa-inline-group">
+					            <SplitInput
+					                value={dsOwnerInfo.DEBTOR_REG_NO}
+					                lengths={[6, 7]}
+					                inputClassName="wa-number-center"
+					                onChange={value => setDsOwnerInfo(prev => ({
+					                    ...prev,
+					                    DEBTOR_GB: 'B',
+					                    DEBTOR_REG_NO: value
+					                }))}
+					            />
+					        </div>
+					    </div>
+					</div>
+
+					<div className="wa-form-row">
+					    <label className="wa-form-label">리스사 사업자등록번호</label>
+					    <div className="wa-form-control">
+					        <div className="wa-inline-group">
+					            <SplitInput
+					                value={dsOwnerInfo.DEBTOR_BIZ_NO}
+					                lengths={[3, 2, 5]}
+					                inputClassName="wa-number-center"
+					                placeholders={['123', '45', '67890']}
+					                onChange={value => setDsOwnerInfo(prev => ({ ...prev, DEBTOR_BIZ_NO: value }))}
+					            />
+					        </div>
+					    </div>
+					</div>
+
+					<AddressSearch
+					    label="리스사 본점 주소"
+					    placeholder="건물, 지번 또는 도로명 검색"
+					    type="DEBTOR_ADDR"
+					    detailName="DEBTOR_ADDR_DT"
+					    data={dsOwnerInfo}
+					    dataType="owner"
+					    handleChange={handleChange}
+					    onSelect={handleAddressSelect}
+					    onClear={handleClearAddress}
+					    addressMaxLength={70}
+					    detailMaxLength={70}
+					/>
+				</>
 			)}
 			
 			{/* 그 외 캐피탈 선택 모달창 */}
@@ -234,6 +283,7 @@ const OwnerUserLease = ({
 			</div>
 
             <hr className="wa-divider" />
+			<h3 className="wa-form-section-title">대표 소유자 정보</h3>
 
             {/* 대표소유자 */}
             <div className="wa-form-row">
@@ -285,6 +335,7 @@ const OwnerUserLease = ({
 						    value={dsNewCar.REG_NO}
 						    lengths={[6, 7]}
 							maskLast={['R', 'F'].includes(dsNewCar.REG_GB)}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,
@@ -316,6 +367,7 @@ const OwnerUserLease = ({
 							    value={dsNewCar.BIZ_NO}
 							    lengths={[3, 2, 5]}
 							    placeholders={['123', '45', '67890']}
+								inputClassName="wa-number-center"
 							    onChange={value =>
 							        setDsNewCar(prev => ({
 							            ...prev,
@@ -341,6 +393,7 @@ const OwnerUserLease = ({
 						    lengths={[3, 4, 4]}
 						    fixedValues={['010']}
 						    placeholders={['010', '1234', '5678']}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,

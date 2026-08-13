@@ -362,7 +362,7 @@
 
 /* 양식 다운로드 버튼 */
 .customer-btn-form {
-    width: 90px;
+    width: 136px;
     height: 36px;
 
     color: #10B981;
@@ -383,6 +383,42 @@
 
 .customer-btn-form:active {
     background: #D1FAE5;
+}
+
+/* =========================================================
+ * Customer re-Upload
+========================================================= */
+/* 업로드 전: 제목과 버튼을 위/아래로 배치 */
+.customer-upload-item:not(.uploaded) {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+}
+
+/* 업로드 전 버튼 영역 */
+.customer-upload-btn-group.before-upload {
+    width: 100%;
+}
+
+/* 업로드 전 업로드 버튼 */
+.customer-upload-btn-group.before-upload .customer-btn-upload {
+    width: 100%;
+}
+
+/* 첨부서류 제목 */
+.customer-upload-title {
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+/* 선택 서류 표시 */
+.customer-upload-choice {
+    margin-left: auto;
+    color: #e03131;
+    font-size: 13px;
+    font-weight: 600;
 }
 
 /* =========================================================

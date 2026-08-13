@@ -351,6 +351,8 @@ html {
 }
 
 .checkmark {
+	position: relative;
+	
     height: 18px;
     width: 18px;
     background-color: #edf2f7;
@@ -373,12 +375,14 @@ html {
     content: "";
     position: absolute;
     display: none;
-    left: 6px;
-    top: 2px;
+
+    left: 4px;
+
     width: 5px;
     height: 10px;
+
     border: solid white;
-    border-width: 0 2px 2px 0;
+    border-width: 0 3px 3px 0;
     transform: rotate(45deg);
 }
 
@@ -589,4 +593,43 @@ html {
 
 .signup-link-btn:disabled::after {
     width: 0;
+}
+
+/* 개인정보 처리방침 위치 잡기 */
+.login-right {
+    flex: 1.2;
+    background-color: var(--bg-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    min-width: 0;
+    position: relative;
+}
+
+.login-policy {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+}
+
+.login-policy a {
+    border: none;
+    background: transparent;
+    color: #718096;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+    .login-policy {
+        position: static;
+        margin-top: auto;
+        padding-top: 40px;
+        text-align: center;
+    }
 }

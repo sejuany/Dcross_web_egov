@@ -4,7 +4,6 @@ import axios from 'axios';
 import {
     Calculator,
     CheckCircle2,
-    CircleHelp,
     CircleAlert,
     CreditCard,
     LoaderCircle,
@@ -649,7 +648,14 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
     const ecoNotice = notice.type === 'eco'
         ? ECO_EXEMPTION_NOTICE_BY_CODE[notice.targetCode]
         : null;
-    const title = ecoNotice ? '친환경 차량 감면 안내' : '기감면 조건 적용 불가 안내';
+
+	const isExchange = notice.type === 'exchange'; // 교환 자동차 
+
+	const title = ecoNotice
+	    ? '친환경 차량 감면 안내'
+	    : isExchange
+	        ? '교환자동차 감면 안내'
+	        : '기감면 조건 적용 불가 안내';
 
     return (
         <div className="wa-attach-modal-backdrop" onClick={onClose}>
@@ -687,7 +693,20 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
                                 <div>■ {ecoNotice.benefit}</div>
                             </div>
                         </>
-                    ) : (
+					) : isExchange ? (
+					    <>
+							<div style={{ margin: '25px 0 40px 0' }}>
+						        {/* 교환자동차 감면 안내 */}
+						        <p className="wa-exemption-warning-main normal">
+						            교환자동차 감면은 <b>다코스 담당자</b>에게 문의 바랍니다. 
+						        </p>
+	
+						        <h3 className="wa-exemption-warning-main normal small">
+						            070-7931-2380 또는 070-7931-2818
+						        </h3>
+							</div>
+					    </>
+					) : (
                         <>
                             <strong className="wa-exemption-warning-highlight">
                                 같은 감면 조건 여러 차량에 적용 불가
@@ -704,14 +723,36 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
                         </>
                     )}
 
-                    <div className="wa-attach-btn-div">
-                        <button type="button" className="wa-attach-cancel-btn" onClick={onClose}>
-                            닫기
-                        </button>
-                        <button type="button" className="wa-attach-confirm-btn" onClick={onConfirm}>
-                            확인
-                        </button>
-                    </div>
+
+					<div className="wa-attach-btn-div">
+					    {notice.type === 'exchange' ? (
+					        <button
+					            type="button"
+					            className="wa-attach-confirm-btn"
+					            onClick={onClose}
+					        >
+					            확인
+					        </button>
+					    ) : (
+					        <>
+					            <button
+					                type="button"
+					                className="wa-attach-cancel-btn"
+					                onClick={onClose}
+					            >
+					                닫기
+					            </button>
+
+					            <button
+					                type="button"
+					                className="wa-attach-confirm-btn"
+					                onClick={onConfirm}
+					            >
+					                확인
+					            </button>
+					        </>
+					    )}
+					</div>
                 </div>
             </div>
         </div>
@@ -745,7 +786,7 @@ const EstimateResultPanel = memo(({
         && hasFullExemptionReason(estimateSummary.exemptionReason);
     const isBondFullyExempt = Boolean(estimateSummary)
         && Number(estimateSummary.bondBaseAmt) === 0
-        && hasFullExemptionReason(estimateSummary.bondReliefReason);
+        && (estimateSummary.bondPreExempt || hasFullExemptionReason(estimateSummary.bondReliefReason));
     const showAcqReductionCard = Number(estimateSummary?.acqReductionAmt) > 0 || isAcqFullyExempt;
     // 공채 금액이 0원이어도 조회 매입률과 감면 판단 근거를 확인할 수 있도록 항상 표시한다.
     const showBondCalculationCard = Boolean(estimateSummary);
@@ -754,6 +795,9 @@ const EstimateResultPanel = memo(({
         ? Number(estimateSummary.bondReductionLimit)
         : Number(estimateSummary?.bondReductionAmt);
     const hasBondRelief = bondPolicyReductionAmt > 0 || isBondFullyExempt;
+    const bondCardTitle = isAcqFullyExempt && isBondFullyExempt && estimateSummary?.exemptionName
+        ? `공채 감면 · ${estimateSummary.exemptionName}`
+        : `공채 계산 · ${estimateSummary?.bondArea || '지역 확인'}`;
 
     return (
         <>
@@ -811,7 +855,7 @@ const EstimateResultPanel = memo(({
                             hasBondRelief ? 'applied' : 'review'
                         ].join(' ')}>
                             <div className="wa-acq-reduction-title">
-                                <span>공채 계산 · {estimateSummary.bondArea || '지역 확인'}</span>
+                                <span>{bondCardTitle}</span>
                                 <strong>
                                     {isBondFullyExempt
                                         ? '전액 감면'
@@ -894,9 +938,54 @@ const RefundAccountFields = memo(({
     returnAccount,
     bankOptions,
     onFieldChange,
-    onFieldCommit
+    onFieldCommit,
+	dsTaxReceipt,
+	receiptType,
+	onTaxReceiptCommit
 }) => (
     <>
+		<div className="wa-form-row" style={{ marginBottom: '0px'}} >
+            <label className="wa-form-label" style={{ alignSelf: 'flex-start', marginTop: '13px' }}>이메일 주소</label>
+				
+		    <div className="wa-form-control">
+		        <DeferredInput
+		            className="wa-input"
+		            maxLength={50}
+		            name="MAIL1"
+		            data-type="taxReceipt"
+					onCommit={onTaxReceiptCommit}
+					value={dsTaxReceipt.MAIL1 ?? ''}
+		            sanitizeValue={removeHangul}
+		            placeholder="example@company.com"
+		        />
+				<p className="mailInfoBox">
+				{receiptType === 'CASH'
+				    ? '*차량대금 세금계산서 발행용입니다. (등록수수료는 현금영수증 발행)'
+				    : receiptType === 'TAX'
+				        ? '*차량대금 및 등록수수료 세금계산서 발행용입니다.'
+				        : '*차량대금 세금계산서 발행용입니다.'
+				}
+				</p>
+		    </div>
+		</div>
+
+		<div className="wa-form-row">
+		    <label className="wa-form-label">이메일 주소2</label>
+				
+		    <div className="wa-form-control">
+		        <DeferredInput
+		            className="wa-input"
+		            maxLength={50}
+		            name="MAIL2"
+		            data-type="taxReceipt"
+					onCommit={onTaxReceiptCommit}
+					value={dsTaxReceipt.MAIL2 ?? ''}
+		            sanitizeValue={removeHangul}
+		            placeholder="추가 수신 이메일"
+		        />
+		    </div>
+		</div>
+		
         <div className="wa-form-row">
             <label className="wa-form-label">환불 예금주</label>
 
@@ -1345,6 +1434,15 @@ const NewcarInfo = ({
     const handleExemptionFieldChange = useCallback(async (event) => {
         const { name, value } = event.target;
 
+		// 교환자동차 감면 선택
+		if (name === 'NTAX_TRGET_CD' && String(value) === '09') {
+			handleNewCarFieldChange(event); // 09 선택값 반영, 선택 안 되게 하려면 이거 주석처리하면 됨 
+			
+		    setExemptionNotice({type: 'exchange'});
+			
+		    return;
+		}
+		
         if (name === 'NTAX_TRGET_CD' && String(value) === '12' && !isJsaEligibleAddress) {
             await showAlert('사용본거지 주소가 대성동길 또는 조산리인 경우에만 공동경비구역 거주자를 선택할 수 있습니다.');
             return;
@@ -1610,6 +1708,27 @@ const NewcarInfo = ({
 
             <div className="wa-info-section">
                 <div className="wa-form-row">
+					<label className="wa-form-label">
+					    {dsNewCar?.PROC_CD === "C" || dsNewCar?.TASK_CD === "LEASE"
+						        ? "리스 담당자 연락처"
+						        : "결제자 연락처"}
+					</label>
+
+                    <div className="wa-form-control">
+                        <div className="wa-inline-group">
+                            <SplitInput
+                                value={dsNewCar.PAY_HP_NO ?? ''}
+                                lengths={PHONE_PART_LENGTHS}
+                                fixedValues={PHONE_FIXED_VALUES}
+                                placeholders={PHONE_PLACEHOLDERS}
+                                deferred
+                                onChange={value => updateNewCar({ PAY_HP_NO: value })}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="wa-form-row">
                     <label className="wa-form-label">수수료 증빙 선택</label>
 
                     <div className="wa-form-control">
@@ -1790,7 +1909,8 @@ const NewcarInfo = ({
                                                     />
                                                 </div>
                                             </div>
-
+											
+											{/*
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">이메일주소</label>
                                                 <div className="wa-form-control">
@@ -1823,33 +1943,12 @@ const NewcarInfo = ({
                                                         placeholder="추가 수신 이메일"
                                                     />
                                                 </div>
-                                            </div>
+                                            </div>*/}
                                         </div>
                                     </>
                                 )}
                             </div>
                         )}
-                    </div>
-                </div>
-
-                <div className="wa-form-row">
-					<label className="wa-form-label">
-					    {dsNewCar?.PROC_CD === "C" || dsNewCar?.TASK_CD === "LEASE"
-						        ? "리스 담당자 연락처"
-						        : "결제자 연락처"}
-					</label>
-
-                    <div className="wa-form-control">
-                        <div className="wa-inline-group">
-                            <SplitInput
-                                value={dsNewCar.PAY_HP_NO ?? ''}
-                                lengths={PHONE_PART_LENGTHS}
-                                fixedValues={PHONE_FIXED_VALUES}
-                                placeholders={PHONE_PLACEHOLDERS}
-                                deferred
-                                onChange={value => updateNewCar({ PAY_HP_NO: value })}
-                            />
-                        </div>
                     </div>
                 </div>
 
@@ -1862,6 +1961,9 @@ const NewcarInfo = ({
                     bankOptions={bankOptions}
                     onFieldChange={handleNewCarFieldChange}
                     onFieldCommit={commitNewCarField}
+					dsTaxReceipt={dsTaxReceipt}
+					receiptType={receiptType}
+					onTaxReceiptCommit={commitTaxReceiptField}
                 />
 
             </div>

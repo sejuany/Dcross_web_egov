@@ -251,12 +251,14 @@ public class NewcarController {
      */
     @PostMapping("/numplateList")
     public List<String> getNumplateList(
-            @RequestBody Map<String, Object> param, HttpSession session) {
-    	// 세션 체크
- 		UserDto user = AuthUtil.getLoginUser(session);
+            @RequestBody Map<String, Object> param,
+            HttpSession session) {
 
- 		return newcarService.getNumplateList(param, user);
+        UserDto user = AuthUtil.getLoginUser(session);
+
+        return newcarService.getNumplateList(param, user, session);
     }
+
     
     /**
      *  미사용 번호판 상태복구
@@ -266,12 +268,11 @@ public class NewcarController {
     public boolean numplateRelease(
             @RequestBody Map<String, Object> param, HttpSession session) {
     	// 세션 체크
- 		AuthUtil.getLoginUser(session);
+    	UserDto user = AuthUtil.getLoginUser(session);
  		// 미사용 번호판 상태복구
  		return newcarService.getNumPlateRelease(param);
     }
     
-
 	/**
 	 * 번호판 선택
 	 * POST /api/newcar/numplateSelect
@@ -421,6 +422,7 @@ public class NewcarController {
     public ResponseEntity<Map<String, Object>> uploadWaNewcarAttachFile(
             @RequestParam("serviceId") String serviceId,
             @RequestParam("code") String code,
+            @RequestParam(value = "duplicateMinor", defaultValue = "N") String duplicateMinor,
             @RequestParam("docName") String docName,
             @RequestParam("gubun") String gubun,
             @RequestParam("file") MultipartFile file,
@@ -432,7 +434,7 @@ public class NewcarController {
         UserDto user = AuthUtil.getLoginUser(session);
 
         List<Map<String, Object>> list 
-        	= attachService.uploadAttachFile(serviceId, code, gubun, docName, file, user, null);
+        	= attachService.uploadAttachFile(serviceId, code, gubun, duplicateMinor, docName, file, user, null);
 
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }

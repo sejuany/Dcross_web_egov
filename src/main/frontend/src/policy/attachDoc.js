@@ -10,8 +10,18 @@ export const SIGN_DOC = {
     }
 };
 
+// 기타 첨부파일
+export const ETC_DOCS = [
+    {
+        code: 'ETC_1',
+        name: '기타',
+        seq: 900,
+        gubun: 'NWEB',
+		choice: 'Y'
+    },
+];
+
 // 일반 첨부파일
-// 파일명은 겹치면 안 됨 !!
 export const ATTACH_DOC = {
 
     // ===== 외국인 =====
@@ -48,7 +58,7 @@ export const ATTACH_DOC = {
     // ===== 이용자명의 리스 =====
     LEASE_AGREEMENT: {
         code: 'LEASE_AGREEMENT',
-        name: '리스 신청서',
+        name: '리스계약서',
         seq: 50,
         gubun: 'NWEB'
     },
@@ -56,47 +66,50 @@ export const ATTACH_DOC = {
 	// ===== 미성년자 확인 =====
 	MINOR_AGREEMENT: {
 	    code: 'MINOR_AGREEMENT',
-	    name: '법정대리인 동의서',
+	    name: '(보호자)법정대리인 동의서',
 		seq: 60,
-	    gubun: 'MINOR', // MINOR 끼리 병합할 예정 
+	    gubun: 'MINOR', 
 		formYn: 'Y' 	// 고객페이지에 양식 파일 올라가는 경우
 	},
-	PARENT_SEAL: {
-	    code: 'PARENT_SEAL',
-	    name: '보호자 인감증명서 또는 본인서명사실확인서',
+	GUARDIAN_CERT: {
+	    code: 'GUARDIAN_CERT',
+	    name: '(보호자)보호자 인감증명서 또는 본인서명사실확인서',
 		seq: 61,
 		gubun: 'MINOR'
 	},
-	PARENT_ID: {
-	    code: 'PARENT_ID',
-	    name: '보호자 신분증',
+	
+	GUARDIAN_ID: {
+	    code: 'GUARDIAN_ID',
+	    name: '(보호자)보호자 신분증',
 		seq: 62,
 	    gubun: 'MINOR'
 	},
-	FAMILY_CERT_MINOR: {
-	    code: 'FAMILY_CERT_MINOR',
-	    name: '가족관계증명서(상세)',
-		seq: 63,
-	    gubun: 'MINOR'
-	},
-	BASIC_CERT: {
-	    code: 'BASIC_CERT',
-	    name: '기본증명서(상세)',
-		seq: 64,
+
+	FAMILY_CERT: {
+	    code: 'FAMILY_CERT',
+	    name: '(청소년 기준) 가족관계증명서(상세)',
+	    seq: 63,
 	    gubun: 'MINOR'
 	},
 
+	BASIC_CERT: {
+	    code: 'BASIC_CERT',
+	    name: '(청소년 기준) 기본증명서(상세)',
+	    seq: 64,
+	    gubun: 'MINOR'
+	},
 };
 
 // 비과세대상자 필요서류
 export const NTAX_ATTACH_DOC = {
 
     // ===== 가족관계 =====
-    FAMILY_CERT: {
+	
+	FAMILY_CERT: {
         code: 'FAMILY_CERT',
         name: '가족관계증명서(상세)',
         seq: 110,
-        gubun: 'MERGE'
+        gubun: 'MERGE', 
     },
 
     RESIDENT_CERT: {
@@ -113,32 +126,47 @@ export const NTAX_ATTACH_DOC = {
         gubun: 'MERGE'
     },
 
+	MARRIAGE_CERT: {
+	    code: 'MARRIAGE_CERT',
+	    name: '혼인관계증명서',
+	    seq: 820,
+	    gubun: 'MERGE',
+		choice: 'Y'
+	},
+	
+	GUARDIAN_ID: {
+	    code: 'GUARDIAN_ID',
+	    name: '(보호자)보호자 신분증',
+	    seq: 330,
+	    gubun: 'MERGE'
+	},
+	
+	MINOR_AGREEMENT: {
+	    code: 'MINOR_AGREEMENT',
+	    name: '(보호자)법정대리인 동의서',
+		seq: 60,
+	    gubun: 'MERGE', 
+		formYn: 'Y' 	// 고객페이지에 양식 파일 올라가는 경우
+	},
+	
     // ===== 장애 =====
-    DISABILITY_CERT: {
-        code: 'DISABILITY_CERT',
-        name: '장애인증명서 또는 장애인등록증(복지카드)',
-        seq: 210,
-        gubun: 'MERGE'
-    },
+	DISABILITY_CERT: {
+	    code: 'DISABILITY_CERT',
+	    name: '장애인증명서(복지카드)',
+	    seq: 210,
+	    gubun: 'MERGE'
+	},
 
     DISABILITY_LEVEL_CERT: {
         code: 'DISABILITY_LEVEL_CERT',
-        name: '장애정도 결정서',
+        name: '장애정도 결정서(기존 4급)',
         seq: 220,
-        gubun: 'MERGE'
-    },
-
-    // ===== 미성년 장애인 =====
-    LEGAL_REPRESENTATIVE_AGREEMENT: {
-        code: 'LEGAL_REPRESENTATIVE_AGREEMENT',
-        name: '법정대리인 동의서',
-        seq: 310,
         gubun: 'MERGE'
     },
 
     GUARDIAN_CERT: {
         code: 'GUARDIAN_CERT',
-        name: '보호자 인감증명서 또는 본인서명사실확인서',
+        name: '(보호자)보호자 인감증명서 또는 본인서명사실확인서',
         seq: 320,
         gubun: 'MERGE'
     },
@@ -146,22 +174,22 @@ export const NTAX_ATTACH_DOC = {
     // ===== 국가유공 / 보훈 =====
     PATRIOT_CERT: {
         code: 'PATRIOT_CERT',
-        name: '국가유공자증 또는 국가유공자증명서',
+        name: '국가유공자 확인서 또는 국가유공자증명서(상이등급표기)',
         seq: 410,
         gubun: 'MERGE'
     },
-
-    PATRIOT_CONFIRM: {
-        code: 'PATRIOT_CONFIRM',
-        name: '국가유공자 확인서',
-        seq: 420,
-        gubun: 'MERGE'
-    },
+	
+	DEMOCRACY_CERT: {
+	    code: 'DEMOCRACY_CERT',
+	    name: '5.18 민주유공자 확인증(신체 장해등급 표기)',
+	    seq: 420,
+	    gubun: 'MERGE'
+	},
 
     // ===== 고엽제 =====
     AGENT_ORANGE_TARGET_CERT: {
         code: 'AGENT_ORANGE_TARGET_CERT',
-        name: '고엽제 적용대상 확인원',
+        name: '고엽제 적용대상 확인원 또는 보훈대상자 증명서',
         seq: 510,
         gubun: 'MERGE'
     },
@@ -248,7 +276,7 @@ export const NTAX_POLICY = {
     // 국가유공자
     '01': {
 		NAME: '국가유공자',
-		AMOUNT: '취득세 100% 면제',
+		AMOUNT: ['취득세 100% 면제', '공채 100% 면제'],
         REPRE: [
             NTAX_ATTACH_DOC.PATRIOT_CERT
         ],
@@ -262,12 +290,12 @@ export const NTAX_POLICY = {
     // 5.18 민주화운동
     '02': {
 		NAME: '취득세 100% 면제',
-		AMOUNT: '취득세 100% 면제',
+		AMOUNT: ['취득세 100% 면제', '공채 100% 면제'],
         REPRE: [
-            NTAX_ATTACH_DOC.PATRIOT_CERT
+            NTAX_ATTACH_DOC.DEMOCRACY_CERT
         ],
         UNION: [
-            NTAX_ATTACH_DOC.PATRIOT_CERT,
+            NTAX_ATTACH_DOC.DEMOCRACY_CERT,
             NTAX_ATTACH_DOC.RESIDENT_CERT,
             NTAX_ATTACH_DOC.FAMILY_CERT
         ]
@@ -276,14 +304,12 @@ export const NTAX_POLICY = {
     // 고엽제
     '03': {
 		NAME: '고엽제 후유증 대상',
-		AMOUNT: '취득세 100% 면제',
+		AMOUNT: ['취득세 100% 면제', '공채 100% 면제'],
         REPRE: [
-            NTAX_ATTACH_DOC.AGENT_ORANGE_TARGET_CERT,
-            NTAX_ATTACH_DOC.AGENT_ORANGE_CERT
+            NTAX_ATTACH_DOC.AGENT_ORANGE_TARGET_CERT
         ],
         UNION: [
             NTAX_ATTACH_DOC.AGENT_ORANGE_TARGET_CERT,
-            NTAX_ATTACH_DOC.AGENT_ORANGE_CERT,
             NTAX_ATTACH_DOC.RESIDENT_CERT,
             NTAX_ATTACH_DOC.FAMILY_CERT
         ]
@@ -292,41 +318,120 @@ export const NTAX_POLICY = {
     // 장애인
     '04': {
 		NAME: '장애인',
-		AMOUNT: [
-            '장애정도가 심한 장애인(기존 1급~3급 중증 장애인) 취득세 100% 면제',
-            '차량 1대만 가능',
-            '경증 장애인(기존 4급~6급)은 취득세 면제 대상 제외'
-        ].join('\n'),
+		AMOUNT: (grade) => {
+			if (['1', '2', '3', '01'].includes(grade)) {
+			    return ['취득세 100% 면제', '공채 100% 면제'];
+			}
+			if (['4', '5', '6', '05'].includes(grade)) {
+			    return '공채 100% 면제';
+			}
+
+		    return [];
+		},
 		
+		// 대표소유자 제출서류
         REPRE: [
             NTAX_ATTACH_DOC.DISABILITY_CERT
         ],
+		
+		// 공동소유자 제출서류
         UNION: [
             NTAX_ATTACH_DOC.DISABILITY_CERT,
             NTAX_ATTACH_DOC.RESIDENT_CERT,
             NTAX_ATTACH_DOC.FAMILY_CERT
-        ]
+        ],
+
+		// 대표 또는 공동소유자가 미성년자 일 때 제출서류
+		MINOR: [
+			    NTAX_ATTACH_DOC.DISABILITY_CERT, // 장애인증명서(복지카드)
+			    NTAX_ATTACH_DOC.RESIDENT_CERT,	// 주민등록등본
+			    NTAX_ATTACH_DOC.FAMILY_CERT,	// 가족관계증명서(상세)
+			    NTAX_ATTACH_DOC.BASIC_CERT,		// 기본증명서(상세)
+			    NTAX_ATTACH_DOC.MINOR_AGREEMENT, // (보호자)법정대리인 동의서
+			    NTAX_ATTACH_DOC.GUARDIAN_CERT, 	// (보호자)보호자 인감증명서 또는 본인서명사실확인서
+			    NTAX_ATTACH_DOC.GUARDIAN_ID 		// (보호자)보호자 신분증
+		],
+		
+		// 취득세 면제인 것들만 사인을 하고, 감면신청서 없이 파일끼리 병합만 한다. (병합 pdf는 만들어야 됨)
+		NEED_SIGN: (grade) =>
+		    !['4', '5', '6', '05'].includes(grade),
     },
 
     // 시각장애
     '05': {
 		NAME: '시각장애',
-		AMOUNT: '시각장애 중 기존 4급 취득세 100% 면제',
+		AMOUNT: (grade) => {
+		    if (['1', '2', '3', '4', '01'].includes(grade)) {
+		        return ['취득세 100% 면제', '공채 100% 면제'];
+		    }
+
+		    if (['05'].includes(grade)) {
+				return ['공채 100% 면제'];
+		    }
+
+		    if (['5', '6'].includes(grade)) {
+		        return ['5~6급은 공채 감면만 적용되며, 취득세 감면은 제외됩니다.', '공채 100% 면제'];
+		    }
+
+		    return [];
+		},
 		
-        REPRE: [
-            NTAX_ATTACH_DOC.DISABILITY_CERT
-        ],
-        UNION: [
-            NTAX_ATTACH_DOC.DISABILITY_CERT,
-            NTAX_ATTACH_DOC.RESIDENT_CERT,
-            NTAX_ATTACH_DOC.FAMILY_CERT
-        ]
+		// 대표소유자 제출서류
+		REPRE: (grade) => {
+		    const docs = [
+		        NTAX_ATTACH_DOC.DISABILITY_CERT
+		    ];
+
+		    // 시각장애 경증만 장애정도 확인서류 추가
+		    if (grade === '05') {
+		        docs.push(NTAX_ATTACH_DOC.DISABILITY_LEVEL_CERT);
+		    }
+
+		    return docs;
+		},
+		
+
+		// 공동소유자 제출서류
+		UNION: (grade) => {
+			const docs = [
+			    NTAX_ATTACH_DOC.DISABILITY_CERT,
+				NTAX_ATTACH_DOC.RESIDENT_CERT,
+		        NTAX_ATTACH_DOC.FAMILY_CERT
+			];
+			
+			// 시각장애 경증만 장애정도 확인서류 추가
+		    if (grade === '05') {
+		        docs.push(NTAX_ATTACH_DOC.DISABILITY_LEVEL_CERT);
+		    }
+
+		    return docs;
+		},
+		
+		// 미성년자 제출서류
+		MINOR: [
+			    ATTACH_DOC.DISABILITY_CERT, // 장애인증명서(복지카드)
+			    ATTACH_DOC.RESIDENT_CERT,	// 주민등록등본
+			    ATTACH_DOC.FAMILY_CERT,	// 가족관계증명서(상세)
+			    ATTACH_DOC.BASIC_CERT,		// 기본증명서(상세)
+			    ATTACH_DOC.MINOR_AGREEMENT, // (보호자)법정대리인 동의서
+			    ATTACH_DOC.GUARDIAN_CERT, 	// (보호자)보호자 인감증명서 또는 본인서명사실확인서
+			    ATTACH_DOC.GUARDIAN_ID 		// (보호자)보호자 신분증
+		],
+		
+		// 취득세 면제인 것들만 사인을 하고, 감면신청서 없이 파일끼리 병합만 한다. (병합 pdf는 만들어야 됨)
+		NEED_SIGN: (grade) =>
+			!['5', '6', '05'].includes(grade),
     },
 
     // 다자녀(18세미만 3명이상)
 	'06': {
 		NAME: '다자녀(3자녀)',
-		AMOUNT: '취득세 140만원',
+		AMOUNT: [
+			'6인승 이하 : 취득세 100% 감면 (감면 금액 최대 140만원)',
+			'(7~10인승)산정된 취득세액 200만원 미만 : 취득세 100% 면제',
+			'(7~10인승)산정된 취득세액 200만원 이상 : 취득세 85% 감면'
+		],
+		
 	    REPRE: [
 	        NTAX_ATTACH_DOC.FAMILY_CERT,
 	        NTAX_ATTACH_DOC.RESIDENT_CERT
@@ -334,13 +439,24 @@ export const NTAX_POLICY = {
 	    UNION: [
 	        NTAX_ATTACH_DOC.FAMILY_CERT,
 	        NTAX_ATTACH_DOC.RESIDENT_CERT
-	    ]
+	    ],
+		// (선택) 제출 서류
+		OPTIONAL: [
+		    NTAX_ATTACH_DOC.MARRIAGE_CERT
+		],
+		// 추가 안내사항
+		NOTICE: [
+		    '재혼가정의 경우 혼인관계증명서 추가'
+		]
 	},
 	
 	// 2자녀(18세미만 2명이상)
 	'15': {
 		NAME: '다자녀(2자녀)',
-		AMOUNT: '취득세 70만원',
+		AMOUNT: [
+			'6인승 이하 : 취득세 50% 감면 (감면 금액 최대 70만원)',
+			'7~10인승 : 취득세 50% 감면 (금액 한도 없음)'
+		],
 		REPRE: [
 		    NTAX_ATTACH_DOC.FAMILY_CERT,
 		    NTAX_ATTACH_DOC.RESIDENT_CERT
@@ -348,40 +464,15 @@ export const NTAX_POLICY = {
 		UNION: [
 		    NTAX_ATTACH_DOC.FAMILY_CERT,
 		    NTAX_ATTACH_DOC.RESIDENT_CERT
+		],
+		OPTIONAL: [
+		    NTAX_ATTACH_DOC.MARRIAGE_CERT
+		],
+		// 추가 안내사항
+		NOTICE: [
+		    '재혼가정의 경우 혼인관계증명서 추가'
 		]
 	},
-
-    // 교환자동차
-    '09': {
-		NAME: '교환자동차 감면',
-		AMOUNT: [
-            '교환받는 자동차의 취득세는 면제',
-            '새 차량의 세액이 기존 차량의 세액을 초과하면 초과분에 대해 취득세 부과',
-            '새 차 세액 < 기존 차 세액: 취득세 전액 면제',
-            '새 차 세액 > 기존 차 세액: 차액만큼 취득세 부과'
-        ].join('\n'),
-        REPRE: [
-            NTAX_ATTACH_DOC.DEFECT_CERT,
-            NTAX_ATTACH_DOC.DEREGISTRATION_CERT,
-            NTAX_ATTACH_DOC.MANUFACTURER_CERT
-        ],
-        UNION: []
-    },
-
-    // 수출용중고차
-    '11': {
-		NAME: '수출용중고자동차',
-		AMOUNT: [
-		    '산정된 취득세액 200만원 이하: 100% 면제',
-		    '산정된 취득세액 200만원 이상: 취득세 85% 감면'
-		].join('\n'),
-        REPRE: [
-            NTAX_ATTACH_DOC.BUSINESS_CERT,
-            NTAX_ATTACH_DOC.SALES_CONTRACT,
-            NTAX_ATTACH_DOC.VEHICLE_REGISTRATION
-        ],
-        UNION: []
-    },
 
     // 공동경비구역
     '12': {
@@ -391,10 +482,28 @@ export const NTAX_POLICY = {
         UNION: []
     },
 
+	// 보훈대상자
+	'14': {
+		NAME: '보훈보상대상자',
+		AMOUNT: ['취득세의 50% 감면'],
+	    REPRE: [
+	        NTAX_ATTACH_DOC.PATRIOT_CERT
+	    ],
+	    UNION: [
+	        NTAX_ATTACH_DOC.PATRIOT_CERT,
+	        NTAX_ATTACH_DOC.RESIDENT_CERT,
+	        NTAX_ATTACH_DOC.FAMILY_CERT
+	    ],
+	},
+
     // 비영리사업자
     '13': {
 		NAME: '비영리사업자',
-		AMOUNT: '취득세 100% 면제',
+		AMOUNT: [
+			'비영리사업자로 취득세 감면 받을 수 있는 차량은 관용차량만 가능합니다.'+
+			'(국방용, 경호, 경비용 교통순찰, 소방용공익 목적 행정 차량)',
+			'교회, 단체 등 비영리사업자는 취득세 감면이 불가합니다.',
+			'취득세 100% 면제'],
 		
         REPRE: [
             NTAX_ATTACH_DOC.UNIQUE_NUMBER_CERT,
@@ -402,20 +511,32 @@ export const NTAX_POLICY = {
         ],
         UNION: []
     },
+	
+	// 교환자동차
+	'09': {
+		NAME: '교환자동차 감면',
+		AMOUNT:['교환자동차 감면은 다코스 담당자에게 문의 바랍니다.', 
+		'070-7931-2380 또는 070-7931-2818'
+		],
+	    REPRE: [],
+	    UNION: []
+	},
 
-    // 보훈보상대상자
-    '14': {
-		NAME: '보훈보상대상자',
-		AMOUNT: '취득세의 50% 면제',
-		
-        REPRE: [
-            NTAX_ATTACH_DOC.PATRIOT_CONFIRM
-        ],
-        UNION: [
-            NTAX_ATTACH_DOC.PATRIOT_CONFIRM,
-            NTAX_ATTACH_DOC.RESIDENT_CERT,
-            NTAX_ATTACH_DOC.FAMILY_CERT
-        ]
-    },
+	/*
+	// 수출용중고차
+	'11': {
+		NAME: '수출용중고자동차',
+		AMOUNT: [
+		    '산정된 취득세액 200만원 이하: 100% 면제',
+		    '산정된 취득세액 200만원 이상: 취득세 85% 감면'
+		],
+	    REPRE: [
+	        NTAX_ATTACH_DOC.BUSINESS_CERT,
+	        NTAX_ATTACH_DOC.SALES_CONTRACT,
+	        NTAX_ATTACH_DOC.VEHICLE_REGISTRATION
+	    ],
+	    UNION: []
+	}
+	*/
 
 };

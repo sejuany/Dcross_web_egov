@@ -1,4 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
+
 import axios from 'axios';
 import { X, FileText, Mail, RefreshCw } from 'lucide-react';
 import '../../styles/WaNewcarRequest.css';
@@ -14,9 +16,9 @@ import WaSendSmsModal from './WaSendSmsModal';
 import {
     getAttachPolicy,
     getNtaxAttachPolicy,
-	NTAX_POLICY
+	NTAX_POLICY,
+	ETC_DOCS
 } from '../../../policy/attachPolicy';
-
 
 const getValue = (row, ...keys) => {
     if (!row) return '';
@@ -74,7 +76,7 @@ const WaNewcarAttachModal = ({
 
 	// 비과세 정책
 	const ntaxPolicy = useMemo(
-	    () => getNtaxAttachPolicy(dsNewCar),
+	    () => getNtaxAttachPolicy(dsNewCar, dsOwnerInfo),
 	    [dsNewCar]
 	);
 	
@@ -84,11 +86,20 @@ const WaNewcarAttachModal = ({
 	    [ntaxPolicy]
 	);
 
-	// 화면에 보여줄 전체 서류(순서 유지용)
-	const displayDocs = useMemo(
-	    () => [...ownerDocs, ...ntaxDocs].sort((a, b) => a.seq - b.seq),
-	    [ownerDocs, ntaxDocs]
-	);
+	// 화면에 보여줄 전체 서류(중복 제거 + 순서 유지)
+	const displayDocs = useMemo(() => {
+	    const docs = [
+	        ...ownerDocs,
+	        ...ntaxDocs,
+	        ...(ntaxPolicy.optionalDocs ?? []),
+			ETC_DOCS[0]
+	    ].filter(Boolean);
+
+	    return [...new Map(
+	        docs.map(doc => [doc.code, doc])
+	    ).values()]
+	        .sort((a, b) => a.seq - b.seq);
+	}, [ownerDocs, ntaxDocs, ntaxPolicy]);
 
 	// 코드별 업로드 파일 조회용 Map 생성
 	const attachFileMap = useMemo(() => {
@@ -180,7 +191,7 @@ const WaNewcarAttachModal = ({
 		
 		// 이미지 압축(PDF는 원본 사용)
 		const uploadFile = await compressImage(file);
-		
+
         const formData = new FormData();
         formData.append('serviceId', serviceId);
 		
@@ -194,6 +205,17 @@ const WaNewcarAttachModal = ({
 		
 		// 압축된 파일 업로드
 		formData.append('file', uploadFile);
+		
+		// 다른 구분의 서류가 미성년자 확인서류에도 필요한 경우 MINOR로 중복 저장
+		// 이미 MINOR 서류인 경우에는 중복 저장하지 않음
+		const duplicateMinor =
+		    doc.gubun !== 'MINOR' &&
+		    (
+		        attachPolicy.duplicateMinorCodes.has(doc.code) ||
+		        ntaxPolicy.duplicateMinorCodes.has(doc.code)
+		    );
+
+		formData.append('duplicateMinor', duplicateMinor ? 'Y' : 'N');
 		
         try {
             const res = await axios.post('/api/newcar/wa-attach-upload', formData, {
@@ -224,6 +246,43 @@ const WaNewcarAttachModal = ({
         }
     };
 
+	// 양식 다운로드
+	const handleDownloadForm = async (doc) => {
+	    try {
+	        const res = await axios.post(
+	            '/api/attach/form',
+	            {
+	                CODE: doc.code,
+	                NAME: doc.name
+	            },
+	            {
+	                responseType: 'blob'
+	            }
+	        );
+
+	        const blob = new Blob([res.data]);
+	        const url = window.URL.createObjectURL(blob);
+
+	        const link = document.createElement('a');
+	        link.href = url;
+	        link.download = `${doc.name}.pdf`;
+
+	        document.body.appendChild(link);
+	        link.click();
+	        link.remove();
+
+	        window.URL.revokeObjectURL(url);
+
+	    } catch (e) {
+	        console.error(e);
+
+	        gf.alert(
+	            e.response?.data?.message ||
+	            '양식 다운로드 중 오류가 발생했습니다.'
+	        );
+	    }
+	};
+	
 	// 업로드된 파일 열기
     const handleOpenFile = (file) => {
         const fileUrl = getValue(file, 'FILE_URL', 'fileUrl');
@@ -320,7 +379,7 @@ const WaNewcarAttachModal = ({
 	    }
 	};
 	
-    return (
+    return createPortal(
         <div className="wa-attach-modal-backdrop">
             <div className="wa-attach-modal">
                 <div className="wa-attach-modal-header">
@@ -353,14 +412,18 @@ const WaNewcarAttachModal = ({
 						            key={doc.code}
 						            className={`wa-attach-doc-line ${hasFile ? 'uploaded' : ''}`}
 						        >
-						            <span className="wa-attach-doc-label">
-						                {index === 0 && '소유자 확인 서류'}
+									<span className="wa-attach-doc-label">
+									    {index === 0 && '소유자 확인 서류'}
 	
-						                {index > 0 &&
-						                    doc.gubun === 'MERGE' &&
-						                    prevDoc?.gubun !== 'MERGE' &&
-						                    '감면 증빙 서류'}
-						            </span>
+									    {index > 0 &&
+									        doc.gubun === 'MERGE' &&
+									        prevDoc?.gubun !== 'MERGE' &&
+									        (
+									            dsNewCar.NTAX_WHO === 'UNION'
+									                ? '공동소유자 감면 증빙 서류'
+									                : '감면 증빙 서류'
+									        )}
+									</span>
 	
 						            <span className="wa-attach-doc-state">
 						                {doc.name}
@@ -375,14 +438,16 @@ const WaNewcarAttachModal = ({
 						})}
 						
 						{/* 감면 증빙 안내 */}
-						{(ntaxDocs.length > 0 || needSign) && (
+						{ntaxPolicy.needSign && (
 							<div
 							    className={`wa-attach-doc-line sub ${hasSign ? 'uploaded' : 'blue'}`}
 							>
 							    <span></span>
 
 							    <span className="wa-attach-doc-state">
-							        지방세 감면 신청사항 확인 서명 필요
+									{dsNewCar.NTAX_WHO === 'UNION'
+							                ? '감면 대상자(공동소유자)의 서명이 필요합니다.'
+							                : '감면 대상자의 서명이 필요합니다.'}
 							    </span>
 
 							    <span className="wa-attach-doc-check">
@@ -430,7 +495,12 @@ const WaNewcarAttachModal = ({
                                             {renderThumb(doc)}
                                         </button>
 
-                                        <strong>{doc.name}</strong>
+										<strong>
+										    {doc.name}
+										    {doc.choice === 'Y' && (
+										        <span className="wa-attach-choice"> [선택]</span>
+										    )}
+										</strong>
 
                                         {hasFile && (
                                             <span
@@ -441,14 +511,32 @@ const WaNewcarAttachModal = ({
                                             </span>
                                         )}
 
-                                        <button
-                                            type="button"
-                                            className="wa-attach-file-btn"
-											onClick={() => handleSelectFile(doc.code)}
-                                            disabled={uploadingCode === doc.code}
-                                        >
-                                            {uploadingCode === doc.code ? '업로드중' : hasFile ? '파일변경' : '파일첨부'}
-                                        </button>
+										<div className="wa-attach-card-btn-group">
+
+										    <button
+										        type="button"
+										        className="wa-attach-file-btn"
+										        onClick={() => handleSelectFile(doc.code)}
+										        disabled={uploadingCode === doc.code}
+										    >
+										        {uploadingCode === doc.code
+										            ? '업로드중'
+										            : hasFile
+										                ? '파일변경'
+										                : '파일첨부'}
+										    </button>
+											
+											{doc.formYn === 'Y' && (
+											    <button
+											        type="button"
+											        className="wa-attach-form-btn"
+											        onClick={() => handleDownloadForm(doc)}
+											    >
+											        서식 다운로드
+											    </button>
+											)}
+
+										</div>
                                     </div>
                                 );
                             })}
@@ -485,6 +573,7 @@ const WaNewcarAttachModal = ({
 						<WaSendSmsModal
 							dsService={dsService}
 						    dsNewCar={dsNewCar}
+							dsOwnerInfo={dsOwnerInfo}
 							dsCarNoDetach={dsCarNoDetach}
 							setDsCarNoDetach={setDsCarNoDetach}
 							dsUserInfo={dsUserInfo}
@@ -495,7 +584,8 @@ const WaNewcarAttachModal = ({
                     </section>
                 </div>
             </div>
-        </div>
+        </div>,
+	  document.body
     );
 };
 

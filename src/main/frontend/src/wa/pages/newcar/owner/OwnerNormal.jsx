@@ -181,6 +181,7 @@ const OwnerPersonal = ({
 						    value={dsNewCar.REG_NO}
 						    lengths={[6, 7]}
 							maskLast={['R', 'F'].includes(dsNewCar.REG_GB)}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,
@@ -212,6 +213,7 @@ const OwnerPersonal = ({
 							    value={dsNewCar.BIZ_NO}
 							    lengths={[3, 2, 5]}
 							    placeholders={['123', '45', '67890']}
+								inputClassName="wa-number-center"
 							    onChange={value =>
 							        setDsNewCar(prev => ({
 							            ...prev,
@@ -237,6 +239,7 @@ const OwnerPersonal = ({
 						    lengths={[3, 4, 4]}
 						    fixedValues={['010']}
 						    placeholders={['010', '1234', '5678']}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,

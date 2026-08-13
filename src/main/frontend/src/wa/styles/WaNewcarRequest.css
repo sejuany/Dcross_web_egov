@@ -243,6 +243,13 @@
     margin: 16px 0;
 }
 
+.wa-form-section-title {
+    margin: 0 0 18px 160px;
+    color: var(--wa-text);
+    font-size: 16px;
+    font-weight: 700;
+}
+
 /* =========================================================
  * Step
  * ========================================================= */
@@ -438,6 +445,10 @@
 
 .wa-inline-group .wa-input{
     flex:1;
+}
+
+.wa-number-center {
+    text-align: center;
 }
 
 .wa-masked-input{
@@ -1645,7 +1656,6 @@ hr.wa-divider.hr2 {
     align-items: center;
     justify-content: center;
 
-    padding: 24px;
     box-sizing: border-box;
 
     background: rgba(15, 23, 42, 0.45);
@@ -1716,6 +1726,12 @@ hr.wa-divider.hr2 {
 .wa-attach-doc-section {
     background: #fff;
 }
+
+.wa-attach-choice {
+	color: red;
+    font-size: 12px;
+}
+
 /* =========================================================
    첨부서류 목록
    ========================================================= */
@@ -1889,19 +1905,18 @@ hr.wa-divider.hr2 {
     align-items: center;
     justify-content: center;
 
-    min-width: 66px;
+    width: 80px;
     height: 26px;
-
-    margin-top: 6px;
+    
     padding: 0 14px;
 
     border: none;
-    border-radius: 6px;
+    border-radius: 4px;
 
     background: #2f80ed;
     color: #fff;
 
-    font-size: 11px;
+    font-size: 12px;
     font-weight: 600;
 
     cursor: pointer;
@@ -1931,6 +1946,30 @@ hr.wa-divider.hr2 {
     font-weight: 700;
 }
 
+/* 서식 다운로드 버튼 */
+.wa-attach-card-btn-group {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 5px;
+    width: 100%;
+}
+
+.wa-attach-form-btn {
+    width: 80px;
+    height: 26px;
+    padding: 0 6px;
+    border: 1px solid #d6dce5;
+    border-radius: 4px;
+    background: #f8f9fa;
+    color: #495057;
+    font-size: 12px;
+    cursor: pointer;
+}
+
+.wa-attach-form-btn:hover {
+    background: #eef1f5;
+}
 /* =========================================================
    재병합 버튼
    ========================================================= */
@@ -2296,6 +2335,14 @@ hr.wa-divider.hr2 {
     color: #111827;
     font-size: 19px;
     font-weight: 700;
+}
+
+.wa-exemption-warning-main.normal {
+	font-weight:600;
+}
+
+.wa-exemption-warning-main.normal.small {
+	font-size: 17px;
 }
 
 .wa-exemption-warning-note {
@@ -2704,6 +2751,11 @@ hr.wa-divider.hr2 {
         justify-self: stretch;
         align-items: flex-start;
         text-align: left;
+    }
+
+    .wa-request-page .wa-form-section-title {
+        margin: 0 0 14px;
+        font-size: 15px;
     }
 
     .wa-request-page .wa-form-label {

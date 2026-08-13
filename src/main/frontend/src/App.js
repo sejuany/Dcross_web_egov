@@ -12,6 +12,7 @@ import WaErpRedirect from './wa/auth/WaErpRedirect';
 import CustomerRoutes from './customer/CustomerRoutes';
 import './App.css';
 import CommonPopupProvider from './components/common/CommonPopupProvider';
+import Policy from './components/member/Policy';
 
 function App() {
   return (
@@ -21,6 +22,8 @@ function App() {
           <Routes>
             <Route path="/" element={<Navigate replace to="/login" />} />
             <Route path="/login" element={<LoginPage />} />
+			{/* 개인정보 처리방침 */}
+			<Route path="/policy" element={<Policy />} />
             <Route path="/wa/*" element={<WaRoutes />} />
             <Route path="/signup" element={<SignupTerm />} />
             <Route path="/signup-form" element={<SignForm />} />

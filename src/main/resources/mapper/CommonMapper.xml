@@ -70,6 +70,7 @@
 	                ON A.ROAD_CD = TRIM(B.SIGUNGU_CD) || TRIM(B.ROAD_NO)
 	               AND A.EMD_SN = B.EMD_SN
 	             WHERE A.BUILDB_NO = #{BUILDB_NO}
+	               AND B.USE_YN = '0'
 	             <if test="SIDO_NM != null and SIDO_NM != ''">
 				   AND A.SIDO_NM = #{SIDO_NM}
 	             </if>
@@ -121,6 +122,7 @@
 	               AND A.EMD_SN = B.EMD_SN
 		             
 	             WHERE A.JIBUNB_NO = #{BUILDB_NO}
+	               AND B.USE_YN = '0'
 				 <if test="SIDO_NM != null and SIDO_NM != ''">
 				   AND A.SIDO_NM = #{SIDO_NM}
 	             </if>

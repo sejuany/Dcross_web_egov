@@ -176,7 +176,7 @@ const JointOwner = ({
 			{/* 휴대폰번호 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
-			        휴대폰번호
+			        공동소유자 휴대폰번호
 			    </label>
 			    <div className="wa-form-control">
 			        <div className="wa-inline-group">
@@ -197,7 +197,7 @@ const JointOwner = ({
 			</div>
 			
 			
-			{/* 공동소유자 주소
+			{/* 공동소유자 주소 */}
 			{showAddress && (
 				<AddressSearch
 					data={dsOwnerInfo}
@@ -217,7 +217,7 @@ const JointOwner = ({
 					sameLabel='대표소유자 주소'
 				/>
 			)}
-			*/}
+			
 			
 		</>
 	)

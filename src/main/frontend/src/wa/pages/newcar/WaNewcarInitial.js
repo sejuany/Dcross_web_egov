@@ -222,7 +222,8 @@ export const initialDsBranchList = [
         HJD_CD: '',
         HJD_NM: '',
         ROAD_CD: '',
-        ROAD_NM: ''
+        ROAD_NM: '',
+		ASSIGN_CD: ''
     }
 ];
 

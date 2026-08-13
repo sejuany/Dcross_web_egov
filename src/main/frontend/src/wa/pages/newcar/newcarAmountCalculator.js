@@ -641,6 +641,10 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
     const friendlyFuel = fuelCode === 'e' || (fuelCode >= 'l' && fuelCode <= 'q');
     const exempt = (reason) => ({ exempt: true, area, reason });
 
+    if (targetCode === '12') {
+        return exempt('공동경비구역(JSA) 거주자 감면으로 공채 전액면제');
+    }
+
     if ((targetCode >= '01' && targetCode <= '05') || ['07', '13'].includes(targetCode)) {
         if (targetCode === '01') {
             return exempt('국가유공자 공채 전액면제');
@@ -679,6 +683,9 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
         const seoulUnderOneThousand = area === '서울특별시'
             && carCc < 1000 && ['00', '15'].includes(targetCode);
         if (!seoulElectricNormal && !seoulUnderOneThousand) {
+            if (area === '서울특별시' && ['e', 'q'].includes(fuelCode) && targetCode !== '00') {
+                return exempt('비과세대상 채권 면제 적용');
+            }
             return exempt('1600cc 미만 승용차 공채 매입의무 면제');
         }
     }
@@ -721,9 +728,6 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
         && ecoEligibility.bondEligible
         && !fixedElectricAreas.includes(area)) {
         return exempt('전기·수소차 공채 전액면제');
-    }
-    if (String(dsNewCar.BOND_FULL_EXEMPT_YN ?? '').trim().toUpperCase() === 'Y') {
-        return exempt('공채 전액면제');
     }
     return { exempt: false, area, reason: '' };
 };

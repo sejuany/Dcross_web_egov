@@ -902,7 +902,7 @@ const WaNewcarList = () => {
                     PROC_ST: nextStatus,
 					CAR_NO: row.REQ_CAR_NO,
 					SU_ID: row.SU_ID,
-					MPHONE_NO: row.MPHONE_NO
+					PAY_HP_NO: row.PAY_HP_NO
                 };
             });
 

@@ -27,7 +27,7 @@ public class AttachController {
     }
 
     /**
-     * 사진 병합
+     * PDF 생성 및 사진 병합
      * POST /api/attach/merge-pdf
      */
     @PostMapping("/merge-pdf")
@@ -37,7 +37,7 @@ public class AttachController {
 
         Map<String, Object> exemption =
                 (Map<String, Object>) param.get("EXEMPTION");
-
+        
         attachService.mergePdf(serviceId, exemption);
 
         return ResponseEntity.ok(ApiResponse.withKey("result", true));

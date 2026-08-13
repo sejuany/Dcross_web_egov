@@ -284,14 +284,16 @@ const WaNewcarDetail = ({
 			)}
 			
 			<div className={`wa-request-card detail${embedded ? ' embedded' : ''}`}>
-				<button
-					type="button"
-					className="wa-detail-top-close"
-					onClick={handleClose}
-					aria-label="상세 화면 닫기"
-				>
-					<X size={20} aria-hidden="true" />
-				</button>
+				<div className="marginBox-b10">
+					<button
+						type="button"
+						className="wa-detail-top-close"
+						onClick={handleClose}
+						aria-label="상세 화면 닫기"
+					>
+						<X size={20} aria-hidden="true" />
+					</button>
+				</div>
 	
 				{/* 처리상태 / 반려사유 */}
 				<div className="wa-detail-header">
@@ -645,15 +647,6 @@ const WaNewcarDetail = ({
 				                <span className="wa-detail-name">SPACE</span>
 				                <span>{dsDLVGB?.find(item => item.CODE_ID === dsCarNoDetach.DELIVERY_GB)?.CODE_NM ?? '-'}</span>
 				            </div>
-
-				        </div>
-
-				        <div className="wa-detail-right">
-
-							<button type="button" className="wa-detail-delivery-btn" onClick={handleDeliverySearch}>
-						    	<Search size={20} strokeWidth={2.5} />
-				                <span>배송현황</span>
-				            </button>
 
 				        </div>
 				    </div>
