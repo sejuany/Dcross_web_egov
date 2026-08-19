@@ -37,6 +37,7 @@ import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
+import com.dacos.common.SearchLogInterceptor;
 import com.dacos.common.util.CommonUtil;
 import com.dacos.common.util.FieldMapper;
 import com.dacos.common.util.FieldMaps;
@@ -66,7 +67,7 @@ public class NewcarService {
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Seoul");
     private static final Set<String> NTAX_NO_UPLOAD_GRADES = Set.of(
             "7", "8", "9", "10", "11", "12", "13", "14");
-    
+
     // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
     private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
             "WA001", new CarSpecSearchConfig("POLESTAR", "1", "e")
@@ -91,6 +92,7 @@ public class NewcarService {
     private final AuthMapper authMapper;
     private final SchedulerMapper schedulerMapper;
     private final AttachService attachService;
+    private final SearchLogInterceptor searchLogInterceptor;
     
 
     /**
@@ -114,6 +116,83 @@ public class NewcarService {
         List<Map<String, Object>> rows = newcarMapper.getWaNewCarList(request);
         rows.forEach(this::applyWaAttachStatus);
         return rows;
+    }
+
+    public boolean verifyWaExcelPassword(UserDto user, String password) {
+        validateWaPrivacyExcelAccess(user);
+
+        if (password == null || password.isBlank()) {
+            return false;
+        }
+
+        // The authentication SELECT should not leave the login ID in CONDITION_TX.
+        return searchLogInterceptor.withoutAutoLog(
+                () -> authService.verifyPassword(user.getLOGIN_ID(), password)
+        );
+    }
+
+    public List<Map<String, Object>> getWaPrivacyExcelList(NewcarSearchRequest request, UserDto user) {
+        validateWaPrivacyExcelAccess(user);
+
+        return searchLogInterceptor.withoutAutoLog(() -> {
+            List<Map<String, Object>> rows = getWaNewCarList(request, user);
+            List<String> serviceIds = new ArrayList<>();
+            Set<String> uniqueServiceIds = new HashSet<>();
+
+            for (Map<String, Object> row : rows) {
+                String serviceId = Objects.toString(row.get("SERVICE_ID"), "").trim();
+
+                if (!serviceId.isEmpty() && uniqueServiceIds.add(serviceId)) {
+                    serviceIds.add(serviceId);
+                }
+            }
+
+            List<Map<String, Object>> privacyRows = new ArrayList<>();
+            final int chunkSize = 900;
+
+            for (int start = 0; start < serviceIds.size(); start += chunkSize) {
+                int end = Math.min(start + chunkSize, serviceIds.size());
+                privacyRows.addAll(newcarMapper.getWaPrivacyExcelInfoList(
+                        serviceIds.subList(start, end),
+                        "010"
+                ));
+            }
+
+            searchLogInterceptor.insertManualSearchLog(
+                    user,
+                    "WA_CA_PRIVACY_EXCEL_DOWNLOAD",
+                    "010",
+                    buildWaPrivacyExcelLogCondition(request)
+            );
+
+            return privacyRows;
+        });
+    }
+
+    private String buildWaPrivacyExcelLogCondition(NewcarSearchRequest request) {
+        return "WaNewcarExcelSearchCondition("
+                + "DATE_CD=" + logValue(request.getDATE_CD())
+                + ", START_DT=" + logValue(request.getSTART_DT())
+                + ", END_DT=" + logValue(request.getEND_DT())
+                + ", SPACE_TYPE=" + logValue(request.getSPACE_TYPE())
+                + ", PROC_ST=" + logValue(request.getPROC_ST())
+                + ", NUM_PROC_ST=" + logValue(request.getNUM_PROC_ST())
+                + ", CUSTOMER_NM=" + logValue(request.getCUSTOMER_NM())
+                + ", CAR_NO=" + logValue(request.getCAR_NO())
+                + ", LINK_ID=" + logValue(request.getLINK_ID())
+                + ")";
+    }
+
+    private String logValue(String value) {
+        return value == null ? "null" : value;
+    }
+
+    private void validateWaPrivacyExcelAccess(UserDto user) {
+        if (user == null
+                || !"WA001".equals(user.getCOMPANY_ID())
+                || !"CA".equalsIgnoreCase(user.getMEMBER_GB())) {
+            throw new BusinessException("개인정보 엑셀 다운로드 권한이 없습니다.", 403);
+        }
     }
 
     /**
@@ -1279,7 +1358,7 @@ public class NewcarService {
 
 			// 공동소유자 데이터 정리 (하이픈, 공백, 줄바꿈, 쉼표 제거)
 		    normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
-            normalizeTaxReceipt(mTaxReceipt);
+		    normalizeTaxReceipt(mTaxReceipt, mNewCar);
 
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
@@ -1543,7 +1622,9 @@ public class NewcarService {
 	    }
 	}
 
-    private void normalizeTaxReceipt(Map<String, Object> taxReceipt) {
+    private void normalizeTaxReceipt(
+            Map<String, Object> taxReceipt,
+            Map<String, Object> newCar) {
         if (taxReceipt == null) {
             return;
         }
@@ -1567,6 +1648,30 @@ public class NewcarService {
         }
 
         normalizeNumberFields(taxReceipt, "REG_NO", "PHONE_NO");
+
+        String taskCd = Objects.toString(newCar != null ? newCar.get("TASK_CD") : null, "")
+                .trim()
+                .toUpperCase();
+        String procCd = Objects.toString(newCar != null ? newCar.get("PROC_CD") : null, "")
+                .trim()
+                .toUpperCase();
+        String regGb = Objects.toString(newCar != null ? newCar.get("REG_GB") : null, "")
+                .trim()
+                .toUpperCase();
+        String privateBusinessYn = Objects.toString(taxReceipt.get("ETC1"), "")
+                .trim()
+                .toUpperCase();
+        boolean isEligibleTask = (
+                "NORML".equals(taskCd) && "I".equals(procCd)
+        ) || (
+                "LEASE".equals(taskCd) && "C".equals(procCd)
+        );
+        boolean isPersonalOwner = "R".equals(regGb) || "F".equals(regGb);
+
+        taxReceipt.put(
+                "ETC1",
+                isEligibleTask && isPersonalOwner && "Y".equals(privateBusinessYn) ? "Y" : "N"
+        );
     }
 
     private boolean hasTaxReceipt(Map<String, Object> taxReceipt) {
@@ -1612,7 +1717,7 @@ public class NewcarService {
 			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
 
 			normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
-            normalizeTaxReceipt(mTaxReceipt);
+            normalizeTaxReceipt(mTaxReceipt, mNewCar);
 
 		    logger.info("lOwnerInfoList >>> " + lOwnerInfoList);
 		    logger.info("lOwnerInfoList1 >>> " + lOwnerInfoList1);
@@ -1746,6 +1851,20 @@ public class NewcarService {
 				updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 			}
 
+			// 08시 스케줄을 타지 못하는 당일 신청 건은 CA 신청 완료 시 보험 접수함.
+			if (isTodayRegistration(mNewCar.get("REGIST_DATE"))) {
+				try {
+					insertAndSendNewcarInsurance(
+						serviceId,
+						Objects.toString(mService.get("COMPANY_ID"), ""),
+						user.getLOGIN_ID()
+					);
+				} catch (Exception e) {
+					// 보험 연계 실패가 기존 신규등록 신청을 중단시키지 않도록 분리함.
+					logger.error("[보험접수] CA 당일 신청 처리 실패 - serviceId: {}", serviceId, e);
+				}
+			}
+
 			// 후납건은 바로 관청 서버 연계
 	        Map<String, Object> linkData = commonUtil.filterMap(input,
 	                "SERVICE_ID, WORK_CD, PROC_CD, TASK_CD, CARID_NO,"
@@ -1836,7 +1955,111 @@ public class NewcarService {
 			mService.put("UPD_USER", user.getLOGIN_ID());
 
 		    //common.update(mService, "updateTrServiceProcSt");
-	    }
+		}
+	}
+
+	/**
+	 * 신규등록 보험 요청을 우리 DB에 저장하고 관청 연계 서버에 접수함.
+	 * 호출할 때마다 새 I020 요청을 생성하여 동일 신규등록 건의 복수 조회 이력을 허용함.
+	 */
+	public boolean insertAndSendNewcarInsurance(
+			String newcarServiceId,
+			String companyId,
+			String memberId) {
+
+		Map<String, Object> target =
+			newcarMapper.selectNewcarInsuranceTarget(newcarServiceId);
+
+		if (target == null || target.isEmpty()) {
+			logger.warn("[보험접수] 대상 정보 없음 - serviceId: {}", newcarServiceId);
+			return false;
+		}
+
+		String carNo = Objects.toString(target.get("CARID_NO"), "").trim();
+		String regNo = Objects.toString(target.get("REG_NO"), "").trim();
+		String bizNo = Objects.toString(target.get("BIZ_NO"), "").trim();
+		String buyNm = Objects.toString(target.get("BUY_NM"), "").trim();
+
+		if (carNo.isBlank() || (regNo.isBlank() && bizNo.isBlank()) || buyNm.isBlank()) {
+			logger.warn(
+				"[보험접수] 필수 정보 부족 - serviceId: {}, carNoExists: {}, identifierExists: {}, buyNmExists: {}",
+				newcarServiceId,
+				!carNo.isBlank(),
+				!regNo.isBlank() || !bizNo.isBlank(),
+				!buyNm.isBlank()
+			);
+			return false;
+		}
+
+		String insuranceServiceId =
+			commonUtil.toServiceId(Map.of("WORK_CD", "I020"));
+
+		Map<String, Object> insurance = new HashMap<>();
+		insurance.put("SERVICE_ID", insuranceServiceId);
+		insurance.put("LINKED_ID", newcarServiceId);
+		insurance.put("CAR_NO", carNo);
+		insurance.put("BUY_NM", buyNm);
+		insurance.put("REG_NO", regNo);
+		insurance.put("BIZ_NO", bizNo);
+		insurance.put("COMPANY_ID", companyId);
+		insurance.put("GOVT_ID", "HAMYA");
+		insurance.put("MEMBER_ID", isBlank(memberId) ? "SYSTEM" : memberId);
+
+		newcarMapper.insertNewcarInsurance(insurance);
+
+		return sendNewcarInsurance(insurance);
+	}
+
+	/** 관청 연계 서버에 보험가입접수 요청을 전달함. */
+	private boolean sendNewcarInsurance(Map<String, Object> insurance) {
+		Map<String, Object> insuranceData = new HashMap<>();
+		insuranceData.put("SERVICE_ID", insurance.get("SERVICE_ID"));
+		insuranceData.put("CAR_NO", insurance.get("CAR_NO"));
+		insuranceData.put("REG_NO", insurance.get("REG_NO"));
+		insuranceData.put("BIZ_NO", insurance.get("BIZ_NO"));
+
+		Map<String, Object> linkData = new HashMap<>();
+		linkData.put("SID", "보험가입접수");
+		linkData.put("GOVT_ID", insurance.get("GOVT_ID"));
+		linkData.put("SEND_DATA", List.of(insuranceData));
+
+		JsonNode response = commonService.linkServer(linkData);
+		String errorCode = response.path("errorCode").asText();
+
+		if (!"0".equals(errorCode)) {
+			logger.error(
+				"[보험접수] 관청 전송 실패 - insuranceServiceId: {}, errorCode: {}",
+				insurance.get("SERVICE_ID"),
+				errorCode
+			);
+			return false;
+		}
+
+		logger.info(
+			"[보험접수] 관청 전송 완료 - insuranceServiceId: {}, linkedId: {}",
+			insurance.get("SERVICE_ID"),
+			insurance.get("LINKED_ID")
+		);
+		return true;
+	}
+
+	/** 신규등록 예정일이 한국 시간 기준 오늘인지 확인함. */
+	private boolean isTodayRegistration(Object registDateValue) {
+		String digits = Objects.toString(registDateValue, "").replaceAll("[^0-9]", "");
+		if (digits.length() < 8) {
+			return false;
+		}
+
+		try {
+			LocalDate registDate = LocalDate.parse(
+				digits.substring(0, 8),
+				DateTimeFormatter.BASIC_ISO_DATE
+			);
+			return LocalDate.now(SEARCH_ZONE).equals(registDate);
+		} catch (DateTimeParseException e) {
+			logger.warn("[보험접수] 등록예정일 형식 오류 - value: {}", registDateValue);
+			return false;
+		}
 	}
 
 	/**
@@ -1928,8 +2151,12 @@ public class NewcarService {
 
 	/**
 	 * 선택 가능한 번호판 조회
-	 * - 최초 조회 : 신규 번호판 최대 20건 조회 후 세션 저장
-	 * - 재조회 : 세션에 저장된 번호판 중 미사용 번호만 조회
+	 * - 세션 최대 20개
+	 * - 끝자리(0~9)별 최대 2개까지 저장
+	 * - 끝자리 조회 : 1회 1개, 동일 끝자리 최대 2개
+	 * - 무작위 조회 : 1회 최대 10개, 동일 끝자리 최대 2개
+	 * - 조회 시 이전 표시중(P) 번호판은 미사용(N)으로 원복
+	 * - 세션 최대치 도달 후에는 세션 번호판 안에서 재조회
 	 */
 	@Transactional
 	public List<String> getNumplateList(
@@ -1937,54 +2164,175 @@ public class NewcarService {
 	        UserDto user,
 	        HttpSession session) {
 
-	    String serviceId = Objects.toString(param.get("SERVICE_ID"), "");
+	    String serviceId =
+	        Objects.toString(param.get("SERVICE_ID"), "");
 
-	    List<String> sessionList = getNumplateSession(session, serviceId);
+	    List<String> sessionList =
+	        getNumplateSession(session, serviceId);
 
 	    if (sessionList == null) {
 	        sessionList = new ArrayList<>();
 	    }
 
-	    String condition = Objects.toString(param.get("CONDITION"), "NOT");
+	    String condition =
+	        Objects.toString(param.get("CONDITION"), "NOT");
 
-	    // 현재까지 조회한 번호판 수
 	    int sessionCount = sessionList.size();
 
-	    List<String> result;
+	    List<String> result = new ArrayList<>();
 
-	    // 아직 20개를 채우지 않은 경우
-	    if (sessionCount < 20) {
 
-	        // 무작위 10개 / 끝자리 1개
-	        int limit = "NOT".equals(condition) ? 10 : 1;
+	    // =====================================================
+	    // 이전 조회에서 표시중(P)이었던 세션 번호판 원복
+	    // =====================================================
+	    if (!sessionList.isEmpty()) {
 
-	        // 최대 20개를 넘지 않도록 제한
-	        limit = Math.min(limit, 20 - sessionCount);
-
-	        param.put("LIMIT", limit);
-
-	        // 이미 세션에 저장된 번호는 신규 조회에서 제외
 	        param.put("NUM_LIST", sessionList);
 
-	        result = common.selectList(
+	        common.update(
 	            param,
-	            "selectAvailableNumplateList"
+	            "releaseNumplateList"
 	        );
+	    }
 
-	        if (result == null || result.isEmpty()) {
-	            return new ArrayList<>();
+
+	    // =====================================================
+	    // 세션 20개 미만 → 신규 번호판 조회 가능
+	    // =====================================================
+	    if (sessionCount < 20) {
+
+	        // 끝자리별 현재 세션 저장 개수
+	        Map<String, Integer> lastDigitCount = new HashMap<>();
+
+	        for (int i = 0; i <= 9; i++) {
+	            lastDigitCount.put(String.valueOf(i), 0);
 	        }
 
-	        // 새로 조회한 번호를 세션에 누적
-	        saveNumplateSession(session, serviceId, result);
+	        for (String carNo : sessionList) {
+
+	            if (carNo == null || carNo.isEmpty()) {
+	                continue;
+	            }
+
+	            String lastDigit =
+	                carNo.substring(carNo.length() - 1);
+
+	            lastDigitCount.put(
+	                lastDigit,
+	                lastDigitCount.getOrDefault(lastDigit, 0) + 1
+	            );
+	        }
+
+	        // 신규조회 시 기존 세션 번호 제외
+	        param.put("NUM_LIST", sessionList);
+
+	        // SQL에 끝자리별 현재 개수 전달
+	        for (int i = 0; i <= 9; i++) {
+	            param.put(
+	                "LAST_COUNT_" + i,
+	                lastDigitCount.getOrDefault(
+	                    String.valueOf(i),
+	                    0
+	                )
+	            );
+	        }
+
+
+	        // =================================================
+	        // 무작위 조회
+	        // =================================================
+	        if ("NOT".equals(condition)) {
+
+	            param.put(
+	                "LIMIT",
+	                Math.min(10, 20 - sessionCount)
+	            );
+
+	            result = common.selectList(
+	                param,
+	                "selectAvailableNumplateList"
+	            );
+
+	        // =================================================
+	        // 끝자리 지정 조회
+	        // =================================================
+	        } else {
+
+	            String lastDigit =
+	                condition.substring(condition.length() - 1);
+
+	            int currentCount =
+	                lastDigitCount.getOrDefault(lastDigit, 0);
+
+	            if (currentCount < 2) {
+
+	                // 아직 2개 미만이면 신규 번호 1개 조회
+	                param.put("LIMIT", 1);
+
+	                result = common.selectList(
+	                    param,
+	                    "selectAvailableNumplateList"
+	                );
+
+	            } else {
+
+	                // 이미 해당 끝자리 2개 확보
+	                // → 신규조회하지 않고 세션 안에서 재조회
+	                param.put("NUM_LIST", sessionList);
+	                param.put("LIMIT", 1);
+
+	                result = common.selectList(
+	                    param,
+	                    "selectSessionNumplateList"
+	                );
+	            }
+	        }
+
+
+	        // 신규 번호를 조회한 경우 세션에 추가
+	        if (result != null && !result.isEmpty()) {
+
+	            List<String> newList = new ArrayList<>();
+
+	            for (String carNo : result) {
+	                if (!sessionList.contains(carNo)) {
+	                    newList.add(carNo);
+	                }
+	            }
+
+	            if (!newList.isEmpty()) {
+	                saveNumplateSession(
+	                    session,
+	                    serviceId,
+	                    newList
+	                );
+	            }
+	        } else {
+
+	            // 신규조회 결과가 없으면
+	            // 기존 세션 번호판에서 다시 조회
+	            if (!sessionList.isEmpty()) {
+
+	                param.put("NUM_LIST", sessionList);
+	                param.put(
+	                    "LIMIT",
+	                    "NOT".equals(condition) ? 10 : 1
+	                );
+
+	                result = common.selectList(
+	                    param,
+	                    "selectSessionNumplateList"
+	                );
+	            }
+	        }
 
 	    } else {
 
-	        // 20개를 모두 조회한 이후에는
-	        // 세션에 저장된 번호 안에서만 조회
+	        // =================================================
+	        // 세션 20개 도달 → 세션 번호판 안에서만 조회
+	        // =================================================
 	        param.put("NUM_LIST", sessionList);
 
-	        // 무작위 10개 / 끝자리 1개
 	        param.put(
 	            "LIMIT",
 	            "NOT".equals(condition) ? 10 : 1
@@ -1994,15 +2342,23 @@ public class NewcarService {
 	            param,
 	            "selectSessionNumplateList"
 	        );
-
-	        if (result == null || result.isEmpty()) {
-	            return new ArrayList<>();
-	        }
 	    }
 
-	    // 실제 화면에 표시할 번호만 P 처리
+
+	    if (result == null || result.isEmpty()) {
+	        return new ArrayList<>();
+	    }
+
+
+	    // =====================================================
+	    // 이번 조회에서 화면에 표시할 번호만 P 처리
+	    // =====================================================
 	    param.put("NUM_LIST", result);
-	    common.update(param, "updateNumplateAppear");
+
+	    common.update(
+	        param,
+	        "updateNumplateAppear"
+	    );
 
 	    return result;
 	}

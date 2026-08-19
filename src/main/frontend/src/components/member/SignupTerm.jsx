@@ -50,7 +50,7 @@ const SignupTerm = () => {
 		<div className="term-page-container">
 	        <div className="term-wrapper">
 	            <div className="term-header">
-	                <h3><span className="bullet"></span> 개인정보 수집∙이용 동의</h3>
+	                <h3><span className="term-title-bullet"></span> 개인정보 수집∙이용 동의</h3>
 	                <button className="btn-close" onClick={() => navigate('/login')}>닫기[F9]</button>
 	            </div>
 	

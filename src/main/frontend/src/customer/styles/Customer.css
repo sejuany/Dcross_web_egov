@@ -173,3 +173,9 @@ body.customer-body-page #root {
 
 }
 
+
+.footer5-link {
+    position: relative;
+    z-index: 99999;
+    pointer-events: auto !important;
+}

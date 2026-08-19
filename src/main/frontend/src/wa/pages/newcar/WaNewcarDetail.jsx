@@ -24,6 +24,8 @@ const paymentInfo = {
     UNUM: { order: 10, name: '입금 합계' }
 };
 
+const RECEIPT_ALLOWED_PROC_ST = new Set(['J_REQ', 'J_ING', 'J_END', 'END', 'J_WTX']);
+
 // 결제정보 행 스타일
 const getPaymentRowClass = (payKd) => {
 
@@ -82,6 +84,13 @@ const WaNewcarDetail = ({
 	
 	// 영수증
 	const handleReceipt = () => {
+		const procSt = String(dsService?.PROC_ST || '').trim().toUpperCase();
+
+		if (!RECEIPT_ALLOWED_PROC_ST.has(procSt)) {
+			gf.alert('취득세 부과 및 채권처리 후 영수증 확인이 가능합니다.');
+			return;
+		}
+
 		window.open(
 		    `/wa/newcar/receipt/${dsService.SERVICE_ID}`,
 		    'paymentReceipt',
@@ -823,6 +832,7 @@ const WaNewcarDetail = ({
 				    open={receiptModalOpen}
 				    onClose={() => setReceiptModalOpen(false)}
 				    dsTaxReceipt={dsTaxReceipt}
+				    dsNewCar={dsNewCar}
 				/>
 				
 			</div>

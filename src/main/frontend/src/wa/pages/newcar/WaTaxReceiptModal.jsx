@@ -5,10 +5,18 @@ import '../../styles/WaNewcarRequest.css';
 const WaTaxReceiptModal = ({
 	open,
 	onClose,
-	dsTaxReceipt
+	dsTaxReceipt,
+	dsNewCar
 }) => {
 
 	const [receiptType, setReceiptType] = useState('');
+	const isPrivateBusinessEligible = (
+		(
+			(dsNewCar?.TASK_CD === 'NORML' && dsNewCar?.PROC_CD === 'I')
+			|| (dsNewCar?.TASK_CD === 'LEASE' && dsNewCar?.PROC_CD === 'C')
+		)
+		&& ['R', 'F'].includes(dsNewCar?.REG_GB)
+	);
 
 	useEffect(() => {
 		if (open) {
@@ -69,6 +77,15 @@ const WaTaxReceiptModal = ({
 												{dsTaxReceipt?.PHONE_NO || '-'}
 											</div>
 										</div>
+
+										{isPrivateBusinessEligible && (
+											<div className="wa-form-row compact">
+												<label className="wa-form-label">개인사업자 여부</label>
+												<div className="wa-form-control">
+													{dsTaxReceipt?.ETC1 === 'Y' ? '예' : '아니오'}
+												</div>
+											</div>
+										)}
 									</div>
 								)}
 
@@ -133,6 +150,15 @@ const WaTaxReceiptModal = ({
 												{dsTaxReceipt?.INDUSTRY_TYPE || '-'}
 											</div>
 										</div>
+
+										{isPrivateBusinessEligible && (
+											<div className="wa-form-row compact">
+												<label className="wa-form-label">개인사업자 여부</label>
+												<div className="wa-form-control">
+													{dsTaxReceipt?.ETC1 === 'Y' ? '예' : '아니오'}
+												</div>
+											</div>
+										)}
 
 										<div className="wa-form-row compact">
 											<label className="wa-form-label">

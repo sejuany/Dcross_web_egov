@@ -93,7 +93,7 @@
           AND TS.COMPANY_ID = #{COMPANY_ID}
         </if>
         <choose>
-          <when test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+          <when test="COMPANY_ID != null and COMPANY_ID.startsWith('WA')  and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
             AND TS.BRANCH_ID = #{BRANCH_ID}
           </when>
           <otherwise>
@@ -196,7 +196,7 @@
         WHERE COMPANY_ID = #{COMPANY_ID}
           AND NVL(USE_YN, 'Y') = 'Y'
         <choose>
-          <when test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+          <when test="COMPANY_ID != null and COMPANY_ID.startsWith('WA') and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
             AND BRANCH_ID = #{BRANCH_ID}
           </when>
           <otherwise>

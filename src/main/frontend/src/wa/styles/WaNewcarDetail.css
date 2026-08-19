@@ -75,8 +75,8 @@
 }
 
 .wa-detail-top-close:hover {
-    border-color: #2f6df6;
-    color: #2f6df6;
+    border-color: #08295a;
+    color: #08295a;
 }
 
 .wa-detail-top-close:focus-visible {
@@ -152,7 +152,7 @@
     border:1px solid #cfd8ea;
     border-radius:10px;
     background:#fff;
-    color:#2f66f3;
+    color:#08295a;
     font-weight:600;
     cursor:pointer;
     
@@ -341,12 +341,12 @@
 
 /* 파란 버튼 */
 .wa-btn-primary {
-    background: #2f6df6;
+    background: #08295a;
     color: #fff;
 }
 
 .wa-btn-primary:hover {
-    background: #245de0;
+    background: #104ba3;
 }
 
 /* 회색 버튼 */
@@ -368,7 +368,7 @@
 .wa-btn-primary {
     flex: 1;
     height: 44px;
-    background: #2f6df6;
+    background: #08295a;
     color: #fff;
     border-radius: 6px;
 }

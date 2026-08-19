@@ -1,0 +1,276 @@
+@charset "UTF-8";
+
+/* =========================================================
+ * Receipt
+ * ========================================================= */
+.receipt-wrapper{
+    position:fixed;
+    inset:0;
+    overflow-y:scroll;
+    overflow-x:hidden;
+}
+
+.receipt-page{
+    width:900px;
+    margin:0 auto;
+    padding:32px;
+    box-sizing:border-box;
+    background:#fff;
+}
+
+.receipt-status{
+    min-height:240px;
+    padding-top:96px;
+    color:#555;
+    text-align:center;
+}
+
+.receipt-status-error{
+    color:#c62828;
+}
+
+.receipt-title-top{
+    margin-bottom:6px;
+    font-size:15px;
+    font-weight:700;
+}
+
+.receipt-title-main{
+    margin-bottom:24px;
+    padding-bottom:12px;
+    border-bottom:2px solid #333;
+    font-size:24px;
+    font-weight:700;
+}
+
+.receipt-blue-box{
+    margin-bottom:32px;
+    padding:24px 28px;
+    border-radius:6px;
+    background:#1a2a40;
+    color:#fff;
+}
+
+.receipt-blue-box-inner{
+    display:flex;
+    justify-content:space-between;
+    align-items:flex-start;
+}
+
+.receipt-info-text{
+    line-height:2.3;
+    font-size:14px;
+}
+
+.receipt-vin-text{
+    margin-left:8px;
+    opacity:.85;
+}
+
+.receipt-total-section{
+    text-align:right;
+}
+
+.receipt-total-label{
+    margin-bottom:6px;
+    font-size:12px;
+}
+
+.receipt-total-value{
+    color:#4da6ff;
+    font-size:28px;
+    font-weight:700;
+}
+
+.receipt-payment-number-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:16px;
+}
+
+.receipt-payment-number-card{
+    min-height:84px;
+    padding:18px 20px;
+    box-sizing:border-box;
+    border:1px solid #d1d8e0;
+    border-radius:6px;
+    background:#f8fafc;
+}
+
+.receipt-payment-number-label{
+    margin-bottom:10px;
+    color:#667085;
+    font-size:13px;
+    font-weight:700;
+}
+
+.receipt-payment-number-value{
+    color:#111827;
+    font-size:17px;
+    font-weight:700;
+    letter-spacing:.02em;
+    overflow-wrap:anywhere;
+}
+
+.receipt-section-title{
+    display:flex;
+    align-items:center;
+    margin:28px 0 12px;
+    font-size:16px;
+    font-weight:700;
+}
+
+.receipt-section-title::before{
+    content:'';
+    width:4px;
+    height:16px;
+    margin-right:8px;
+    background:#333;
+}
+
+.receipt-table{
+    width:100%;
+    margin-bottom:28px;
+    border-collapse:collapse;
+    table-layout:fixed;
+}
+
+.receipt-table th{
+    padding:12px 15px;
+    border-top:1px solid #d1d8e0;
+    border-bottom:1px solid #d1d8e0;
+    background:#f2f6fa;
+    color:#444;
+    font-weight:700;
+    text-align:left;
+    white-space:nowrap;
+}
+
+.receipt-table td{
+    padding:12px 15px;
+    border-bottom:1px solid #eee;
+    vertical-align:middle;
+}
+
+.receipt-table th:nth-child(1),
+.receipt-table td:nth-child(1){
+    width:25%;
+    text-align:left;
+}
+
+.receipt-table th:nth-child(2),
+.receipt-table td:nth-child(2){
+    width:15%;
+    text-align:right;
+    white-space:nowrap;
+}
+
+.receipt-table th:nth-child(3),
+.receipt-table td:nth-child(3){
+    width:60%;
+    text-align:left;
+}
+
+.receipt-row-total{
+    background:#fafafa;
+    font-weight:700;
+}
+
+.receipt-final-box{
+    padding:20px;
+    border:1px solid #ccc;
+}
+
+.receipt-final-row{
+    display:flex;
+    justify-content:space-between;
+    padding:6px 0;
+}
+
+.receipt-refund-amount{
+    margin-top:10px;
+    padding-top:10px;
+    border-top:1px solid #ddd;
+    font-size:18px;
+    font-weight:700;
+}
+
+.receipt-refund-date{
+    margin-top:10px;
+    color:#e03e3e;
+    font-size:11px;
+    text-align:right;
+}
+
+.receipt-footer{
+    margin-top:30px;
+    color:#888;
+    font-size:11px;
+    line-height:1.7;
+    text-align:center;
+}
+.receipt-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+}
+
+/* 영수증 버튼 */
+.receipt-header-buttons {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.receipt-action-btn {
+    padding: 8px 16px;
+    border: 1px solid #cfd6df;
+    border-radius: 6px;
+    background: #fff;
+    cursor: pointer;
+    font-size: 14px;
+    font-weight: 500;
+    transition: .2s;
+}
+
+.receipt-action-btn:hover {
+    background: #f5f7fa;
+}
+
+.receipt-page {
+    width: 900px;
+    margin: 0 auto;
+    padding: 32px;
+    box-sizing: border-box;
+    background: #fff;
+}
+
+/*pdf 저장할 때*/
+.receipt-blue-box.pdf-mode {
+    margin-bottom: 10px;
+}
+
+.receipt-footer.pdf-mode {
+	margin-top: 10px;
+}
+
+
+@media print {
+
+	/* 인쇄 할 때 드래그 생성 방지*/
+    html,
+    body {
+        overflow: visible !important;
+    }
+	
+	/* 영수증 인쇄 할 때 드래그 생성 방지*/
+    .receipt-wrapper,
+    .receipt-page,
+    .receipt-pdf {
+        overflow: visible !important;
+        height: auto !important;
+        max-height: none !important;
+    }
+}

@@ -61,21 +61,6 @@ const WaNumPlateSelectModal = ({
 	// 폴스타
 	const isUserWa001 = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
 	
-	// ASSIGN_CD 세팅 
-	useEffect(() => {
-		const isBranchInfo = dsBranchList.find(
-		    e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
-		);
-
-		if(!isBranchInfo?.ASSIGN_CD) {
-			gf.alert('배송지 설정을 하셔야 번호판 선택을 할 수 있습니다. 다코스에 문의 바랍니다.');
-			return; 
-		} 
-
-		assignCdRef.current = isBranchInfo.ASSIGN_CD;
-
-	}, []);
-	
 	// 모달 열릴 때 초기 조회
 	useEffect(() => {
 		if(isOpen) {
@@ -105,6 +90,12 @@ const WaNumPlateSelectModal = ({
 		    preCarNoRef.current = '';
 		}
 		
+		const isBranchInfo = dsBranchList.find(
+		    e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
+		);
+
+		assignCdRef.current = isBranchInfo.ASSIGN_CD ?? '';
+
 	    const assignCd = assignCdRef.current;
 
 	    const dsWhere = {
@@ -302,8 +293,12 @@ const WaNumPlateSelectModal = ({
 		}
 		 
 		if (bTrue) {
-		    resetModal();
-		    onSelect(bTrue, selectedCarNo);
+
+			// 부모에게 선택 완료 먼저 전달
+			await onSelect(true, selectedCarNo);
+			
+			// 부모 처리 완료 후 모달 초기화/닫기
+			resetModal();
 		    onClose();
 		}
 		

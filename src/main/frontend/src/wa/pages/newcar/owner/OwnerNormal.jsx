@@ -173,8 +173,8 @@ const OwnerPersonal = ({
 						>
 						    <option value="">선택</option>
 						    <option value="R">주민등록번호</option>
-						    <option value="F">외국인등록번호</option>
 						    <option value="B">법인등록번호</option>
+						    <option value="F">외국인등록번호</option>
 						</select>
 	
 						<SplitInput
@@ -291,7 +291,7 @@ const OwnerPersonal = ({
 		
 			
 		    {/* 공동소유 */}
-			{!isCorporate && (
+			{/*!isCorporate && (*/}
 				<button
 				    type="button"
 				    className={`wa-joint-btn ${isJointOwnerOpen ? 'active' : ''}`}
@@ -306,7 +306,7 @@ const OwnerPersonal = ({
 
 				    공동 명의 시 클릭
 				</button>
-			)}
+			{/*})}*/}
 			
 			
 			{isJointOwnerOpen && (

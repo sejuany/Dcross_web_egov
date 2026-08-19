@@ -52,11 +52,15 @@ public class CustomerController {
         Map<String, Object> info = customerService.getTokenInfo(param);
         // 토큰으로 공동소유자 정보 조회
         Map<String, Object> owner = customerService.getTokenOwnerInfo(param);
+        // 서명 유무
+        Map<String, Object> sign = customerService.getSignYn(info);
 		
         Map<String, Object> result = new LinkedHashMap<>();
+        
 		result.put("success", true);
 		result.put("info", info);
 		result.put("owner", owner);
+		result.put("sign", sign);
 
         return ResponseEntity.ok(
         	    ApiResponse.withKey("result", result));

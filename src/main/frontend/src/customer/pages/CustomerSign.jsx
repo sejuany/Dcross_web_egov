@@ -93,6 +93,9 @@ const CustomerSign = () => {
 			const info = res.data.result.info;
 			const owner = res.data.result.owner;
 			
+			// 사인 유무 확인
+			const sign = res.data.result.sign || {};
+			
 			// 조회된 신청 정보가 없는 경우 결과 페이지로 이동
 			if (!info) {
 			    await gf.alert('해당 건이 조회되지 않습니다.');
@@ -102,6 +105,15 @@ const CustomerSign = () => {
 			    });
 
 			    return;
+			}
+			
+			if (sign?.GUBUN === 'SIGN') {
+				await gf.alert(
+				    '이미 서명이 완료된 건입니다.\n첨부파일 업로드 화면으로 이동합니다.'
+				);
+
+				navigate(`/customer/CustomerUpload?t=${token}`);
+				return;
 			}
 			
 			setInfo(info);
@@ -358,7 +370,16 @@ const CustomerSign = () => {
 				    해당 서명은 취득세 감면 신청서에 포함됩니다.
 				    <br /><br />
 
-				    관련 문의는 담당 스페셜리스트<strong>({gf.formatPhoneNo(info.MANAGER_TEL)})</strong>에게 연락해 주시기 바랍니다.
+				    관련 문의는 담당 스페셜리스트
+					<strong>
+						<a
+							href={`tel:${gf.onlyNumber(String(info.MANAGER_TEL || ''))}`}
+							style={{ color: 'inherit', textDecoration: 'underline' }}
+						>
+							({gf.formatPhoneNo(info.MANAGER_TEL)})
+						</a>
+					</strong>
+					에게 연락해 주시기 바랍니다.
 				</p>
 
 	            {/* 서명 */}

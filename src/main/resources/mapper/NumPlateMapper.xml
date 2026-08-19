@@ -204,7 +204,7 @@
         ORDER BY NS.SUPPLY_DT DESC
     </select>
     
-    <!-- 번호판 최초조회 -->
+	<!-- 번호판 최초조회 -->
 	<select id="selectAvailableNumplateList"
 	        parameterType="java.util.HashMap"
 	        resultType="java.lang.String">
@@ -212,61 +212,96 @@
 	    SELECT CAR_NO
 	    FROM (
 	        SELECT CAR_NO
-	        FROM TM_NUMPLATE_LIST
-	        WHERE USE_YN = 'N'
-	          AND PROC_ST IN ('M_END', 'S_REQ', 'S_ING', 'S_END')
+	        FROM (
+	            SELECT
+	                CAR_NO,
+	                SUBSTR(CAR_NO, -1) AS LAST_DIGIT,
 	
-	          AND SUBSTR(CAR_NO, 3, 1) NOT IN ('하', '허', '호')
-	          AND SUBSTR(CAR_NO, 4, 1) NOT IN ('하', '허', '호')
+	                ROW_NUMBER() OVER (
+	                    PARTITION BY SUBSTR(CAR_NO, -1)
+	                    ORDER BY DBMS_RANDOM.VALUE
+	                ) AS RN
 	
-	          AND GOVT_ID = #{GOVT_ID}
-	          AND NUM_KIND = #{NUM_KIND}
-	          AND HOLE_YN = #{HOLE_YN}
-	          AND SEAL_YN = #{SEAL_YN}
-	          AND SPECIAL_YN = 'Y'
+	            FROM TM_NUMPLATE_LIST
 	
-	          AND CAR_NO LIKE '%' || #{WANT_CAR_NO} || '%'
+	            WHERE USE_YN = 'N'
+	              AND PROC_ST IN ('M_END', 'S_REQ', 'S_ING', 'S_END')
 	
-	          AND ASSIGN_CD LIKE '%' || #{ASSIGN_CD}
-	                || DECODE(SUBSTR(ASSIGN_CD, 1, 4), 'BITS', '', '%')
+	              AND SUBSTR(CAR_NO, 3, 1) NOT IN ('하', '허', '호')
+	              AND SUBSTR(CAR_NO, 4, 1) NOT IN ('하', '허', '호')
 	
-	          AND SUBSTR(CAR_NO, 1, 2) <![CDATA[ >= ]]>
-	                DECODE(#{CAR_KD}, 
-	                	'70', '01',
-	                    '80', '70', 
-	                    '97', '80'
-	                )
+	              AND GOVT_ID = #{GOVT_ID}
+	              AND NUM_KIND = #{NUM_KIND}
+	              AND HOLE_YN = #{HOLE_YN}
+	              AND SEAL_YN = #{SEAL_YN}
 	
-	          AND SUBSTR(CAR_NO, 1, 2) <![CDATA[ < ]]>
-	                DECODE(
-	                    #{CAR_KD},
-	                    '97', '98',
-	                    #{CAR_KD}
-	                )
+	              AND SPECIAL_YN = 'Y'
 	
-	          AND (
-	                #{CONDITION} = 'NOT'
-	                OR (
-	                    LENGTH(#{CONDITION}) = 2
-	                    AND REGEXP_LIKE(#{CONDITION}, '^[0-9]{2}$')
-	                    AND SUBSTR(CAR_NO, -1) = SUBSTR(#{CONDITION}, 2, 1)
-	                )
-	          )
+	              AND CAR_NO LIKE '%' || #{WANT_CAR_NO} || '%'
 	
-	          <!-- 이미 세션에 저장된 번호판 제외 -->
-	          <if test="NUM_LIST != null and NUM_LIST.size() > 0">
-	              AND CAR_NO NOT IN
-	              <foreach collection="NUM_LIST"
-	                       item="carNo"
-	                       open="("
-	                       separator=","
-	                       close=")">
-	                  #{carNo}
-	              </foreach>
-	          </if>
+	              AND ASSIGN_CD LIKE '%' || #{ASSIGN_CD}
+	                    || DECODE(
+	                        SUBSTR(ASSIGN_CD, 1, 4),
+	                        'BITS', '',
+	                        '%'
+	                    )
+	
+	              AND SUBSTR(CAR_NO, 1, 2) <![CDATA[ >= ]]>
+	                    DECODE(
+	                        #{CAR_KD},
+	                        '70', '01',
+	                        '80', '70',
+	                        '97', '80'
+	                    )
+	
+	              AND SUBSTR(CAR_NO, 1, 2) <![CDATA[ < ]]>
+	                    DECODE(
+	                        #{CAR_KD},
+	                        '97', '98',
+	                        #{CAR_KD}
+	                    )
+	
+	              AND (
+	                    #{CONDITION} = 'NOT'
+	                    OR (
+	                        LENGTH(#{CONDITION}) = 2
+	                        AND REGEXP_LIKE(
+	                            #{CONDITION},
+	                            '^[0-9]{2}$'
+	                        )
+	                        AND SUBSTR(CAR_NO, -1)
+	                            = SUBSTR(#{CONDITION}, 2, 1)
+	                    )
+	              )
+	
+	              <!-- 이미 세션에 저장된 번호판 제외 -->
+	              <if test="NUM_LIST != null and NUM_LIST.size() > 0">
+	                  AND CAR_NO NOT IN
+	                  <foreach collection="NUM_LIST" item="carNo"
+	                   			open="(" separator="," close=")">
+	                      #{carNo}
+	                  </foreach>
+	              </if>
+	        )
+	
+	        WHERE RN <![CDATA[ <= ]]>
+	            CASE LAST_DIGIT
+				    WHEN '0' THEN 2 - NVL(#{LAST_COUNT_0}, 0)
+				    WHEN '1' THEN 2 - NVL(#{LAST_COUNT_1}, 0)
+				    WHEN '2' THEN 2 - NVL(#{LAST_COUNT_2}, 0)
+				    WHEN '3' THEN 2 - NVL(#{LAST_COUNT_3}, 0)
+				    WHEN '4' THEN 2 - NVL(#{LAST_COUNT_4}, 0)
+				    WHEN '5' THEN 2 - NVL(#{LAST_COUNT_5}, 0)
+				    WHEN '6' THEN 2 - NVL(#{LAST_COUNT_6}, 0)
+				    WHEN '7' THEN 2 - NVL(#{LAST_COUNT_7}, 0)
+				    WHEN '8' THEN 2 - NVL(#{LAST_COUNT_8}, 0)
+				    WHEN '9' THEN 2 - NVL(#{LAST_COUNT_9}, 0)
+				    ELSE 0
+				END
 	
 	        ORDER BY DBMS_RANDOM.VALUE
 	    )
+	
 	    WHERE ROWNUM <![CDATA[ <= ]]> #{LIMIT}
 	
 	</select>

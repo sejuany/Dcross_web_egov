@@ -24,6 +24,11 @@ public interface NewcarMapper {
     /** WA 전용 신규신청현황 목록 조회 */
     List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request);
 
+    /** WA CA 전용 개인정보 엑셀 항목 조회 */
+    List<Map<String, Object>> getWaPrivacyExcelInfoList(
+            @Param("SERVICE_IDS") List<String> serviceIds,
+            @Param("WORK_CD") String workCd);
+
     /**
      * 신차 등록 상세 조회
      * @param serviceId 서비스 ID
@@ -76,5 +81,11 @@ public interface NewcarMapper {
 	
 	int updateBpayYn(Map<String, Object> param);
 	
-	Map<String, Object> getNumSearchInfo(); 
+    Map<String, Object> getNumSearchInfo(); 
+
+	/** 신규등록 보험 접수 대상 정보 조회 */
+	Map<String, Object> selectNewcarInsuranceTarget(@Param("SERVICE_ID") String serviceId);
+
+	/** 신규등록 보험 확인 요청 저장 */
+	int insertNewcarInsurance(Map<String, Object> param);
 }

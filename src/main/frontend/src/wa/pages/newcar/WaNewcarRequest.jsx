@@ -147,6 +147,8 @@ const REQUIRED_FOCUS_LABELS = {
 	'세금계산서 업종': '업종',
 	'이메일 주소': '이메일 주소',
 	'현금영수증 휴대폰번호': '휴대폰번호',
+	'현금영수증 사업자번호': '사업자번호',
+	'현금영수증 휴대폰번호 또는 사업자번호': '사업자번호',
 	'공동소유자1 성명': '공동소유자 성명',
 	'공동소유자1 등록구분': '공동소유자 등록번호',
 	'공동소유자1 등록번호': '공동소유자 등록번호',
@@ -2362,7 +2364,23 @@ const WaNewcarRequest = ({
 		}
 
 		if (!message && dsTaxReceipt.GUBUN === 'CASH') {
-			message = requirePhoneNumber(dsTaxReceipt.PHONE_NO, '현금영수증 휴대폰번호')
+			const cashReceiptRegNo = onlyDigits(dsTaxReceipt.REG_NO);
+			const cashReceiptPhoneNo = onlyDigits(dsTaxReceipt.PHONE_NO);
+
+			if (cashReceiptRegNo) {
+				message = requireDigitLength(
+					dsTaxReceipt.REG_NO,
+					10,
+					'현금영수증 사업자번호'
+				);
+			} else if (cashReceiptPhoneNo) {
+				message = requirePhoneNumber(
+					dsTaxReceipt.PHONE_NO,
+					'현금영수증 휴대폰번호'
+				);
+			} else {
+				message = '현금영수증 휴대폰번호 또는 사업자번호를 입력해주세요.';
+			}
 		}
 
 		if (!message && dsTaxReceipt.GUBUN === 'TAX') {

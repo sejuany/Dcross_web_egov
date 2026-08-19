@@ -120,8 +120,8 @@ const JointOwner = ({
 			            >
 			                <option value="">선택</option>
 			                <option value="R">주민등록번호</option>
+			                <option value="B">법인등록번호</option>
 			                <option value="F">외국인등록번호</option>
-			                {/*<option value="B">법인등록번호</option>*/}
 			            </select>
 
 						<SplitInput

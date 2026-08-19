@@ -88,15 +88,14 @@ describe('신규등록 예상금액', () => {
         expect(result.bond).toBe(0);
     });
 
-    test('공동경비구역 거주자는 지역 조건보다 감면대상 사유로 공채를 전액면제한다', () => {
+    test('공동경비구역 거주자는 감면대상 자체의 공채 면제를 적용하지 않는다', () => {
         const result = calculateNewcarEstimate({
             dsNewCar: {
-                CAR_NM: 'Polestar 4 Coupe Long Range Dual Motor',
+                CAR_NM: '일반 승용차',
                 CAR_CD: '승용',
-                CAR_CC: 0,
+                CAR_CC: 2000,
                 GETIN_NO: 5,
-                FUEL_CD: 'e',
-                CAR_SPEC_MAKER: 'POLESTAR',
+                FUEL_CD: 'g',
                 BUY_AMT: 71000000,
                 NTAX_TRGET_CD: '12',
                 BOND_DC: 'SELL',
@@ -106,10 +105,33 @@ describe('신규등록 예상금액', () => {
         });
 
         expect(result.acqTax).toBe(0);
-        expect(result.bondPreExempt).toBe(true);
-        expect(result.bondBaseAmt).toBe(0);
-        expect(result.bond).toBe(0);
-        expect(result.bondReliefReason).toBe('공동경비구역(JSA) 거주자 감면으로 공채 전액면제');
+        expect(result.bondPreExempt).toBe(false);
+        expect(result.bondGrossAmt).toBe(3550000);
+        expect(result.bondBaseAmt).toBe(3550000);
+        expect(result.bondReliefApplied).toBe(false);
+    });
+
+    test('비영리사업자는 감면대상 자체의 공채 면제를 적용하지 않는다', () => {
+        const result = calculateNewcarEstimate({
+            dsNewCar: {
+                CAR_NM: '일반 승용차',
+                CAR_CD: '승용',
+                CAR_CC: 2000,
+                GETIN_NO: 5,
+                FUEL_CD: 'g',
+                BUY_AMT: 71000000,
+                NTAX_TRGET_CD: '13',
+                BOND_DC: 'SELL',
+                BOND_RATE: 0.05,
+                BASE_ADDRESS: '서울특별시 중구'
+            }
+        });
+
+        expect(result.acqTax).toBe(0);
+        expect(result.bondPreExempt).toBe(false);
+        expect(result.bondGrossAmt).toBe(3550000);
+        expect(result.bondBaseAmt).toBe(3550000);
+        expect(result.bondReliefApplied).toBe(false);
     });
 
     test('보훈보상대상자는 취득세를 50% 감면한다', () => {
@@ -130,6 +152,70 @@ describe('신규등록 예상금액', () => {
         expect(result.acqReductionAmt).toBe(3500000);
         expect(result.acqTax).toBe(3500000);
         expect(result.ntaxApplyCode).toBe('11');
+    });
+
+    test.each([
+        ['장애인 경증', '04', '05'],
+        ['장애인 4급', '04', '4'],
+        ['장애인 5급', '04', '5'],
+        ['장애인 6급', '04', '6'],
+        ['시각장애 경증', '05', '05'],
+        ['시각장애 5급', '05', '5'],
+        ['시각장애 6급', '05', '6']
+    ])('%s은 취득세는 전기차 감면, 공채는 장애감면 전액면제를 적용한다', (_, targetCode, gradeCode) => {
+        const result = calculateNewcarEstimate({
+            dsNewCar: {
+                CAR_NM: 'Polestar 4 Long Range Single Motor',
+                CAR_CD: '승용',
+                CAR_CC: 0,
+                GETIN_NO: 5,
+                FUEL_CD: 'e',
+                CAR_SPEC_MAKER: 'POLESTAR',
+                BUY_AMT: 71000000,
+                NTAX_TRGET_CD: targetCode,
+                NTAX_TRGET_GR_CD: gradeCode,
+                BOND_DC: 'SELL',
+                BOND_RATE: 0.05,
+                BASE_ADDRESS: '서울특별시 중구'
+            }
+        });
+
+        expect(result.grossAcqTax).toBe(4970000);
+        expect(result.acqReductionAmt).toBe(1400000);
+        expect(result.acqTax).toBe(3570000);
+        expect(result.exemptionName).toBe('전기자동차');
+        expect(result.exemptionReason).toBe('전기자동차 취득세 최대 140만원 감면');
+        expect(result.bondPreExempt).toBe(true);
+        expect(result.bondReductionAmt).toBe(3550000);
+        expect(result.bondBaseAmt).toBe(0);
+        expect(result.bondReliefReason).toContain('공채 전액면제');
+    });
+
+    test('서울 전기차 보훈보상대상자는 공채 전액면제가 아닌 250만원 정액감면을 적용한다', () => {
+        const result = calculateNewcarEstimate({
+            dsNewCar: {
+                CAR_NM: 'Polestar 4 Long Range Single Motor',
+                CAR_CD: '승용',
+                CAR_CC: 0,
+                GETIN_NO: 5,
+                FUEL_CD: 'e',
+                CAR_SPEC_MAKER: 'POLESTAR',
+                BUY_AMT: 71909091,
+                NTAX_TRGET_CD: '14',
+                NTAX_TRGET_GR_CD: '1',
+                BOND_DC: 'SELL',
+                BOND_RATE: 0.05,
+                BOND_DISCOUNT_RATE: 0.1,
+                BASE_ADDRESS: '서울특별시 중구'
+            }
+        });
+
+        expect(result.acqReductionAmt).toBeCloseTo(2516818.185, 3);
+        expect(result.bondPreExempt).toBe(false);
+        expect(result.bondGrossAmt).toBe(3595454);
+        expect(result.bondReductionAmt).toBe(2500000);
+        expect(result.bondBaseAmt).toBe(1095000);
+        expect(result.bond).toBe(109500);
     });
 
     test('취득세 감면 제외 차종도 일반 공채 면제조건은 별도로 적용한다', () => {
@@ -265,7 +351,7 @@ describe('신규등록 예상금액', () => {
         expect(result.bondFee).toBe(4500);
     });
 
-    test('서울 전기차의 3자녀 감면은 비과세대상 채권 면제를 적용한다', () => {
+    test('서울 전기차의 3자녀 감면은 취득세 140만원과 공채 250만원을 각각 감면한다', () => {
         const result = calculateNewcarEstimate({
             dsNewCar: {
                 CAR_NM: 'Polestar 4 Coupe Long Range Dual Motor',
@@ -289,11 +375,13 @@ describe('신규등록 예상금액', () => {
 
         expect(result.acqReductionAmt).toBe(1400000);
         expect(result.acqTax).toBe(4200000);
-        expect(result.bondPreExempt).toBe(true);
-        expect(result.bondReliefReason).toBe('비과세대상 채권 면제 적용');
-        expect(result.bondBaseAmt).toBe(0);
-        expect(result.bond).toBe(0);
-        expect(result.bondFee).toBe(0);
+        expect(result.bondPreExempt).toBe(false);
+        expect(result.bondReliefReason).toBe('전기·수소차 공채 감면');
+        expect(result.bondGrossAmt).toBe(4000000);
+        expect(result.bondReductionAmt).toBe(2500000);
+        expect(result.bondBaseAmt).toBe(1500000);
+        expect(result.bond).toBe(270000);
+        expect(result.bondFee).toBe(4500);
     });
 
     test('서울 전기차 공채 조회값은 차체 크기로 정한다', () => {

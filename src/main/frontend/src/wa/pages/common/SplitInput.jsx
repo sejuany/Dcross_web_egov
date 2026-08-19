@@ -31,6 +31,9 @@ const SplitInput = ({
 
     // 각 입력칸 Ref (자동 포커스 이동)
     const inputRefs = useRef([]);
+	const valuesRef = useRef([]);
+	// 현재 SplitInput에서 부모로 전달한 값인지 확인
+	const internalValueRef = useRef(null);
 
     // debounce가 이전 렌더의 값을 참조하지 않도록 항상 최신 입력값을 Ref에 보관한다.
     const commitTimerRef = useRef(null);
@@ -49,10 +52,18 @@ const SplitInput = ({
 
     // 분리 입력값
     const [values, setValues] = useState(() => {
-        const initialValues = applyFixedValues(splitValue(value || '', lengths), fixedValues);
+        const initialValues = applyFixedValues(
+			splitValue(value || '', lengths), 
+			fixedValues
+		);
+		
+		// 분리 입력값 최신 상태 저장
+		valuesRef.current = initialValues;
         latestMergedValueRef.current = mergeValue(...initialValues);
+		
         return initialValues;
     });
+	
     const [showLastValue, setShowLastValue] = useState(false);
 
     useEffect(() => {
@@ -98,6 +109,7 @@ const SplitInput = ({
     useEffect(() => {
 
         const previous = externalStateRef.current;
+		
         const hasExternalChange = (
             previous.value !== value
             || !isSameArray(previous.lengths, lengths)
@@ -114,11 +126,29 @@ const SplitInput = ({
             fixedValues: [...fixedValues]
         };
 
+		// 내가 입력해서 부모에게 전달한 값이 그대로 돌아온 경우
+		// 다시 splitValue()하면 뒤쪽 값이 앞 칸으로 당겨질 수 있으므로
+		// 현재 분리 상태를 그대로 유지한다.
+		if (internalValueRef.current === value) {
+		    internalValueRef.current = null;
+		    return;
+		}
+		
+		// 실제로 외부에서 변경된 값일 때만 다시 분리
+		internalValueRef.current = null;
+		
         clearCommitTimer();
         hasPendingValueRef.current = false;
 
-        const nextValues = applyFixedValues(splitValue(value || '', lengths), fixedValues);
+		const nextValues = applyFixedValues(
+		    splitValue(value || '', lengths),
+		    fixedValues
+		);
+		
+		// 분리 입력값 최신 상태 저장
+		valuesRef.current = nextValues;
         latestMergedValueRef.current = mergeValue(...nextValues);
+		
         setValues(current => (isSameArray(current, nextValues) ? current : nextValues));
 
     }, [value, lengths, fixedValues]);
@@ -149,16 +179,28 @@ const SplitInput = ({
         // 자리수 제한
         next = next.slice(0, lengths[index]);
 
-        // 병합할 때도 고정값을 다시 적용해 onChange 결과에 반드시 포함한다.
-        const newValues = applyFixedValues([...values], fixedValues);
-        newValues[index] = next;
+		// React state(values)는 렌더링 시점의 이전 값일 수 있으므로
+		// 항상 최신 입력값을 보관하고 있는 valuesRef를 기준으로 복사한다.
+		const newValues = applyFixedValues(
+		    [...valuesRef.current],
+		    fixedValues
+		);
+		
+		// 현재 수정 중인 입력칸만 변경
+		newValues[index] = next;
+		
+		// 다음 입력 이벤트에서 최신 값을 사용할 수 있도록 즉시 저장
+		valuesRef.current = newValues;
+		
+		// 화면 반영
+		setValues(newValues);
 
-        // 화면 먼저 갱신
-        setValues(newValues);
-
-        // 부모에 합친 값 전달
+        // 전체 값 병합
         const merged = mergeValue(...newValues);
-        latestMergedValueRef.current = merged;
+		latestMergedValueRef.current = merged;
+
+		// 현재 SplitInput에서 만든 값 기록
+		internalValueRef.current = merged;
 
         if (deferred) {
             hasPendingValueRef.current = true;

@@ -340,7 +340,7 @@
             NVL(TS.CAR_NO, TN.CAR_NO) AS CAR_NO,
             TN.REQ_CAR_NO AS REQ_CAR_NO,
 			TN.PROC_CD AS PROC_CD,
-            DECODE (TN.PROC_CD, 'C',TOI.DEBTOR_NM ,TN.OWNER_NM )AS OWNER_NM,
+            TN.OWNER_NM AS OWNER_NM,
             CD.CUSTOMER_NM,
             TN.BUY_AMT AS BUY_AMT,
             TN.TASK_CD AS ATTACH_TASK_CD,
@@ -390,6 +390,7 @@
             TS.RETURN_TX AS RETURN_TX,
 			TN.DIRECT_YN AS DIRECT_YN,
 			TO_CHAR(CD.SEND_YN_DT, 'YYYY-MM-DD') AS SEND_YN_DT,
+			CD.INSTALL_YN,
 			TS.BRANCH_ID AS BRANCH_ID,
 			PKG_COMMON.FN_DECRYPT(TN.TEL_NO) AS TEL_NO,
             PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
@@ -403,10 +404,10 @@
           AND TS.PROC_ST &lt;&gt; 'DEL'
 		  AND TOI.SEQ = 0
           AND TS.COMPANY_ID = #{COMPANY_ID}
-        <if test="COMPANY_ID == 'WA001' and MEMBER_GB == 'BA'">
+        <if test="COMPANY_ID != null and COMPANY_ID.startsWith('WA') and MEMBER_GB == 'BA'">
             AND TS.BRANCH_ID = #{BRANCH_ID}
         </if>
-        <if test="COMPANY_ID == 'WA001' and MEMBER_GB == 'SU'">
+        <if test="COMPANY_ID != null and COMPANY_ID.startsWith('WA') and MEMBER_GB == 'SU'">
             AND TS.MEMBER_ID = #{MEMBER_ID}
         </if>
         <if test="SPACE_TYPE != null and SPACE_TYPE != ''">
@@ -440,14 +441,17 @@
             AND (
                 TN.CARID_NO LIKE '%' || #{CAR_NO} || '%'
                 OR TN.CAR_NO LIKE '%' || #{CAR_NO} || '%'
-                OR TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
+                OR TN.REQ_CAR_NO LIKE '%' || #{CAR_NO} || '%'
+				OR TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
             )
         </if>
         <if test="LINK_ID != null and LINK_ID != ''">
             AND TS.LINK_ID LIKE '%' || #{LINK_ID} || '%'
         </if>
         <if test="CUSTOMER_NM != null and CUSTOMER_NM != ''">
-            AND TN.OWNER_NM LIKE '%' || #{CUSTOMER_NM} || '%'
+            AND (TN.OWNER_NM LIKE '%' || #{CUSTOMER_NM} || '%'
+				OR CD.CUSTOMER_NM LIKE '%' || #{CUSTOMER_NM} || '%'
+			)
         </if>
         <if test="PAY_GB != null and PAY_GB != ''">
             AND TN.PAY_GB = #{PAY_GB}
@@ -494,16 +498,94 @@
             </choose>
         </if>
         <if test="NUM_PROC_ST != null and NUM_PROC_ST != ''">
-            <choose>
-                <when test="NUM_PROC_ST == 'BEFORE'">
-                    AND CD.SEND_YN_DT IS NULL
-                </when>
-                <when test="NUM_PROC_ST == 'DELIVERY'">
-                    AND CD.SEND_YN_DT IS NOT NULL
-                </when>
-            </choose>
-        </if>
+		    <choose>
+		        <!-- 발송 전 -->
+		        <when test="NUM_PROC_ST == 'BEFORE'">
+		            AND NVL(CD.INSTALL_YN, 'N') != 'Y'
+		        </when>
+		
+		        <!-- 발송 완료 -->
+		        <when test="NUM_PROC_ST == 'DELIVERY'">
+		            AND CD.INSTALL_YN = 'Y'
+		        </when>
+		    </choose>
+		</if>
         ORDER BY TS.INS_DATE DESC, TS.SERVICE_ID DESC
+    </select>
+
+    <select id="getWaPrivacyExcelInfoList" resultType="java.util.Map">
+        SELECT
+            TN.SERVICE_ID AS SERVICE_ID,
+            NVL(TN.OWNER_NM, '') AS OWNER_NM,
+            CASE
+                WHEN TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'I' THEN '리스'
+                WHEN (
+                        (TN.TASK_CD = 'NORML' AND TN.PROC_CD = 'I')
+                        OR (TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'C')
+                     )
+                     AND TN.REG_GB IN ('R', 'F')
+                     AND NVL(TTR.ETC1, 'N') = 'Y'
+                    THEN '개인사업자'
+                WHEN TN.REG_GB IN ('R', 'F') THEN '개인'
+                WHEN TN.REG_GB = 'B' THEN '법인'
+                ELSE ''
+            END AS OWNER_TYPE,
+            PKG_COMMON.FN_DECRYPT(TN.REG_NO) AS OWNER_REG_NO,
+            CASE
+                WHEN (
+                        (TN.TASK_CD = 'NORML' AND TN.PROC_CD = 'I')
+                        OR (TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'C')
+                     )
+                     AND TN.REG_GB IN ('R', 'F')
+                     AND NVL(TTR.ETC1, 'N') = 'Y'
+                    THEN NVL(TTR.REG_NO, '')
+                WHEN (TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'I')
+                     OR TN.REG_GB = 'B'
+                    THEN NVL(TN.BIZ_NO, '')
+                ELSE ''
+            END AS OWNER_BIZ_NO,
+            TRIM(
+                NVL(PKG_COMMON.FN_DECRYPT(TN.ADDRESS), '') ||
+                CASE
+                    WHEN TN.ADDRESS_DT IS NOT NULL
+                        THEN ' ' || NVL(PKG_COMMON.FN_DECRYPT(TN.ADDRESS_DT), '')
+                    ELSE ''
+                END
+            ) AS OWNER_ADDRESS,
+            NVL(TRIM(TTR.MAIL1), '') AS OWNER_EMAIL1,
+            NVL(TRIM(TTR.MAIL2), '') AS OWNER_EMAIL2,
+            NVL(TOI.DEBTOR_NM, '') AS JOINT_OWNER_NM,
+            CASE
+                WHEN TOI.DEBTOR_NM IS NULL THEN ''
+                WHEN TOI.DEBTOR_GB IN ('R', 'F') THEN '개인'
+                WHEN TOI.DEBTOR_GB IN ('B', 'C') THEN '법인'
+                ELSE ''
+            END AS JOINT_OWNER_TYPE,
+            PKG_COMMON.FN_DECRYPT(TOI.REG_NO) AS JOINT_OWNER_REG_NO,
+            CASE
+                WHEN TOI.DEBTOR_GB IN ('B', 'C')
+                    THEN NVL(TOI.BIZ_NO, '')
+                ELSE ''
+            END AS JOINT_OWNER_BIZ_NO,
+            TRIM(
+                NVL(PKG_COMMON.FN_DECRYPT(TOI.DEBTOR_ADDR), '') ||
+                CASE
+                    WHEN TOI.DEBTOR_ADDR_DT IS NOT NULL
+                        THEN ' ' || NVL(PKG_COMMON.FN_DECRYPT(TOI.DEBTOR_ADDR_DT), '')
+                    ELSE ''
+                END
+            ) AS JOINT_OWNER_ADDRESS
+        FROM TR_NEWCAR TN
+             LEFT JOIN TR_OWNERINFO TOI
+                    ON TOI.SERVICE_ID = TN.SERVICE_ID
+                   AND TOI.SEQ = 0
+                   AND (TN.TASK_CD IS NULL OR TN.TASK_CD &lt;&gt; 'LEASE')
+             LEFT JOIN TR_TAX_RECEIPT TTR
+                    ON TTR.SERVICE_ID = TN.SERVICE_ID
+        WHERE TN.SERVICE_ID IN
+        <foreach collection="SERVICE_IDS" item="serviceId" open="(" separator="," close=")">
+            #{serviceId}
+        </foreach>
     </select>
 	<!-- 신규등록 상세 조회 -->
 	<select id="getNewCarDetail" parameterType="string" resultType="java.util.Map">
@@ -607,10 +689,12 @@
 
 	<select id="getBranchList" parameterType="map" resultType="map">
 	    SELECT COMPANY_ID, BRANCH_ID, BRANCH_NM, BIZ_NO, POST_NO,
-	           ADDRESS, ADDRESS_DT, TEL_NO, MPHONE_NO, BASE_ID,
-	           NEWCAR_YN, MORTREG_YN, MORTERS_YN, TRNSNAME_YN, PAYMENT_ME,
-	           USE_YN, BUBJUNG_CD, BUBJUNG_NM, HJD_CD, HJD_NM, ROAD_CD, 
-	           ROAD_NM, ASSIGN_CD
+	           ADDRESS, ADDRESS_DT, BASE_ID, PAYMENT_ME,
+	           REPLACE(PKG_COMMON.FN_DECRYPT(TEL_NO), '-', '') AS TEL_NO,
+			   REPLACE(PKG_COMMON.FN_DECRYPT(MPHONE_NO), '-', '') AS MPHONE_NO, 
+	           NEWCAR_YN, MORTREG_YN, MORTERS_YN, TRNSNAME_YN, 
+	           USE_YN, BUBJUNG_CD, BUBJUNG_NM, HJD_CD, HJD_NM,  
+	           ROAD_CD, ROAD_NM, ASSIGN_CD
 	    FROM TM_BRANCH
 	    WHERE COMPANY_ID = #{COMPANY_ID}
 	      AND USE_YN = 'Y'
@@ -747,6 +831,34 @@
 		</if>         	
          ORDER BY TO_NUMBER(SEQ)
     </select>
+    	<!-- 신규등록 보험 접수 대상 정보 조회 -->
+	<select id="selectNewcarInsuranceTarget" parameterType="map" resultType="java.util.Map">
+	    SELECT TS.SERVICE_ID,
+	           TS.COMPANY_ID,
+	           TN.CARID_NO,
+	           CASE
+	               WHEN TN.TASK_CD = 'LEASE' AND NVL(TN.PROC_CD, 'I') != 'C'
+	                   THEN TOI.DEBTOR_NM
+	               ELSE TN.OWNER_NM
+	           END AS BUY_NM,
+	           CASE
+	               WHEN TN.TASK_CD = 'LEASE' AND NVL(TN.PROC_CD, 'I') != 'C'
+	                   THEN PKG_COMMON.FN_DECRYPT(TOI.REG_NO)
+	               ELSE PKG_COMMON.FN_DECRYPT(TN.REG_NO)
+	           END AS REG_NO,
+	           CASE
+	               WHEN TN.TASK_CD = 'LEASE' AND NVL(TN.PROC_CD, 'I') != 'C'
+	                   THEN TOI.BIZ_NO
+	               ELSE TN.BIZ_NO
+	           END AS BIZ_NO
+	      FROM TR_SERVICE TS
+	           JOIN TR_NEWCAR TN
+	             ON TN.SERVICE_ID = TS.SERVICE_ID
+	           LEFT JOIN TR_OWNERINFO TOI
+	             ON TOI.SERVICE_ID = TN.SERVICE_ID
+	            AND TOI.SEQ = 0
+	     WHERE TS.SERVICE_ID = #{SERVICE_ID}
+	</select>
 	
 	<!-- ============================================================ -->
     <!-- WA 신규등록 첨부파일 등록                                    -->
@@ -846,6 +958,21 @@
 	        PKG_COMMON.FN_ENCRYPT(#{DELIVERY_CP_ADDR}), #{INSTALL_DT}, #{INSTALL_NM}, PKG_COMMON.FN_ENCRYPT(#{INSTALL_TEL_NO}), (SELECT MAX(MEMBER_NM) FROM TM_MEMBER_DT WHERE LOGIN_ID = #{MEMBER_ID}),
 	        #{CUSTOMER_NM}, #{INSTALL_SMS_TX}, PKG_COMMON.FN_ENCRYPT((SELECT MAX(MPHONE_NO) FROM TM_MEMBER_DT WHERE LOGIN_ID = #{MEMBER_ID})), #{INSTALL_TM}, #{DELIVERY_BC},
 	        PKG_COMMON.FN_ENCRYPT(#{STATUS_SMS_NO}), #{HOLE_YN}, #{SEAL_YN}
+	    )
+	</insert>
+
+	<!-- 신규등록 보험 확인 요청 저장: REG_NO는 Java 평문을 DB 저장 시 암호화함 -->
+	<insert id="insertNewcarInsurance" parameterType="java.util.Map">
+	    INSERT INTO TR_INSURANCE (
+	        SERVICE_ID, INSURER_CD, INSURER_SDT, INSURER_EDT,
+	        INS_USER, LINKED_ID, GOVT_ID, CAR_NO,
+	        INS_DATE, UPD_USER, UPD_DATE, BUY_NM,
+	        COMPANY_ID, PROC_ST, REG_NO, BIZ_NO
+	    ) VALUES (
+	        #{SERVICE_ID}, NULL, NULL, NULL,
+	        #{MEMBER_ID}, #{LINKED_ID}, #{GOVT_ID}, #{CAR_NO},
+	        SYSDATE, #{MEMBER_ID}, SYSDATE, #{BUY_NM},
+	        #{COMPANY_ID}, 'SAV', PKG_COMMON.FN_ENCRYPT(#{REG_NO}), #{BIZ_NO}
 	    )
 	</insert>
 
@@ -1124,6 +1251,7 @@
 	           MAIL1,
 	           MAIL2,
 	           POST_NO,
+	           ETC1,
 	           PKG_COMMON.FN_DECRYPT(ADDR_DT) AS ADDR_DT
 	      FROM TR_TAX_RECEIPT
 	     WHERE SERVICE_ID = #{SERVICE_ID}
@@ -1133,12 +1261,12 @@
 	    INSERT INTO TR_TAX_RECEIPT (
 	        SERVICE_ID, GUBUN, REG_NO, NAME, COMPANY_NM,
 	        PHONE_NO, ADDR, BUSINESS_TYPE, INDUSTRY_TYPE,
-	        MAIL1, MAIL2, POST_NO, ADDR_DT, INS_DATE, UPD_DATE
+	        MAIL1, MAIL2, POST_NO, ADDR_DT, ETC1, INS_DATE, UPD_DATE
 	    )
 	    VALUES (
 	        #{SERVICE_ID}, #{GUBUN}, #{REG_NO}, #{NAME}, #{COMPANY_NM},
 	        PKG_COMMON.FN_ENCRYPT(#{PHONE_NO}), PKG_COMMON.FN_ENCRYPT(#{ADDR}), #{BUSINESS_TYPE}, #{INDUSTRY_TYPE},
-	        #{MAIL1}, #{MAIL2}, #{POST_NO}, PKG_COMMON.FN_ENCRYPT(#{ADDR_DT}), SYSDATE, SYSDATE
+	        #{MAIL1}, #{MAIL2}, #{POST_NO}, PKG_COMMON.FN_ENCRYPT(#{ADDR_DT}), #{ETC1}, SYSDATE, SYSDATE
 	    )
 	</insert>
 
@@ -1149,11 +1277,11 @@
     <!-- ============================================================ -->
     <!-- WA 신규등록 첨부파일 삭제                                    -->
     <!-- ============================================================ -->
-    <delete id="deleteWaNewcarAttachFile" parameterType="java.util.Map">
-        DELETE FROM TR_ATTACH_FILE
-         WHERE SERVICE_ID = #{SERVICE_ID}
-           AND GUBUN = #{GUBUN}
-           AND SEQ = #{SEQ}
-    </delete>	
+	<delete id="deleteWaNewcarAttachFile" parameterType="java.util.Map">
+	    DELETE FROM TR_ATTACH_FILE
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	       AND GUBUN = #{GUBUN}
+	       AND SEQ = #{SEQ}
+	</delete>	
 
 </mapper>

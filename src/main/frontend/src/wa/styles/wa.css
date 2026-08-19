@@ -11,7 +11,7 @@
 .wa-shell {
     --wa-navy: #08295a;
     --wa-navy-deep: #061f45;
-    --wa-blue: #2f6df6;
+    --wa-blue: #08295a;
     --wa-blue-dark: #2459d8;
     --wa-bg: #f1f3f6;
     --wa-surface: #ffffff;
@@ -1248,7 +1248,7 @@
 .wa-status-sort-button.sort-desc {
     background: #eff6ff;
     color: #175cd3;
-    box-shadow: inset 0 -2px 0 #2f6df6;
+    box-shadow: inset 0 -2px 0 #08295a;
 }
 
 .wa-status-sort-button.sort-asc:hover {
@@ -1319,7 +1319,7 @@
 }
 
 .wa-status-table td.wa-requirement-pending {
-    color: #2f6df6;
+    color: #08295a;
     font-weight: 900;
 }
 
@@ -1854,6 +1854,34 @@
     text-align: center;
 }
 
+.wa-excel-password-content {
+    display: grid;
+    gap: 10px;
+    text-align: left;
+}
+
+.wa-excel-password-content input {
+    width: 100%;
+    height: 40px;
+    padding: 0 12px;
+    border: 1px solid var(--wa-line-strong);
+    border-radius: 8px;
+    box-sizing: border-box;
+    font: inherit;
+}
+
+.wa-excel-password-content input:focus {
+    border-color: var(--wa-blue);
+    outline: none;
+    box-shadow: 0 0 0 3px rgba(47, 109, 246, 0.14);
+}
+
+.wa-excel-password-content p {
+    margin: 0;
+    color: #d92d20;
+    font-size: 12px;
+}
+
 .wa-su-change-select {
     width: 100%;
     height: 38px;
@@ -2234,8 +2262,8 @@
 .wa-pay-dashboard-search {
     min-width: 106px;
     padding: 0 18px;
-    border-color: #2f6df6;
-    background: #2f6df6;
+    border-color: #08295a;
+    background: #08295a;
     color: #ffffff;
 }
 
@@ -2625,12 +2653,12 @@
 }
 
 .wa-pay-dashboard-quick-dates .wa-status-action:hover {
-    border-color: #2f6df6;
-    color: #2f6df6;
+    border-color: #08295a;
+    color: #08295a;
 }
 
 .wa-pay-dashboard-controls .wa-pay-dashboard-quick-dates .wa-status-action:hover span {
-    color: #2f6df6;
+    color: #08295a;
 }
 
 .wa-newcar-list-page .wa-status-table td.wa-row-complete {
@@ -2857,6 +2885,16 @@
     color: #fff;
 }
 
+.wa-pay-list-page .wa-pay-grid-panel {
+    min-height: 52vh;
+    max-height: 70vh;
+}
+
+.wa-pay-list-page .wa-pay-table-scroll {
+    display: flex;
+    flex-direction: column;
+}
+
 @media (max-width: 1024px) {
     .wa-newcar-list-page .wa-status-top-toolbar {
         align-items: stretch;
@@ -2881,10 +2919,29 @@
     .wa-newcar-list-page .wa-status-filter-panel {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
+
+    .wa-pay-list-page .wa-status-top-toolbar {
+        align-items: stretch;
+        flex-direction: column;
+    }
+
+    .wa-pay-list-page .wa-status-top-toolbar > .wa-status-actions,
+    .wa-pay-list-page .wa-status-period-panel {
+        width: 100%;
+    }
+
+    .wa-pay-list-page .wa-status-filter-panel {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
 }
 
 @media (max-width: 760px) {
     .wa-newcar-list-page {
+        padding: 10px;
+        box-sizing: border-box;
+    }
+
+    .wa-pay-list-page {
         padding: 10px;
         box-sizing: border-box;
     }
@@ -2894,6 +2951,10 @@
     }
 
     .wa-newcar-list-page .wa-status-page-content {
+        gap: 12px;
+    }
+
+    .wa-pay-list-page .wa-status-page-content {
         gap: 12px;
     }
 
@@ -2912,6 +2973,13 @@
     .wa-newcar-list-page .wa-status-filter-panel,
     .wa-newcar-list-page .wa-status-grid-panel > .wa-status-heading,
     .wa-newcar-list-page .wa-status-table-scroll {
+        display: none;
+    }
+
+    .wa-pay-list-page .wa-status-top-toolbar,
+    .wa-pay-list-page .wa-status-filter-panel,
+    .wa-pay-list-page .wa-status-grid-panel > .wa-status-heading,
+    .wa-pay-list-page .wa-status-table-scroll {
         display: none;
     }
 
@@ -3084,8 +3152,25 @@
         box-shadow: none;
     }
 
+    .wa-pay-list-page .wa-status-grid-panel {
+        min-height: 0;
+        max-height: none;
+        overflow: visible;
+        border: 0;
+        border-radius: 0;
+        background: transparent;
+        box-shadow: none;
+    }
+
     .wa-newcar-list-page .wa-status-error,
     .wa-newcar-list-page .wa-status-notice {
+        margin-bottom: 10px;
+        border: 0;
+        border-radius: 10px;
+    }
+
+    .wa-pay-list-page .wa-status-error,
+    .wa-pay-list-page .wa-status-notice {
         margin-bottom: 10px;
         border: 0;
         border-radius: 10px;
@@ -3170,6 +3255,10 @@
         font-weight: 700;
     }
 
+    .wa-mobile-pay-card > header {
+        grid-template-columns: auto auto minmax(0, 1fr);
+    }
+
     .wa-mobile-card-checkbox {
         display: inline-flex;
         align-items: center;
@@ -3227,6 +3316,20 @@
         grid-column: 3;
         grid-row: 1 / 3;
         color: #98a2b3;
+    }
+
+    .wa-mobile-card-open.wa-mobile-pay-card-content {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        cursor: default;
+    }
+
+    .wa-mobile-pay-total {
+        text-align: right;
+    }
+
+    .wa-mobile-pay-total strong {
+        color: #087443;
+        font-size: 15px;
     }
 
     .wa-mobile-selection-bar {

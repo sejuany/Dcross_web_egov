@@ -251,6 +251,7 @@ export const initialDsBaseList = [
 export const initialDsTaxReceipt = {
     SERVICE_ID: '',
     GUBUN: '',
+    ETC1: 'N',
     REG_NO: '',
     NAME: '',
     COMPANY_NM: '',
@@ -429,6 +430,7 @@ export const newCarMap = {
 export const taxReceiptMap = {
     SERVICE_ID: 'SERVICE_ID',
     GUBUN: 'GUBUN',
+    ETC1: 'ETC1',
     REG_NO: 'REG_NO',
     NAME: 'NAME',
     COMPANY_NM: 'COMPANY_NM',

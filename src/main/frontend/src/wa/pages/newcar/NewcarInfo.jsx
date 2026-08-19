@@ -787,7 +787,11 @@ const EstimateResultPanel = memo(({
     const isBondFullyExempt = Boolean(estimateSummary)
         && Number(estimateSummary.bondBaseAmt) === 0
         && (estimateSummary.bondPreExempt || hasFullExemptionReason(estimateSummary.bondReliefReason));
-    const showAcqReductionCard = Number(estimateSummary?.acqReductionAmt) > 0 || isAcqFullyExempt;
+    const hasSelectedAcqExemption = Boolean(estimateSummary?.exemptionName)
+        && !['', '00'].includes(String(estimateSummary?.exemptionCode ?? ''));
+    const showAcqReductionCard = Number(estimateSummary?.acqReductionAmt) > 0
+        || isAcqFullyExempt
+        || hasSelectedAcqExemption;
     // 공채 금액이 0원이어도 조회 매입률과 감면 판단 근거를 확인할 수 있도록 항상 표시한다.
     const showBondCalculationCard = Boolean(estimateSummary);
     // 운영 프로시저는 실제 공채액이 감면 한도보다 작아도 정책 감면액(예: 250만원)을 먼저 설정한다.
@@ -833,7 +837,9 @@ const EstimateResultPanel = memo(({
                                 <span>취득세 감면 · {(estimateSummary.exemptionName ? `${estimateSummary.exemptionName}` : '')}</span>
                                 <strong>{isAcqFullyExempt
                                     ? '전액 감면'
-                                    : `- ${formatAmount(estimateSummary.acqReductionAmt)} 원`}</strong>
+                                    : (Number(estimateSummary.acqReductionAmt) > 0
+                                        ? `- ${formatAmount(estimateSummary.acqReductionAmt)} 원`
+                                        : '감면 없음')}</strong>
                             </div>
                             <p>
                                 감면 전 {formatAmount(estimateSummary.grossAcqTax)} 원
@@ -874,9 +880,9 @@ const EstimateResultPanel = memo(({
                             <p>
                                 {estimateSummary.bondReliefReason || '공채 감면 사유 없음'}
                                 {bondPolicyReductionAmt > 0
-                                    && ` / 실제 차감 ${formatAmount(estimateSummary.bondReductionAmt)} 원`}
+                                    && ` / 최종 감면액 ${formatAmount(estimateSummary.bondReductionAmt)} 원`}
                                 {' / '}
-                                매입기준금액 {Number(estimateSummary.bondBaseAmt) === 0
+                                최종매입금액 {Number(estimateSummary.bondBaseAmt) === 0
                                     ? '전액 감면'
                                     : `${formatAmount(estimateSummary.bondBaseAmt)} 원`}
                             </p>
@@ -887,7 +893,7 @@ const EstimateResultPanel = memo(({
                                         ? '매입 선택'
                                         : `매도(할인율 ${(estimateSummary.bondDiscountRate * 100).toLocaleString()}%)`)}
                                 {' / '}
-                                실제 채권 납부액 {formatAmount(estimateSummary.bond)} 원
+                                예상 채권 납부액 {formatAmount(estimateSummary.bond)} 원
                             </p>
                         </div>
                     )}
@@ -1057,9 +1063,29 @@ const NewcarInfo = ({
     const [receiptType, setReceiptType] = useState('');
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
     const [cashReceiptPhoneSource, setCashReceiptPhoneSource] = useState('');
+    const isPrivateBusinessEligible = (
+        (
+            (dsNewCar.TASK_CD === 'NORML' && dsNewCar.PROC_CD === 'I')
+            || (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')
+        )
+        && ['R', 'F'].includes(dsNewCar.REG_GB)
+    );
     const isJsaEligibleAddress = ['대성동길', '조산리'].some(
         keyword => String(dsNewCar.BASE_ADDRESS ?? '').includes(keyword)
     );
+	
+	// 현금영수증 발급구분 설정
+	// 휴대폰번호가 있으면 휴대폰번호(R), 사업자번호가 있으면 사업자번호(B), 둘 다 없으면 선택
+	const [receiptRegGb, setReceiptRegGb] = useState('');
+	
+	// 저장된 현금영수증 정보가 있는 경우에만 발급구분 설정
+	useEffect(() => {
+	    if (dsTaxReceipt.PHONE_NO) {
+	        setReceiptRegGb('R');
+	    } else if (dsTaxReceipt.REG_NO) {
+	        setReceiptRegGb('B');
+	    }
+	}, [dsTaxReceipt.PHONE_NO, dsTaxReceipt.REG_NO]);
 
     const exemptionTargetOptions = useMemo(
         () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS)
@@ -1211,6 +1237,16 @@ const NewcarInfo = ({
 
         setDsTaxReceipt(prev => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
     }, [setDsTaxReceipt]);
+
+    useEffect(() => {
+        const nextPrivateBusinessYn = (
+            isPrivateBusinessEligible && dsTaxReceipt.ETC1 === 'Y'
+        ) ? 'Y' : 'N';
+
+        if (dsTaxReceipt.ETC1 !== nextPrivateBusinessYn) {
+            updateTaxReceipt({ ETC1: nextPrivateBusinessYn });
+        }
+    }, [dsTaxReceipt.ETC1, isPrivateBusinessEligible, updateTaxReceipt]);
 
     // CommonSelect의 표준 change event를 dsNewCar 필드 갱신으로 변환한다.
     // 기존 값과 같으면 이전 객체를 그대로 반환해 불필요한 부모 렌더를 막는다.
@@ -1507,6 +1543,15 @@ const NewcarInfo = ({
             return;
         }
 
+        const selectedGradeCode = String(dsNewCar.NTAX_TRGET_GR_CD ?? '');
+        const hasValidGrade = exemptionGradeOptions.some(
+            option => String(option.CODE_ID) === selectedGradeCode
+        );
+        if (!isExemptionGradeDisabled && !hasValidGrade) {
+            await showAlert('감면 등급을 선택해주세요.');
+            return;
+        }
+
         setEstimating(true);
 
         try {
@@ -1579,7 +1624,7 @@ const NewcarInfo = ({
         setReceiptType('');
         setTaxReceiptSameOwner(false);
         setCashReceiptPhoneSource('');
-        updateTaxReceipt({ GUBUN: '' });
+        updateTaxReceipt({ GUBUN: '', ETC1: 'N' });
     };
 
     const handleCashReceiptPhoneSource = (source, checked) => {
@@ -1782,24 +1827,93 @@ const NewcarInfo = ({
                                                 />
                                             </label>
                                         </div>
-                                        <div className="wa-form-row compact">
-                                            <label className="wa-form-label">휴대폰번호</label>
-                                            <div className="wa-form-control">
-                                                <div className="wa-inline-group">
-                                                    <SplitInput
-                                                        value={dsTaxReceipt.PHONE_NO ?? ''}
-                                                        lengths={PHONE_PART_LENGTHS}
-                                                        fixedValues={PHONE_FIXED_VALUES}
-                                                        placeholders={PHONE_PLACEHOLDERS}
-                                                        deferred
-                                                        onChange={value => {
-                                                            setCashReceiptPhoneSource('');
-                                                            updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value });
-                                                        }}
-                                                    />
+										<div className="wa-inline-group">
+											<select
+											    className="wa-select"
+												style={{ width: receiptRegGb === '' ? '100%' : undefined,
+												        textAlign: 'center' }}
+											    value={receiptRegGb}
+												onChange={e => {
+												    const value = e.target.value;
+
+												    setReceiptRegGb(value);
+
+												    if (value === 'R') {
+												        // 휴대폰번호 선택 시 사업자번호 초기화
+												        updateTaxReceipt({
+												            GUBUN: 'CASH',
+												            REG_NO: ''
+												        });
+												    } else if (value === 'B') {
+												        // 사업자번호 선택 시 휴대폰번호 초기화
+												        updateTaxReceipt({
+												            GUBUN: 'CASH',
+												            PHONE_NO: ''
+												        });
+												    }
+												}}
+											>
+											    <option value="">선택</option>
+											    <option value="R">휴대폰번호</option>
+											    <option value="B">사업자번호</option>
+											</select> 
+											
+											{receiptRegGb === 'R' && (
+											    <SplitInput
+											        value={dsTaxReceipt.PHONE_NO ?? ''}
+											        lengths={PHONE_PART_LENGTHS}
+											        fixedValues={PHONE_FIXED_VALUES}
+											        placeholders={PHONE_PLACEHOLDERS}
+											        deferred
+											        onChange={value => {
+											            setCashReceiptPhoneSource('');
+											            updateTaxReceipt({
+											                GUBUN: 'CASH',
+											                PHONE_NO: value
+											            });
+											        }}
+											    />
+											)}
+
+											{receiptRegGb === 'B' && (
+											    <SplitInput
+											        value={dsTaxReceipt.REG_NO ?? ''}
+											        lengths={[3, 2, 5]}
+											        deferred
+											        onChange={value => {
+											            updateTaxReceipt({
+											                GUBUN: 'CASH',
+											                REG_NO: value
+											            });
+											        }}
+											    />
+											)}
+										</div>
+                                        {isPrivateBusinessEligible && (
+                                            <div className="wa-form-row compact wa-private-business-row">
+                                                <label className="wa-form-label">개인사업자 여부</label>
+                                                <div className="wa-form-control">
+                                                    <div className="wa-private-business-options">
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 === 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 === 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'Y' })}
+                                                        >
+                                                            예
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 !== 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 !== 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'N' })}
+                                                        >
+                                                            아니오
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </>
                                 ) : (
                                     <>
@@ -1909,6 +2023,33 @@ const NewcarInfo = ({
                                                     />
                                                 </div>
                                             </div>
+                                        </div>
+
+                                        {isPrivateBusinessEligible && (
+                                            <div className="wa-form-row compact wa-private-business-row">
+                                                <label className="wa-form-label">개인사업자 여부</label>
+                                                <div className="wa-form-control">
+                                                    <div className="wa-private-business-options">
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 === 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 === 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'Y' })}
+                                                        >
+                                                            예
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 !== 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 !== 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'N' })}
+                                                        >
+                                                            아니오
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
 											
 											{/*
                                             <div className="wa-form-row compact">
@@ -1944,7 +2085,6 @@ const NewcarInfo = ({
                                                     />
                                                 </div>
                                             </div>*/}
-                                        </div>
                                     </>
                                 )}
                             </div>

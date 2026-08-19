@@ -17,7 +17,8 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Stream;
-
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import javax.imageio.ImageIO;
 
 import org.apache.pdfbox.Loader;
@@ -65,7 +66,9 @@ public class AttachService {
     private static final Logger logger = LoggerFactory.getLogger(AttachService.class);
     // DB 저장 경로
     private static final String WA_ATTACH_PATH_NM = "/upload";
-    private static final long WA_ATTACH_MAX_SIZE = 10L * 1024L * 1024L;
+    private static final int A4_WIDTH_PX = 800; // A4 210mm @ 300 DPI
+    private static final Set<String> ALLOWED_UPLOAD_EXTENSIONS =
+            Set.of(".jpg", ".jpeg", ".png", ".webp", ".pdf");
     
     private final AttachMapper attachMapper;
     private final CustomerService customerService;
@@ -250,10 +253,6 @@ public class AttachService {
 	        throw new BusinessException("첨부파일이 없습니다.", 400);
 	    }
 
-	    if (file.getSize() > WA_ATTACH_MAX_SIZE) {
-	        throw new BusinessException("첨부파일은 10MB 이하만 가능합니다.", 400);
-	    }
-	    
 	    try {
 
 	        // ============================
@@ -261,6 +260,7 @@ public class AttachService {
 	        // ============================
 	        String originalFileName = sanitizeOriginalFileName(file.getOriginalFilename());
 	        String extension = getFileExtension(originalFileName);
+	        validateUploadFile(file, extension);
 
 	        // 화면에 표시할 한글 파일명
 	        String koreanFileName = docName + extension;
@@ -330,7 +330,7 @@ public class AttachService {
 	        // 서버에 실제 파일 저장
 	        Path savePath = uploadDir.resolve(savedFileName).normalize();
 
-	        file.transferTo(savePath.toFile());
+	        saveResizeImage(file, savePath);
 
 	        // ============================
 	        // DB 저장
@@ -359,6 +359,79 @@ public class AttachService {
 	    return getAttachFiles(cleanServiceId, token, user);
 	}
 	
+	/**
+	 * 이미지 크기 조절
+	 */
+	private void saveResizeImage(MultipartFile file, Path savePath) throws IOException {
+
+	    BufferedImage original = ImageIO.read(file.getInputStream());
+
+	    // 이미지가 아닌 파일(PDF 등)은 그대로 저장
+	    if (original == null) {
+	        file.transferTo(savePath.toFile());
+	        return;
+	    }
+
+	    int originalWidth = original.getWidth();
+	    int originalHeight = original.getHeight();
+
+	    // A4 가로보다 작으면 원본 그대로 저장
+	    if (originalWidth <= A4_WIDTH_PX) {
+	        file.transferTo(savePath.toFile());
+	        return;
+	    }
+
+	    // 비율 유지
+	    double ratio = (double) A4_WIDTH_PX / originalWidth;
+
+	    int newWidth = A4_WIDTH_PX;
+	    int newHeight = (int) Math.round(originalHeight * ratio);
+
+	    BufferedImage resized = new BufferedImage(
+	        newWidth,
+	        newHeight,
+	        original.getType() == BufferedImage.TYPE_CUSTOM
+	            ? BufferedImage.TYPE_INT_RGB
+	            : original.getType()
+	    );
+
+	    Graphics2D g = resized.createGraphics();
+
+	    // 축소 품질
+	    g.setRenderingHint(
+	        RenderingHints.KEY_INTERPOLATION,
+	        RenderingHints.VALUE_INTERPOLATION_BICUBIC
+	    );
+	    g.setRenderingHint(
+	        RenderingHints.KEY_RENDERING,
+	        RenderingHints.VALUE_RENDER_QUALITY
+	    );
+	    g.setRenderingHint(
+	        RenderingHints.KEY_ANTIALIASING,
+	        RenderingHints.VALUE_ANTIALIAS_ON
+	    );
+
+	    g.drawImage(
+	        original,
+	        0, 0,
+	        newWidth, newHeight,
+	        null
+	    );
+
+	    g.dispose();
+
+	    String fileName = savePath.getFileName().toString();
+	    String extension = getFileExtension(fileName)
+	        .replace(".", "")
+	        .toLowerCase();
+
+	    // jpg → jpeg
+	    if ("jpg".equals(extension)) {
+	        extension = "jpeg";
+	    }
+
+	    ImageIO.write(resized, extension, savePath.toFile());
+	}
 	
 	/**
 	 * 기존 첨부파일 삭제 (저장 시 사용)
@@ -507,29 +580,29 @@ public class AttachService {
 	        throw new BusinessException("파일이 존재하지 않습니다.", 404);
 	    }
 
-	    // 파일 Resource 생성
-	    Resource resource = new UrlResource(path.toUri());
-
 	    // 원본 파일명
 	    String originalName = Objects.toString(fileInfo.get("ATCHFILE_NM"), "");
 
-	    // MIME 타입 자동 판별
-	    String contentType = Files.probeContentType(path);
+	    return buildSafeFileResponse(path, originalName);
+	}
 
-	    if (contentType == null || contentType.isBlank()) {
-	        contentType = "application/octet-stream";
-	    }
+	/**
+	 * 검증된 이미지/PDF만 브라우저에서 열고, 그 외 파일은 다운로드로 강제한다.
+	 */
+	public ResponseEntity<Resource> buildSafeFileResponse(Path path, String originalName) throws IOException {
+	    Resource resource = new UrlResource(path.toUri());
+	    MediaType contentType = getSafeMediaType(getFileExtension(path.getFileName().toString()));
+	    boolean inline = !MediaType.APPLICATION_OCTET_STREAM.equals(contentType);
+	    ContentDisposition disposition = (inline
+	            ? ContentDisposition.inline()
+	            : ContentDisposition.attachment())
+	            .filename(originalName, StandardCharsets.UTF_8)
+	            .build();
 
-	    // 브라우저에서 바로 표시(inline)하도록 응답
 	    return ResponseEntity.ok()
-	            .contentType(MediaType.parseMediaType(contentType))
-	            .header(
-	                    HttpHeaders.CONTENT_DISPOSITION,
-	                    ContentDisposition.inline()
-	                            .filename(originalName, StandardCharsets.UTF_8)
-	                            .build()
-	                            .toString()
-	            )
+	            .contentType(contentType)
+	            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+	            .header("X-Content-Type-Options", "nosniff")
 	            .body(resource);
 	}
 
@@ -568,6 +641,72 @@ public class AttachService {
 
         return value.substring(dotIndex).toLowerCase();
     }
+
+	static void validateUploadFile(MultipartFile file, String extension) {
+	    if (!ALLOWED_UPLOAD_EXTENSIONS.contains(extension)) {
+	        throw new BusinessException("JPG, PNG, WEBP, PDF 파일만 업로드할 수 있습니다.", 400);
+	    }
+
+	    try {
+	        byte[] header;
+	        try (var input = file.getInputStream()) {
+	            header = input.readNBytes(12);
+	        }
+
+	        boolean validSignature = switch (extension) {
+	            case ".jpg", ".jpeg" -> header.length >= 3
+	                    && (header[0] & 0xff) == 0xff
+	                    && (header[1] & 0xff) == 0xd8
+	                    && (header[2] & 0xff) == 0xff;
+	            case ".png" -> header.length >= 8
+	                    && (header[0] & 0xff) == 0x89
+	                    && header[1] == 'P' && header[2] == 'N' && header[3] == 'G'
+	                    && (header[4] & 0xff) == 0x0d && (header[5] & 0xff) == 0x0a
+	                    && (header[6] & 0xff) == 0x1a && (header[7] & 0xff) == 0x0a;
+	            case ".webp" -> header.length >= 12
+	                    && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
+	                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P';
+	            case ".pdf" -> header.length >= 5
+	                    && header[0] == '%' && header[1] == 'P' && header[2] == 'D'
+	                    && header[3] == 'F' && header[4] == '-';
+	            default -> false;
+	        };
+
+	        if (!validSignature) {
+	            throw new BusinessException("파일 확장자와 실제 형식이 일치하지 않습니다.", 400);
+	        }
+
+	        if (".jpg".equals(extension) || ".jpeg".equals(extension) || ".png".equals(extension)) {
+	            try (var input = file.getInputStream()) {
+	                if (ImageIO.read(input) == null) {
+	                    throw new BusinessException("손상되었거나 지원하지 않는 이미지 파일입니다.", 400);
+	                }
+	            }
+	        }
+
+	        if (".pdf".equals(extension)) {
+	            try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+	                if (document.getNumberOfPages() < 1) {
+	                    throw new BusinessException("페이지가 없는 PDF 파일입니다.", 400);
+	                }
+	            }
+	        }
+	    } catch (BusinessException e) {
+	        throw e;
+	    } catch (IOException e) {
+	        throw new BusinessException("파일 형식을 확인할 수 없습니다.", 400);
+	    }
+	}
+
+	private MediaType getSafeMediaType(String extension) {
+	    return switch (extension) {
+	        case ".jpg", ".jpeg" -> MediaType.IMAGE_JPEG;
+	        case ".png" -> MediaType.IMAGE_PNG;
+	        case ".webp" -> MediaType.parseMediaType("image/webp");
+	        case ".pdf" -> MediaType.APPLICATION_PDF;
+	        default -> MediaType.APPLICATION_OCTET_STREAM;
+	    };
+	}
 
     /**
      * 첨부파일 조회 URL 생성

@@ -28,7 +28,7 @@ const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
     'PAY_DT',
     'INS_DATE',
     'JUDGE_DT',
-    'SEND_YN_DT',
+    'INSTALL_YN',
     'DELIVERY_ADDR'
 ]);
 
@@ -120,12 +120,33 @@ const columns = [
     { key: 'PAY_DT', label: '등록비용 납부일자', width: 110, minWidth: 60, sortType: 'date' },
     { key: 'INS_DATE', label: '입력일자', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'JUDGE_DT', label: '등록일자', width: 90, minWidth: 60, sortType: 'date' },
-    { key: 'SEND_YN_DT', label: '배송일자', width: 90, minWidth: 60, sortType: 'date' },
+    { key: 'INSTALL_YN', label: '배송여부', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'SPACE', label: 'SPACE', width: 116, minWidth: 60 },
     { key: 'DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
     { key: 'MEMBER_ID', label: '담당SP명', width: 112, minWidth: 60 },
     { key: 'RETURN_TX', label: '비고', type: 'remark', width: 190, minWidth: 60, className: 'wide-text' }
 ];
+
+const privacyExcelColumns = columns.flatMap(column => {
+    if (column.key !== 'OWNER_NM') {
+        return [column];
+    }
+
+    return [
+        column,
+        { key: 'OWNER_TYPE', label: '소유자 구분', width: 90 },
+        { key: 'OWNER_REG_NO', label: '소유자 등록번호', width: 130 },
+        { key: 'OWNER_BIZ_NO', label: '소유자 사업자번호', width: 130 },
+        { key: 'OWNER_ADDRESS', label: '소유자 주소', width: 220, excelAlign: 'left' },
+        { key: 'OWNER_EMAIL1', label: '소유자 이메일주소1', width: 180, excelAlign: 'left' },
+        { key: 'OWNER_EMAIL2', label: '소유자 이메일주소2', width: 180, excelAlign: 'left' },
+        { key: 'JOINT_OWNER_NM', label: '공동소유자명', width: 120 },
+        { key: 'JOINT_OWNER_TYPE', label: '공동소유자 구분', width: 130 },
+        { key: 'JOINT_OWNER_REG_NO', label: '공동소유자 등록번호', width: 150 },
+        { key: 'JOINT_OWNER_BIZ_NO', label: '공동소유자 사업자번호', width: 160 },
+        { key: 'JOINT_OWNER_ADDRESS', label: '공동소유자 주소', width: 220, excelAlign: 'left' }
+    ];
+});
 
 const formatDateInputValue = (date) => {
     const year = date.getFullYear();
@@ -341,6 +362,10 @@ const WaNewcarList = () => {
     const [activeRequest, setActiveRequest] = useState(null);
     const [requestRows, setRequestRows] = useState([]);
     const [showRequestConfirm, setShowRequestConfirm] = useState(false);
+	const [excelPasswordOpen, setExcelPasswordOpen] = useState(false);
+	const [excelPassword, setExcelPassword] = useState('');
+	const [excelPasswordError, setExcelPasswordError] = useState('');
+	const [excelPasswordChecking, setExcelPasswordChecking] = useState(false);
 	const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 	const [mobileFilterDraft, setMobileFilterDraft] = useState(null);
 	const [isMobileView, setIsMobileView] = useState(() => (
@@ -429,6 +454,7 @@ const WaNewcarList = () => {
 	}, [branchList, memberGb, isSpaceFixed, userBranchId]);
 
     const rows = useMemo(() => rawRows.map((row, index) => {
+		
         const processStatus = formatCode('NPRST', row.NPROC_ST || row.PROC_ST);
         const paymentStatus = formatCode('PAYST', row.PAY_ST);
         const rowKey = toStringValue(row.SERVICE_ID) || `${row.LINK_ID || 'row'}-${index}`;
@@ -438,7 +464,7 @@ const WaNewcarList = () => {
             PROC_ST: processStatus,
             LINK_ID: row.LINK_ID || '',
             CARID_NO: row.CARID_NO || '',
-            CAR_NO: row.CAR_NO || '',
+            CAR_NO: toStringValue(row.CAR_NO).trim() || row.REQ_CAR_NO || '',
             CUSTOMER_NM: row.CUSTOMER_NM || '',
             OWNER_NM: row.OWNER_NM || '',
             BUY_AMT: formatAmount(row.BUY_AMT),
@@ -450,7 +476,7 @@ const WaNewcarList = () => {
             PAY_DT: row.PAY_DT || '',
             INS_DATE: row.INS_DATE || '',
             JUDGE_DT: row.JUDGE_DT || '',
-            SEND_YN_DT: row.SEND_YN_DT || '',
+            INSTALL_YN: row.INSTALL_YN || '',
             SPACE: row.SPACE || '',
             DELIVERY_ADDR: row.DELIVERY_ADDR || '',
             MEMBER_ID: row.MEMBER_ID || '',
@@ -481,7 +507,7 @@ const WaNewcarList = () => {
             regPayDate: displayValues.PAY_DT,
             inputDate: displayValues.INS_DATE,
             regDate: displayValues.JUDGE_DT,
-            sendYnDT: displayValues.SEND_YN_DT,
+            installYn: displayValues.INSTALL_YN,
             space: displayValues.SPACE,
             address: displayValues.DELIVERY_ADDR,
             sp: displayValues.MEMBER_ID,
@@ -720,6 +746,103 @@ const WaNewcarList = () => {
             getCellValue: (row, column) => row.displayValues[column.key] ?? ''
         });
     };
+
+    const handlePrivacyExport = (privacyRows) => {
+        const privacyByServiceId = new Map((privacyRows || []).map(row => [
+            toStringValue(row.SERVICE_ID),
+            row
+        ]));
+
+        exportRowsToXlsx({
+            columns: privacyExcelColumns,
+            rows: sortedRows.map((row, index) => {
+                const privacy = privacyByServiceId.get(toStringValue(row.SERVICE_ID)) || {};
+
+                return {
+                    ...row,
+                    displayValues: {
+                        ...row.displayValues,
+                        SEQ: index + 1,
+                        OWNER_NM: privacy.OWNER_NM || row.displayValues.OWNER_NM || '',
+                        OWNER_TYPE: privacy.OWNER_TYPE || '',
+                        OWNER_REG_NO: privacy.OWNER_REG_NO || '',
+                        OWNER_BIZ_NO: privacy.OWNER_BIZ_NO || '',
+                        OWNER_ADDRESS: privacy.OWNER_ADDRESS || '',
+                        OWNER_EMAIL1: privacy.OWNER_EMAIL1 || '',
+                        OWNER_EMAIL2: privacy.OWNER_EMAIL2 || '',
+                        JOINT_OWNER_NM: privacy.JOINT_OWNER_NM || '',
+                        JOINT_OWNER_TYPE: privacy.JOINT_OWNER_TYPE || '',
+                        JOINT_OWNER_REG_NO: privacy.JOINT_OWNER_REG_NO || '',
+                        JOINT_OWNER_BIZ_NO: privacy.JOINT_OWNER_BIZ_NO || '',
+                        JOINT_OWNER_ADDRESS: privacy.JOINT_OWNER_ADDRESS || ''
+                    }
+                };
+            }),
+            fileName: `신규등록현황_${getFormattedDateOffset(0)}.xlsx`,
+            sheetName: '신규등록현황',
+            getCellValue: (row, column) => row.displayValues[column.key] ?? ''
+        });
+    };
+
+	const closeExcelPasswordModal = () => {
+		if (excelPasswordChecking) return;
+		setExcelPasswordOpen(false);
+		setExcelPassword('');
+		setExcelPasswordError('');
+	};
+
+	const requestExcelExport = () => {
+		if (rows.length === 0) {
+			handleExport();
+			return;
+		}
+
+		if (memberGb !== 'CA') {
+			handleExport();
+			return;
+		}
+
+		setExcelPassword('');
+		setExcelPasswordError('');
+		setExcelPasswordOpen(true);
+	};
+
+	const handleExcelPasswordSubmit = async (event) => {
+		event.preventDefault();
+
+		if (!excelPassword) {
+			setExcelPasswordError('현재 로그인 비밀번호를 입력하세요.');
+			return;
+		}
+
+		try {
+			setExcelPasswordChecking(true);
+			setExcelPasswordError('');
+
+			const response = await axios.post('/api/newcar/wa-excel/privacy', {
+				PASS_WD: excelPassword,
+				SEARCH: buildSearchPayload(searchFilters)
+			}, { withCredentials: true });
+
+			if (!response.data?.success) {
+				setExcelPasswordError(response.data?.message || '비밀번호가 일치하지 않습니다.');
+				return;
+			}
+
+			setExcelPasswordOpen(false);
+			setExcelPassword('');
+			handlePrivacyExport(response.data?.list || []);
+		} catch (error) {
+			setExcelPasswordError(
+				error.response?.data?.error?.message
+				|| error.response?.data?.message
+				|| '비밀번호 확인 중 오류가 발생했습니다.'
+			);
+		} finally {
+			setExcelPasswordChecking(false);
+		}
+	};
+
     const handleHeaderActionClick = (actionKey) => {
         if (actionKey === 'search') {
             fetchNewCarList(searchFilters);
@@ -727,7 +850,7 @@ const WaNewcarList = () => {
         }
 
         if (actionKey === 'export') {
-            handleExport();
+            requestExcelExport();
             return;
         }
 
@@ -1254,7 +1377,7 @@ const WaNewcarList = () => {
 		return () => window.removeEventListener('keydown', closeOnEscape);
 	}, [mobileFilterOpen]);
 
-	const pageHasModal = Boolean(activeRequest || showRequestConfirm || mobileFilterOpen);
+	const pageHasModal = Boolean(activeRequest || showRequestConfirm || mobileFilterOpen || excelPasswordOpen);
 	
 	useLayoutEffect(() => {
 	    let frameId = null;
@@ -1332,7 +1455,7 @@ const WaNewcarList = () => {
                             <MoreVertical size={19} />
                         </summary>
                         <div className="wa-mobile-more-popover">
-                            <button type="button" onClick={event => { handleExport(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                            <button type="button" onClick={event => { requestExcelExport(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
                                 <Download size={16} /> 엑셀 다운로드
                             </button>
                             {canManageNewcarActions && (
@@ -1742,6 +1865,56 @@ const WaNewcarList = () => {
                                 신청
                             </button>
                         </footer>
+                    </section>
+                </div>
+            )}
+            {excelPasswordOpen && (
+                <div className="wa-request-modal-backdrop" role="presentation" onMouseDown={closeExcelPasswordModal}>
+                    <section
+                        className="wa-action-confirm-frame"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="wa-excel-password-title"
+                        onMouseDown={event => event.stopPropagation()}
+                    >
+                        <header className="wa-action-confirm-header">
+                            <strong id="wa-excel-password-title">엑셀 다운로드 비밀번호 확인</strong>
+                            <button
+                                type="button"
+                                className="wa-request-modal-close"
+                                onClick={closeExcelPasswordModal}
+                                aria-label="닫기"
+                                disabled={excelPasswordChecking}
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
+                        <form onSubmit={handleExcelPasswordSubmit}>
+                            <div className="wa-action-confirm-content wa-excel-password-content">
+                                <label htmlFor="wa-excel-password">현재 로그인 비밀번호</label>
+                                <input
+                                    id="wa-excel-password"
+                                    type="password"
+                                    value={excelPassword}
+                                    onChange={event => {
+                                        setExcelPassword(event.target.value);
+                                        setExcelPasswordError('');
+                                    }}
+                                    autoComplete="current-password"
+                                    autoFocus
+                                    disabled={excelPasswordChecking}
+                                />
+                                {excelPasswordError && <p>{excelPasswordError}</p>}
+                            </div>
+                            <footer className="wa-action-confirm-footer">
+                                <button type="button" className="wa-status-action outline" onClick={closeExcelPasswordModal} disabled={excelPasswordChecking}>
+                                    취소
+                                </button>
+                                <button type="submit" className="wa-status-action primary" disabled={excelPasswordChecking}>
+                                    {excelPasswordChecking ? '확인 중...' : '확인 및 다운로드'}
+                                </button>
+                            </footer>
+                        </form>
                     </section>
                 </div>
             )}

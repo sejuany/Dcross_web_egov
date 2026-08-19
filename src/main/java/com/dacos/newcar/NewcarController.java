@@ -1,7 +1,6 @@
 package com.dacos.newcar;
 
 import java.io.IOException;
-import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -35,6 +34,7 @@ import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
 import com.dacos.common.util.AuthUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
+import com.dacos.newcar.dto.WaPrivacyExcelRequest;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -84,6 +84,42 @@ public class NewcarController {
         List<Map<String, Object>> list = newcarService.getWaNewCarList(request, user);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
+
+    @PostMapping("/wa-excel/verify-password")
+    public ResponseEntity<Map<String, Object>> verifyWaExcelPassword(
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        String password = String.valueOf(request.getOrDefault("PASS_WD", ""));
+        boolean verified = newcarService.verifyWaExcelPassword(user, password);
+
+        return ResponseEntity.ok(Map.of(
+                "success", verified,
+                "message", verified ? "비밀번호가 확인되었습니다." : "비밀번호가 일치하지 않습니다."
+        ));
+    }
+
+    @PostMapping("/wa-excel/privacy")
+    public ResponseEntity<Map<String, Object>> getWaPrivacyExcelList(
+            @RequestBody WaPrivacyExcelRequest request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+
+        if (!newcarService.verifyWaExcelPassword(user, request.getPASS_WD())) {
+            return ResponseEntity.ok(Map.of(
+                    "success", false,
+                    "message", "비밀번호가 일치하지 않습니다."
+            ));
+        }
+
+        NewcarSearchRequest search = request.getSEARCH() == null
+                ? new NewcarSearchRequest()
+                : request.getSEARCH();
+        List<Map<String, Object>> list = newcarService.getWaPrivacyExcelList(search, user);
+
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
     /**
      * 신차 상세 조회
      * GET /api/newcar/detail/{serviceId}
@@ -467,22 +503,7 @@ public class NewcarController {
             throw new BusinessException("첨부파일을 찾을 수 없습니다.", 404);
         }
 
-        Resource resource = new UrlResource(filePath.toUri());
-
-        String contentType = Files.probeContentType(filePath);
-
-        if (contentType == null || contentType.isBlank()) {
-            contentType = "application/octet-stream";
-        }
-
-        String encodedFileName = URLEncoder
-                .encode(cleanFileName, StandardCharsets.UTF_8)
-                .replace("+", "%20");
-
-        return ResponseEntity.ok()
-                .contentType(MediaType.parseMediaType(contentType))
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename*=UTF-8''" + encodedFileName)
-                .body(resource);
+        return attachService.buildSafeFileResponse(filePath, cleanFileName);
     }
     
     @GetMapping("/carpaper/download")

@@ -7,22 +7,29 @@ import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+
+import com.dacos.common.CommonRepository;
 import com.dacos.customer.mapper.CustomerMapper;
+import com.dacos.newcar.NewcarService;
+
+import lombok.RequiredArgsConstructor;
 
 /**
  * 신차 등록 서비스
  * - getNewCarList: Map으로 반환하여 컬럼명 그대로 프론트에 전달 (직렬화 문제 방지)
  */
+@RequiredArgsConstructor
 @Service
 public class CustomerService {
 
+	private static final Logger logger = LoggerFactory.getLogger(NewcarService.class);
     private final CustomerMapper customerMapper;
+    private final CommonRepository common; // DB 접근 역할
 
-    public CustomerService(CustomerMapper customerMapper) {
-        this.customerMapper = customerMapper;
-    }
-    
     public List<Map<String, Object>> convertFileUrls(List<Map<String, Object>> list, String token) {
 
         for (Map<String, Object> file : list) {
@@ -46,6 +53,17 @@ public class CustomerService {
      */
     public Map<String, Object> getTokenOwnerInfo(Map<String, Object> param) {
         return customerMapper.getTokenOwnerInfo(param);
+    }
+    
+    /**
+     * 토큰으로 공동소유자 정보 조회
+     */
+    public Map<String, Object> getSignYn(Map<String, Object> param) {
+    	
+	    param.put("GUBUN", "SIGN");
+	    Map<String, Object> signYn = common.select(param, "getAttachFiles");
+    	
+	    return signYn;
     }
 
     // 서버 IP/HOST 조회

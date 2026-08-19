@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { gf } from '../../../utils/utils'; // 공통 유틸 함수
 
@@ -37,6 +37,38 @@ const CarInfo = ({
 	// 배송지 직접입력 여부
 	//const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
 	
+	const assignCdRef = useRef('');
+	const [numplateDisabled, setNumplateDisabled] = useState(false); 
+	
+	// ASSIGN_CD 세팅
+	useEffect(() => {
+		
+	    const initAssignCd = async () => {
+			console.log('ASSIGN_CD useEffect 실행');
+
+	        const isBranchInfo = dsBranchList.find(
+	            e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
+	        );
+
+	        // 배송지 설정이 안 되어 있는 경우
+	        if (!isBranchInfo?.ASSIGN_CD) {
+	            setNumplateDisabled(true);
+
+	            await gf.alert(
+	                '배송지 설정을 하셔야 번호판 선택을 할 수 있습니다. 다코스에 문의 바랍니다.'
+	            );
+
+	            return;
+	        }
+
+	        assignCdRef.current = isBranchInfo.ASSIGN_CD;
+	        setNumplateDisabled(false);
+	    };
+
+	    initAssignCd();
+
+	}, []);
+	
 	// 번호판 매니저 및 배송지 설정
 	const setDeliveryInfo = async () => {
 		console.log("setDeliveryInfo");
@@ -62,7 +94,7 @@ const CarInfo = ({
 			BRANCH_ID: dlBranchId
 		});
 
-		const managerInfo = result.data;
+		const managerInfo = result.data.data;
 		
 		const newDsCarNoDetach = {
 		    ...dsCarNoDetach,
@@ -82,12 +114,11 @@ const CarInfo = ({
 			// 수령인(딜러사 회원사명)
 		    RECEIVE_NM: isBranchInfo.BRANCH_NM || '',
 			// 수령인 번호(지점 대표번호)
-		    RECEIVE_TEL_NO: dsUserInfo.MPHONE_NO || ''
+		    RECEIVE_TEL_NO: isBranchInfo.TEL_NO || ''
 		};
 		
 		setDsCarNoDetach(newDsCarNoDetach);	
 		
-		console.log("여기까지 옴");
 		return newDsCarNoDetach;
 	}
 	
@@ -261,6 +292,7 @@ const CarInfo = ({
 				                type="button"
 				                className="wa-number-btn"
 								onClick={handleOpenModal}
+								disabled={numplateDisabled}
 				            >
 								<CircleCheck size={18} /> 
 				                번호 선택
@@ -299,31 +331,29 @@ const CarInfo = ({
 				dsUserInfo={dsUserInfo}
 				dsBranchList={dsBranchList}
 				onClose={() => setIsNumplateModalOpen(false)}
-				onSelect={async (isSucces, carNo) => {
+				onSelect={async (isSuccess, carNo) => {
 
-					console.log('선택된 번호:', carNo);
-
-					if (isSucces) {
-						console.log("들어옴");
-
-					    const newDsNewCar = {
-					        ...dsNewCar,
-					        REQ_CAR_NO: carNo
-					    };
-
-					    const newDsCarNoDetach = await setDeliveryInfo();
-
-					    if (!newDsCarNoDetach) {
-							console.log("!newDsCarNoDetach");
-					        return;
-					    }
-
-					    setDsNewCar(newDsNewCar);
-
-						await saveProcess(newDsNewCar,"SAV",null,null,null
-							,true); // 메세지 안 띄울 때 true
-						
+					if (!isSuccess) {
+					    return;
 					}
+
+					const newDsCarNoDetach = await setDeliveryInfo();
+
+					if (!newDsCarNoDetach) {
+					    return;
+					}
+
+					const newDsNewCar = {
+					    ...dsNewCar,
+					    REQ_CAR_NO: carNo
+					};
+
+					setDsNewCar(newDsNewCar);
+					
+					await saveProcess(newDsNewCar,"SAV",null,null,null,true,
+						newDsCarNoDetach
+					); // 메세지 안 띄울 때 true
+						
 				}}
 
 			/>

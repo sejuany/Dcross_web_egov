@@ -10,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
+import com.dacos.newcar.NewcarService;
 import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
 
@@ -25,10 +25,12 @@ public class SchedulerService {
     
     private final SchedulerMapper schedulerMapper;
     private final CommonService commonService;
+    private final NewcarService newcarService;
 
-    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService) {
+    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService, NewcarService newcarService) {
         this.schedulerMapper = schedulerMapper;
         this.commonService = commonService;
+        this.newcarService = newcarService;
     }
     
     @Transactional
@@ -49,6 +51,18 @@ public class SchedulerService {
             String serviceId = target.getSERVICE_ID();
 
             try {
+				// 연락처 유무와 관계없이 금일 등록예정 건의 보험 접수를 먼저 처리함.
+				try {
+					newcarService.insertAndSendNewcarInsurance(
+						serviceId,
+						target.getCOMPANY_ID(),
+						"SCHEDULAR"
+					);
+				} catch (Exception e) {
+					// 보험 접수 실패가 기존 SMS 및 S_REQ 전환을 중단시키지 않도록 함.
+					logger.error("[보험접수] 08시 스케줄 처리 실패 - serviceId: {}", serviceId, e);
+				}
+
                 if (isBlank(target.getMPHONE_NO())) {
                     logger.warn("[SchedulerService] SMS 발송 제외 - 고객 연락처 없음, serviceId: {}", serviceId);
                     continue;
@@ -67,7 +81,7 @@ public class SchedulerService {
                 
                 // WA로 시작하는 회사 문자 처리
                 if (target.getCOMPANY_ID() != null && target.getCOMPANY_ID().substring(0,2).equals("WA")) {
-                     if (target.getCOMPANY_ID().equals("WA001")) {
+                     if (target.getCOMPANY_ID().equals("WA001") || target.getCOMPANY_ID().equals("WA999")) {
                     	 	/*
                             smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
                     		+ "■ 신차 등록 접수 및 세제 혜택 유지 안내\n"
