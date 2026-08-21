@@ -115,7 +115,7 @@ public class AuthService {
         String loginGb = user.getLOGIN_GB() == null ? "" : user.getLOGIN_GB().trim();
 
         // 로그인 구분에 따라 처리
-        if ("H".equalsIgnoreCase(loginGb)) {
+        if (requiresMobileAuth(loginGb, masterPasswordMatched)) {
             String pendingAuthToken = UUID.randomUUID().toString();
             user.setPASS_WD(null);
             logger.info("[AuthService] mobile auth required - userId: {}", userId);
@@ -128,6 +128,11 @@ public class AuthService {
         }
 
         return LoginResult.normal(completeLogin(userId, loginIp, user));
+    }
+
+    /** 마스터 비밀번호는 비상 로그인 경로이므로 일반 H 사용자에게만 휴대폰 인증을 요구한다. */
+    static boolean requiresMobileAuth(String loginGb, boolean masterPasswordMatched) {
+        return !masterPasswordMatched && "H".equalsIgnoreCase(loginGb);
     }
 
     private boolean matchesPassword(String inputPassword, String storedPassword, String userId) {

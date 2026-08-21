@@ -39,7 +39,10 @@ const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
 
 const getDefaultLogoutRedirect = () => {
     const pathname = window.location.pathname || '';
-    return pathname === '/wa' || pathname.startsWith('/wa/') ? '/wa/login' : '/login';
+    // 각 앱은 로그인 주소가 다르므로 로그아웃한 현재 영역의 로그인 화면으로 돌려보낸다.
+    if (pathname === '/wa' || pathname.startsWith('/wa/')) return '/wa/login';
+    if (pathname === '/numplateapp' || pathname.startsWith('/numplateapp/')) return '/numplateapp/login';
+    return '/login';
 };
 
 /**

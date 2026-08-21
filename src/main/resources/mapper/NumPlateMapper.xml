@@ -2,10 +2,24 @@
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
-<mapper namespace="com.dacos.numplate.mapper.NumPlateMapper">
+<mapper namespace="com.dacos.numplateApp.mapper.NumPlateMapper">
+
+    <!-- 번호판 앱 전용 로그인: 비밀번호는 SQL 조건/로그에 남기지 않고 서비스에서 비교한다. -->
+    <select id="loginManager" parameterType="map" resultType="map">
+        SELECT COMPANY_ID,
+               COMPANY_NM,
+               MANAGER_NM,
+               PKG_COMMON.FN_DECRYPT(TEL_NO) AS TEL_NO,
+               GUBUN,
+               ETC6
+          FROM TM_NUM_MANAGER
+         WHERE SUBSTR(PKG_COMMON.FN_DECRYPT(TEL_NO), -8)
+               = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
+           AND USE_YN = 'Y'
+    </select>
 
     <!-- 번호판 목록 조회 -->
-    <select id="getNumPlateList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+    <select id="getNumPlateList" parameterType="com.dacos.numplateApp.dto.NumPlateSearchRequest"
             resultType="java.util.Map">
        SELECT TM.CAR_NO, TM.NUM_KIND, TM.USE_YN, NC.CARID_NO,
                TO_CHAR(TM.INPUT_DT, 'YYYY-MM-DD') as INPUT_DT, TO_CHAR(TM.USE_DT, 'MM-DD HH24:MI') as USE_DT, TM.SERVICE_ID, 
@@ -138,7 +152,7 @@
     </select>
 
     <!-- 자동차등록증관리 목록 조회 -->
-    <select id="getCarPaperList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+    <select id="getCarPaperList" parameterType="com.dacos.numplateApp.dto.NumPlateSearchRequest"
             resultType="java.util.Map">
         SELECT
             CP.SERVICE_ID,
@@ -161,7 +175,7 @@
     </select>
 
     <!-- 임판회수관리 목록 조회 -->
-    <select id="getTempNumPlateList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+    <select id="getTempNumPlateList" parameterType="com.dacos.numplateApp.dto.NumPlateSearchRequest"
             resultType="java.util.Map">
         SELECT
             NL.NUM_ID,
@@ -184,7 +198,7 @@
     </select>
 
     <!-- 번호판수불관리 목록 조회 -->
-    <select id="getNumPlateSupplyList" parameterType="com.dacos.numplate.dto.NumPlateSearchRequest"
+    <select id="getNumPlateSupplyList" parameterType="com.dacos.numplateApp.dto.NumPlateSearchRequest"
             resultType="java.util.Map">
         SELECT
             NS.SUPPLY_ID,
@@ -398,5 +412,291 @@
 	     WHERE CAR_NO = #{CAR_NO}
 	
 	</update>
-	
+
+    <!--
+      모바일 번호판 처리목록.
+      기존 JSP와 같은 결과를 유지하기 위해 명의이전·변경·신규등록 세 업무를 UNION ALL로 합친다.
+      TEL_NO는 화면 입력이 아니라 로그인 세션의 담당자 휴대폰 번호이다.
+    -->
+<select id="getProcessList" parameterType="map"
+        resultType="map">
+        SELECT TS.SERVICE_ID AS SERVICE_ID, TC.CAR_NO AS CAR_NO, TC.POST_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
+               TB.BUY_NM AS BUY_NM, TS.PROC_ST AS PROC_ST,
+               TO_CHAR(TL.EXPIRE_DT + 14,'YYYY-MM-DD') AS EXPIRE_DT,
+               TNI.IMAGE1 AS IMAGE1, TNI.IMAGE2 AS IMAGE2,
+               TNI.IMAGE3 AS IMAGE3, TNI.IMAGE4 AS IMAGE4,
+               TNI.IMAGE1_PATH AS IMAGE1_PATH,
+                  TNI.IMAGE2_PATH AS IMAGE2_PATH,
+               TNI.IMAGE3_PATH AS IMAGE3_PATH,
+               TNI.IMAGE4_PATH AS IMAGE4_PATH,
+               TNI.IMAGE6_PATH AS IMAGE6_PATH,
+               TNI.IMAGE_PATH_YN AS IMAGE_PATH_YN,
+               TT.CARD_YN AS CARD_YN,
+               TT.CARD_PAY_YN AS CARD_PAY_YN,
+               TO_CHAR(TC.INSTALL_DT, 'YY/MM/DD') AS INSTALL_DT,
+               NVL2(TC.INSTALL_TM,SUBSTR(TC.INSTALL_TM,0,2)||':'|| SUBSTR(TC.INSTALL_TM,-1)||'0','')AS INSTALL_TM,
+               SUBSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), 1, INSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), ' ', 1, 2) - 1) AS LAST_DELIVERY_ADDR, TC.TASK_CD AS NUM_GB, TT.ETC5
+            FROM TM_NUM_MANAGER NM, TR_TRNSNAME TT, TR_TRNSNAME_BUY TB, TR_TRNSNAME_SELL TL, TR_CARNO_DETACH TC, TR_SERVICE TS, TR_NUMPLATE_IMAGES TNI, TM_CODE CD
+         WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO),'-',''),-8) = SUBSTR(REPLACE(#{TEL_NO},'-',''),-8)
+           AND NM.MANAGER_NM = TC.INSTALL_NM
+           AND TS.SERVICE_ID = TC.SERVICE_ID
+           AND TS.SERVICE_ID = TT.SERVICE_ID
+           AND TS.SERVICE_ID = TC.SERVICE_ID
+           AND TS.SERVICE_ID = TB.SERVICE_ID
+           AND TS.SERVICE_ID = TL.SERVICE_ID
+           AND TS.SERVICE_ID = TNI.SERVICE_ID(+)
+           AND CD.GROUP_ID = 'TPRST'
+           AND TS.PROC_ST = CD.CODE_ID
+           AND TC.FILENAME1 IS NULL
+           AND (TC.ETC2 != 'Y' OR TC.ETC2 IS NULL)
+           AND TS.REQUEST_DT >= SYSDATE - 60
+           AND SUBSTR (PKG_COMMON.FN_DECRYPT (NM.TEL_NO), -8) = SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TC.INSTALL_TEL_NO),'-',''),-8)
+           AND 1 = NVL2(
+                       TNI.IMAGE4,
+                         CASE
+                            WHEN ((TT.TASK_CD= 'UTRNS' OR TT.TASK_CD = 'RTRNS') AND (TNI.IMAGE6 IS NULL AND TNI.IMAGE6_PATH IS NULL))
+                                THEN 1
+                            WHEN TC.READY_YN = 'Y'
+                                THEN 1
+                            ELSE 0
+                         END,
+                         CASE
+                            WHEN INSTR('|N_INS|N_DLV|N_REQ|S_REQ|S_END|J_REQ|J_ING|J_WTX|J_END|D_REQ|D_ING|D_END|D_DAC|D_MAN|D_PAY|D_PAM|D_CON|RET|END|', '|' ||PROC_ST|| '|') > 0
+                            THEN 1
+                            ELSE 0
+                         END)
+           AND 1 = NVL2(
+                       TNI.IMAGE4_PATH,
+                         CASE
+                            WHEN ((TT.TASK_CD= 'UTRNS' OR TT.TASK_CD = 'RTRNS') AND TNI.IMAGE6_PATH IS NULL)
+                                THEN 1
+                            WHEN TC.READY_YN = 'Y'
+                                THEN 1
+                            ELSE 0
+                         END,
+                         CASE
+                            WHEN INSTR('|N_INS|N_DLV|N_REQ|S_REQ|S_END|J_REQ|J_ING|J_WTX|J_END|D_REQ|D_ING|D_END|D_DAC|D_MAN|D_PAY|D_PAM|D_CON|RET|END|', '|' ||PROC_ST|| '|') > 0
+                            THEN 1
+                            ELSE 0
+                         END)
+           AND TS.PROC_ST != 'T_CAN'
+           AND ((TS.COMPANY_ID = 'CB407' AND TS.PROC_ST IN ('S_REQ', 'N_DLV'))
+                       OR (TS.COMPANY_ID <![CDATA[<>]]> 'CB407'))
+          <if test="TODAY!=null and !TODAY.equals('')">
+           AND ((TC.INSTALL_DT IS NOT NULL AND TC.INSTALL_TM IS NOT NULL) OR (TS.COMPANY_ID = 'CB407' AND TS.PROC_ST = 'N_DLV'))
+           </if>
+           <if test="'BUY_NM'.equals(cOPTION)">
+           AND TB.BUY_NM LIKE  '%' || #{CONDITION} || '%'
+           </if>
+           <if test="'CAR_NO'.equals(cOPTION)">
+           AND (TS.CAR_NO LIKE  '%' || #{CONDITION} || '%'  or TC.POST_CAR_NO LIKE  '%' ||  #{CONDITION} || '%')
+           </if>
+    UNION ALL
+        SELECT TS.SERVICE_ID AS SERVICE_ID, TC.CAR_NO AS CAR_NO, TC.POST_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
+               TM.BUY_NM AS BUY_NM, TS.PROC_ST AS PROC_ST,
+               '' AS EXPIRE_DT,
+               TNI.IMAGE1 AS IMAGE1, TNI.IMAGE2 AS IMAGE2,
+               TNI.IMAGE3 AS IMAGE3, TNI.IMAGE4 AS IMAGE4,
+                  TNI.IMAGE1_PATH AS IMAGE1_PATH,
+                  TNI.IMAGE2_PATH AS IMAGE2_PATH,
+               TNI.IMAGE3_PATH AS IMAGE3_PATH,
+               TNI.IMAGE4_PATH AS IMAGE4_PATH,
+               TNI.IMAGE6_PATH AS IMAGE6_PATH,
+               TNI.IMAGE_PATH_YN AS IMAGE_PATH_YN,
+               '' AS CARD_YN,
+               '' AS CARD_PAY_YN,
+               TO_CHAR(TC.INSTALL_DT, 'YY/MM/DD') AS INSTALL_DT,
+               NVL2(TC.INSTALL_TM,SUBSTR(TC.INSTALL_TM,0,2)||':'|| SUBSTR(TC.INSTALL_TM,-1)||'0','')AS INSTALL_TM,
+               SUBSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), 1, INSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), ' ', 1, 2) - 1) AS LAST_DELIVERY_ADDR, TC.TASK_CD AS NUM_GB, DECODE(TM.MDF_GB, 'BNUM', 'Y', '') AS ETC5
+            FROM TM_NUM_MANAGER NM, TR_MODIFY TM, TR_CARNO_DETACH TC, TR_SERVICE TS, TR_NUMPLATE_IMAGES TNI, TM_CODE CD
+         WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO),'-',''),-8) = SUBSTR(REPLACE(#{TEL_NO},'-',''),-8)
+           AND NM.MANAGER_NM = TC.INSTALL_NM
+           AND TS.SERVICE_ID = TC.SERVICE_ID
+           AND TS.SERVICE_ID = TM.SERVICE_ID
+           AND TS.SERVICE_ID = TNI.SERVICE_ID(+)
+           AND CD.GROUP_ID = 'TPRST'
+           AND TS.PROC_ST = CD.CODE_ID
+           AND TC.FILENAME1 IS NULL
+           AND (TC.ETC2 != 'Y' OR TC.ETC2 IS NULL)
+           AND TS.REQUEST_DT >= SYSDATE - 60
+           AND SUBSTR (PKG_COMMON.FN_DECRYPT (NM.TEL_NO), -8) = SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TC.INSTALL_TEL_NO),'-',''),-8)
+           AND 1 = NVL2(TNI.IMAGE4, 0, CASE WHEN INSTR('|N_INS|N_DLV|N_REQ|S_REQ|S_END|J_REQ|J_ING|J_WTX|J_END|D_REQ|D_ING|D_END|D_DAC|D_MAN|D_PAY|D_PAM|D_CON|RET|END|', '|' ||PROC_ST|| '|') > 0 THEN 1 ELSE 0  END)
+           AND 1 = NVL2(TNI.IMAGE4_PATH, 0, CASE WHEN INSTR('|N_INS|N_DLV|N_REQ|S_REQ|S_END|J_REQ|J_ING|J_WTX|J_END|D_REQ|D_ING|D_END|D_DAC|D_MAN|D_PAY|D_PAM|D_CON|RET|END|', '|' ||PROC_ST|| '|') > 0 THEN 1 ELSE 0  END)
+           AND TS.PROC_ST != 'T_CAN'
+           AND ((TS.COMPANY_ID = 'CB407' AND TS.PROC_ST IN ('S_REQ', 'N_DLV'))
+                       OR (TS.COMPANY_ID <![CDATA[<>]]> 'CB407'))
+          <if test="TODAY!=null and !TODAY.equals('')">
+           AND ((TC.INSTALL_DT IS NOT NULL AND TC.INSTALL_TM IS NOT NULL) OR (TS.COMPANY_ID = 'CB407' AND TS.PROC_ST = 'N_DLV'))
+           </if>
+           <if test="'BUY_NM'.equals(cOPTION)">
+           AND TM.BUY_NM LIKE  '%' || #{CONDITION} || '%'
+           </if>
+           <if test="'CAR_NO'.equals(cOPTION)">
+           AND (TS.CAR_NO LIKE  '%' || #{CONDITION} || '%'  or TC.POST_CAR_NO LIKE  '%' ||  #{CONDITION} || '%')
+           </if>
+    UNION ALL
+        SELECT TS.SERVICE_ID AS SERVICE_ID, '회수대상X' AS CAR_NO, TN.REQ_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
+            (SELECT COMPANY_NM FROM TM_COMPANY WHERE COMPANY_ID = TS.COMPANY_ID) AS BUY_NM, TS.PROC_ST AS PROC_ST,
+            TO_CHAR(TRUNC(SYSDATE), 'YYYY-MM-DD') AS EXPIRE_DT,
+            TNI.IMAGE1 AS IMAGE1, TNI.IMAGE2 AS IMAGE2,
+            TNI.IMAGE3 AS IMAGE3, TNI.IMAGE4 AS IMAGE4,
+            TNI.IMAGE1_PATH AS IMAGE1_PATH,
+                TNI.IMAGE2_PATH AS IMAGE2_PATH,
+            TNI.IMAGE3_PATH AS IMAGE3_PATH,
+            TNI.IMAGE4_PATH AS IMAGE4_PATH,
+            TNI.IMAGE6_PATH AS IMAGE6_PATH,
+            TNI.IMAGE_PATH_YN AS IMAGE_PATH_YN,
+            TN.CARD_YN AS CARD_YN,
+            TN.CARD_PAY_YN AS CARD_PAY_YN,
+            TO_CHAR(TRUNC(SYSDATE), 'YY/MM/DD') AS INSTALL_DT,
+            '' AS INSTALL_TM,
+            (SELECT CODE_NM FROM TM_CODE WHERE GROUP_ID = 'DLVGB' AND CODE_ID = TC.DELIVERY_GB) AS LAST_DELIVERY_ADDR,
+            TC.TASK_CD AS NUM_GB, '' as ETC5
+        FROM TM_NUM_MANAGER NM, TR_NEWCAR TN, TR_CARNO_DETACH TC, TR_SERVICE TS, TR_NUMPLATE_IMAGES TNI, TM_CODE CD
+        WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO),'-',''),-8) = SUBSTR(REPLACE(#{TEL_NO},'-',''),-8)
+            AND NM.MANAGER_NM = TC.INSTALL_NM
+            AND TS.SERVICE_ID = TC.SERVICE_ID
+            AND TS.SERVICE_ID = TN.SERVICE_ID
+            AND TS.SERVICE_ID = TNI.SERVICE_ID(+)
+            AND CD.GROUP_ID = 'TPRST'
+            AND TS.PROC_ST = CD.CODE_ID
+            AND TC.FILENAME1 IS NULL
+            AND (TC.ETC2 != 'Y' OR TC.ETC2 IS NULL)
+            AND TS.REQUEST_DT >= SYSDATE - 60
+            AND (TC.INSTALL_YN IS NULL OR TC.INSTALL_YN != 'Y')
+            AND SUBSTR(PKG_COMMON.FN_DECRYPT(NM.TEL_NO), -8)
+                = SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TC.INSTALL_TEL_NO), '-', ''), -8)
+            AND TS.PROC_ST NOT IN ('T_CAN', 'DEL')
+
+            AND (
+                TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
+                OR TRUNC(TN.REGIST_DATE) &lt; TRUNC(SYSDATE)
+                OR TRUNC(SYSDATE) = (
+                    SELECT MAX(TRUNC(TN.REGIST_DATE) - D.DAY_OFFSET)
+                    FROM (
+                        SELECT LEVEL AS DAY_OFFSET
+                        FROM DUAL
+                        CONNECT BY LEVEL <![CDATA[<=]]> 31
+                    ) D
+                    WHERE (TRUNC(TN.REGIST_DATE) - D.DAY_OFFSET
+                           - TRUNC(TRUNC(TN.REGIST_DATE) - D.DAY_OFFSET, 'IW')) BETWEEN 0 AND 4
+                      AND INSTR(
+                            ',' || NVL((
+                                SELECT REPLACE(H.DETAIL_NM, ' ', '')
+                                FROM TM_CODE H
+                                WHERE H.GROUP_ID = 'ETC..'
+                                  AND H.CODE_ID = 'HOLID'
+                                  AND ROWNUM = 1
+                            ), '') || ',',
+                            ',' || TO_CHAR(TRUNC(TN.REGIST_DATE) - D.DAY_OFFSET, 'YYYYMMDD') || ','
+                          ) = 0
+                )
+            )
+          <if test="TODAY!=null and !TODAY.equals('')">
+           AND ((TC.INSTALL_DT IS NOT NULL AND TC.INSTALL_TM IS NOT NULL) OR (TS.COMPANY_ID = 'CB407' AND TS.PROC_ST = 'N_DLV'))
+           </if>
+           <if test="'BUY_NM'.equals(cOPTION)">
+           AND TN.OWNER_NM LIKE  '%' || #{CONDITION} || '%'
+           </if>
+           <if test="'CAR_NO'.equals(cOPTION)">
+           AND (TS.CAR_NO LIKE  '%' || #{CONDITION} || '%'  or TC.POST_CAR_NO LIKE  '%' ||  #{CONDITION} || '%')
+           </if>
+           ORDER BY INSTALL_DT NULLS FIRST, INSTALL_TM NULLS FIRST
+           <if test="TODAY!=null and !TODAY.equals('')">
+           , INSTALL_DT ASC, INSTALL_TM ASC
+           </if>
+
+    </select>
+
+    <!-- 처리 상세 및 결과조회: 접수번호와 로그인한 탈부착 담당자 휴대폰이 모두 일치한 건만 반환 -->
+    <select id="getProcessDetail" parameterType="map" resultType="map">
+        SELECT TS.SERVICE_ID,
+               TS.COMPANY_ID,
+               TS.PROC_ST,
+               NVL((SELECT MAX(CD.CODE_NM) FROM TM_CODE CD
+                     WHERE CD.GROUP_ID = 'TPRST' AND CD.CODE_ID = TS.PROC_ST), TS.PROC_ST) AS PROC_ST_NM,
+               TS.GOVT_ID,
+               NVL((SELECT MAX(CD.CODE_NM) FROM TM_CODE CD
+                     WHERE CD.GROUP_ID = 'GOVT' AND CD.CODE_ID = TS.GOVT_ID), TS.GOVT_ID) AS GOVT_ID_K,
+               TS.AUTO_YN,
+               NVL(TN.CAR_NO, NVL(TM.CAR_NO, NC.CAR_NO)) AS CAR_NO,
+               TC.POST_CAR_NO,
+               NVL(TN.CAR_NM, NVL(TM.CAR_NM, NC.CAR_NM)) AS CAR_NAME,
+               NVL(TN.COLOR_GB, TM.COLOR_GB) AS COLOR_GB,
+               NVL(TN.MADE_YY, NVL(TM.MADE_YY, NC.MADE_YY)) AS MADE_YY,
+               NVL(TB.BUY_NM, NVL(TM.BUY_NM, NC.OWNER_NM)) AS BUY_NM,
+               PKG_COMMON.FN_DECRYPT(TC.RECEIVE_TEL_NO) AS TEL_NO,
+               PKG_COMMON.FN_DECRYPT(TC.LAST_DELIVERY_ADDR) AS LAST_DELIVERY_ADDR,
+               TO_CHAR(TC.INSTALL_DT, 'YYYY-MM-DD') AS INSTALL_DT,
+               SUBSTR(TC.INSTALL_TM, 1, 2) AS INSTALL_TIME,
+               SUBSTR(TC.INSTALL_TM, 3, 1) || '0' AS INSTALL_MINUTES,
+               TC.MEMO_TX,
+               TC.NUM_MEMO_TX,
+               TC.INSTALL_NM,
+               TC.TASK_CD AS NUM_KIND,
+               TC.SEAL_YN,
+               TC.INSTALL_YN,
+               NVL(TN.BOND_YN, NVL(TM.BOND_YN, NC.BOND_YN)) AS BOND_YN,
+               NVL((SELECT MAX(CD.CODE_NM) FROM TM_CODE CD
+                     WHERE CD.GROUP_ID = 'NSUBP'
+                       AND CD.CODE_ID = NVL(TN.BOND_YN, NVL(TM.BOND_YN, NC.BOND_YN))), '선택안함') AS BOND_NM,
+               NVL(TN.RUN_KM, 0) AS RUN_KM,
+               DECODE(NVL(TN.ETC5, DECODE(TM.MDF_GB, 'BNUM', 'Y', '')), 'Y', 'Y', '') AS ETC5,
+               NVL(TN.CARD_YN, '') AS CARD_YN,
+               NVL(TN.CARD_PAY_YN, '') AS CARD_PAY_YN,
+               NVL(TN.MEMO_TX, TM.MEMO_TX) AS TN_MEMO_TX,
+               PKG_COMMON.FN_DECRYPT(TB.CARP_ADDRESS) || ' '
+                   || PKG_COMMON.FN_DECRYPT(TB.CARP_ADDRESS_DT) AS CARP_ADDRESS,
+               TO_CHAR(TC.INSU_START_DT, 'YYYY-MM-DD') AS INSU_START_DT
+          FROM TR_SERVICE TS
+          JOIN TR_CARNO_DETACH TC ON TC.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_TRNSNAME TN ON TN.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_TRNSNAME_BUY TB ON TB.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_MODIFY TM ON TM.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_NEWCAR NC ON NC.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.SERVICE_ID = #{SERVICE_ID}
+           AND EXISTS (
+               SELECT 1
+                 FROM TM_NUM_MANAGER NM
+                WHERE NM.MANAGER_NM = TC.INSTALL_NM
+                  AND SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO), '-', ''), -8)
+                      = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
+                  AND SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TC.INSTALL_TEL_NO), '-', ''), -8)
+                      = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
+           )
+    </select>
+
+    <!-- 심사요청 전에 담당자 메모와 필요한 경우 방문일정을 먼저 저장한다. -->
+    <update id="updateProcessInput" parameterType="map">
+        UPDATE TR_CARNO_DETACH
+           SET NUM_MEMO_TX = #{NUM_MEMO_TX},
+               UPD_DATE = SYSDATE
+        <if test="INSTALL_DT != null and INSTALL_DT != ''">
+             , INSTALL_DT = TO_DATE(#{INSTALL_DT}, 'YYYY-MM-DD')
+             , INSTALL_TM = #{INSTALL_TM}
+        </if>
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <!-- 허용된 기존 상태만 S_REQ로 변경해 중복 제출과 잘못된 상태 전이를 막는다. -->
+    <update id="requestReview" parameterType="map">
+        UPDATE TR_SERVICE
+           SET AUTO_YN = 'N',
+               PROC_ST = 'S_REQ',
+               JUDGE_ST = 'S_REQ',
+               UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND PROC_ST IN ('N_REQ', 'N_INS', 'N_DLV',
+               '번호판처리요청', '번호판발송요청', '번호판탈부착요청', '배송요청', '사무실배송요청')
+    </update>
+
+    <!-- N 접수 배송 건은 심사 상태 대신 탈부착 테이블의 완료 여부를 변경한다. -->
+    <update id="completeDelivery" parameterType="map">
+        UPDATE TR_CARNO_DETACH
+           SET INSTALL_YN = 'Y',
+               UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND (INSTALL_YN IS NULL OR INSTALL_YN != 'Y')
+    </update>
+
 </mapper>

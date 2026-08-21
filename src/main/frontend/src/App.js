@@ -13,6 +13,7 @@ import CustomerRoutes from './customer/CustomerRoutes';
 import './App.css';
 import CommonPopupProvider from './components/common/CommonPopupProvider';
 import Policy from './components/member/Policy';
+import NumPlateAppRoutes from './components/numplateapp/NumPlateAppRoutes';
 
 function App() {
   return (
@@ -29,6 +30,8 @@ function App() {
             <Route path="/signup-form" element={<SignForm />} />
 			{/* 고객용 업로드 페이지 */}
 			<Route path="/customer/*" element={<CustomerRoutes />} />
+			{/* 일반 ERP 로그인과 분리된 모바일 번호판 앱 라우트 */}
+			<Route path="/numplateapp/*" element={<NumPlateAppRoutes />} />
 
             <Route
               path="/*"

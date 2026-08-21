@@ -1,9 +1,9 @@
-package com.dacos.numplate.dto;
+package com.dacos.numplateApp.dto;
 
 import lombok.Data;
 
 /**
- * 번호판관리 항목 DTO
+ * 번호판 관리 화면들이 공통으로 사용하는 기본 항목 DTO.
  * - Numplate: 번호판목록(NumberPlateList), 자동차등록증관리(CarPaperManage),
  *   임판회수관리(TemporaryNumPlate), 번호판수불관리(NumPlateSupplyManage),
  *   번호판납품현황(NumPlateSupplyList)

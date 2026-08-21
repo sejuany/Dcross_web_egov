@@ -1,0 +1,201 @@
+/* 번호판 앱 로그인 및 공통 모바일 레이아웃 */
+.numplate-login-page,
+.numplate-app-shell {
+  box-sizing: border-box;
+  min-height: 100dvh;
+  padding-bottom: calc(78px + env(safe-area-inset-bottom));
+  background: #f4f7fb;
+  color: #152238;
+  font-family: "Pretendard", "Malgun Gothic", sans-serif;
+}
+
+.numplate-login-page {
+  display: grid;
+  place-items: center;
+  padding: 24px 18px;
+  background: linear-gradient(155deg, #163b68 0 36%, #f4f7fb 36% 100%);
+}
+
+.numplate-login-card {
+  width: min(100%, 420px);
+  padding: 32px 24px;
+  border-radius: 24px;
+  background: #fff;
+  box-shadow: 0 20px 55px rgba(18, 45, 77, .18);
+}
+
+.numplate-login-brand {
+  display: grid;
+  place-items: center;
+  width: 54px;
+  height: 54px;
+  border-radius: 16px;
+  background: #1e66b3;
+  color: #fff;
+  font-size: 28px;
+  font-weight: 800;
+}
+
+.numplate-login-eyebrow {
+  margin: 24px 0 6px;
+  color: #1e66b3;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .12em;
+}
+
+.numplate-login-card h1 {
+  margin: 0;
+  font-size: 30px;
+}
+
+.numplate-login-guide {
+  margin: 8px 0 28px;
+  color: #66758a;
+}
+
+.numplate-login-card label {
+  display: block;
+  margin-bottom: 16px;
+}
+
+.numplate-login-card label span {
+  display: block;
+  margin-bottom: 7px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.numplate-login-card input,
+.numplate-mobile-auth select {
+  box-sizing: border-box;
+  width: 100%;
+  min-height: 52px;
+  padding: 0 14px;
+  border: 1px solid #ccd5e0;
+  border-radius: 12px;
+  background: #fff;
+  font-size: 16px;
+}
+
+.numplate-login-card input:focus,
+.numplate-mobile-auth select:focus {
+  border-color: #1e66b3;
+  outline: 3px solid rgba(30, 102, 179, .14);
+}
+
+.numplate-primary-button {
+  width: 100%;
+  min-height: 52px;
+  border: 0;
+  border-radius: 12px;
+  background: #1e66b3;
+  color: #fff;
+  font-size: 16px;
+  font-weight: 800;
+}
+
+.numplate-primary-button:disabled { opacity: .55; }
+.numplate-mobile-auth { display: grid; gap: 12px; margin-top: 10px; }
+.numplate-text-button { border: 0; background: none; color: #52647a; text-decoration: underline; }
+.numplate-login-message { margin: 18px 0 0; color: #b42318; font-size: 14px; text-align: center; }
+
+/* 인증 후 상단 사용자 정보 영역 */
+.numplate-app-header {
+  position: sticky;
+  top: 0;
+  z-index: 20;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 58px;
+  padding: 0 16px;
+  background: #163b68;
+  color: #fff;
+}
+
+.numplate-app-header div { display: grid; gap: 2px; }
+.numplate-app-header span { font-size: 12px; opacity: .8; }
+.numplate-app-header button { border: 1px solid rgba(255,255,255,.45); border-radius: 9px; background: transparent; color: #fff; padding: 8px 10px; }
+/* 화면 스크롤과 무관하게 유지되며 iOS 하단 안전영역까지 확보하는 4개 주 메뉴 */
+.numplate-app-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr); width: min(100%, 760px); margin: 0 auto; padding: 6px 4px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid #dce3ec; background: #fff; box-shadow: 0 -4px 16px rgba(28, 57, 90, .08); }
+.numplate-app-nav a { display: grid; place-items: center; gap: 3px; min-height: 58px; color: #66758a; font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; }
+.numplate-app-nav svg { width: 27px; height: 27px; stroke-width: 1.9; }
+.numplate-app-nav a.active { color: #174f8c; }
+.numplate-mobile-cards { display: none; }
+
+/* 처리목록·상세·결과 화면의 공통 본문 폭 */
+.numplate-process-page { box-sizing: border-box; width: min(100%, 760px); margin: 0 auto; padding: 16px 14px 32px; }
+.numplate-page-title { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.numplate-page-title > div { min-width: 0; }
+.numplate-page-title h1 { margin: 0; font-size: 22px; }
+.numplate-page-title span { display: block; overflow: hidden; margin-top: 3px; color: #718096; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
+.numplate-page-title button,
+.numplate-secondary-button { min-height: 40px; padding: 0 13px; border: 1px solid #bdc9d8; border-radius: 10px; background: #fff; color: #29435f; font-weight: 700; }
+
+.numplate-search-form { display: grid; grid-template-columns: 105px 1fr auto; gap: 8px; padding: 12px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
+.numplate-search-form select,
+.numplate-search-form input,
+.numplate-search-form button,
+.numplate-request-form input,
+.numplate-request-form select,
+.numplate-request-form textarea { box-sizing: border-box; min-height: 44px; border: 1px solid #c9d4e0; border-radius: 10px; background: #fff; font: inherit; }
+.numplate-search-form select,
+.numplate-search-form input,
+.numplate-request-form input,
+.numplate-request-form select,
+.numplate-request-form textarea { width: 100%; padding: 9px 11px; }
+.numplate-search-form button { padding: 0 15px; border-color: #1e66b3; background: #1e66b3; color: #fff; font-weight: 800; }
+.numplate-today-filter { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: #52647a; font-size: 14px; }
+.numplate-today-filter input { width: 20px; min-height: 20px; }
+.numplate-inline-message { padding: 12px; border-radius: 10px; background: #fff1f0; color: #b42318; text-align: center; }
+
+.numplate-process-list { display: grid; gap: 10px; margin-top: 12px; }
+.numplate-process-card { width: 100%; padding: 15px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; color: inherit; text-align: left; box-shadow: 0 3px 12px rgba(28, 57, 90, .06); }
+.numplate-card-heading { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 12px; }
+.numplate-card-heading strong { color: #174f8c; font-size: 19px; }
+.numplate-card-heading span,
+.numplate-status-badge { padding: 5px 8px; border-radius: 999px; background: #e8f1fb; color: #174f8c; font-size: 12px; font-weight: 800; }
+.numplate-process-card dl,
+.numplate-status-card dl { display: grid; grid-template-columns: 78px 1fr; gap: 7px 10px; margin: 0; font-size: 14px; }
+.numplate-process-card dt,
+.numplate-status-card dt { color: #718096; }
+.numplate-process-card dd,
+.numplate-status-card dd { margin: 0; overflow-wrap: anywhere; }
+.numplate-process-card small { display: block; margin-top: 12px; color: #8b98a8; }
+.numplate-empty { padding: 36px 12px; color: #718096; text-align: center; }
+
+.numplate-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.numplate-detail-grid > div { min-width: 0; padding: 13px; border: 1px solid #dce3ec; border-radius: 12px; background: #fff; }
+.numplate-detail-grid span,
+.numplate-request-form label > span { display: block; margin-bottom: 5px; color: #718096; font-size: 12px; font-weight: 700; }
+.numplate-detail-grid strong { display: block; overflow-wrap: anywhere; }
+.numplate-detail-grid a,
+.numplate-status-card a { color: #1e66b3; }
+.numplate-request-form { display: grid; gap: 14px; margin-top: 14px; padding: 16px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
+.numplate-request-form textarea { min-height: 92px; resize: vertical; }
+.numplate-request-form textarea[readonly] { background: #f4f7fb; }
+.numplate-schedule-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.numplate-confirm { display: flex; align-items: flex-start; gap: 9px; color: #29435f; font-size: 14px; line-height: 1.45; }
+.numplate-confirm input { width: 22px; min-height: 22px; flex: 0 0 auto; }
+.numplate-status-card { padding: 18px; border: 1px solid #dce3ec; border-radius: 16px; background: #fff; }
+.numplate-status-badge { display: inline-block; margin-bottom: 18px; font-size: 14px; }
+.numplate-secondary-button { width: 100%; margin-top: 14px; }
+
+@media (max-width: 768px) {
+  .numplate-app-shell .status-toolbar { padding: 8px 12px; }
+  .numplate-app-shell .toolbar-title { font-size: 16px; }
+  .numplate-app-shell .erp-section { margin: 10px; }
+  .numplate-app-shell .field-group { width: 100%; }
+  .numplate-app-shell .numplate-desktop-grid { display: none; }
+  .numplate-app-shell .numplate-mobile-cards { display: grid; gap: 10px; padding: 10px; overflow: auto; }
+  .numplate-mobile-card { padding: 15px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; box-shadow: 0 3px 12px rgba(28, 57, 90, .06); }
+  .numplate-mobile-card h2 { margin: 0 0 12px; color: #174f8c; font-size: 18px; }
+  .numplate-mobile-card dl { display: grid; grid-template-columns: 90px 1fr; gap: 8px; margin: 0; font-size: 14px; }
+  .numplate-mobile-card dt { color: #718096; }
+  .numplate-mobile-card dd { margin: 0; overflow-wrap: anywhere; }
+  .numplate-detail-grid,
+  .numplate-schedule-row { grid-template-columns: 1fr; }
+  .numplate-search-form { grid-template-columns: 96px 1fr; }
+  .numplate-search-form button { grid-column: 1 / -1; }
+}
