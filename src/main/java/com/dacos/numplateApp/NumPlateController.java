@@ -97,15 +97,38 @@ public class NumPlateController {
     /** 목록에서 선택한 접수번호의 상세 또는 처리결과를 조회한다. */
     @GetMapping("/numplateapp/process/{serviceId}")
     public ResponseEntity<Map<String, Object>> getProcessDetail(
-            @PathVariable String serviceId, HttpSession session) {
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
         return ResponseEntity.ok(ApiResponse.withKey("data", numPlateService.getProcessDetail(serviceId, user)));
+    }
+
+    /** 번호판 선택창 열기, 새로고침, 허용된 사용자의 직접 검색에 공통으로 사용한다. */
+    @PostMapping("/numplateapp/process/{serviceId}/available-plates")
+    public ResponseEntity<Map<String, Object>> getAvailablePlates(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody(required = false) Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        Map<String, Object> body = request == null ? Map.of() : request;
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "list", numPlateService.getAvailablePlates(serviceId, body, user)));
+    }
+
+    /** 선택 번호를 저장한다. selectedPlate가 빈 값이면 모달에 임시 배정된 번호를 해제한다. */
+    @PostMapping("/numplateapp/process/{serviceId}/plate")
+    public ResponseEntity<Map<String, Object>> savePlate(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.savePlate(serviceId, request, user)));
     }
 
     /** 확인된 입력값을 저장한 뒤 건 유형에 따라 배송 완료 또는 심사요청으로 상태를 변경한다. */
     @PostMapping("/numplateapp/process/{serviceId}/request")
     public ResponseEntity<Map<String, Object>> requestProcess(
-            @PathVariable String serviceId,
+            @PathVariable("serviceId") String serviceId,
             @RequestBody Map<String, Object> request,
             HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);

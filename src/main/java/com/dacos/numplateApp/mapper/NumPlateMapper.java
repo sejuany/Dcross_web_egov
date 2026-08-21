@@ -28,6 +28,16 @@ public interface NumPlateMapper {
     /** 접수번호와 담당자 휴대폰 번호가 모두 일치하는 상세 한 건을 조회한다. */
     Map<String, Object> getProcessDetail(Map<String, Object> request);
 
+    /** 기존 매니저 앱 프로시저로 사용 가능한 번호판을 임시 배정한다. */
+    void getAvailablePlates(Map<String, Object> request);
+
+    /** 반납 건은 별도 프로시저를 사용한다. */
+    void getAvailableRentPlates(Map<String, Object> request);
+
+    int updatePostCarNo(Map<String, Object> request);
+
+    int appendPlateMemo(Map<String, Object> request);
+
     int updateProcessInput(Map<String, Object> request);
 
     /** 허용된 이전 상태일 때만 심사요청 상태로 변경한다. */

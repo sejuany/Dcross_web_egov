@@ -425,6 +425,7 @@
                TO_CHAR(TL.EXPIRE_DT + 14,'YYYY-MM-DD') AS EXPIRE_DT,
                TNI.IMAGE1 AS IMAGE1, TNI.IMAGE2 AS IMAGE2,
                TNI.IMAGE3 AS IMAGE3, TNI.IMAGE4 AS IMAGE4,
+               TNI.IMAGE6 AS IMAGE6,
                TNI.IMAGE1_PATH AS IMAGE1_PATH,
                   TNI.IMAGE2_PATH AS IMAGE2_PATH,
                TNI.IMAGE3_PATH AS IMAGE3_PATH,
@@ -435,7 +436,7 @@
                TT.CARD_PAY_YN AS CARD_PAY_YN,
                TO_CHAR(TC.INSTALL_DT, 'YY/MM/DD') AS INSTALL_DT,
                NVL2(TC.INSTALL_TM,SUBSTR(TC.INSTALL_TM,0,2)||':'|| SUBSTR(TC.INSTALL_TM,-1)||'0','')AS INSTALL_TM,
-               SUBSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), 1, INSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), ' ', 1, 2) - 1) AS LAST_DELIVERY_ADDR, TC.TASK_CD AS NUM_GB, TT.ETC5
+               SUBSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), 1, INSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), ' ', 1, 2) - 1) AS LAST_DELIVERY_ADDR, TC.TASK_CD AS NUM_GB, TT.TASK_CD AS TASK_CD, TT.ETC5
             FROM TM_NUM_MANAGER NM, TR_TRNSNAME TT, TR_TRNSNAME_BUY TB, TR_TRNSNAME_SELL TL, TR_CARNO_DETACH TC, TR_SERVICE TS, TR_NUMPLATE_IMAGES TNI, TM_CODE CD
          WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO),'-',''),-8) = SUBSTR(REPLACE(#{TEL_NO},'-',''),-8)
            AND NM.MANAGER_NM = TC.INSTALL_NM
@@ -497,6 +498,7 @@
                '' AS EXPIRE_DT,
                TNI.IMAGE1 AS IMAGE1, TNI.IMAGE2 AS IMAGE2,
                TNI.IMAGE3 AS IMAGE3, TNI.IMAGE4 AS IMAGE4,
+               TNI.IMAGE6 AS IMAGE6,
                   TNI.IMAGE1_PATH AS IMAGE1_PATH,
                   TNI.IMAGE2_PATH AS IMAGE2_PATH,
                TNI.IMAGE3_PATH AS IMAGE3_PATH,
@@ -507,7 +509,7 @@
                '' AS CARD_PAY_YN,
                TO_CHAR(TC.INSTALL_DT, 'YY/MM/DD') AS INSTALL_DT,
                NVL2(TC.INSTALL_TM,SUBSTR(TC.INSTALL_TM,0,2)||':'|| SUBSTR(TC.INSTALL_TM,-1)||'0','')AS INSTALL_TM,
-               SUBSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), 1, INSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), ' ', 1, 2) - 1) AS LAST_DELIVERY_ADDR, TC.TASK_CD AS NUM_GB, DECODE(TM.MDF_GB, 'BNUM', 'Y', '') AS ETC5
+               SUBSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), 1, INSTR (pkg_common.fn_decrypt (LAST_DELIVERY_ADDR), ' ', 1, 2) - 1) AS LAST_DELIVERY_ADDR, TC.TASK_CD AS NUM_GB, '' AS TASK_CD, DECODE(TM.MDF_GB, 'BNUM', 'Y', '') AS ETC5
             FROM TM_NUM_MANAGER NM, TR_MODIFY TM, TR_CARNO_DETACH TC, TR_SERVICE TS, TR_NUMPLATE_IMAGES TNI, TM_CODE CD
          WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO),'-',''),-8) = SUBSTR(REPLACE(#{TEL_NO},'-',''),-8)
            AND NM.MANAGER_NM = TC.INSTALL_NM
@@ -535,11 +537,12 @@
            AND (TS.CAR_NO LIKE  '%' || #{CONDITION} || '%'  or TC.POST_CAR_NO LIKE  '%' ||  #{CONDITION} || '%')
            </if>
     UNION ALL
-        SELECT TS.SERVICE_ID AS SERVICE_ID, '회수대상X' AS CAR_NO, TN.REQ_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
-            (SELECT COMPANY_NM FROM TM_COMPANY WHERE COMPANY_ID = TS.COMPANY_ID) AS BUY_NM, TS.PROC_ST AS PROC_ST,
+        SELECT TS.SERVICE_ID AS SERVICE_ID, '신규등록배송' AS CAR_NO, TN.REQ_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
+            (SELECT COMPANY_NM FROM TM_COMPANY WHERE COMPANY_ID = TS.COMPANY_ID) AS BUY_NM, '' AS PROC_ST,
             TO_CHAR(TRUNC(SYSDATE), 'YYYY-MM-DD') AS EXPIRE_DT,
             TNI.IMAGE1 AS IMAGE1, TNI.IMAGE2 AS IMAGE2,
             TNI.IMAGE3 AS IMAGE3, TNI.IMAGE4 AS IMAGE4,
+            TNI.IMAGE6 AS IMAGE6,
             TNI.IMAGE1_PATH AS IMAGE1_PATH,
                 TNI.IMAGE2_PATH AS IMAGE2_PATH,
             TNI.IMAGE3_PATH AS IMAGE3_PATH,
@@ -551,7 +554,7 @@
             TO_CHAR(TRUNC(SYSDATE), 'YY/MM/DD') AS INSTALL_DT,
             '' AS INSTALL_TM,
             (SELECT CODE_NM FROM TM_CODE WHERE GROUP_ID = 'DLVGB' AND CODE_ID = TC.DELIVERY_GB) AS LAST_DELIVERY_ADDR,
-            TC.TASK_CD AS NUM_GB, '' as ETC5
+            TC.TASK_CD AS NUM_GB, '' AS TASK_CD, '' as ETC5
         FROM TM_NUM_MANAGER NM, TR_NEWCAR TN, TR_CARNO_DETACH TC, TR_SERVICE TS, TR_NUMPLATE_IMAGES TNI, TM_CODE CD
         WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO),'-',''),-8) = SUBSTR(REPLACE(#{TEL_NO},'-',''),-8)
             AND NM.MANAGER_NM = TC.INSTALL_NM
@@ -634,6 +637,18 @@
                TC.NUM_MEMO_TX,
                TC.INSTALL_NM,
                TC.TASK_CD AS NUM_KIND,
+               NVL(TN.TASK_CD, '') AS TASK_CD,
+               NVL(TN.CAR_KD, NVL(TM.CAR_KD, NC.CAR_KD)) AS CAR_KD,
+               NVL(TC.SONGJANG_NO, '없음') AS SONGJANG_NO,
+               CASE WHEN TN.SERVICE_ID IS NULL THEN '비수도권'
+                    ELSE DECODE(TN.ETC5, 'Y', '비수도권',
+                         NVL((SELECT MAX(NM.GUBUN)
+                                FROM TM_NUM_MANAGER NM
+                               WHERE NM.MANAGER_NM = TC.INSTALL_NM
+                                 AND SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(NM.TEL_NO), '-', ''), -8)
+                                     = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)), '비수도권'))
+               END AS SUDO,
+               TC.HOLE_YN,
                TC.SEAL_YN,
                TC.INSTALL_YN,
                NVL(TN.BOND_YN, NVL(TM.BOND_YN, NC.BOND_YN)) AS BOND_YN,
@@ -648,12 +663,15 @@
                PKG_COMMON.FN_DECRYPT(TB.CARP_ADDRESS) || ' '
                    || PKG_COMMON.FN_DECRYPT(TB.CARP_ADDRESS_DT) AS CARP_ADDRESS,
                TO_CHAR(TC.INSU_START_DT, 'YYYY-MM-DD') AS INSU_START_DT
+               , TNI.IMAGE1, TNI.IMAGE3, TNI.IMAGE4, TNI.IMAGE6
+               , TNI.IMAGE1_PATH, TNI.IMAGE3_PATH, TNI.IMAGE4_PATH, TNI.IMAGE6_PATH
           FROM TR_SERVICE TS
           JOIN TR_CARNO_DETACH TC ON TC.SERVICE_ID = TS.SERVICE_ID
           LEFT JOIN TR_TRNSNAME TN ON TN.SERVICE_ID = TS.SERVICE_ID
           LEFT JOIN TR_TRNSNAME_BUY TB ON TB.SERVICE_ID = TS.SERVICE_ID
           LEFT JOIN TR_MODIFY TM ON TM.SERVICE_ID = TS.SERVICE_ID
           LEFT JOIN TR_NEWCAR NC ON NC.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_NUMPLATE_IMAGES TNI ON TNI.SERVICE_ID = TS.SERVICE_ID
          WHERE TS.SERVICE_ID = #{SERVICE_ID}
            AND EXISTS (
                SELECT 1
@@ -665,6 +683,56 @@
                       = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
            )
     </select>
+
+    <!-- 기존 Attach.xml과 같은 프로시저: LIMIT=10 조회/임시배정, LIMIT=0 선택확정 또는 취소. -->
+    <select id="getAvailablePlates" parameterType="map" statementType="CALLABLE">
+        CALL PKG_COMMON.SP_APP_AVAILNUMPLATELIST(
+            #{SERVICE_ID,mode=IN,jdbcType=VARCHAR},
+            #{PRE_CAR_NO,mode=IN,jdbcType=VARCHAR},
+            #{SELECT_CAR_NO,mode=IN,jdbcType=VARCHAR},
+            #{CONDITION,mode=IN,jdbcType=VARCHAR},
+            #{CarKd,mode=IN,jdbcType=VARCHAR},
+            #{HOLE_YN,mode=IN,jdbcType=VARCHAR},
+            #{SEAL_YN,mode=IN,jdbcType=VARCHAR},
+            #{NUM_KIND,mode=IN,jdbcType=VARCHAR},
+            #{MANAGER_HP_NO,mode=IN,jdbcType=VARCHAR},
+            #{LIMIT,mode=IN,jdbcType=INTEGER,javaType=int},
+            #{GUBUN,mode=IN,jdbcType=VARCHAR},
+            #{SEARCH_CAR_NO,mode=IN,jdbcType=VARCHAR},
+            #{CAR_NO,mode=OUT,jdbcType=VARCHAR}
+        )
+    </select>
+
+    <select id="getAvailableRentPlates" parameterType="map" statementType="CALLABLE">
+        CALL PKG_COMMON.SP_APP_RENT_AVAILNUMPLATELIST(
+            #{SERVICE_ID,mode=IN,jdbcType=VARCHAR},
+            #{PRE_CAR_NO,mode=IN,jdbcType=VARCHAR},
+            #{SELECT_CAR_NO,mode=IN,jdbcType=VARCHAR},
+            #{CONDITION,mode=IN,jdbcType=VARCHAR},
+            #{CarKd,mode=IN,jdbcType=VARCHAR},
+            #{HOLE_YN,mode=IN,jdbcType=VARCHAR},
+            #{SEAL_YN,mode=IN,jdbcType=VARCHAR},
+            #{NUM_KIND,mode=IN,jdbcType=VARCHAR},
+            #{MANAGER_HP_NO,mode=IN,jdbcType=VARCHAR},
+            #{LIMIT,mode=IN,jdbcType=INTEGER,javaType=int},
+            #{GUBUN,mode=IN,jdbcType=VARCHAR},
+            #{CAR_NO,mode=OUT,jdbcType=VARCHAR}
+        )
+    </select>
+
+    <update id="updatePostCarNo" parameterType="map">
+        UPDATE TR_CARNO_DETACH
+           SET POST_CAR_NO = #{SELECT_CAR_NO},
+               UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <update id="appendPlateMemo" parameterType="map">
+        UPDATE TR_CARNO_DETACH
+           SET MEMO_TX = NVL(MEMO_TX, '') || #{MEMO_TX},
+               UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
 
     <!-- 심사요청 전에 담당자 메모와 필요한 경우 방문일정을 먼저 저장한다. -->
     <update id="updateProcessInput" parameterType="map">
