@@ -96,6 +96,11 @@
 }
 
 .numplate-primary-button:disabled { opacity: .55; }
+.numplate-login-card .numplate-passkey-register { display: flex; align-items: center; gap: 9px; color: #42566e; font-size: 14px; }
+.numplate-login-card .numplate-passkey-register input { width: 22px; min-height: 22px; margin: 0; }
+.numplate-login-card .numplate-passkey-register span { margin: 0; }
+.numplate-passkey-button { width: 100%; min-height: 52px; margin-top: 10px; border: 1px solid #1e66b3; border-radius: 12px; background: #fff; color: #174f8c; font-weight: 800; }
+.numplate-passkey-button:disabled { opacity: .5; }
 .numplate-mobile-auth { display: grid; gap: 12px; margin-top: 10px; }
 .numplate-text-button { border: 0; background: none; color: #52647a; text-decoration: underline; }
 .numplate-login-message { margin: 18px 0 0; color: #b42318; font-size: 14px; text-align: center; }

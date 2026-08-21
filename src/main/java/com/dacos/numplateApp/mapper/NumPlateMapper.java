@@ -14,6 +14,16 @@ public interface NumPlateMapper {
     /** 휴대폰 번호가 일치하는 사용 중 담당자 후보를 조회한다. */
     List<Map<String, Object>> loginManager(Map<String, Object> request);
 
+    List<Map<String, Object>> getPasskeysByPhoneHash(String phoneHash);
+
+    List<Map<String, Object>> getPasskeysByUserHandle(String userHandle);
+
+    List<Map<String, Object>> getPasskeysByCredentialId(String credentialId);
+
+    int insertPasskey(Map<String, Object> request);
+
+    int updatePasskeyCounter(Map<String, Object> request);
+
     List<Map<String, Object>> getNumPlateList(NumPlateSearchRequest request);
 
     List<Map<String, Object>> getCarPaperList(NumPlateSearchRequest request);

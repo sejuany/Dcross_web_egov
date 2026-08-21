@@ -2,6 +2,7 @@ package com.dacos.numplateApp;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +22,7 @@ import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
 import com.dacos.common.util.AuthUtil;
 import com.dacos.numplateApp.dto.NumPlateSearchRequest;
+import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
@@ -40,9 +42,11 @@ public class NumPlateController {
     private static final Logger logger = LoggerFactory.getLogger(NumPlateController.class);
 
     private final NumPlateService numPlateService;
+    private final NumPlatePasskeyService passkeyService;
 
-    public NumPlateController(NumPlateService numPlateService) {
+    public NumPlateController(NumPlateService numPlateService, NumPlatePasskeyService passkeyService) {
         this.numPlateService = numPlateService;
+        this.passkeyService = passkeyService;
     }
 
     /** 담당자 휴대폰 번호와 비밀번호를 확인하고 번호판 앱 전용 세션을 생성한다. */
@@ -52,10 +56,41 @@ public class NumPlateController {
             HttpServletRequest httpRequest,
             HttpSession session) {
         UserDto user = numPlateService.loginManager(request);
-        // 로그인 직후 세션 ID를 교체해 세션 고정 공격을 방지한다.
-        httpRequest.changeSessionId();
-        session.setMaxInactiveInterval(30 * 60);
-        session.setAttribute("user", user);
+        establishNumPlateSession(user, httpRequest, session);
+        return ResponseEntity.ok(ApiResponse.withKey("user", user));
+    }
+
+    /** 비밀번호 로그인된 계정에 현재 기기의 Face ID/Touch ID 패스키를 등록한다. */
+    @PostMapping(value = "/numplateapp/passkeys/register/options", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> startPasskeyRegistration(HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(passkeyService.startRegistration(user, session));
+    }
+
+    @PostMapping("/numplateapp/passkeys/register/verify")
+    public ResponseEntity<Map<String, Object>> finishPasskeyRegistration(
+            @RequestBody JsonNode response, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        passkeyService.finishRegistration(response.toString(), user, session);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    /** 휴대폰 번호에 등록된 패스키 challenge를 발급한다. */
+    @PostMapping(value = "/numplateapp/passkeys/login/options", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<String> startPasskeyLogin(
+            @RequestBody Map<String, Object> request, HttpSession session) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(passkeyService.startLogin(Objects.toString(request.get("phone"), ""), session));
+    }
+
+    @PostMapping("/numplateapp/passkeys/login/verify")
+    public ResponseEntity<Map<String, Object>> finishPasskeyLogin(
+            @RequestBody JsonNode response,
+            HttpServletRequest httpRequest,
+            HttpSession session) {
+        UserDto user = passkeyService.finishLogin(response.toString(), session);
+        establishNumPlateSession(user, httpRequest, session);
         return ResponseEntity.ok(ApiResponse.withKey("user", user));
     }
 
@@ -268,6 +303,14 @@ public class NumPlateController {
         if (!"dacos".equalsIgnoreCase(user.getCOMPANY_ID())) {
             request.setCOMPANY_ID(user.getCOMPANY_ID());
         }
+    }
+
+    private void establishNumPlateSession(
+            UserDto user, HttpServletRequest request, HttpSession session) {
+        // 비밀번호/패스키 어느 방식이든 로그인 직후 세션 ID를 교체한다.
+        request.changeSessionId();
+        session.setMaxInactiveInterval(30 * 60);
+        session.setAttribute("user", user);
     }
 
 }

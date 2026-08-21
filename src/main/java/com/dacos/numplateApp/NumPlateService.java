@@ -68,7 +68,25 @@ public class NumPlateService {
             throw new BusinessException("휴대폰 번호 또는 비밀번호를 확인해 주세요.", 401);
         }
 
-        Map<String, Object> manager = matchedManagers.get(0);
+        return managerUser(matchedManagers.get(0), phone);
+    }
+
+    /** WebAuthn 서명 검증이 끝난 휴대폰 번호가 현재도 사용 중인 담당자인지 다시 확인한다. */
+    public UserDto loginManagerByPasskey(String phone) {
+        phone = Objects.toString(phone, "").replaceAll("[^0-9]", "");
+        if (phone.length() < 8 || phone.length() > 11) {
+            throw new BusinessException("휴대폰 번호를 확인해 주세요.", 401);
+        }
+        String normalizedPhone = phone;
+        List<Map<String, Object>> managers = numPlateMapper.loginManager(Map.of("TEL_NO", phone)).stream()
+                .filter(manager -> normalizedPhone.equals(
+                        Objects.toString(manager.get("TEL_NO"), "").replaceAll("[^0-9]", "")))
+                .toList();
+        if (managers.size() != 1) throw new BusinessException("사용 가능한 담당자 계정이 아닙니다.", 401);
+        return managerUser(managers.get(0), phone);
+    }
+
+    private UserDto managerUser(Map<String, Object> manager, String phone) {
         UserDto user = new UserDto();
         user.setLOGIN_ID(Objects.toString(manager.get("TEL_NO"), phone));
         user.setLOGIN_GB("NUMPLATE_APP");

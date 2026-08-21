@@ -235,6 +235,13 @@
 			<version>6.2.2</version>
 		</dependency>
 
+		<!-- 번호판 매니저 Face ID/Touch ID 패스키(WebAuthn) 서버 검증 -->
+		<dependency>
+			<groupId>com.yubico</groupId>
+			<artifactId>webauthn-server-core</artifactId>
+			<version>2.9.0</version>
+		</dependency>
+
 		<!-- Database Dependencies -->
 		<dependency>
 			<groupId>org.springframework</groupId>

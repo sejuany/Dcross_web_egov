@@ -54,6 +54,12 @@ mobile-ok:
   key-password: ${MOBILE_OK_KEY_PASSWORD:@dewa1004}
   client-tx-id-prefix: ${MOBILE_OK_CLIENT_TX_ID_PREFIX:Dacos309}
   site-url: ${MOBILE_OK_SITE_URL:t.dcross.kr}
+
   token-url: ${MOBILE_OK_TOKEN_URL:https://scert-dir.mobile-ok.com/agent/v1/token/get}
   auth-request-url: ${MOBILE_OK_AUTH_REQUEST_URL:https://scert-dir.mobile-ok.com/agent/v1/auth/request}
   confirm-url: ${MOBILE_OK_CONFIRM_URL:https://scert-dir.mobile-ok.com/agent/v1/confirm/request}
+
+numplate:
+  passkey:
+    rp-id: ${NUMPLATE_PASSKEY_RP_ID:no.dcross.kr}
+    origin: ${NUMPLATE_PASSKEY_ORIGIN:https://no.dcross.kr}

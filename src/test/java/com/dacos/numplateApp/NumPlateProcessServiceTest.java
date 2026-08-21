@@ -3,6 +3,7 @@ package com.dacos.numplateApp;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
 import java.util.List;
@@ -16,6 +17,7 @@ import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.Configuration;
 import org.springframework.mock.web.MockMultipartFile;
+import org.springframework.mock.web.MockHttpSession;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.BusinessException;
@@ -33,6 +35,7 @@ public class NumPlateProcessServiceTest {
         test.savesScheduleAndMemoBeforeReview();
         test.loadsReturnListAndUploadsDisposedPlate();
         test.adjustsSubPanelPriceAndRefundTogether();
+        test.startsPasskeyRegistrationForProductionOrigin();
         test.parsesNumPlateMapperXml();
     }
 
@@ -270,6 +273,35 @@ public class NumPlateProcessServiceTest {
         assertEquals(89_000L, changed.get().get("TOTAL_AMT"));
         assertEquals(13_000L, refunded.get().get("RT_AMT"));
         assertEquals("N", changed.get().get("BOND_YN"));
+    }
+
+    @Test
+    void startsPasskeyRegistrationForProductionOrigin() {
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(), new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> {
+                    if ("getPasskeysByPhoneHash".equals(method.getName())) return List.of();
+                    throw new UnsupportedOperationException(method.getName());
+                });
+        NumPlatePasskeyRepository repository = new NumPlatePasskeyRepository(mapper);
+        NumPlatePasskeyService service = new NumPlatePasskeyService(
+                repository, new NumPlateService(mapper, null),
+                "no.dcross.kr", "https://no.dcross.kr");
+        UserDto user = new UserDto();
+        user.setLOGIN_GB("NUMPLATE_APP");
+        user.setMPHONE_NO("010-1234-5678");
+        user.setMEMBER_NM("담당자");
+        MockHttpSession session = new MockHttpSession();
+
+        String options = service.startRegistration(user, session);
+
+        assertTrue(options.contains("no.dcross.kr"));
+        assertTrue(options.contains("challenge"));
+        assertFalse(options.contains("01012345678"));
+        assertThrows(BusinessException.class,
+                () -> service.finishRegistration("{}", user, session));
+        assertThrows(BusinessException.class,
+                () -> service.finishRegistration("{}", user, session));
     }
 
     @Test

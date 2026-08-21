@@ -18,6 +18,51 @@
            AND USE_YN = 'Y'
     </select>
 
+    <sql id="passkeyColumns">
+        CREDENTIAL_ID, MANAGER_TEL_HASH, USER_HANDLE, PUBLIC_KEY_COSE,
+        SIGNATURE_COUNT, TRANSPORTS, BACKUP_ELIGIBLE_YN, BACKUP_STATE_YN
+    </sql>
+
+    <select id="getPasskeysByPhoneHash" parameterType="string" resultType="map">
+        SELECT <include refid="passkeyColumns"/>
+          FROM TM_NUM_MANAGER_PASSKEY
+         WHERE MANAGER_TEL_HASH = #{value} AND USE_YN = 'Y'
+    </select>
+
+    <select id="getPasskeysByUserHandle" parameterType="string" resultType="map">
+        SELECT <include refid="passkeyColumns"/>
+          FROM TM_NUM_MANAGER_PASSKEY
+         WHERE USER_HANDLE = #{value} AND USE_YN = 'Y'
+    </select>
+
+    <select id="getPasskeysByCredentialId" parameterType="string" resultType="map">
+        SELECT <include refid="passkeyColumns"/>
+          FROM TM_NUM_MANAGER_PASSKEY
+         WHERE CREDENTIAL_ID = #{value} AND USE_YN = 'Y'
+    </select>
+
+    <insert id="insertPasskey" parameterType="map">
+        INSERT INTO TM_NUM_MANAGER_PASSKEY
+            (CREDENTIAL_ID, MANAGER_TEL_HASH, USER_HANDLE, PUBLIC_KEY_COSE,
+             SIGNATURE_COUNT, TRANSPORTS, BACKUP_ELIGIBLE_YN, BACKUP_STATE_YN,
+             USE_YN, INS_DATE)
+        VALUES
+            (#{CREDENTIAL_ID}, #{MANAGER_TEL_HASH}, #{USER_HANDLE}, #{PUBLIC_KEY_COSE},
+             #{SIGNATURE_COUNT}, #{TRANSPORTS}, #{BACKUP_ELIGIBLE_YN}, #{BACKUP_STATE_YN},
+             'Y', SYSDATE)
+    </insert>
+
+    <update id="updatePasskeyCounter" parameterType="map">
+        UPDATE TM_NUM_MANAGER_PASSKEY
+           SET SIGNATURE_COUNT = CASE WHEN SIGNATURE_COUNT &lt; #{SIGNATURE_COUNT}
+                                      THEN #{SIGNATURE_COUNT} ELSE SIGNATURE_COUNT END,
+               BACKUP_STATE_YN = #{BACKUP_STATE_YN},
+               LAST_USED_DATE = SYSDATE
+         WHERE CREDENTIAL_ID = #{CREDENTIAL_ID}
+           AND MANAGER_TEL_HASH = #{MANAGER_TEL_HASH}
+           AND USE_YN = 'Y'
+    </update>
+
     <!-- 기존 RegSendList.do가 실제 사용하던 selectDiscontinuedNumplate와 같은 폐판처리 목록 -->
     <select id="getReturnList" parameterType="map" resultType="map">
         SELECT R.*
