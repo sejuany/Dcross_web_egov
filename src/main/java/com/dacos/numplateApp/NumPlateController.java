@@ -6,12 +6,16 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
+import org.springframework.http.MediaType;
+import org.springframework.http.CacheControl;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
@@ -94,6 +98,35 @@ public class NumPlateController {
         return ResponseEntity.ok(ApiResponse.withKey("list", numPlateService.getProcessList(body, user)));
     }
 
+    /** 기존 RegSendList.jsp의 폐번호판 반납목록을 조회한다. */
+    @PostMapping("/numplateapp/returns/list")
+    public ResponseEntity<Map<String, Object>> getReturnList(
+            @RequestBody(required = false) Map<String, Object> request, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "list", numPlateService.getReturnList(request == null ? Map.of() : request, user)));
+    }
+
+    /** 목록 카드가 기존 DisNumplateInfoDT.do로 이동할 때 조회하던 처리 건이다. */
+    @GetMapping("/numplateapp/returns/{serviceId}")
+    public ResponseEntity<Map<String, Object>> getReturnDetail(
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.getReturnDetail(serviceId, user)));
+    }
+
+    /** 모바일 카메라로 촬영한 절단 폐번호판 사진을 등록한다. */
+    @PostMapping(value = "/numplateapp/returns/{serviceId}/photo", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadDisposedPlate(
+            @PathVariable("serviceId") String serviceId,
+            @RequestParam("file") MultipartFile file,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.uploadDisposedPlate(serviceId, file, user);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
     /** 목록에서 선택한 접수번호의 상세 또는 처리결과를 조회한다. */
     @GetMapping("/numplateapp/process/{serviceId}")
     public ResponseEntity<Map<String, Object>> getProcessDetail(
@@ -134,6 +167,99 @@ public class NumPlateController {
         UserDto user = AuthUtil.getLoginUser(session);
         return ResponseEntity.ok(ApiResponse.withKey(
                 "data", numPlateService.requestProcess(serviceId, request, user)));
+    }
+
+    /** 상세화면의 저장 버튼으로 방문 예정일과 시간을 심사요청 전에 반영한다. */
+    @PostMapping("/numplateapp/process/{serviceId}/schedule")
+    public ResponseEntity<Map<String, Object>> updateInstallSchedule(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.updateInstallSchedule(serviceId, request, user)));
+    }
+
+    /** 상세화면의 수정 버튼으로 탈부착자 메모만 즉시 반영한다. */
+    @PostMapping("/numplateapp/process/{serviceId}/memo")
+    public ResponseEntity<Map<String, Object>> updateInstallerMemo(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.updateInstallerMemo(serviceId, request, user)));
+    }
+
+    /** 기존 processStatus.jsp의 사진 미리보기: 인증된 담당 건의 지정 사진만 반환한다. */
+    @GetMapping("/numplateapp/process/{serviceId}/images/{slot}")
+    public ResponseEntity<byte[]> getProcessImage(
+            @PathVariable("serviceId") String serviceId,
+            @PathVariable("slot") int slot,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        byte[] image = numPlateService.getProcessImage(serviceId, slot, user);
+        MediaType type = image.length > 4 && image[0] == (byte) 0x89 && image[1] == 0x50
+                ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(type).body(image);
+    }
+
+    /** iPhone/Android 브라우저의 카메라 또는 앨범으로 기존 Android 사진촬영 기능을 대체한다. */
+    @PostMapping(value = "/numplateapp/process/{serviceId}/images/{slot}", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadProcessImage(
+            @PathVariable("serviceId") String serviceId,
+            @PathVariable("slot") int slot,
+            @RequestParam("file") MultipartFile file,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.uploadProcessImage(serviceId, slot, file, user)));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/car-paper")
+    public ResponseEntity<Map<String, Object>> requestCarPaper(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.requestCarPaper(serviceId, request, user);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/id-card-request")
+    public ResponseEntity<Map<String, Object>> requestIdCard(
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.requestIdCard(serviceId, user);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/cancel-review")
+    public ResponseEntity<Map<String, Object>> cancelReview(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.cancelReview(serviceId, request, user)));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/photos-complete")
+    public ResponseEntity<Map<String, Object>> completePhotos(
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.completePhotos(serviceId, user);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/sub-panel")
+    public ResponseEntity<Map<String, Object>> updateSubPanel(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.updateSubPanel(serviceId, request, user)));
     }
 
     private void applyCompanyScope(NumPlateSearchRequest request, HttpSession session) {

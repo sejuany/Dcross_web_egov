@@ -6,6 +6,8 @@ import NumPlateAppLogin from './NumPlateAppLogin';
 import ProcessList from './ProcessList';
 import NReqDetail from './NReqDetail';
 import ProcessStatus from './ProcessStatus';
+import ReturnList from './ReturnList';
+import ReturnDetail from './ReturnDetail';
 
 // 번호판 앱 전용 로그인으로 만든 세션만 하위 업무 화면에 접근할 수 있다.
 function NumPlateAppGuard({ children }) {
@@ -32,8 +34,9 @@ export default function NumPlateAppRoutes() {
         <Route index element={<ProcessList />} />
         <Route path="request/:serviceId" element={<NReqDetail />} />
         <Route path="status/:serviceId" element={<ProcessStatus />} />
-        {/* 하단 메뉴는 먼저 연결하고, 미이관 JSP 기능은 후속 작업 전까지 안내 화면을 표시한다. */}
-        <Route path="returns" element={<PendingPage title="반납목록" />} />
+        <Route path="returns" element={<ReturnList />} />
+        <Route path="returns/:serviceId" element={<ReturnDetail />} />
+        {/* 아직 이관하지 않은 하단 메뉴는 안내 화면을 표시한다. */}
         <Route path="notifications" element={<PendingPage title="알림센터" />} />
         <Route path="mypage" element={<PendingPage title="마이페이지" />} />
         <Route path="plates" element={<NumPlateInventory />} />

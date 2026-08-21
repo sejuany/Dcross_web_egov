@@ -14,6 +14,7 @@ export default function NReqDetail() {
   const [form, setForm] = useState({ installDate: '', installTime: '', numMemo: '', confirmed: false });
   const [message, setMessage] = useState('');
   const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState('');
   const [plateModalOpen, setPlateModalOpen] = useState(false);
   const [plates, setPlates] = useState([]);
   const [selectedPlate, setSelectedPlate] = useState('');
@@ -49,6 +50,48 @@ export default function NReqDetail() {
       setMessage(error.response?.data?.message || '요청을 처리하지 못했습니다.');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const saveSchedule = async () => {
+    if (!form.installDate || !form.installTime) {
+      setMessage('방문 예정일과 시간을 모두 입력해 주세요.');
+      return;
+    }
+    // 기존 다코스 예외 담당자는 문자 발송 여부를 선택하고, 그 외 담당자는 기존처럼 함께 발송한다.
+    const sendSms = detail.CAN_SEARCH_NUMPLATE
+      ? window.confirm('고객에게 방문 일정 안내 문자를 발송하시겠습니까?\n취소를 눌러도 일정은 저장됩니다.')
+      : true;
+    setSaving('schedule');
+    setMessage('');
+    try {
+      const { data } = await axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/schedule`, {
+        installDate: form.installDate,
+        installTime: form.installTime,
+        sendSms,
+      });
+      setDetail(data.data);
+      setMessage('방문 예정일과 시간이 저장되었습니다.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || '방문 일정을 저장하지 못했습니다.');
+    } finally {
+      setSaving('');
+    }
+  };
+
+  const saveMemo = async () => {
+    setSaving('memo');
+    setMessage('');
+    try {
+      const { data } = await axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/memo`, {
+        numMemo: form.numMemo,
+      });
+      setDetail(data.data);
+      setMessage('탈부착자 메모가 수정되었습니다.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || '탈부착자 메모를 수정하지 못했습니다.');
+    } finally {
+      setSaving('');
     }
   };
 
@@ -147,20 +190,26 @@ export default function NReqDetail() {
       </div>
 
       <form className="numplate-request-form" onSubmit={submit}>
-        {scheduleRequired && (
+        {!delivery && (
           <div className="numplate-schedule-row">
-            <label><span>방문 예정일</span><input type="date" value={form.installDate} onChange={(event) => setForm({ ...form, installDate: event.target.value })} required /></label>
-            <label><span>방문 예정시간</span><select value={form.installTime} onChange={(event) => setForm({ ...form, installTime: event.target.value })} required><option value="">시간 선택</option>{visitTimes.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+            <label><span>방문 예정일</span><input type="date" value={form.installDate} onChange={(event) => setForm({ ...form, installDate: event.target.value })} required={scheduleRequired} /></label>
+            <label><span>방문 예정시간</span><select value={form.installTime} onChange={(event) => setForm({ ...form, installTime: event.target.value })} required={scheduleRequired}><option value="">시간 선택</option>{visitTimes.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+            <button className="numplate-save-button" type="button" onClick={saveSchedule} disabled={loading || Boolean(saving)}>{saving === 'schedule' ? '저장 중…' : '저장'}</button>
           </div>
         )}
         <label><span>요청사항</span><textarea value={detail.MEMO_TX || ''} readOnly /></label>
-        <label><span>탈부착자 메모</span><textarea value={form.numMemo} maxLength={1000} onChange={(event) => setForm({ ...form, numMemo: event.target.value })} /></label>
+        {detail.COMPANY_ID !== 'CB407' && (
+          <div className="numplate-memo-row">
+            <label><span>탈부착자 메모</span><textarea value={form.numMemo} maxLength={1000} onChange={(event) => setForm({ ...form, numMemo: event.target.value })} /></label>
+            <button className="numplate-save-button" type="button" onClick={saveMemo} disabled={loading || Boolean(saving)}>{saving === 'memo' ? '수정 중…' : '수정'}</button>
+          </div>
+        )}
         <label className="numplate-confirm">
           <input type="checkbox" checked={form.confirmed} onChange={(event) => setForm({ ...form, confirmed: event.target.checked })} required />
           {delivery ? '배송할 번호판과 수령 정보를 확인했습니다.' : '차량·번호판·방문 정보를 모두 확인했습니다.'}
         </label>
         {message && <p className="numplate-inline-message" role="alert">{message}</p>}
-        <button className="numplate-primary-button" type="submit" disabled={loading || !form.confirmed}>{loading ? '처리 중…' : (delivery ? '배송처리' : '심사요청')}</button>
+        <button className="numplate-primary-button" type="submit" disabled={loading || Boolean(saving) || !form.confirmed}>{loading ? '처리 중…' : (delivery ? '배송처리' : '심사요청')}</button>
       </form>
 
       {plateModalOpen && (

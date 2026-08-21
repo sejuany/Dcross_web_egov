@@ -176,12 +176,59 @@
 .numplate-request-form { display: grid; gap: 14px; margin-top: 14px; padding: 16px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
 .numplate-request-form textarea { min-height: 92px; resize: vertical; }
 .numplate-request-form textarea[readonly] { background: #f4f7fb; }
-.numplate-schedule-row { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.numplate-schedule-row { display: grid; grid-template-columns: 1fr 1fr auto; gap: 10px; align-items: end; }
+.numplate-memo-row { display: grid; grid-template-columns: 1fr auto; gap: 10px; align-items: end; }
+.numplate-memo-row label { min-width: 0; }
+.numplate-save-button { min-width: 72px; min-height: 44px; padding: 0 16px; border: 0; border-radius: 10px; background: #52647a; color: #fff; font-weight: 800; }
+.numplate-save-button:disabled { opacity: .55; }
+.numplate-kb-car { background: #fff36b; }
+.numplate-corporate-number { background: #b9ff92; }
+.numplate-return-summary { display: grid; gap: 4px; padding: 16px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
+.numplate-return-summary strong { color: #174f8c; font-size: 22px; }
+.numplate-return-summary small { color: #718096; }
+.numplate-return-photo { display: grid; gap: 14px; margin-top: 14px; padding: 18px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
+.numplate-return-photo h2 { margin: 0; font-size: 18px; }
+.numplate-return-photo > p { margin: 0; color: #b42318; font-size: 14px; font-weight: 700; line-height: 1.5; }
+.numplate-return-photo img { width: 100%; max-height: 420px; border-radius: 12px; object-fit: contain; background: #eef2f7; }
+.numplate-photo-button { display: grid; min-height: 50px; place-items: center; border-radius: 10px; background: #52647a; color: #fff; font-weight: 800; cursor: pointer; }
+.numplate-photo-button input { position: absolute; width: 1px; height: 1px; opacity: 0; }
 .numplate-confirm { display: flex; align-items: flex-start; gap: 9px; color: #29435f; font-size: 14px; line-height: 1.45; }
 .numplate-confirm input { width: 22px; min-height: 22px; flex: 0 0 auto; }
 .numplate-status-card { padding: 18px; border: 1px solid #dce3ec; border-radius: 16px; background: #fff; }
 .numplate-status-badge { display: inline-block; margin-bottom: 18px; font-size: 14px; }
 .numplate-secondary-button { width: 100%; margin-top: 14px; }
+.numplate-status-warning { padding: 13px; border-radius: 11px; background: #fff3cd; color: #7a4d00; font-weight: 700; }
+.numplate-status-section { display: block; margin-top: 14px; padding: 16px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
+.numplate-status-section h2 { margin: 0 0 12px; font-size: 17px; }
+.numplate-status-section summary { cursor: pointer; font-weight: 800; }
+.numplate-status-section textarea { box-sizing: border-box; width: 100%; min-height: 92px; padding: 10px; border: 1px solid #c9d4e0; border-radius: 10px; font: inherit; resize: vertical; }
+.numplate-action-form { display: grid; grid-template-columns: 120px 1fr auto; gap: 8px; margin-top: 14px; }
+.numplate-action-form select,
+.numplate-action-form input,
+.numplate-action-form button,
+.numplate-status-actions button,
+.numplate-cancel-review input,
+.numplate-cancel-review button { min-height: 44px; padding: 0 12px; border: 1px solid #c9d4e0; border-radius: 10px; background: #fff; font: inherit; }
+.numplate-action-form button,
+.numplate-status-actions button:first-child { border-color: #1e66b3; background: #1e66b3; color: #fff; font-weight: 800; }
+.numplate-photo-guide { color: #b42318; font-size: 13px; line-height: 1.5; }
+.numplate-sub-panel-choice { display: grid; grid-template-columns: 1fr auto auto auto; align-items: center; gap: 12px; margin: 12px 0; padding: 12px; border: 1px solid #d4d9e0; border-radius: 10px; background: #f8fafc; }
+.numplate-sub-panel-choice label { display: flex; align-items: center; gap: 6px; }
+.numplate-sub-panel-choice input { width: 22px; height: 22px; }
+.numplate-sub-panel-choice button { min-height: 40px; padding: 0 14px; }
+.numplate-status-images { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 14px; }
+.numplate-status-images > div { display: grid; gap: 7px; min-width: 0; padding: 10px; border: 1px solid #dce3ec; border-radius: 12px; }
+.numplate-status-images strong { font-size: 13px; }
+.numplate-image-preview { overflow: hidden; height: 128px; padding: 0; border: 0; border-radius: 9px; background: #eef2f7; }
+.numplate-image-preview img { width: 100%; height: 100%; object-fit: cover; }
+.numplate-image-empty { display: grid; height: 128px; place-items: center; border-radius: 9px; background: #eef2f7; color: #718096; }
+.numplate-status-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
+.numplate-status-actions button:last-child { color: #29435f; font-weight: 800; }
+.numplate-cancel-review { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; margin-top: 14px; padding: 14px; border: 1px solid #f1b5b1; border-radius: 14px; background: #fff5f4; }
+.numplate-cancel-review h2 { margin: 0; color: #b42318; font-size: 16px; }
+.numplate-cancel-review button { border-color: #b42318; background: #b42318; color: #fff; font-weight: 800; }
+.numplate-image-modal { position: fixed; inset: 0; z-index: 200; display: grid; width: 100%; height: 100%; padding: 18px; place-items: center; border: 0; background: rgba(0,0,0,.86); }
+.numplate-image-modal img { max-width: 100%; max-height: 100%; object-fit: contain; }
 
 /* 번호판 후보는 서버에서 임시 배정되므로 모달 밖 클릭으로 닫지 않고 취소 버튼으로만 해제한다. */
 .numplate-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: end center; padding: 16px; background: rgba(15, 31, 50, .55); }
@@ -217,7 +264,13 @@
   .numplate-mobile-card dt { color: #718096; }
   .numplate-mobile-card dd { margin: 0; overflow-wrap: anywhere; }
   .numplate-detail-grid,
-  .numplate-schedule-row { grid-template-columns: 1fr; }
+  .numplate-schedule-row,
+  .numplate-memo-row,
+  .numplate-action-form,
+  .numplate-cancel-review { grid-template-columns: 1fr; }
+  .numplate-sub-panel-choice { grid-template-columns: 1fr 1fr; }
+  .numplate-sub-panel-choice strong,
+  .numplate-sub-panel-choice button { grid-column: 1 / -1; }
   .numplate-search-form { grid-template-columns: 96px 1fr; }
   .numplate-search-form button { grid-column: 1 / -1; }
 }
