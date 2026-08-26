@@ -22,6 +22,10 @@ public interface AuthMapper {
      */
     UserDto findByUserId(@Param("userId") String userId);
 
+    List<String> findLoginIdsByWithAuthIdentity(
+            @Param("name") String name,
+            @Param("phone") String phone);
+
     /**
      * BCrypt로 재해시된 비밀번호를 DB에 업데이트 (단계적 전환 시 사용)
      * @param userId 사용자 아이디

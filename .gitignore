@@ -23,7 +23,9 @@ target/
 # =========================================
 # 로컬 환경 전용 설정 파일 (비밀번호, IP 등)
 src/main/resources/application-local.yml
-src/main/resources/application-prod.yml
+src/main/resources/application-real.yml
+config/dcross.env
+config/application-withauth-local.yml
 
 # Mobile-OK key files
 src/main/resources/mobile-ok/*.dat

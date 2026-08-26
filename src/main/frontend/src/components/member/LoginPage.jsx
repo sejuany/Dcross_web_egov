@@ -15,6 +15,38 @@ const MOBILE_PROVIDER_OPTIONS = [
     { value: 'LGUMVNO', label: 'LG U+ 알뜰폰' }
 ];
 
+const WITHAUTH_CALLBACK_NAME = 'dcrossWithAuthCallback';
+
+const loadWithAuthSdk = (sdkUrl) => new Promise((resolve, reject) => {
+    if (typeof window.withAuth_auth === 'function') {
+        resolve();
+        return;
+    }
+
+    const onLoad = () => typeof window.withAuth_auth === 'function'
+        ? resolve()
+        : reject(new Error('withAuth SDK 함수를 찾을 수 없습니다.'));
+    const existing = document.getElementById('withauth-sdk');
+
+    if (existing) {
+        existing.addEventListener('load', onLoad, { once: true });
+        existing.addEventListener('error', () => reject(new Error('withAuth SDK를 불러오지 못했습니다.')), { once: true });
+        return;
+    }
+
+    const sixHourTimestamp = Math.floor(Date.now() / (6 * 60 * 60 * 1000));
+    const script = document.createElement('script');
+    script.id = 'withauth-sdk';
+    script.async = true;
+    script.src = `${sdkUrl}${sdkUrl.includes('?') ? '&' : '?'}ver=20260825&ts=${sixHourTimestamp}`;
+    script.addEventListener('load', onLoad, { once: true });
+    script.addEventListener('error', () => {
+        script.remove();
+        reject(new Error('withAuth SDK를 불러오지 못했습니다.'));
+    }, { once: true });
+    document.head.appendChild(script);
+});
+
 const LoginPage = () => {
     const navigate = useNavigate();
     const { user, login } = useAuth();
@@ -39,6 +71,10 @@ const LoginPage = () => {
         }
     }, [navigate, user]);
 
+    useEffect(() => () => {
+        delete window[WITHAUTH_CALLBACK_NAME];
+    }, []);
+
     const resetMobileAuthState = () => {
         setMobileAuthPending(null);
         setMobileAuthMessage('');
@@ -57,6 +93,58 @@ const LoginPage = () => {
     const showToast = (message) => {
         setToastMessage(message);
         window.setTimeout(() => setToastMessage(''), 3000);
+    };
+
+    const handleWithAuthLogin = async () => {
+        if (isSubmitting) return;
+        setIsSubmitting(true);
+
+        try {
+            const response = await axios.post('/api/auth/withauth/token', {});
+            const { accessToken, sdkUrl, success, message } = response.data;
+
+            if (!success || !accessToken || !sdkUrl) {
+                throw new Error(message || '간편인증을 시작하지 못했습니다.');
+            }
+
+            await loadWithAuthSdk(sdkUrl);
+            window[WITHAUTH_CALLBACK_NAME] = async (result) => {
+                if (String(result?.resultCode) !== '200') {
+                    showToast(result?.resultMessage || '간편인증이 취소되었거나 실패했습니다.');
+                    delete window[WITHAUTH_CALLBACK_NAME];
+                    return;
+                }
+
+                const transactionToken = result?.resMessage?.token;
+                if (!transactionToken) {
+                    showToast('간편인증 결과 토큰을 받지 못했습니다.');
+                    delete window[WITHAUTH_CALLBACK_NAME];
+                    return;
+                }
+
+                setIsSubmitting(true);
+                try {
+                    const verifyResponse = await axios.post('/api/auth/withauth/verify', {
+                        token: transactionToken
+                    });
+                    if (!verifyResponse.data.success) {
+                        throw new Error(verifyResponse.data.message || '간편인증 결과 확인에 실패했습니다.');
+                    }
+                    completeLogin(verifyResponse.data.user);
+                } catch (error) {
+                    showToast(error.response?.data?.message || error.message || '간편인증 로그인에 실패했습니다.');
+                } finally {
+                    setIsSubmitting(false);
+                    delete window[WITHAUTH_CALLBACK_NAME];
+                }
+            };
+
+            window.withAuth_auth(accessToken, 'Y', WITHAUTH_CALLBACK_NAME);
+        } catch (error) {
+            showToast(error.response?.data?.message || error.message || '간편인증을 시작하지 못했습니다.');
+        } finally {
+            setIsSubmitting(false);
+        }
     };
 
     const completeLogin = (loginUser) => {
@@ -184,7 +272,13 @@ const LoginPage = () => {
                             <div className="input-group">
                                 <input type="text" name="regNo" className="reg-no-input" placeholder="등록번호(주민번호 7자리 / 사업자번호 10자리)" value={formData.regNo} onChange={handleChange} disabled={isSubmitting} inputMode="numeric" pattern="[0-9]*" maxLength={10} autoComplete="off" autoCorrect="off" spellCheck={false} />
                             </div>
-
+                            <div className="form-footer">
+                                <label className="checkbox-container">
+                                    <input type="checkbox" name="saveId" checked={formData.saveId} onChange={handleChange} disabled={isSubmitting} />
+                                    <span className="checkmark" />
+                                    아이디 저장
+                                </label>
+                            </div>
                             <button type="submit" className="login-btn" disabled={isSubmitting}>
                                 {isSubmitting ? 'PROCESSING...' : 'LOGIN'}
                             </button>
@@ -195,6 +289,21 @@ const LoginPage = () => {
                                         <div className="login-progress-bar" />
                                     </div>
                                     <p>로그인 처리중입니다.</p>
+                                </div>
+                            )}
+
+                            {!mobileAuthPending && (
+                                <div className="withauth-login-section">
+                                    <div className="login-method-divider"><span>또는</span></div>
+                                    <button
+                                        type="button"
+                                        className="withauth-login-btn"
+                                        onClick={handleWithAuthLogin}
+                                        disabled={isSubmitting}
+                                    >                                        
+                                        간편인증 로그인
+                                    </button>
+                                    <p className="withauth-login-help">카카오·네이버 등 간편인증서를 선택할 수 있습니다.</p>
                                 </div>
                             )}
 
@@ -232,13 +341,7 @@ const LoginPage = () => {
                                 </button>
                             </div>
 
-                            <div className="form-footer">
-                                <label className="checkbox-container">
-                                    <input type="checkbox" name="saveId" checked={formData.saveId} onChange={handleChange} disabled={isSubmitting} />
-                                    <span className="checkmark" />
-                                    아이디 저장
-                                </label>
-                            </div>
+                            
                         </form>
                     </div>
 					

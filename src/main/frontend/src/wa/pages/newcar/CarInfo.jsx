@@ -42,16 +42,26 @@ const CarInfo = ({
 	
 	// ASSIGN_CD 세팅
 	useEffect(() => {
-		
+
+	    // 사용자정보 / 지점목록 조회가 끝나기 전이면 대기
+	    if (!dsUserInfo?.BRANCH_ID || !dsBranchList?.length) {
+	        return;
+	    }
+
 	    const initAssignCd = async () => {
-			console.log('ASSIGN_CD useEffect 실행');
 
 	        const isBranchInfo = dsBranchList.find(
 	            e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
 	        );
 
+	        // 현재 사용자의 지점정보가 없는 경우
+	        if (!isBranchInfo) {
+	            return;
+	        }
+
 	        // 배송지 설정이 안 되어 있는 경우
-	        if (!isBranchInfo?.ASSIGN_CD) {
+	        if (!isBranchInfo.ASSIGN_CD) {
+
 	            setNumplateDisabled(true);
 
 	            await gf.alert(
@@ -62,12 +72,13 @@ const CarInfo = ({
 	        }
 
 	        assignCdRef.current = isBranchInfo.ASSIGN_CD;
+
 	        setNumplateDisabled(false);
 	    };
 
 	    initAssignCd();
 
-	}, []);
+	}, [dsBranchList, dsUserInfo.BRANCH_ID]);
 	
 	// 번호판 매니저 및 배송지 설정
 	const setDeliveryInfo = async () => {

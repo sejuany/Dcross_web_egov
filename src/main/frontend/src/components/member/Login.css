@@ -202,6 +202,75 @@ html {
     transform: none;
 }
 
+.withauth-login-section {
+    margin-top: 18px;
+}
+
+.login-method-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    color: #94a3b8;
+    font-size: 0.78rem;
+}
+
+.login-method-divider::before,
+.login-method-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: #e2e8f0;
+}
+
+.withauth-login-btn {
+    width: 100%;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid #1c3553;
+    border-radius: 8px;
+    background-color: #8196AE;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.withauth-login-btn:hover {
+    background-color: #8196aeb9;
+    box-shadow: 0 6px 14px rgba(28, 53, 83, 0.12);
+}
+
+.withauth-login-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
+    box-shadow: none;
+}
+
+.withauth-login-mark {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #1c3553;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.withauth-login-help {
+    margin: 8px 0 0;
+    color: #718096;
+    font-size: 0.76rem;
+    text-align: center;
+}
+
 .login-progress {
     margin-top: 14px;
     min-height: 42px;

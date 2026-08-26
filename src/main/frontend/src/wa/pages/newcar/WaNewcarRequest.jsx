@@ -108,12 +108,10 @@ const COMPANY_DEFAULT = {
 const COMPANY_NUMPLATE_PRICE = {
 
     WA001: {
-        DEFAULT: 0,
+        DEFAULT: 28000,
         NOT: 0,
         '': 0,
-        '7': 31400,   // 전기
-        F: 28600      // 필름
-    }
+    },
 };
 
 const isEmptyRequiredValue = (value) => (
@@ -146,14 +144,15 @@ const REQUIRED_FOCUS_LABELS = {
 	'세금계산서 업태': '업태',
 	'세금계산서 업종': '업종',
 	'이메일 주소': '이메일 주소',
-	'현금영수증 휴대폰번호': '휴대폰번호',
-	'현금영수증 사업자번호': '사업자번호',
-	'현금영수증 휴대폰번호 또는 사업자번호': '사업자번호',
+	'현금영수증 휴대폰번호 또는 사업자번호': '현금영수증 입력정보',
+	'현금영수증 휴대폰번호': '현금영수증 입력정보',
+	'현금영수증 사업자번호': '현금영수증 입력정보',
 	'공동소유자1 성명': '공동소유자 성명',
 	'공동소유자1 등록구분': '공동소유자 등록번호',
 	'공동소유자1 등록번호': '공동소유자 등록번호',
 	'공동소유자1 비율': '공동소유자 비율',
-	'대표소유자와 공동소유자 비율의 합': '공동소유자 비율'
+	'대표소유자와 공동소유자 비율의 합': '공동소유자 비율',
+	'예상납부금액': '예상납부금액 확인'
 };
 
 const getRequiredFocusLabel = (message) => {
@@ -342,12 +341,20 @@ const paymentColumnDefs = [
 
 
 // 번호판 종류에 따른 번호판대(TNUM) 금액 조회
-const getNumplateAmount = (companyId, numplateGb, paymentList) => {
+const getNumplateAmount = (companyId, numplateGb) => {
 
-    const companyPrice = COMPANY_NUMPLATE_PRICE[companyId] || {};
-    const dbAmount = paymentList.find(item => item.PAY_KD === 'TNUM')?.PRE_PAY_AMT;
+    const companyPrice = COMPANY_NUMPLATE_PRICE[companyId];
+	
+	// 지정되지 않은 경우 29000원
+    if (!companyPrice) {
+        return 29000;
+    }
 
-    return Number(dbAmount ?? companyPrice[numplateGb] ?? companyPrice.DEFAULT ?? 27500);
+    return Number(
+        companyPrice[numplateGb]
+        ?? companyPrice.DEFAULT
+        ?? 29000
+    );
 };
 
 /**
@@ -357,7 +364,10 @@ const getNumplateAmount = (companyId, numplateGb, paymentList) => {
  */
 const getNumplateResult = (companyId, newCar, paymentList) => {
 
-    const numplateAmt = getNumplateAmount(companyId, newCar.NUMPLATE_GB, paymentList);
+	const numplateAmt = getNumplateAmount(
+	    companyId,
+	    newCar.NUMPLATE_GB
+	);
 
     const dsPaymentList = paymentList.map(item =>
         item.PAY_KD === 'TNUM'
@@ -862,8 +872,19 @@ const WaNewcarRequest = ({
 			let errorArea = focusLabel === '차량 구매 방식'
 				? page.querySelector('.wa-owner-tabs')
 				: null;
-
+				
+			// 예상납부금액 확인 버튼
+			if (!errorArea && focusLabel === '예상납부금액 확인') {
+			    errorArea = page.querySelector('.wa-check-btn');
+			}
+			
+			if (!errorArea && focusLabel === '현금영수증 입력정보') {
+			    errorArea = page.querySelector('.wa-cash-receipt-input');
+			}
+			
 			if (!errorArea) {
+				console.log('errorArea 못 찾음');
+				
 				const labelCandidates = focusLabel === '결제자 연락처'
 					? ['결제자 연락처', '리스 담당자 연락처']
 					: [focusLabel];
@@ -887,6 +908,12 @@ const WaNewcarRequest = ({
 			}
 
 			errorArea.classList.add('wa-required-error');
+			
+			console.log(
+			    'class 추가 후 >>',
+			    errorArea.className
+			);
+			
 			errorArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
 			const focusTarget = errorArea.querySelector(
@@ -2084,14 +2111,14 @@ const WaNewcarRequest = ({
 	const validateRequest = async (moveToInvalidStep = false) => {
 		
 		// 최종 요청에서는 1~3단계를 처음부터 다시 검사한다.
-		const requiredValidation = validateRequiredSteps(1, 3);
+		const requiredValidation = validateRequiredSteps(1, 3, false);
 
 		if (requiredValidation.message) {
-			if (moveToInvalidStep && requiredValidation.step) {
-				setStep(requiredValidation.step);
-			}
+		    if (moveToInvalidStep && requiredValidation.step) {
+		        setStep(requiredValidation.step);
+		    }
 
-			return requiredValidation.message;
+		    return requiredValidation.message;
 		}
 		
 		// 서명 및 첨부파일 확인
@@ -2339,22 +2366,26 @@ const WaNewcarRequest = ({
 			: '';
 	};
 
-	const validateRegistrationStep = () => {
-		let message = requireValue(dsNewCar.PAY_GB, '결제구분')
-			|| requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
-			|| requirePhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
-			|| requireValue(dsNewCar.RETURN_NM, '환불 예금주')
-			|| requireValue(dsTaxReceipt.MAIL1, '이메일 주소')
-			|| requireValue(dsNewCar.RT_BANK_CD, '환불 계좌 은행')
-			|| requireValue(dsNewCar.RETURN_NO, '환불 계좌번호');
+	// 신규등록 정보(3단계) 필수값 검증
+	// checkEstimate가 true일 때만 예상납부금액 확인 여부를 검사한다.
+	// - 3단계 → 4단계 이동: true
+	// - 최종 요청: false
+	const validateRegistrationStep = (checkEstimate = true) => {
+		
+		console.log("dsNewCar.PAY_HP_NO : " + dsNewCar.PAY_HP_NO);
+		console.log("dsNewCar.STANDARD_AMT : " + dsNewCar.STANDARD_AMT);
 
-		if (message) {
-			return message;
-		}
-
+		let message =
+		    requireValue(dsNewCar.PAY_GB, '결제구분')
+		    || requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
+		    || requirePhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
+			|| (checkEstimate && Number(dsNewCar.STANDARD_AMT || 0) <= 0
+			    ? '예상납부금액을 확인해주세요.'
+			    : '');
+				
 		const exemptionTargetCode = String(dsNewCar.NTAX_TRGET_CD || '');
 
-		if (exemptionTargetCode && exemptionTargetCode !== '00') {
+		if (!message && exemptionTargetCode && exemptionTargetCode !== '00') {
 			message = requireValue(dsNewCar.NTAX_WHO, '감면 대상자')
 				|| requireValue(dsNewCar.NTAX_TRGET_GR_CD, '감면 등급');
 		}
@@ -2392,31 +2423,62 @@ const WaNewcarRequest = ({
 				|| requireValue(dsTaxReceipt.INDUSTRY_TYPE, '세금계산서 업종');
 				//|| requireValue(dsTaxReceipt.MAIL1, '세금계산서 이메일주소');
 		}
-
+		
+		if (!message) {
+			// 이메일 및 환불정보
+			message =
+			    requireValue(dsTaxReceipt.MAIL1, '이메일 주소')
+			    || requireValue(dsNewCar.RETURN_NM, '환불 예금주')
+			    || requireValue(dsNewCar.RT_BANK_CD, '환불 계좌 은행')
+			    || requireValue(dsNewCar.RETURN_NO, '환불 계좌번호');
+		}
+		
 		return message;
 	};
 
-	const validateStepRequiredFields = (targetStep) => {
-		const validators = {
-			1: validateOwnerStep,
-			2: validateCarStep,
-			3: validateRegistrationStep
-		};
-		const message = validators[targetStep]?.() || '';
+	// 단계별 필수값 검증
+	// checkEstimate는 3단계 예상납부금액 검사 여부를 결정한다.
+	const validateStepRequiredFields = (targetStep, checkEstimate = true) => {
+		
+		let message = '';
+
+		if (targetStep === 1) {
+		    // 소유자 정보
+		    message = validateOwnerStep();
+		} else if (targetStep === 2) {
+		    // 자동차 정보
+		    message = validateCarStep();
+		} else if (targetStep === 3) {
+		    // 신규등록 정보
+		    message = validateRegistrationStep(checkEstimate);
+		}
 
 		return { step: targetStep, message };
 	};
 
-	const validateRequiredSteps = (fromStep = 1, toStep = 3) => {
-		for (let targetStep = fromStep; targetStep <= toStep; targetStep += 1) {
-			const result = validateStepRequiredFields(targetStep);
+	// 지정한 단계 범위의 필수값을 순서대로 검사한다.
+	// checkEstimate = false인 경우
+	// 3단계의 예상납부금액 확인 여부만 검사에서 제외한다.
+	const validateRequiredSteps = (
+	    fromStep = 1,
+	    toStep = 3,
+	    checkEstimate = true
+	) => {
 
-			if (result.message) {
-				return result;
-			}
-		}
+	    for (let targetStep = fromStep; targetStep <= toStep; targetStep += 1) {
 
-		return { step: null, message: '' };
+	        const result = validateStepRequiredFields(
+	            targetStep,
+	            checkEstimate
+	        );
+
+	        // 첫 번째 오류가 발견되면 해당 단계와 메시지를 반환
+	        if (result.message) {
+	            return result;
+	        }
+	    }
+
+	    return { step: null, message: '' };
 	};
 
 	// 요청 가능 여부 갱신1(버튼 비활성화용, css용)

@@ -45,7 +45,7 @@ const PINNED_COLUMN_KEYS = ['SEQ', 'LINK_ID', 'CARID_NO', 'CAR_NO', 'PROC_ST', '
 const PINNED_COLUMN_SET = new Set(PINNED_COLUMN_KEYS);
 
 const columns = [
-    { key: 'SEQ', label: '순번', width: 52, minWidth: 44, sortType: 'number'},
+    { key: 'SEQ', label: '순번', width: 52, minWidth: 44, sortType: 'number', sortable: false},
     { key: 'LINK_ID', label: '주문번호', width: 106, minWidth: 74 },
     { key: 'CARID_NO', label: '차대번호', width: 156, minWidth: 100 },
     { key: 'CAR_NO', label: '차량번호', width: 104, minWidth: 72 },
@@ -1409,11 +1409,13 @@ const WaPayInfo = () => {
 				                        <tr>
 				                            <td className="wa-status-empty" colSpan={columns.length}>조회된 데이터가 없습니다.</td>
 				                        </tr>
-				                    ) : sortedRows.map(row => (
+				                    ) : sortedRows.map((row, rowIndex) => (
 				                        <tr key={row.rowKey} className="wa-status-data-row" tabIndex={0}>
 				                            {columns.map(column => (
 				                                <td key={`${row.rowKey}-${column.key}`} className={getColumnClassName(column)} style={getStickyColumnStyle(column)}>
-				                                    {renderGridCell(row, column)}
+												{column.key === 'SEQ'
+												    ? rowIndex + 1
+												    : renderGridCell(row, column)}
 				                                </td>
 				                            ))}
 				                        </tr>

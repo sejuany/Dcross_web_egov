@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -43,10 +44,13 @@ public class NumPlateController {
 
     private final NumPlateService numPlateService;
     private final NumPlatePasskeyService passkeyService;
+    private final NumPlatePushService pushService;
 
-    public NumPlateController(NumPlateService numPlateService, NumPlatePasskeyService passkeyService) {
+    public NumPlateController(NumPlateService numPlateService, NumPlatePasskeyService passkeyService,
+            NumPlatePushService pushService) {
         this.numPlateService = numPlateService;
         this.passkeyService = passkeyService;
+        this.pushService = pushService;
     }
 
     /** 담당자 휴대폰 번호와 비밀번호를 확인하고 번호판 앱 전용 세션을 생성한다. */
@@ -92,6 +96,40 @@ public class NumPlateController {
         UserDto user = passkeyService.finishLogin(response.toString(), session);
         establishNumPlateSession(user, httpRequest, session);
         return ResponseEntity.ok(ApiResponse.withKey("user", user));
+    }
+
+    /** 로그인 후 사용자가 알림을 허용했을 때 현재 브라우저 토큰을 담당자에게 연결한다. */
+    @PostMapping("/numplateapp/push/token")
+    public ResponseEntity<Map<String, Object>> registerPushToken(
+            @RequestBody Map<String, Object> request, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        pushService.registerToken(user, Objects.toString(request.get("token"), ""));
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    /** 현재 담당자의 최근 15일 알림 이력을 반환한다. */
+    @GetMapping("/numplateapp/notifications")
+    public ResponseEntity<Map<String, Object>> getPushNotifications(HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey("list", pushService.getNotifications(user)));
+    }
+
+    @PostMapping("/numplateapp/notifications/{idx}/read")
+    public ResponseEntity<Map<String, Object>> markPushNotificationRead(
+            @PathVariable("idx") long idx, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        pushService.markRead(user, idx);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    /** Java 7 이전 프로젝트가 담당자 배정 저장 성공 후 호출하는 내부 전용 API. */
+    @PostMapping("/internal/numplate/push/assignment")
+    public ResponseEntity<Map<String, Object>> sendAssignmentPush(
+            @RequestHeader(value = "X-Push-Api-Key", required = false) String apiKey,
+            @RequestBody Map<String, Object> request) {
+        pushService.requireInternalApiKey(apiKey);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", pushService.sendAssignment(Objects.toString(request.get("serviceId"), ""))));
     }
 
     /** 번호판 목록 조회 - POST /api/numplate/list */

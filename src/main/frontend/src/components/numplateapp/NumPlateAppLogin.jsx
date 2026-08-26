@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import './NumPlateApp.css';
@@ -56,17 +56,21 @@ const encodeCredential = (credential) => {
 /** 휴대폰 번호와 ETC6 비밀번호로 번호판 담당자 전용 세션을 시작한다. */
 export default function NumPlateAppLogin() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user, login } = useAuth();
   const [form, setForm] = useState({ phone: '', password: '' });
   const [message, setMessage] = useState('');
   const [busy, setBusy] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [registerPasskey, setRegisterPasskey] = useState(false);
+  const requestedPath = location.state?.from;
+  const nextPath = typeof requestedPath === 'string' && requestedPath.startsWith('/numplateapp/')
+    ? requestedPath : '/numplateapp';
 
   useEffect(() => {
     // 이미 전용 세션이 있으면 로그인 화면을 다시 보여주지 않는다.
-    if (isNumPlateUser(user)) navigate('/numplateapp', { replace: true });
-  }, [navigate, user]);
+    if (isNumPlateUser(user)) navigate(nextPath, { replace: true });
+  }, [navigate, nextPath, user]);
 
   useEffect(() => {
     if (!window.isSecureContext || !window.PublicKeyCredential) return;
@@ -109,7 +113,7 @@ export default function NumPlateAppLogin() {
       }
       // AuthContext가 사용자 정보를 sessionStorage에 보관하고 만료 타이머를 시작한다.
       login(data.user);
-      navigate('/numplateapp', { replace: true });
+      navigate(nextPath, { replace: true });
     } catch (error) {
       setMessage(error.response?.data?.message || '휴대폰 번호 또는 비밀번호를 확인해 주세요.');
     } finally {
@@ -130,7 +134,7 @@ export default function NumPlateAppLogin() {
       const credential = await navigator.credentials.get({ publicKey: decodeCredentialOptions(options) });
       const { data } = await axios.post('/api/numplateapp/passkeys/login/verify', encodeCredential(credential));
       login(data.user);
-      navigate('/numplateapp', { replace: true });
+      navigate(nextPath, { replace: true });
     } catch (error) {
       setMessage(error.name === 'NotAllowedError'
         ? '생체 로그인이 취소되었습니다.'

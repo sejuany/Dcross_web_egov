@@ -1600,9 +1600,7 @@ const NewcarInfo = ({
                 ADDR_DT: '',
                 POST_NO: '',
                 BUSINESS_TYPE: '',
-                INDUSTRY_TYPE: '',
-                MAIL1: '',
-                MAIL2: ''
+                INDUSTRY_TYPE: ''
             }));
             return;
         }
@@ -1827,7 +1825,7 @@ const NewcarInfo = ({
                                                 />
                                             </label>
                                         </div>
-										<div className="wa-inline-group">
+										<div className="wa-inline-group wa-cash-receipt-input">
 											<select
 											    className="wa-select"
 												style={{ width: receiptRegGb === '' ? '100%' : undefined,

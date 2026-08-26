@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Bell, ClipboardList, PackageCheck, UserRound } from 'lucide-react';
+import { Bell, BellRing, ClipboardList, PackageCheck, UserRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NumPlateSimpleList from './NumPlateSimpleList';
+import { enablePushNotifications, pushStatus } from './firebasePush';
 import './NumPlateApp.css';
 
 // 모든 인증 화면 하단에 고정되는 모바일 주 메뉴.
@@ -33,6 +34,47 @@ export function NumPlateInventory() {
   );
 }
 
+function PushPermissionButton() {
+  const [status, setStatus] = useState(pushStatus());
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    if (status !== 'granted') return;
+    // 이미 허용한 사용자는 로그인할 때 토큰 갱신만 수행하며 권한 창은 다시 띄우지 않는다.
+    enablePushNotifications({ requestPermission: false }).catch(() => setStatus('error'));
+  }, [status]);
+
+  const enable = async () => {
+    const ios = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    const standalone = window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone;
+    if (ios && !standalone) {
+      window.alert('iPhone에서는 먼저 공유 메뉴에서 홈 화면에 추가한 뒤 설치된 앱에서 알림을 켜 주세요.');
+      return;
+    }
+    setBusy(true);
+    try {
+      await enablePushNotifications();
+      setStatus('granted');
+    } catch (error) {
+      setStatus(pushStatus() === 'denied' ? 'denied' : 'error');
+      window.alert(error.message || '알림을 설정하지 못했습니다.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const label = status === 'granted' ? '알림 켜짐'
+    : status === 'denied' ? '알림 차단됨'
+      : status === 'unsupported' ? '알림 미지원' : '알림 켜기';
+
+  return (
+    <button type="button" className="numplate-push-button" onClick={enable}
+      disabled={busy || status === 'granted' || status === 'denied' || status === 'unsupported'}>
+      <BellRing aria-hidden="true" />{busy ? '설정 중' : label}
+    </button>
+  );
+}
+
 export default function NumPlateApp() {
   const { user, logout } = useAuth();
 
@@ -43,7 +85,10 @@ export default function NumPlateApp() {
           <strong>DACOS</strong>
           <span>{user?.member_NM || user?.MEMBER_NM || user?.login_ID || user?.LOGIN_ID}님</span>
         </div>
-        <button type="button" onClick={() => logout()}>로그아웃</button>
+        <div className="numplate-header-actions">
+          <PushPermissionButton />
+          <button type="button" onClick={() => logout()}>로그아웃</button>
+        </div>
       </header>
       {/* 현재 하위 라우트의 목록·상세·결과 화면이 이 위치에 렌더링된다. */}
       <Outlet />

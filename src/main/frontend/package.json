@@ -11,6 +11,8 @@
     "ag-grid-community": "^35.1.0",
     "ag-grid-react": "^35.1.0",
     "axios": "^1.13.6",
+    "browser-image-compression": "^2.0.2",
+    "firebase": "^12.18.0",
     "html2pdf.js": "^0.10.1",
     "http-proxy-middleware": "^3.0.5",
     "lucide-react": "^0.563.0",
@@ -20,8 +22,7 @@
     "react-router-dom": "^7.13.0",
     "react-scripts": "5.0.1",
     "react-signature-canvas": "^1.1.0-alpha.2",
-    "web-vitals": "^2.1.4",
-	"browser-image-compression": "^2.0.2"
+    "web-vitals": "^2.1.4"
   },
   "scripts": {
     "start": "react-scripts start",

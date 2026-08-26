@@ -122,6 +122,10 @@
 .numplate-app-header div { display: grid; gap: 2px; }
 .numplate-app-header span { font-size: 12px; opacity: .8; }
 .numplate-app-header button { border: 1px solid rgba(255,255,255,.45); border-radius: 9px; background: transparent; color: #fff; padding: 8px 10px; }
+.numplate-app-header .numplate-header-actions { display: flex; align-items: center; gap: 6px; }
+.numplate-push-button { display: flex; align-items: center; gap: 5px; }
+.numplate-push-button svg { width: 16px; height: 16px; }
+.numplate-push-button:disabled { opacity: .65; }
 /* 화면 스크롤과 무관하게 유지되며 iOS 하단 안전영역까지 확보하는 4개 주 메뉴 */
 .numplate-app-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr); width: min(100%, 760px); margin: 0 auto; padding: 6px 4px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid #dce3ec; background: #fff; box-shadow: 0 -4px 16px rgba(28, 57, 90, .08); }
 .numplate-app-nav a { display: grid; place-items: center; gap: 3px; min-height: 58px; color: #66758a; font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; }
@@ -169,6 +173,12 @@
 .numplate-status-card dd { margin: 0; overflow-wrap: anywhere; }
 .numplate-process-card small { display: block; margin-top: 12px; color: #8b98a8; }
 .numplate-empty { padding: 36px 12px; color: #718096; text-align: center; }
+.numplate-notification-list { display: grid; gap: 10px; }
+.numplate-notification-list button { display: grid; gap: 7px; width: 100%; padding: 15px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; color: #29435f; text-align: left; }
+.numplate-notification-list button.unread { border-left: 5px solid #1e66b3; background: #f5f9ff; }
+.numplate-notification-list strong { font-size: 16px; }
+.numplate-notification-list span { line-height: 1.45; }
+.numplate-notification-list small { color: #718096; }
 
 .numplate-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .numplate-detail-grid > div { min-width: 0; padding: 13px; border: 1px solid #dce3ec; border-radius: 12px; background: #fff; }

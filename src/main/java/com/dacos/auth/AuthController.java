@@ -29,13 +29,17 @@ public class AuthController {
     public static final String PENDING_LOGIN_USER = "PENDING_LOGIN_USER";
     public static final String PENDING_LOGIN_IP = "PENDING_LOGIN_IP";
     public static final String PENDING_AUTH_TOKEN = "PENDING_AUTH_TOKEN";
+    private static final String WITHAUTH_STARTED_AT = "WITHAUTH_STARTED_AT";
+    private static final long WITHAUTH_TIMEOUT_MS = 5 * 60 * 1000L;
 
     private final AuthService authService;
     private final MobileOkService mobileOkService;
+    private final WithAuthService withAuthService;
 
-    AuthController(AuthService authService, MobileOkService mobileOkService) {
+    AuthController(AuthService authService, MobileOkService mobileOkService, WithAuthService withAuthService) {
         this.authService = authService;
         this.mobileOkService = mobileOkService;
+        this.withAuthService = withAuthService;
     }
 
     @PostMapping("/login")
@@ -49,11 +53,12 @@ public class AuthController {
         LoginResult loginResult = authService.authenticateForLogin(request, loginIp);
 
         if (loginResult.isRequiresMobileAuth()) {
+            String pendingAuthToken = loginResult.getPendingAuthToken();
             session.removeAttribute(SESSION_USER);
             session.setAttribute(PENDING_LOGIN_USER, loginResult.getUser());
             session.setAttribute(PENDING_LOGIN_IP, loginIp);
-            session.setAttribute(PENDING_AUTH_TOKEN, loginResult.getPendingAuthToken());
-            logger.info("[AuthController] mobile auth pending - userId: {}", request.getUserId());
+            session.setAttribute(PENDING_AUTH_TOKEN, pendingAuthToken);
+            logger.info("[AuthController] 로그인 토큰 발급: 성공");
             return ResponseEntity.ok(toLoginResponse(loginResult));
         }
 
@@ -110,6 +115,70 @@ public class AuthController {
         return ResponseEntity.ok(response);
     }
 
+    @PostMapping("/auth/withauth/token")
+    public ResponseEntity<Map<String, Object>> requestWithAuthToken(HttpSession session) {
+        Map<String, Object> response = new HashMap<>();
+
+        try {
+            session.setAttribute(WITHAUTH_STARTED_AT, System.currentTimeMillis());
+            WithAuthService.AccessToken token = withAuthService.issueAccessToken();
+            response.put("success", true);
+            response.put("accessToken", token.value());
+            response.put("sdkUrl", token.sdkUrl());
+        } catch (Exception e) {
+            session.removeAttribute(WITHAUTH_STARTED_AT);
+            logger.error("[AuthController] withAuth token request failed", e);
+            response.put("success", false);
+            response.put("message", "간편인증 서비스를 시작하지 못했습니다.");
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
+    @PostMapping("/auth/withauth/verify")
+    public ResponseEntity<Map<String, Object>> verifyWithAuth(
+            @RequestBody Map<String, Object> request,
+            HttpSession session,
+            HttpServletRequest httpRequest) {
+
+        Map<String, Object> response = new HashMap<>();
+        Object startedAt = session.getAttribute(WITHAUTH_STARTED_AT);
+        session.removeAttribute(WITHAUTH_STARTED_AT);
+
+        if (!(startedAt instanceof Long)
+                || System.currentTimeMillis() - (Long) startedAt > WITHAUTH_TIMEOUT_MS) {
+            response.put("success", false);
+            response.put("message", "간편인증 요청이 만료되었습니다. 다시 시도해주세요.");
+            return ResponseEntity.ok(response);
+        }
+
+        try {
+            WithAuthService.VerificationResult verified =
+                    withAuthService.verify(String.valueOf(request.get("token")));
+            UserDto user = authService.completeWithAuthLogin(
+                    verified.name(),
+                    verified.phone(),
+                    getClientIp(httpRequest));
+
+            session.removeAttribute(PENDING_LOGIN_USER);
+            session.removeAttribute(PENDING_LOGIN_IP);
+            session.removeAttribute(PENDING_AUTH_TOKEN);
+            session.setAttribute(SESSION_USER, user);
+
+            response.put("success", true);
+            response.put("user", user);
+            logger.info("[AuthController] withAuth login completed - userId: {}", user.getLOGIN_ID());
+        } catch (Exception e) {
+            logger.error("[AuthController] withAuth verification failed", e);
+            response.put("success", false);
+            response.put("message", e.getMessage() == null
+                    ? "간편인증 결과를 확인하지 못했습니다."
+                    : e.getMessage());
+        }
+
+        return ResponseEntity.ok(response);
+    }
+
     @PostMapping("/auth/mobile/request")
     public ResponseEntity<Map<String, Object>> requestMobileAuth(
             @RequestBody Map<String, Object> request,
@@ -126,6 +195,8 @@ public class AuthController {
 
         try {
             UserDto pendingUser = (UserDto) session.getAttribute(PENDING_LOGIN_USER);
+            logger.info("[AuthController] Mobile-OK auth request started - userId: {}, providerId: {}",
+                    pendingUser.getLOGIN_ID(), request.get("providerId"));
             response.putAll(mobileOkService.requestAuth(
                     session,
                     pendingUser,

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Navigate, Route, Routes } from 'react-router-dom';
+import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NumPlateApp, { NumPlateInventory } from './NumPlateApp';
 import NumPlateAppLogin from './NumPlateAppLogin';
@@ -8,12 +8,16 @@ import NReqDetail from './NReqDetail';
 import ProcessStatus from './ProcessStatus';
 import ReturnList from './ReturnList';
 import ReturnDetail from './ReturnDetail';
+import NotificationCenter from './NotificationCenter';
 
 // 번호판 앱 전용 로그인으로 만든 세션만 하위 업무 화면에 접근할 수 있다.
 function NumPlateAppGuard({ children }) {
   const { user } = useAuth();
+  const location = useLocation();
   const loginType = user?.login_GB || user?.LOGIN_GB;
-  return loginType === 'NUMPLATE_APP' ? children : <Navigate replace to="/numplateapp/login" />;
+  return loginType === 'NUMPLATE_APP'
+    ? children
+    : <Navigate replace to="/numplateapp/login" state={{ from: location.pathname + location.search }} />;
 }
 
 function PendingPage({ title }) {
@@ -37,7 +41,7 @@ export default function NumPlateAppRoutes() {
         <Route path="returns" element={<ReturnList />} />
         <Route path="returns/:serviceId" element={<ReturnDetail />} />
         {/* 아직 이관하지 않은 하단 메뉴는 안내 화면을 표시한다. */}
-        <Route path="notifications" element={<PendingPage title="알림센터" />} />
+        <Route path="notifications" element={<NotificationCenter />} />
         <Route path="mypage" element={<PendingPage title="마이페이지" />} />
         <Route path="plates" element={<NumPlateInventory />} />
       </Route>

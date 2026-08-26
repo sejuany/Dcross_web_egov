@@ -484,8 +484,14 @@
 .wa-required-error .wa-select,
 .wa-required-error .wa-option-btn,
 .wa-required-error .wa-radio-btn,
-.wa-owner-tabs.wa-required-error button{
+.wa-owner-tabs.wa-required-error button,
+.wa-check-btn.wa-required-error {
     border-color:#dc2626 !important;
+    box-shadow:0 0 0 3px rgba(220,38,38,.12) !important;
+}
+
+.wa-check-btn.wa-required-error {
+	border: 1px solid#dc2626 !important;
     box-shadow:0 0 0 3px rgba(220,38,38,.12) !important;
 }
 
@@ -1497,7 +1503,7 @@ hr.wa-divider.hr2 {
 }
 
 .wa-info-section .wa-form-row:has(.wa-receipt-panel) .wa-option-btn.active {
-    border: 2px solid #111827;
+    border: 2px solid #3965a9;
     background: #edf4ff;
     color: #2563eb;
     box-shadow: none;

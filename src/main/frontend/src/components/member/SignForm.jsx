@@ -51,7 +51,7 @@ const WA001_SPECIAL_MEMBER_GB_OPTIONS = [
 ];
 
 const BRANCH_ONLY_SPECIAL_COMPANY_IDS = [
-    'WA001',
+    'WA001', 'WA999'
 ];
 
 const isBranchOnlySpecialCompany = (companyId) => {
@@ -190,7 +190,7 @@ const validateEmail = (email) => {
 const getSignupCompleteInfo = (companyId, memberGb) => {
     const normalizedCompanyId = String(companyId || '').trim().toUpperCase();
 
-    if (normalizedCompanyId === 'WA001') {
+    if (normalizedCompanyId === 'WA001' || normalizedCompanyId === 'WA999') {
         if (memberGb === 'BA') {
             return {
                 badge: 'ADMIN APPROVAL',
@@ -299,6 +299,12 @@ const SignForm = () => {
         const { name, value } = e.target;
 
         if (name === 'loginGb') {
+            const isWa001 = isBranchOnlySpecialCompany(formData.searchCompanyId);
+
+            if (isWa001 && value !== 'H') {
+                return;
+            }
+
             if (value === 'C') {
                 setFormData(prev => ({
                     ...prev,
@@ -612,7 +618,7 @@ const SignForm = () => {
                 branchId: '',
                 sangsaId: '',
                 memberGb: formType === SIGNUP_FORM_TYPE.SPECIAL ? 'SU' : 'U',
-                loginGb: 'P',
+                loginGb: isBranchOnlySpecialCompany(companyId) ? 'H' : 'P',
                 registNo: '',
                 registNoSecond: '',
                 loginId: '',
@@ -1274,6 +1280,8 @@ const SignForm = () => {
 	};
 
     const renderMemberBasicInfoSection = () => {
+        const isWa001 = isBranchOnlySpecialCompany(formData.searchCompanyId);
+
         return (
             <section className="info-section member-basic-section">
                 <div className="section-header">회원기본정보</div>
@@ -1392,7 +1400,7 @@ const SignForm = () => {
 					                    value="C"
 					                    checked={formData.loginGb === 'C'}
 					                    onChange={handleChange}
-					                    disabled={!companySearched}
+					                    disabled={!companySearched || isWa001}
 					                />
 					                법인
 					            </label>
@@ -1403,7 +1411,7 @@ const SignForm = () => {
 					                    value="P"
 					                    checked={formData.loginGb === 'P'}
 					                    onChange={handleChange}
-					                    disabled={!companySearched}
+					                    disabled={!companySearched || isWa001}
 					                />
 					                개인
 					            </label>

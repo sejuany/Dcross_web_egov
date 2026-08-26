@@ -70,7 +70,8 @@ public class NewcarService {
 
     // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
     private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
-            "WA001", new CarSpecSearchConfig("POLESTAR", "1", "e")
+            "WA001", new CarSpecSearchConfig("POLESTAR", "1", "e"),
+            "WA999", new CarSpecSearchConfig("BMW", "1", "h")
     );
     
     // 번호판대 계산 시 사용하는 번호판 구분 코드

@@ -184,6 +184,30 @@ public class AuthService {
         return completeLogin(user.getLOGIN_ID(), loginIp, user);
     }
 
+    @Transactional
+    public UserDto completeWithAuthLogin(String name, String phone, String loginIp) {
+        String normalizedPhone = onlyDigits(phone);
+        List<String> loginIds = authMapper.findLoginIdsByWithAuthIdentity(name, normalizedPhone);
+
+        if (loginIds == null || loginIds.isEmpty()) {
+            insertLoginLog(null, loginIp, "withAuth 회원정보 불일치", null);
+            throw new BusinessException("간편인증 정보와 일치하는 사용 가능한 계정이 없습니다.", 401);
+        }
+        if (loginIds.size() != 1) {
+            insertLoginLog(null, loginIp, "withAuth 중복 회원정보", null);
+            throw new BusinessException("같은 본인정보를 사용하는 계정이 여러 개입니다. 관리자에게 문의해주세요.", 409);
+        }
+
+        String userId = loginIds.get(0);
+        UserDto user = authMapper.findByUserId(userId);
+        if (user == null) {
+            throw new BusinessException("사용 가능한 계정이 없습니다.", 401);
+        }
+
+        logger.info("[AuthService] withAuth login succeeded - userId: {}", userId);
+        return completeLogin(userId, loginIp, user);
+    }
+
     private String insertLoginLog(String userId, String loginIp, String result, UserDto user) {
         String loginDt = LocalDateTime.now().format(LOGIN_LOG_DATE_FORMAT);
 

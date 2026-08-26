@@ -24,6 +24,22 @@ public interface NumPlateMapper {
 
     int updatePasskeyCounter(Map<String, Object> request);
 
+    int clearPushTokenFromOtherManager(Map<String, Object> request);
+
+    int updateManagerPushToken(Map<String, Object> request);
+
+    int clearInvalidPushToken(String token);
+
+    Map<String, Object> getAssignedPushTarget(String serviceId);
+
+    int countRecentAssignmentPush(Map<String, Object> request);
+
+    int insertPushMessage(Map<String, Object> request);
+
+    List<Map<String, Object>> getPushNotifications(Map<String, Object> request);
+
+    int markPushNotificationRead(Map<String, Object> request);
+
     List<Map<String, Object>> getNumPlateList(NumPlateSearchRequest request);
 
     List<Map<String, Object>> getCarPaperList(NumPlateSearchRequest request);

@@ -46,6 +46,20 @@
    			AND MD.USE_YN = 'Y'
    			AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos') <!-- 기존 더코어 사용 회사 로그인 가능 -->
     </select>
+
+    <!-- withAuth 검증 결과는 저장하지 않고 기존 회원 이름/휴대폰 번호와 대조한다. -->
+    <select id="findLoginIdsByWithAuthIdentity" resultType="string">
+        SELECT DISTINCT MM.LOGIN_ID
+          FROM TM_MEMBER_MT MM
+          INNER JOIN TM_MEMBER_DT MD
+             ON MM.LOGIN_ID = MD.LOGIN_ID
+            AND MM.LOGIN_ID = MD.MEMBER_ID
+         WHERE MM.USE_YN = 'Y'
+           AND MD.USE_YN = 'Y'
+           AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos')
+           AND TRIM(MD.MEMBER_NM) = TRIM(#{name})
+           AND REPLACE(PKG_COMMON.FN_DECRYPT(MD.MPHONE_NO), '-', '') = #{phone}
+    </select>
     
 	<select id="selectCompanyInfo" parameterType="java.util.HashMap" resultType="java.util.HashMap">
 	    SELECT
