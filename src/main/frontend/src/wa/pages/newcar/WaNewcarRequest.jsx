@@ -579,9 +579,11 @@ const WaNewcarRequest = ({
 	const loadedReceiptNoRef = useRef('');
 	// 마지막 조회한 상세조회 구분값
 	const loadedDetailOpenKeyRef = useRef('');
-	
 	// 필수값 누락 시 현재 입력 화면 안에서 해당 항목을 찾기 위한 Ref
 	const requestPageRef = useRef(null);
+	// STAMP(인지세) 원래 금액 보관
+	// 특정 지역 조건으로 2,000원 변경 후 조건이 해제되면 기존 금액으로 복구하기 위해 사용
+	const originalStampAmtRef = useRef(null);
 
 	
 /* =========================================================
@@ -1067,6 +1069,68 @@ const WaNewcarRequest = ({
 	};
 	
 	/**
+	 * 사용본거지 주소 및 등록관청에 따라 인지세(STAMP) 금액 변경
+	 *
+	 * - 대구광역시 + DAEGU : 2,000원
+	 * - 부산광역시 + BUSAN : 2,000원
+	 * - 경상남도 + CHANG/HAMYA : 2,000원
+	 * - 그 외 : 기존 STAMP 금액 유지/복구
+	 */
+	const updateStampAmount = () => {
+
+	    // 사용본거지 주소의 첫 번째 단어 추출
+	    const firstAddress = (dsNewCar.BASE_ADDRESS || '')
+	        .trim()
+	        .split(/\s+/)[0];
+
+	    const govtId = dsService.GOVT_ID;
+
+	    // 현재 STAMP 결제정보 조회
+	    const stampItem = dsPaymentList.find(
+	        item => item.PAY_KD === 'STAMP'
+	    );
+
+	    if (!stampItem) {
+	        return;
+	    }
+
+	    // 최초 실행 시 기존 STAMP 금액 보관
+	    if (originalStampAmtRef.current === null) {
+	        originalStampAmtRef.current = Number(stampItem.PAY_AMT || 0);
+	    }
+
+	    // 인지세 2,000원 적용 대상 여부
+	    const isStamp2000 =
+	        (firstAddress === '대구광역시' && govtId === 'DAEGU') ||
+	        (firstAddress === '부산광역시' && govtId === 'BUSAN') ||
+	        (firstAddress === '경상남도' && ['CHANG', 'HAMYA'].includes(govtId));
+
+	    // 대상이면 2,000원, 아니면 기존 금액으로 복구
+	    const stampAmt = isStamp2000
+	        ? 2000
+	        : originalStampAmtRef.current;
+
+	    const updatedPaymentList = dsPaymentList.map(item => {
+
+	        if (item.PAY_KD === 'STAMP') {
+	            return {
+	                ...item,
+	                PAY_AMT: stampAmt,
+	                PRE_PAY_AMT: stampAmt
+	            };
+	        }
+
+	        return item;
+	    });
+
+	    // 화면 상태 반영
+	    setDsPaymentList(updatedPaymentList);
+
+	    // 저장 시 최신 결제목록을 직접 사용할 수 있도록 반환
+	    return updatedPaymentList;
+	};
+	
+	/**
 	 * 진행단계 변경과 현재 입력내용 저장을 한 번에 처리한다.
 	 *
 	 * - openNotice()가 안내 대상을 찾으면 실제 이동을 중단하고 모달을 먼저 연다.
@@ -1077,6 +1141,9 @@ const WaNewcarRequest = ({
 	 * - 상세조회 화면이 아니면 stepMemory에 마지막 작업 단계를 보관한다.
 	 */
 	const changeStep = async (nextStep, skipNotice = false) => {
+		
+		// 저장에 사용할 결제정보
+		let updatedPaymentList = null;
 		
 		// 앞으로 이동할 때는 현재 탭부터 이동 직전 탭까지 순서대로 검사한다.
 		// 상단 단계 번호로 여러 단계를 건너뛰어도 중간 단계의 필수값을 빠뜨릴 수 없다.
@@ -1101,9 +1168,14 @@ const WaNewcarRequest = ({
 				if (!(await ownerValueCheck())) {
 				    return false;
 				}
+
+				// 사용본거지/등록관청에 따른 인지세 금액 변경
+				updatedPaymentList = updateStampAmount();
+				
+				//console.log("1에서 다음을 눌렀나요???");
 			}
 			else if (step === 2) {
-
+				//console.log("2에서 다음을 눌렀나요???");
 			}
 			else if (step === 3) {
 
@@ -1156,7 +1228,7 @@ const WaNewcarRequest = ({
 	        saveSucceeded = await saveProcess(
 				newCarForSave,
 				"SAV",
-				null,
+				updatedPaymentList, // 있으면 변경값, null이면 기존 dsPaymentList 사용
 				null,
 				null,
 				true

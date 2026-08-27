@@ -1,18 +1,28 @@
 package com.dacos.numplateApp;
 
+import java.awt.Color;
+import java.awt.Graphics2D;
+import java.awt.image.BufferedImage;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.net.URI;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
 import java.security.SecureRandom;
+import java.sql.Blob;
+import java.sql.SQLException;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -20,6 +30,7 @@ import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
@@ -29,9 +40,14 @@ import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
 import com.dacos.numplateApp.dto.NumPlateSearchRequest;
 import com.dacos.numplateApp.mapper.NumPlateMapper;
+import com.dacos.util.CryptoUtils;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import javax.imageio.IIOImage;
 import javax.imageio.ImageIO;
+import javax.imageio.ImageWriteParam;
+import javax.imageio.ImageWriter;
+import javax.imageio.stream.ImageOutputStream;
 
 /**
  * 번호판 앱의 인증, 조회 범위 제한, 입력 검증과 처리 상태 변경을 담당한다.
@@ -43,13 +59,30 @@ public class NumPlateService {
     private static final Logger logger = LoggerFactory.getLogger(NumPlateService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final char[] TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
-
     private final NumPlateMapper numPlateMapper;
     private final CommonService commonService;
+    private Path imageDirectory = defaultImageDirectory();
+    private String legacyImageBaseUrl = "https://no.dcross.kr";
 
     public NumPlateService(NumPlateMapper numPlateMapper, CommonService commonService) {
         this.numPlateMapper = numPlateMapper;
         this.commonService = commonService;
+    }
+
+    /** 운영체제 기본값을 사용하되 서버별 경로는 NUMPLATE_IMAGE_DIR로 덮어쓸 수 있다. */
+    @Value("${numplate.image-directory:${NUMPLATE_IMAGE_DIR:}}")
+    void configureImageDirectory(String configuredDirectory) {
+        if (configuredDirectory != null && !configuredDirectory.isBlank()) {
+            imageDirectory = Path.of(configuredDirectory).toAbsolutePath().normalize();
+        }
+    }
+
+    /** 새 서버에 파일이 없을 때 조회할 기존 번호판 서버 주소다. */
+    @Value("${numplate.legacy-image-base-url:${NUMPLATE_LEGACY_IMAGE_BASE_URL:https://no.dcross.kr}}")
+    void configureLegacyImageBaseUrl(String configuredBaseUrl) {
+        if (configuredBaseUrl != null && !configuredBaseUrl.isBlank()) {
+            legacyImageBaseUrl = configuredBaseUrl.replaceAll("/+$", "");
+        }
     }
 
     public UserDto loginManager(Map<String, Object> request) {
@@ -71,18 +104,22 @@ public class NumPlateService {
         return managerUser(matchedManagers.get(0), phone);
     }
 
-    /** WebAuthn 서명 검증이 끝난 휴대폰 번호가 현재도 사용 중인 담당자인지 다시 확인한다. */
-    public UserDto loginManagerByPasskey(String phone) {
-        phone = Objects.toString(phone, "").replaceAll("[^0-9]", "");
-        if (phone.length() < 8 || phone.length() > 11) {
-            throw new BusinessException("휴대폰 번호를 확인해 주세요.", 401);
+    /** WebAuthn 서명으로 확인된 휴대폰 해시에 현재 사용 중인 담당자를 연결한다. */
+    public UserDto loginManagerByPasskeyHash(String phoneHash) {
+        String normalizedPhoneHash = Objects.toString(phoneHash, "").toLowerCase();
+        if (!normalizedPhoneHash.matches("[0-9a-f]{64}")) {
+            throw new BusinessException("사용 가능한 담당자 계정이 아닙니다.", 401);
         }
-        String normalizedPhone = phone;
-        List<Map<String, Object>> managers = numPlateMapper.loginManager(Map.of("TEL_NO", phone)).stream()
-                .filter(manager -> normalizedPhone.equals(
-                        Objects.toString(manager.get("TEL_NO"), "").replaceAll("[^0-9]", "")))
+        // ponytail: 담당자 수가 커지면 TM_NUM_MANAGER에 인덱스된 TEL_NO_HASH 컬럼을 추가한다.
+        List<Map<String, Object>> managers = numPlateMapper.getActiveManagersForPasskey().stream()
+                .filter(manager -> normalizedPhoneHash.equals(CryptoUtils.encryptSHA256(
+                        Objects.toString(manager.get("TEL_NO"), "").replaceAll("[^0-9]", ""))))
                 .toList();
         if (managers.size() != 1) throw new BusinessException("사용 가능한 담당자 계정이 아닙니다.", 401);
+        String phone = Objects.toString(managers.get(0).get("TEL_NO"), "").replaceAll("[^0-9]", "");
+        if (phone.length() < 8 || phone.length() > 11) {
+            throw new BusinessException("사용 가능한 담당자 계정이 아닙니다.", 401);
+        }
         return managerUser(managers.get(0), phone);
     }
 
@@ -474,26 +511,52 @@ public class NumPlateService {
 
     public byte[] getProcessImage(String serviceId, int slot, UserDto user) {
         getProcessDetail(serviceId, user);
-        Map<String, Object> param = managerParam(user);
+        return getCompatibleProcessImage(serviceId, slot);
+    }
+
+    /** 기존 JSP의 /image.do와 같은 규칙으로 파일 경로와 과거 BLOB 사진을 함께 조회한다. */
+    public byte[] getCompatibleProcessImage(String serviceId, int slot) {
+        Map<String, Object> param = new HashMap<>();
         param.put("SERVICE_ID", validateServiceId(serviceId));
         param.put("IMAGE_FIELD", imageField(slot));
         Map<String, Object> stored = numPlateMapper.getProcessImage(param);
-        if (stored != null && stored.get("IMAGE") instanceof byte[] image && image.length > 0) return image;
         String dbPath = stored == null ? "" : Objects.toString(stored.get("IMAGE_PATH"), "");
         if (!dbPath.isBlank()) {
-            for (Path base : List.of(Path.of("D:/webapps/numplate/images"), Path.of("/app2/numplate/images"))) {
-                Path candidate = Path.of(dbPath).isAbsolute() ? Path.of(dbPath).normalize() : base.resolve(Path.of(dbPath).getFileName()).normalize();
-                if (candidate.startsWith(base.normalize()) && Files.isRegularFile(candidate)) {
-                    try {
-                        if (Files.size(candidate) > 10 * 1024 * 1024) throw new BusinessException("사진 용량이 너무 큽니다.");
-                        return Files.readAllBytes(candidate);
-                    } catch (IOException exception) {
-                        throw new BusinessException("사진 파일을 읽지 못했습니다.");
-                    }
+            Path candidate = resolveStoredImage(dbPath);
+            if (Files.isRegularFile(candidate)) {
+                try {
+                    if (Files.size(candidate) > 10 * 1024 * 1024) throw new BusinessException("사진 용량이 너무 큽니다.");
+                    return Files.readAllBytes(candidate);
+                } catch (IOException exception) {
+                    logger.warn("[NumPlateService] 로컬 사진 읽기 실패, BLOB 또는 기존 서버로 재조회 - path: {}", candidate);
                 }
             }
         }
+        byte[] blobImage = readStoredBlob(stored == null ? null : stored.get("IMAGE"));
+        if (blobImage != null) return blobImage;
         throw new BusinessException("사진을 찾을 수 없습니다.", 404);
+    }
+
+    /** 새 서버에 파일/BLOB이 없으면 브라우저가 기존 서버로 직접 이동한다. */
+    public URI legacyImageUri(String serviceId, int slot) {
+        String url = legacyImageBaseUrl + "/image.do?key="
+                + URLEncoder.encode(validateServiceId(serviceId), StandardCharsets.UTF_8)
+                + "&resize=false&img=" + slot;
+        imageField(slot);
+        return URI.create(url);
+    }
+
+    private byte[] readStoredBlob(Object value) {
+        if (value instanceof byte[] image && image.length > 0) return image;
+        if (!(value instanceof Blob blob)) return null;
+        try {
+            long length = blob.length();
+            if (length <= 0) return null;
+            if (length > 10 * 1024 * 1024) throw new BusinessException("사진 용량이 너무 큽니다.");
+            return blob.getBytes(1, (int) length);
+        } catch (SQLException exception) {
+            throw new BusinessException("사진 BLOB을 읽지 못했습니다.");
+        }
     }
 
     /** processStatus.jsp의 네이티브 Android 촬영을 모바일 웹 파일 입력으로 대체한다. */
@@ -513,12 +576,9 @@ public class NumPlateService {
         if (file.getSize() > 10 * 1024 * 1024) throw new BusinessException("사진은 10MB 이하만 등록할 수 있습니다.");
         byte[] image;
         try {
-            image = file.getBytes();
-            if (ImageIO.read(new ByteArrayInputStream(image)) == null) {
-                throw new BusinessException("JPG 또는 PNG 이미지 파일만 등록할 수 있습니다.");
-            }
+            image = compressJpeg(file.getBytes(), 0.6f);
         } catch (IOException exception) {
-            throw new BusinessException("사진 파일을 읽지 못했습니다.");
+            throw new BusinessException("JPG 또는 PNG 이미지 파일만 등록할 수 있습니다.");
         }
 
         // 번호판 사진(1~3), 신분증(4), 서명(6) 외의 DB 컬럼 접근을 차단한다.
@@ -526,13 +586,87 @@ public class NumPlateService {
             throw new BusinessException("서명 사진을 등록할 수 없는 처리 건입니다.", 409);
         }
         Map<String, Object> param = managerParam(user);
-        param.put("SERVICE_ID", validateServiceId(serviceId));
-        param.put("IMAGE_FIELD", field);
-        param.put("IMAGE", image);
-        if (numPlateMapper.upsertProcessImage(param) != 1) {
-            throw new BusinessException("사진을 저장하지 못했습니다.", 409);
+        String validatedServiceId = validateServiceId(serviceId);
+        String fileName = validatedServiceId.replace('-', '_') + "_" + slot + ".jpg";
+        Path target = imageDirectory.resolve(fileName).normalize();
+        if (!imageDirectory.equals(target.getParent())) throw new BusinessException("잘못된 사진 저장 경로입니다.");
+        Path temporary = null;
+        try {
+            Files.createDirectories(imageDirectory);
+            temporary = Files.createTempFile(imageDirectory, validatedServiceId + "_" + slot + "_", ".tmp");
+            Files.write(temporary, image);
+
+            param.put("SERVICE_ID", validatedServiceId);
+            param.put("IMAGE_FIELD", field);
+            param.put("IMAGE_PATH", target.toString());
+            if (numPlateMapper.upsertProcessImagePath(param) != 1) {
+                throw new BusinessException("사진을 저장하지 못했습니다.", 409);
+            }
+            Files.move(temporary, target, StandardCopyOption.REPLACE_EXISTING);
+            temporary = null;
+        } catch (IOException exception) {
+            throw new BusinessException("사진 파일을 저장하지 못했습니다.");
+        } finally {
+            if (temporary != null) {
+                try {
+                    Files.deleteIfExists(temporary);
+                } catch (IOException exception) {
+                    logger.warn("[NumPlateService] 임시 사진 파일 삭제 실패: {}", temporary);
+                }
+            }
         }
         return getProcessDetail(serviceId, user);
+    }
+
+    private Path resolveStoredImage(String dbPath) {
+        String normalized = dbPath.trim().replace('\\', '/');
+        String fileName = normalized.substring(normalized.lastIndexOf('/') + 1);
+        if (!fileName.matches("[A-Za-z0-9._-]{1,150}")) {
+            throw new BusinessException("잘못된 사진 경로입니다.");
+        }
+        Path candidate = imageDirectory.resolve(fileName).normalize();
+        if (!imageDirectory.equals(candidate.getParent())) throw new BusinessException("잘못된 사진 경로입니다.");
+        return candidate;
+    }
+
+    /** 기존 앱과 같은 JPG 60% 품질로 저장해 모바일 원본 사진 용량을 줄인다. */
+    private byte[] compressJpeg(byte[] originalBytes, float quality) throws IOException {
+        BufferedImage original = ImageIO.read(new ByteArrayInputStream(originalBytes));
+        if (original == null) throw new IOException("Unsupported image");
+        if ((long) original.getWidth() * original.getHeight() > 50_000_000L) {
+            throw new IOException("Image dimensions are too large");
+        }
+
+        BufferedImage jpeg = new BufferedImage(original.getWidth(), original.getHeight(), BufferedImage.TYPE_INT_RGB);
+        Graphics2D graphics = jpeg.createGraphics();
+        try {
+            graphics.setColor(Color.WHITE);
+            graphics.fillRect(0, 0, jpeg.getWidth(), jpeg.getHeight());
+            graphics.drawImage(original, 0, 0, null);
+        } finally {
+            graphics.dispose();
+        }
+
+        Iterator<ImageWriter> writers = ImageIO.getImageWritersByFormatName("jpg");
+        if (!writers.hasNext()) throw new IOException("JPG writer not found");
+        ImageWriter writer = writers.next();
+        try (ByteArrayOutputStream output = new ByteArrayOutputStream();
+             ImageOutputStream imageOutput = ImageIO.createImageOutputStream(output)) {
+            writer.setOutput(imageOutput);
+            ImageWriteParam param = writer.getDefaultWriteParam();
+            param.setCompressionMode(ImageWriteParam.MODE_EXPLICIT);
+            param.setCompressionQuality(quality);
+            writer.write(null, new IIOImage(jpeg, null, null), param);
+            return output.toByteArray();
+        } finally {
+            writer.dispose();
+        }
+    }
+
+    private static Path defaultImageDirectory() {
+        String path = System.getProperty("os.name", "").startsWith("Windows")
+                ? "D:/webapps/numplate/images" : "/web/numplate/images";
+        return Path.of(path).toAbsolutePath().normalize();
     }
 
     @Transactional

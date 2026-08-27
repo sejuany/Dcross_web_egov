@@ -80,12 +80,11 @@ public class NumPlateController {
         return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
     }
 
-    /** 휴대폰 번호에 등록된 패스키 challenge를 발급한다. */
+    /** 기기에 등록된 검색 가능한 패스키 challenge를 발급한다. */
     @PostMapping(value = "/numplateapp/passkeys/login/options", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> startPasskeyLogin(
-            @RequestBody Map<String, Object> request, HttpSession session) {
+    public ResponseEntity<String> startPasskeyLogin(HttpSession session) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(passkeyService.startLogin(Objects.toString(request.get("phone"), ""), session));
+                .body(passkeyService.startLogin(session));
     }
 
     @PostMapping("/numplateapp/passkeys/login/verify")

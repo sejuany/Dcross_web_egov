@@ -18,6 +18,17 @@
            AND USE_YN = 'Y'
     </select>
 
+    <!-- 운영 Oracle의 해시 함수 지원 여부와 관계없이 Java SHA-256으로 패스키 담당자를 연결한다. -->
+    <select id="getActiveManagersForPasskey" resultType="map">
+        SELECT COMPANY_ID,
+               COMPANY_NM,
+               MANAGER_NM,
+               PKG_COMMON.FN_DECRYPT(TEL_NO) AS TEL_NO,
+               GUBUN
+          FROM TM_NUM_MANAGER
+         WHERE USE_YN = 'Y'
+    </select>
+
     <sql id="passkeyColumns">
         CREDENTIAL_ID, MANAGER_TEL_HASH, USER_HANDLE, PUBLIC_KEY_COSE,
         SIGNATURE_COUNT, TRANSPORTS, BACKUP_ELIGIBLE_YN, BACKUP_STATE_YN
@@ -1000,23 +1011,31 @@
            AND (INSTALL_YN IS NULL OR INSTALL_YN != 'Y')
     </update>
 
+    <resultMap id="processImageMap" type="map">
+        <result property="IMAGE" column="IMAGE" jdbcType="BLOB" javaType="[B"/>
+        <result property="IMAGE_PATH" column="IMAGE_PATH" jdbcType="VARCHAR" javaType="java.lang.String"/>
+    </resultMap>
+
     <!-- IMAGE_FIELD는 서비스에서 IMAGE1/2/3/4/6 중 하나로만 만든다. 화면 입력값을 직접 사용하지 않는다. -->
-    <select id="getProcessImage" parameterType="map" resultType="map">
+    <select id="getProcessImage" parameterType="map" resultMap="processImageMap">
         SELECT ${IMAGE_FIELD} AS IMAGE,
                ${IMAGE_FIELD}_PATH AS IMAGE_PATH
           FROM TR_NUMPLATE_IMAGES
          WHERE SERVICE_ID = #{SERVICE_ID}
     </select>
 
-    <update id="upsertProcessImage" parameterType="map">
+    <!-- 신규 사진은 서버 파일로 저장하고 DB에는 경로만 남긴다. BLOB은 과거 조회 호환용이다. -->
+    <update id="upsertProcessImagePath" parameterType="map">
         MERGE INTO TR_NUMPLATE_IMAGES T
         USING (SELECT #{SERVICE_ID} AS SERVICE_ID FROM DUAL) S
            ON (T.SERVICE_ID = S.SERVICE_ID)
         WHEN MATCHED THEN
-          UPDATE SET T.${IMAGE_FIELD} = #{IMAGE, jdbcType=BLOB}, T.IMAGE_PATH_YN = NULL
+          UPDATE SET T.${IMAGE_FIELD}_PATH = #{IMAGE_PATH},
+                     T.${IMAGE_FIELD} = NULL,
+                     T.IMAGE_PATH_YN = 'Y'
         WHEN NOT MATCHED THEN
-          INSERT (SERVICE_ID, ${IMAGE_FIELD}, INS_DATE)
-          VALUES (#{SERVICE_ID}, #{IMAGE, jdbcType=BLOB}, SYSDATE)
+          INSERT (SERVICE_ID, ${IMAGE_FIELD}_PATH, IMAGE_PATH_YN, INS_DATE)
+          VALUES (#{SERVICE_ID}, #{IMAGE_PATH}, 'Y', SYSDATE)
     </update>
 
     <insert id="insertCarPaperRequest" parameterType="map">

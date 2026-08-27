@@ -7,6 +7,8 @@ import java.util.Objects;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -38,6 +40,7 @@ import jakarta.servlet.http.HttpSession;
 @Service
 public class NumPlatePasskeyService {
 
+    private static final Logger logger = LoggerFactory.getLogger(NumPlatePasskeyService.class);
     private static final String REGISTER_STATE = "NUMPLATE_PASSKEY_REGISTER";
     private static final String LOGIN_STATE = "NUMPLATE_PASSKEY_LOGIN";
     private static final long CEREMONY_TIMEOUT_MS = 120_000L;
@@ -50,8 +53,8 @@ public class NumPlatePasskeyService {
     public NumPlatePasskeyService(
             NumPlatePasskeyRepository repository,
             NumPlateService numPlateService,
-            @Value("${numplate.passkey.rp-id:no.dcross.kr}") String rpId,
-            @Value("${numplate.passkey.origin:https://no.dcross.kr}") String origin) {
+            @Value("${numplate.passkey.rp-id:web.dcross.kr}") String rpId,
+            @Value("${numplate.passkey.origin:https://web.dcross.kr}") String origin) {
         this.repository = repository;
         this.numPlateService = numPlateService;
         this.relyingParty = RelyingParty.builder()
@@ -131,19 +134,13 @@ public class NumPlatePasskeyService {
         }
     }
 
-    public String startLogin(String phone, HttpSession session) {
-        phone = normalizePhone(phone);
-        numPlateService.loginManagerByPasskey(phone); // 사용 중인 관리자 계정인지 먼저 확인한다.
-        String phoneHash = repository.phoneHash(phone);
-        if (repository.getCredentialIdsForUsername(phoneHash).isEmpty()) {
-            throw new BusinessException("이 번호에는 등록된 생체 로그인이 없습니다.", 404);
-        }
+    public String startLogin(HttpSession session) {
+        // 휴대폰 번호를 묻지 않고 기기에 등록된 discoverable credential을 선택하게 한다.
         AssertionRequest request = relyingParty.startAssertion(
-                StartAssertionOptions.builder().username(phoneHash)
+                StartAssertionOptions.builder()
                         .userVerification(UserVerificationRequirement.REQUIRED)
                         .timeout(CEREMONY_TIMEOUT_MS).build());
-        session.setAttribute(LOGIN_STATE,
-                new LoginState(request, phone, phoneHash, System.currentTimeMillis()));
+        session.setAttribute(LOGIN_STATE, new LoginState(request, System.currentTimeMillis()));
         try {
             return request.toCredentialsGetJson();
         } catch (Exception exception) {
@@ -161,22 +158,23 @@ public class NumPlatePasskeyService {
                             .request(state.request())
                             .response(PublicKeyCredential.parseAssertionResponseJson(responseJson))
                             .build());
-            if (!result.isSuccess() || !result.isUserVerified()
-                    || !state.phoneHash().equals(result.getUsername())) {
+            String phoneHash = Objects.toString(result.getUsername(), "");
+            if (!result.isSuccess() || !result.isUserVerified() || phoneHash.isBlank()) {
                 throw new BusinessException("생체 인증에 실패했습니다.", 401);
             }
             Map<String, Object> update = Map.of(
                     "CREDENTIAL_ID", result.getCredentialId().getBase64Url(),
-                    "MANAGER_TEL_HASH", state.phoneHash(),
+                    "MANAGER_TEL_HASH", phoneHash,
                     "SIGNATURE_COUNT", result.getSignatureCount(),
                     "BACKUP_STATE_YN", result.isBackedUp() ? "Y" : "N");
             if (repository.updateCounter(update) != 1) {
                 throw new BusinessException("등록된 생체 로그인 정보를 찾을 수 없습니다.", 401);
             }
-            return numPlateService.loginManagerByPasskey(state.phone());
+            return numPlateService.loginManagerByPasskeyHash(phoneHash);
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
+            logger.error("[NumPlatePasskey] 패스키 로그인 검증 실패", exception);
             throw new BusinessException("생체 인증을 확인하지 못했습니다.", 401);
         }
     }
@@ -211,6 +209,5 @@ public class NumPlatePasskeyService {
             PublicKeyCredentialCreationOptions request, String phoneHash,
             ByteArray userHandle, long createdAt) { }
 
-    private record LoginState(
-            AssertionRequest request, String phone, String phoneHash, long createdAt) { }
+    private record LoginState(AssertionRequest request, long createdAt) { }
 }

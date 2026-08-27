@@ -183,7 +183,7 @@
 	
 	<!-- 문자 전송 -->
 	<insert id="insertSmsSendReal" parameterType="map">
-	    INSERT INTO MSG_QUEUE@RDB_LINK (
+	    INSERT INTO MSG_QUEUE (
 	        MSEQ,
 	        MSG_TYPE,
 	        DSTADDR,
@@ -196,7 +196,7 @@
 	        REQUEST_TIME
 	    )
 	    VALUES (
-	        MSG_QUEUE_SEQ.NEXTVAL@RDB_LINK,
+	        MSG_QUEUE_SEQ.NEXTVAL,
 	        #{MSG_TYPE},
 	        #{PAY_HP_NO},
 	        '16886112',
@@ -211,7 +211,7 @@
 	
 	<!-- 문자 -->
 	<insert id="insertSmsSend" parameterType="map">
-	    INSERT INTO MSG_QUEUE@RDB_LINK (
+	    INSERT INTO MSG_QUEUE (
 	        MSEQ,
 	        MSG_TYPE,
 	        DSTADDR,
@@ -222,7 +222,7 @@
 	        REQUEST_TIME
 	    )
 	    VALUES (
-	        MSG_QUEUE_SEQ.NEXTVAL@RDB_LINK,
+	        MSG_QUEUE_SEQ.NEXTVAL,
 	        #{MSG_TYPE},
 	        #{PAY_HP_NO},
 	        '16886112',

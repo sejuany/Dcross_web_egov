@@ -144,6 +144,7 @@ export default function ProcessStatus() {
   const workflowStatus = statusName.replace(/\((?:전시장|임시판|임시)\)$/, '');
   const visibleSlots = useMemo(() => slots.filter(([slot]) => slot !== 6 || ['UTRNS', 'RTRNS'].includes(detail?.TASK_CD)), [detail?.TASK_CD]);
   const hasImage = (slot) => Boolean(detail?.[`IMAGE${slot}`] || detail?.[`IMAGE${slot}_PATH`]);
+  const imageUrl = (slot) => `/image.do?key=${encodeURIComponent(serviceId)}&resize=false&img=${slot}&v=${imageVersion}`;
   const showPhotos = detail && (photoStates.has(workflowStatus) || visibleSlots.some(([slot]) => hasImage(slot)));
   const canEditPhotos = photoStates.has(workflowStatus);
   const needsSubPanelChoice = canEditPhotos && Boolean(detail?.BOND_YN)
@@ -206,7 +207,7 @@ export default function ProcessStatus() {
             {visibleSlots.map(([slot, label]) => (
               <div key={slot}>
                 <strong>{label}</strong>
-                {hasImage(slot) ? <button type="button" className="numplate-image-preview" onClick={() => setPreview(slot)}><img src={`/api/numplateapp/process/${encodeURIComponent(serviceId)}/images/${slot}?v=${imageVersion}`} alt={`${label} 등록 사진`} /></button> : <span className="numplate-image-empty">미등록</span>}
+                {hasImage(slot) ? <button type="button" className="numplate-image-preview" onClick={() => setPreview(slot)}><img src={imageUrl(slot)} alt={`${label} 등록 사진`} /></button> : <span className="numplate-image-empty">미등록</span>}
                 {canEditPhotos && <label className="numplate-photo-button">{working === `image-${slot}` ? '등록 중' : (hasImage(slot) ? '재촬영' : '사진 촬영')}<input type="file" accept="image/*" capture="environment" disabled={Boolean(working)} onChange={(event) => uploadPhoto(slot, event.target.files?.[0])} /></label>}
               </div>
             ))}
@@ -225,7 +226,7 @@ export default function ProcessStatus() {
       )}
 
       {message && <p className="numplate-inline-message" role="status">{message}</p>}
-      {preview && <button type="button" className="numplate-image-modal" onClick={() => setPreview(null)} aria-label="확대 사진 닫기"><img src={`/api/numplateapp/process/${encodeURIComponent(serviceId)}/images/${preview}?v=${imageVersion}`} alt="확대 사진" /></button>}
+      {preview && <button type="button" className="numplate-image-modal" onClick={() => setPreview(null)} aria-label="확대 사진 닫기"><img src={imageUrl(preview)} alt="확대 사진" /></button>}
     </section>
   );
 }

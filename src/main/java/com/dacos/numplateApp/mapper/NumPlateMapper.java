@@ -14,6 +14,9 @@ public interface NumPlateMapper {
     /** 휴대폰 번호가 일치하는 사용 중 담당자 후보를 조회한다. */
     List<Map<String, Object>> loginManager(Map<String, Object> request);
 
+    /** Oracle 버전에 관계없이 Java에서 패스키 휴대폰 해시를 매칭할 활성 담당자를 조회한다. */
+    List<Map<String, Object>> getActiveManagersForPasskey();
+
     List<Map<String, Object>> getPasskeysByPhoneHash(String phoneHash);
 
     List<Map<String, Object>> getPasskeysByUserHandle(String userHandle);
@@ -88,7 +91,7 @@ public interface NumPlateMapper {
 
     Map<String, Object> getProcessImage(Map<String, Object> request);
 
-    int upsertProcessImage(Map<String, Object> request);
+    int upsertProcessImagePath(Map<String, Object> request);
 
     int insertCarPaperRequest(Map<String, Object> request);
 

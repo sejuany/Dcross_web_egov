@@ -64,14 +64,14 @@ mobile-ok:
 
 numplate:
   passkey:
-    rp-id: ${NUMPLATE_PASSKEY_RP_ID:no.dcross.kr}
-    origin: ${NUMPLATE_PASSKEY_ORIGIN:https://no.dcross.kr}
+    rp-id: ${NUMPLATE_PASSKEY_RP_ID:web.dcross.kr}
+    origin: ${NUMPLATE_PASSKEY_ORIGIN:https://web.dcross.kr}
 
 firebase:
   push:
     enabled: ${FIREBASE_PUSH_ENABLED:true}
     credentials: ${FIREBASE_CREDENTIALS:C:/GoogleFirebase/dcross-no-dcrossWeb.json}
     project-id: ${FIREBASE_PROJECT_ID:dcross-no}
-    public-base-url: ${FIREBASE_PUBLIC_BASE_URL:https://no.dcross.kr}
+    public-base-url: ${FIREBASE_PUBLIC_BASE_URL:https://web.dcross.kr}
     # 이전 Java 7 프로젝트와 동일한 임의의 긴 값을 환경변수로 설정한다.
     internal-api-key: ${NUMPLATE_PUSH_API_KEY:}

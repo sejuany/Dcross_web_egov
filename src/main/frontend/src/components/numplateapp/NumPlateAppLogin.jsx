@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import './NumPlateApp.css';
@@ -123,14 +123,10 @@ export default function NumPlateAppLogin() {
 
   const biometricLogin = async () => {
     if (busy) return;
-    if (form.phone.length < 8) {
-      setMessage('먼저 등록된 휴대폰 번호를 입력해 주세요.');
-      return;
-    }
     setBusy(true);
     setMessage('');
     try {
-      const { data: options } = await axios.post('/api/numplateapp/passkeys/login/options', { phone: form.phone });
+      const { data: options } = await axios.post('/api/numplateapp/passkeys/login/options');
       const credential = await navigator.credentials.get({ publicKey: decodeCredentialOptions(options) });
       const { data } = await axios.post('/api/numplateapp/passkeys/login/verify', encodeCredential(credential));
       login(data.user);
@@ -147,7 +143,9 @@ export default function NumPlateAppLogin() {
   return (
     <main className="numplate-login-page">
       <section className="numplate-login-card">
-        <div className="numplate-login-brand" aria-hidden="true">N</div>
+        <Link className="numplate-login-logo" to="/login" aria-label="일반 로그인으로 이동">
+          <img src="/logo_navy_horizontal.png" alt="DACOS" />
+        </Link>
         <p className="numplate-login-eyebrow">DACOS MOBILE</p>
         <h1>번호판 업무</h1>
         <p className="numplate-login-guide">등록된 담당자 휴대폰 번호로 로그인해 주세요.</p>
@@ -178,7 +176,7 @@ export default function NumPlateAppLogin() {
             <span>로그인 후 Face ID·지문 로그인 등록</span>
           </label>}
           <button className="numplate-primary-button" type="submit" disabled={busy}>{busy ? '로그인 중…' : '로그인'}</button>
-          {passkeySupported && <button className="numplate-passkey-button" type="button" onClick={biometricLogin} disabled={busy || form.phone.length < 8}>Face ID·지문으로 로그인</button>}
+          {passkeySupported && <button className="numplate-passkey-button" type="button" onClick={biometricLogin} disabled={busy}>Face ID·지문으로 로그인</button>}
         </form>
 
         {message && <p className="numplate-login-message" role="alert">{message}</p>}

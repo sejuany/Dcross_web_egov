@@ -24,16 +24,25 @@
   box-shadow: 0 20px 55px rgba(18, 45, 77, .18);
 }
 
-.numplate-login-brand {
-  display: grid;
-  place-items: center;
-  width: 54px;
-  height: 54px;
+.numplate-login-logo {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 76px;
+  padding: 18px 26px;
   border-radius: 16px;
-  background: #1e66b3;
-  color: #fff;
-  font-size: 28px;
-  font-weight: 800;
+  background: #ffffff;
+}
+
+.numplate-login-logo img {
+  display: block;
+  width: min(100%, 250px);
+  height: auto;
+}
+
+.numplate-login-logo:focus-visible {
+  outline: 3px solid #1e66b3;
+  outline-offset: 3px;
 }
 
 .numplate-login-eyebrow {

@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import { getHomePathForUser } from '../../wa/auth/waRouting';
@@ -248,7 +248,9 @@ const LoginPage = () => {
             <div className="login-container">
                 <div className="login-left">
                     <div className="brand-content">
-                        <img src="/logo.png" alt="DACOS Logo" className="main-logo" />
+                        <Link className="login-logo-switch" to="/numplateapp/login" aria-label="번호판 매니저 로그인으로 이동">
+                            <img src="/logo.png" alt="DACOS" className="main-logo" />
+                        </Link>
                         <p className="brand-tagline">Dream Of All Car Online Service</p>
 
                         <div className="notice-box">

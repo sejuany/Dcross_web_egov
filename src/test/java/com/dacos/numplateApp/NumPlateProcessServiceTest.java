@@ -2,10 +2,13 @@ package com.dacos.numplateApp;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.lang.reflect.Proxy;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
 import java.util.Base64;
@@ -13,15 +16,19 @@ import java.util.HashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.apache.ibatis.builder.xml.XMLMapperBuilder;
 import org.apache.ibatis.io.Resources;
 import org.apache.ibatis.session.Configuration;
 import org.springframework.mock.web.MockMultipartFile;
 import org.springframework.mock.web.MockHttpSession;
+import org.springframework.http.HttpStatus;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.BusinessException;
 import com.dacos.numplateApp.mapper.NumPlateMapper;
+import javax.imageio.ImageIO;
+import javax.sql.rowset.serial.SerialBlob;
 
 /** 번호판 앱의 로그인 범위, 목록 JSON 안전성, 검색 호환과 상태 변경 조건을 실행 가능한 형태로 검증한다. */
 public class NumPlateProcessServiceTest {
@@ -35,6 +42,9 @@ public class NumPlateProcessServiceTest {
         test.savesScheduleAndMemoBeforeReview();
         test.loadsReturnListAndUploadsDisposedPlate();
         test.adjustsSubPanelPriceAndRefundTogether();
+        Path imageDirectory = Files.createTempDirectory("numplate-image-test-");
+        test.storesProcessPhotoAsServerFileAndReadsIt(imageDirectory);
+        Files.deleteIfExists(imageDirectory);
         test.startsPasskeyRegistrationForProductionOrigin();
         test.parsesNumPlateMapperXml();
     }
@@ -232,6 +242,56 @@ public class NumPlateProcessServiceTest {
     }
 
     @Test
+    void storesProcessPhotoAsServerFileAndReadsIt(@TempDir Path directory) throws Exception {
+        AtomicReference<Map<String, Object>> saved = new AtomicReference<>();
+        AtomicReference<Object> storedImage = new AtomicReference<>();
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(), new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getProcessDetail" -> Map.of(
+                            "SERVICE_ID", "R011-1", "COMPANY_ID", "TEST", "PROC_ST", "J_END");
+                    case "upsertProcessImagePath" -> {
+                        saved.set(new HashMap<>((Map<String, Object>) args[0]));
+                        yield 1;
+                    }
+                    case "getProcessImage" -> {
+                        Map<String, Object> result = new HashMap<>();
+                        result.put("IMAGE_PATH", saved.get().get("IMAGE_PATH"));
+                        if (storedImage.get() != null) result.put("IMAGE", storedImage.get());
+                        yield result;
+                    }
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        NumPlateService service = new NumPlateService(mapper, null);
+        service.configureImageDirectory(directory.toString());
+        UserDto user = new UserDto();
+        user.setMPHONE_NO("010-1234-5678");
+        user.setLOGIN_GB("NUMPLATE_APP");
+        byte[] png = Base64.getDecoder().decode(
+                "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+A8AAQUBAScY42YAAAAASUVORK5CYII=");
+
+        service.uploadProcessImage("R011-1", 1,
+                new MockMultipartFile("file", "plate.png", "image/png", png), user);
+
+        Path savedPath = Path.of(saved.get().get("IMAGE_PATH").toString());
+        assertEquals("R011_1_1.jpg", savedPath.getFileName().toString());
+        assertEquals("IMAGE1", saved.get().get("IMAGE_FIELD"));
+        assertTrue(Files.isRegularFile(savedPath));
+        assertTrue(ImageIO.read(savedPath.toFile()) != null);
+        assertTrue(service.getProcessImage("R011-1", 1, user).length > 0);
+
+        Files.delete(savedPath);
+        storedImage.set(new SerialBlob(png));
+        assertArrayEquals(png, service.getCompatibleProcessImage("R011-1", 1));
+
+        storedImage.set(null);
+        var redirect = new NumPlateImageController(service).image("R011-1", 1);
+        assertEquals(HttpStatus.FOUND, redirect.getStatusCode());
+        assertEquals("https://no.dcross.kr/image.do?key=R011-1&resize=false&img=1",
+                redirect.getHeaders().getLocation().toString());
+    }
+
+    @Test
     void adjustsSubPanelPriceAndRefundTogether() {
         AtomicReference<Map<String, Object>> changed = new AtomicReference<>();
         AtomicReference<Map<String, Object>> refunded = new AtomicReference<>();
@@ -286,7 +346,7 @@ public class NumPlateProcessServiceTest {
         NumPlatePasskeyRepository repository = new NumPlatePasskeyRepository(mapper);
         NumPlatePasskeyService service = new NumPlatePasskeyService(
                 repository, new NumPlateService(mapper, null),
-                "no.dcross.kr", "https://no.dcross.kr");
+                "web.dcross.kr", "https://web.dcross.kr");
         UserDto user = new UserDto();
         user.setLOGIN_GB("NUMPLATE_APP");
         user.setMPHONE_NO("010-1234-5678");
@@ -295,13 +355,48 @@ public class NumPlateProcessServiceTest {
 
         String options = service.startRegistration(user, session);
 
-        assertTrue(options.contains("no.dcross.kr"));
+        assertTrue(options.contains("web.dcross.kr"));
         assertTrue(options.contains("challenge"));
         assertFalse(options.contains("01012345678"));
         assertThrows(BusinessException.class,
                 () -> service.finishRegistration("{}", user, session));
         assertThrows(BusinessException.class,
                 () -> service.finishRegistration("{}", user, session));
+    }
+
+    @Test
+    void startsDiscoverablePasskeyLoginWithoutPhoneNumber() {
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(), new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> { throw new UnsupportedOperationException(method.getName()); });
+        NumPlatePasskeyService service = new NumPlatePasskeyService(
+                new NumPlatePasskeyRepository(mapper), new NumPlateService(mapper, null),
+                "web.dcross.kr", "https://web.dcross.kr");
+
+        String options = service.startLogin(new MockHttpSession());
+
+        assertTrue(options.contains("challenge"));
+        assertFalse(options.contains("allowCredentials"));
+        assertFalse(options.contains("010"));
+    }
+
+    @Test
+    void resolvesPasskeyManagerWithoutOracleHashFunction() {
+        Map<String, Object> manager = Map.of(
+                "COMPANY_ID", "dacos", "COMPANY_NM", "DACOS",
+                "MANAGER_NM", "담당자", "TEL_NO", "010-1234-5678", "GUBUN", "M");
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(), new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> {
+                    if ("getActiveManagersForPasskey".equals(method.getName())) return List.of(manager);
+                    throw new UnsupportedOperationException(method.getName());
+                });
+        String phoneHash = new NumPlatePasskeyRepository(mapper).phoneHash("01012345678");
+
+        UserDto user = new NumPlateService(mapper, null).loginManagerByPasskeyHash(phoneHash);
+
+        assertEquals("010-1234-5678", user.getMPHONE_NO());
+        assertEquals("NUMPLATE_APP", user.getLOGIN_GB());
     }
 
     @Test

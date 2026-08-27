@@ -66,6 +66,23 @@ html {
     object-fit: contain;
 }
 
+.login-logo-switch {
+    display: block;
+    width: 100%;
+    max-width: 350px;
+    border-radius: 10px;
+    line-height: 0;
+}
+
+.login-logo-switch:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 6px;
+}
+
+.login-logo-switch .main-logo {
+    max-width: none;
+}
+
 .brand-tagline {
     font-size: clamp(0.9rem, 1.2vw, 1.1rem);
     font-weight: 300;
@@ -466,6 +483,10 @@ html {
         padding: 1.5rem;
     }
 
+    .login-logo-switch {
+        max-width: 280px;
+    }
+
     .main-logo {
         max-width: 280px;
     }
@@ -514,6 +535,10 @@ html {
     .main-logo {
         max-width: 220px;
         margin-bottom: 8px;
+    }
+
+    .login-logo-switch {
+        max-width: 220px;
     }
 
     .brand-tagline {
