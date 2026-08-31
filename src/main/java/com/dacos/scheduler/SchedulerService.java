@@ -32,6 +32,10 @@ public class SchedulerService {
         this.commonService = commonService;
         this.newcarService = newcarService;
     }
+
+	public int cleanupExpiredNumplateSelections() {
+		return newcarService.cleanupExpiredNumplateSelections();
+	}
     
     @Transactional
     public int processTodayNewcarWaitingServices() {

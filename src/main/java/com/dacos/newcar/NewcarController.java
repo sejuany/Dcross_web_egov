@@ -358,6 +358,22 @@ public class NewcarController {
 	    return ResponseEntity.ok(ApiResponse.withKey("result", result));
 	}
 
+	@PostMapping("/numplate-selection/send")
+	public ResponseEntity<Map<String, Object>> sendNumplateSelection(
+			@RequestBody Map<String, Object> param, HttpSession session) {
+		UserDto user = AuthUtil.getLoginUser(session);
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", newcarService.sendNumplateSelectionMessage(param, user, session)));
+	}
+
+	@GetMapping("/numplate-selection/status")
+	public ResponseEntity<Map<String, Object>> getNumplateSelectionStatus(
+			@RequestParam("serviceId") String serviceId, HttpSession session) {
+		UserDto user = AuthUtil.getLoginUser(session);
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", newcarService.getNumplateSelectionStatus(serviceId, user)));
+	}
+
 	/**
 	 * 신규등록 저장 및 신청
 	 * POST /api/newcar/process

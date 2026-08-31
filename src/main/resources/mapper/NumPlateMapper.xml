@@ -579,8 +579,10 @@
         parameterType="java.util.HashMap">
 	
 	    UPDATE TM_NUMPLATE_LIST
-	       SET USE_YN = 'N'
+	       SET USE_YN = 'N',
+	           APPEAR_DT = NULL
 	     WHERE USE_YN = 'P'
+	       AND NUMPLATE_MSG_TOKEN IS NULL
 	       AND CAR_NO IN
 	       <foreach collection="NUM_LIST"
 	                item="carNo"
@@ -590,6 +592,136 @@
 	           #{carNo}
 	       </foreach>
 	
+	</update>
+
+	<select id="lockNumplateMessageDetach" parameterType="map" resultType="map">
+	    SELECT SERVICE_ID FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID} FOR UPDATE
+	</select>
+
+	<select id="countPendingNumplateMessageList" parameterType="map" resultType="int">
+	    SELECT COUNT(*)
+	      FROM TM_NUMPLATE_LIST
+	     WHERE USE_YN = 'P'
+	       AND CAR_NO IN
+	       <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
+	           #{carNo}
+	       </foreach>
+	</select>
+
+	<update id="releasePreviousNumplateMessage" parameterType="map">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = 'N', NUMPLATE_MSG_TOKEN = NULL, APPEAR_DT = NULL
+	     WHERE USE_YN = 'P'
+	       AND NUMPLATE_MSG_TOKEN = (
+	           SELECT NUMPLATE_MSG_TOKEN FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID}
+	       )
+	</update>
+
+	<update id="clearNumplateMessageDetach" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	       SET CONFIRM_NO = NULL, NUMPLATE_MSG_TOKEN = NULL
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+
+	<update id="assignNumplateMessageList" parameterType="map">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET NUMPLATE_MSG_TOKEN = #{TOKEN}, APPEAR_DT = SYSDATE
+	     WHERE USE_YN = 'P'
+	       AND CAR_NO IN
+	       <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
+	           #{carNo}
+	       </foreach>
+	</update>
+
+	<update id="updateNumplateMessageDetach" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	       SET CONFIRM_NO = #{CONFIRM_NO}, NUMPLATE_MSG_TOKEN = #{TOKEN}
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+
+	<update id="appendNumplateMessageMemo" parameterType="map">
+	    UPDATE TR_NEWCAR
+	       SET MEMO_TX = NVL(MEMO_TX || CHR(10), '') || #{CONFIRM_NO} || ' 조회됨'
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+
+	<select id="selectNumplateMessageForUpdate" parameterType="map" resultType="map">
+	    SELECT D.SERVICE_ID, D.CONFIRM_NO, D.NUMPLATE_MSG_TOKEN,
+	           NVL(D.CUSTOMER_NM, N.OWNER_NM) AS CUSTOMER_NM,
+	           N.CARID_NO, N.CAR_NM, N.REQ_CAR_NO,
+	           (SELECT MAX(P.APPEAR_DT) FROM TM_NUMPLATE_LIST P
+	             WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN) AS APPEAR_DT
+	      FROM TR_CARNO_DETACH D
+	      JOIN TR_NEWCAR N ON N.SERVICE_ID = D.SERVICE_ID
+	     WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	     <if test='"Y".equals(LOCK_YN)'>
+	         FOR UPDATE OF D.NUMPLATE_MSG_TOKEN
+	     </if>
+	</select>
+
+	<select id="selectNumplateMessageList" parameterType="map" resultType="map">
+	    SELECT CAR_NO, USE_YN,
+	           TO_CHAR(APPEAR_DT + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT
+	      FROM TM_NUMPLATE_LIST
+	     WHERE NUMPLATE_MSG_TOKEN = #{TOKEN}
+	       AND USE_YN IN ('P', 'S')
+	     ORDER BY INSTR(',' || #{CONFIRM_NO} || ',', ',' || CAR_NO || ',')
+	</select>
+
+	<update id="selectCustomerNumplate" parameterType="map">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = 'S', SERVICE_ID = #{SELECT_SERVICE_ID}, CARID_NO = #{CARID_NO},
+	           UPD_USER = 'CUSTOMER', UPD_DATE = SYSDATE, USE_DT = SYSDATE
+	     WHERE CAR_NO = #{CAR_NO}
+	       AND NUMPLATE_MSG_TOKEN = #{TOKEN}
+	       AND USE_YN = 'P'
+	       AND APPEAR_DT &gt; SYSDATE - (5 / 1440)
+	</update>
+
+	<update id="releaseOtherNumplateMessageList" parameterType="map">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = 'N', NUMPLATE_MSG_TOKEN = NULL, APPEAR_DT = NULL
+	     WHERE NUMPLATE_MSG_TOKEN = #{TOKEN}
+	       AND CAR_NO != #{CAR_NO}
+	       AND USE_YN = 'P'
+	</update>
+
+	<select id="selectNumplateMessageStatus" parameterType="map" resultType="map">
+	    SELECT D.NUMPLATE_MSG_TOKEN, D.CONFIRM_NO, N.REQ_CAR_NO,
+	           TO_CHAR(MAX(P.APPEAR_DT) + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
+	           CASE WHEN MAX(P.APPEAR_DT) &gt; SYSDATE - (5 / 1440) THEN 'Y' ELSE 'N' END AS ACTIVE_YN
+	      FROM TR_CARNO_DETACH D
+	      JOIN TR_NEWCAR N ON N.SERVICE_ID = D.SERVICE_ID
+	      LEFT JOIN TM_NUMPLATE_LIST P ON P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
+	     WHERE D.SERVICE_ID = #{SERVICE_ID}
+	     GROUP BY D.NUMPLATE_MSG_TOKEN, D.CONFIRM_NO, N.REQ_CAR_NO
+	</select>
+
+	<update id="clearExpiredNumplateMessageDetach">
+	    UPDATE TR_CARNO_DETACH D
+	       SET CONFIRM_NO = NULL, NUMPLATE_MSG_TOKEN = NULL
+	     WHERE D.NUMPLATE_MSG_TOKEN IS NOT NULL
+	       AND NOT EXISTS (
+	           SELECT 1 FROM TM_NUMPLATE_LIST P
+	            WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
+	              AND P.APPEAR_DT &gt; SYSDATE - (5 / 1440)
+	       )
+	</update>
+
+	<update id="releaseExpiredNumplateMessageList">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = CASE WHEN USE_YN = 'P' THEN 'N' ELSE USE_YN END,
+	           NUMPLATE_MSG_TOKEN = NULL, APPEAR_DT = NULL
+	     WHERE NUMPLATE_MSG_TOKEN IS NOT NULL
+	       AND APPEAR_DT &lt;= SYSDATE - (5 / 1440)
+	</update>
+
+	<update id="releaseExpiredPendingNumplateList">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = 'N', APPEAR_DT = NULL
+	     WHERE USE_YN = 'P'
+	       AND NUMPLATE_MSG_TOKEN IS NULL
+	       AND APPEAR_DT &lt;= SYSDATE - (5 / 1440)
 	</update>
     
 	<!-- 번호판 상태 변경 -->

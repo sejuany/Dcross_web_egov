@@ -39,12 +39,39 @@ const CarInfo = ({
 	
 	const assignCdRef = useRef('');
 	const [numplateDisabled, setNumplateDisabled] = useState(false); 
+
+	useEffect(() => {
+		if (dsUserInfo.MEMBER_GB !== 'SU' || !dsService.SERVICE_ID
+				|| !dsCarNoDetach.NUMPLATE_MSG_TOKEN || dsNewCar.REQ_CAR_NO) return;
+		let stopped = false;
+		const poll = async () => {
+			try {
+				const { data } = await axios.get('/api/newcar/numplate-selection/status', {
+					params: { serviceId: dsService.SERVICE_ID }
+				});
+				if (stopped) return;
+				const result = data.result;
+				if (result.state === 'SELECTED') {
+					setDsNewCar(prev => ({ ...prev, REQ_CAR_NO: result.REQ_CAR_NO }));
+					setIsNumplateModalOpen(false);
+				} else if (result.state === 'EXPIRED' || result.state === 'NONE') {
+					setDsCarNoDetach(prev => ({ ...prev, CONFIRM_NO: '', NUMPLATE_MSG_TOKEN: '' }));
+				}
+			} catch (e) {
+				console.error('번호판 선택 상태 조회 실패', e);
+			}
+		};
+		poll();
+		const timer = setInterval(poll, 2000);
+		return () => { stopped = true; clearInterval(timer); };
+	}, [dsCarNoDetach.NUMPLATE_MSG_TOKEN, dsNewCar.REQ_CAR_NO, dsService.SERVICE_ID,
+		dsUserInfo.MEMBER_GB, setDsCarNoDetach, setDsNewCar]);
 	
 	// ASSIGN_CD 세팅
 	useEffect(() => {
 
 	    // 사용자정보 / 지점목록 조회가 끝나기 전이면 대기
-	    if (!dsUserInfo?.BRANCH_ID || !dsBranchList?.length) {
+	    if (!dsUserInfo?.BRANCH_ID || !dsBranchList?.length || dsUserInfo.MEMBER_GB !== 'SU') {
 	        return;
 	    }
 
@@ -135,6 +162,11 @@ const CarInfo = ({
 	
 	// 번호선택 버튼 눌렀을 때 체크
 	const handleOpenModal = async () => {
+		
+		if(dsUserInfo.MEMBER_GB !== 'SU') {
+			gf.alert('번호판은 SP 계정으로 선택 하실 수 있습니다.');
+		    return;
+		}
 		
 		// 차대번호 체크
 		if (!dsNewCar.CARID_NO || dsNewCar.CARID_NO.length !== 17) {
@@ -341,6 +373,7 @@ const CarInfo = ({
 				dsCarNoDetach={dsCarNoDetach}
 				dsUserInfo={dsUserInfo}
 				dsBranchList={dsBranchList}
+				setDsCarNoDetach={setDsCarNoDetach}
 				onClose={() => setIsNumplateModalOpen(false)}
 				onSelect={async (isSuccess, carNo) => {
 

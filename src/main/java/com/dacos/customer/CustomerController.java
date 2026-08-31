@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.attach.AttachService;
 import com.dacos.common.ApiResponse;
+import com.dacos.newcar.NewcarService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -32,12 +33,28 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final AttachService attachService;
+    private final NewcarService newcarService;
 
     public CustomerController(CustomerService customerService,
-                              AttachService attachService) {
+                              AttachService attachService,
+                              NewcarService newcarService) {
         this.customerService = customerService;
-        this.attachService = attachService; 
+        this.attachService = attachService;
+        this.newcarService = newcarService;
     }
+
+	@GetMapping("/numplate-selection")
+	public ResponseEntity<Map<String, Object>> getNumplateSelection(@RequestParam("token") String token) {
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", newcarService.getCustomerNumplateSelection(token)));
+	}
+
+	@PostMapping("/numplate-selection/confirm")
+	public ResponseEntity<Map<String, Object>> confirmNumplateSelection(
+			@RequestBody Map<String, Object> param) {
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", newcarService.confirmCustomerNumplateSelection(param)));
+	}
 
     /**
      * 토큰으로 고객 정보 조회

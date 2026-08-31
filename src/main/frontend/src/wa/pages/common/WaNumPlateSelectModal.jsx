@@ -39,7 +39,7 @@ import { gf } from '../../../utils/utils'; // 공통 유틸 함수
 const WaNumPlateSelectModal = ({ 
 	isOpen, onClose, carIdNo, taskCd, onSelect,
 	dsService, dsNewCar, dsCarNoDetach, dsUserInfo,
-	dsBranchList
+	dsBranchList, setDsCarNoDetach
  }) => {
 	
 	// 차종
@@ -52,6 +52,7 @@ const WaNumPlateSelectModal = ({
 	const [list, setList] = useState([]);
 	const [selected, setSelected] = useState('');
 	const [tel, setTel] = useState('');
+	const [sending, setSending] = useState(false);
 	const preCarNoRef = useRef(''); // ref 내부 기억용
 	const assignCdRef = useRef(''); 
 
@@ -63,15 +64,37 @@ const WaNumPlateSelectModal = ({
 	
 	// 모달 열릴 때 초기 조회
 	useEffect(() => {
-		if(isOpen) {
+		let cancelled = false;
+		const restoreAssignedList = async () => {
+			if (!isOpen) return;
+
 			setList([]);
-		    setSelected('');
-		    setKeyword('');
-		    setCondition('NOT');
-		    setCacheNumList([]);
-		    preCarNoRef.current = '';
-		}		
-	}, [isOpen])
+			setSelected('');
+			setKeyword('');
+			setCondition('NOT');
+			setCacheNumList([]);
+			preCarNoRef.current = '';
+			setTel(String(dsNewCar.MPHONE_NO || '').replace(/\D/g, ''));
+
+			if (dsService.SERVICE_ID && dsCarNoDetach.NUMPLATE_MSG_TOKEN) {
+				try {
+					const { data } = await axios.get('/api/newcar/numplate-selection/status', {
+						params: { serviceId: dsService.SERVICE_ID }
+					});
+					const assigned = data.result?.state === 'ACTIVE' ? data.result.carNos || [] : [];
+					if (!cancelled && assigned.length > 0) {
+						setList(assigned);
+						setCacheNumList(assigned);
+						preCarNoRef.current = assigned.join(',');
+					}
+				} catch (e) {
+					console.error('문자 배정 번호판 복원 실패', e);
+				}
+			}
+		};
+		restoreAssignedList();
+		return () => { cancelled = true; };
+	}, [isOpen, dsNewCar.MPHONE_NO, dsService.SERVICE_ID, dsCarNoDetach.NUMPLATE_MSG_TOKEN])
 	
 
 	// 선택 가능한 번호판 조회
@@ -322,6 +345,32 @@ const WaNumPlateSelectModal = ({
 				return '70';
 	    }
 	};
+
+	const handleSendSelectionSms = async () => {
+		if (list.length === 0) return gf.alert('먼저 번호판을 조회해 주세요.');
+		if (!/^\d{10,11}$/.test(tel)) return gf.alert('수신 휴대폰 번호를 확인해 주세요.');
+		if (!await gf.confirm(`조회된 번호 ${list.length}개를 문자로 발송하시겠습니까?`)) return;
+		setSending(true);
+		try {
+			const { data } = await axios.post('/api/newcar/numplate-selection/send', {
+				SERVICE_ID: dsService.SERVICE_ID,
+				PAY_HP_NO: tel,
+				CAR_NOS: list,
+				BASE_URL: window.location.origin
+			});
+			const result = data.result;
+			setDsCarNoDetach(prev => ({
+				...prev,
+				CONFIRM_NO: result.confirmNo,
+				NUMPLATE_MSG_TOKEN: result.token
+			}));
+			gf.alert('번호판 선택 문자를 발송했습니다. 5분 동안 선택할 수 있습니다.');
+		} catch (e) {
+			gf.alert(e.response?.data?.message || '문자 발송 중 오류가 발생했습니다.');
+		} finally {
+			setSending(false);
+		}
+	};
 	
 	if(!isOpen) return null; 
 
@@ -530,6 +579,18 @@ const WaNumPlateSelectModal = ({
 
 	            {/* Footer */}
 	            <div className="modal-footer numplate-footer">
+					<input
+						type="tel"
+						value={tel}
+						maxLength={11}
+						aria-label="문자 수신 휴대폰 번호"
+						onChange={e => setTel(e.target.value.replace(/\D/g, ''))}
+						placeholder="문자 수신번호"
+					/>
+					<button type="button" className="btn-select" disabled={sending || list.length === 0}
+						onClick={handleSendSelectionSms}>
+						{sending ? '발송 중' : '문자 발송'}
+					</button>
 	                <button
 	                    type="button"
 	                    className="btn-close"

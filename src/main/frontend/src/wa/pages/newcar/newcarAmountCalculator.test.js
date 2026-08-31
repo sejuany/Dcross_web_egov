@@ -4,9 +4,10 @@ import {
 } from './newcarAmountCalculator';
 import { resolveBondSearchCriteria } from './newcarCarSpec';
 
-const calculatePolestar = (carName) => calculateNewcarEstimate({
+const calculatePolestar = (carName, ecoYn = 'Y') => calculateNewcarEstimate({
     dsNewCar: {
         CAR_NM: carName,
+        ECO_YN: ecoYn,
         FUEL_CD: 'e',
         CAR_SPEC_MAKER: 'POLESTAR',
         BUY_AMT: 100000000,
@@ -34,11 +35,15 @@ describe('신규등록 예상금액', () => {
         expect(result.acqReductionAmt).toBe(0);
     });
 
+    test('ECO_YN이 N이면 차명과 관계없이 취득세 전기차 감면에서 제외한다', () => {
+        expect(calculatePolestar('Polestar 4 Long Range Single Motor', 'N').acqReductionAmt).toBe(0);
+    });
+
     test.each([
         'Polestar 4 Coupe Performance',
-        '  POLESTAR   4 long range dual motor  '
-    ])('%s는 취득세 전기차 감면에서 제외한다', (carName) => {
-        expect(calculatePolestar(carName).acqReductionAmt).toBe(0);
+        'Polestar 4 Long Range Dual Motor'
+    ])('%s도 ECO_YN이 Y이면 취득세 감면을 적용한다', (carName) => {
+        expect(calculatePolestar(carName, 'Y').acqReductionAmt).toBe(1400000);
     });
 
     test('Polestar 4 Long Range Single Motor는 취득세 감면을 적용한다', () => {
@@ -218,10 +223,11 @@ describe('신규등록 예상금액', () => {
         expect(result.bond).toBe(109500);
     });
 
-    test('취득세 감면 제외 차종도 일반 공채 면제조건은 별도로 적용한다', () => {
+    test('ECO_YN 취득세 감면 제외 차량도 일반 공채 면제조건은 별도로 적용한다', () => {
         const result = calculateNewcarEstimate({
             dsNewCar: {
                 CAR_NM: 'Polestar 4 Coupe Performance',
+                ECO_YN: 'N',
                 CAR_CD: '승용',
                 CAR_CC: 0,
                 GETIN_NO: 5,
@@ -260,10 +266,11 @@ describe('신규등록 예상금액', () => {
     });
 
 
-    test('Coupe Performance의 취득세 예외와 공채 친환경 감면은 분리한다', () => {
+    test('ECO_YN 취득세 예외와 공채 친환경 감면은 분리한다', () => {
         const result = calculateNewcarEstimate({
             dsNewCar: {
                 CAR_NM: 'Polestar 4 Coupe Performance',
+                ECO_YN: 'N',
                 CAR_CD: '승용',
                 CAR_CC: 0,
                 GETIN_NO: 5,

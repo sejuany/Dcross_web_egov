@@ -39,6 +39,8 @@ export const initialDsNewCar = {
 	GETIN_NO: '',
 	LOW_POLLUTION_YN: '',
 	CAR_NM: '',
+	CAR_PACKAGE: '',
+	ECO_YN: '',
 	FM_NM: '',
 	SPMNNO: '',
 	FUEL_CD: 'e',
@@ -129,7 +131,9 @@ export const initialDsNewCar = {
 	PREREG_AMT: '',
 	RATIO_NO: '100',
 	CONTRACTOR_NM: '',
-	CONTRACTOR_DT: ''
+	CONTRACTOR_DT: '',
+	CAR_PACKAGE: '',
+	ECO_YN: '',
 };
 
 export const initialOwnerInfo = {
@@ -184,7 +188,9 @@ export const initialCarNoDetach = {
 	RENT_RECEIVE_YN: '',
 	HOLE_YN: '02',
 	SEAL_YN: '02',
-	TOKEN: ''
+	TOKEN: '',
+	CONFIRM_NO: '',
+	NUMPLATE_MSG_TOKEN: ''
 };
 
 export const initialDsPaymentList = [
@@ -287,7 +293,9 @@ export const initialDsCarNoDetach = {
     NUM_MEMO_TX: '',
     HOLE_YN: '02',
     SEAL_YN: '02',
-	TOKEN: ''
+	TOKEN: '',
+	CONFIRM_NO: '',
+	NUMPLATE_MSG_TOKEN: ''
 };
 
 // ===== 매핑 =====
@@ -425,6 +433,10 @@ export const newCarMap = {
 	
 	// 다목적 차량
 	VH_TY_CD: 'VH_TY_CD'
+
+	,
+	CAR_PACKAGE: 'CAR_PACKAGE',
+	ECO_YN: 'ECO_YN',
 };
 
 export const taxReceiptMap = {

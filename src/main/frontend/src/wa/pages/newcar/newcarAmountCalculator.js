@@ -504,11 +504,6 @@ const pipeContains = (pipeValues, value) => {
 };
 const normalizeCarName = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
 const ORIGINAL_ECO_EXCLUDED_CAR_NAME = normalizeCarName('타이칸 크로스 투리스모 터보 (5인승)');
-const ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES = new Set([
-    '타이칸 크로스 투리스모 터보 (5인승)',
-    'Polestar 4 Coupe Performance',
-    'Polestar 4 Long Range Dual Motor'
-].map(normalizeCarName));
 
 const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     const taxInfo = getTaxInfo({ dsNewCar, codes });
@@ -527,7 +522,9 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
         : isElectricVehicle(dsNewCar);
 
     return {
-        acquisitionEligible: baseEligible && !ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES.has(carName),
+        acquisitionEligible: baseEligible
+            && !originalNameExcluded
+            && String(dsNewCar.ECO_YN ?? '').trim().toUpperCase() !== 'N',
         bondEligible: baseEligible
     };
 };
@@ -884,6 +881,7 @@ export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.NTAX_TRGET_CD ?? '',
     dsNewCar.NTAX_TRGET_GR_CD ?? '',
     dsNewCar.CAR_NM ?? '',
+    dsNewCar.ECO_YN ?? '',
     dsNewCar.MADE_YY ?? '',
     dsNewCar.VHCTY_ASORT_CODE ?? '',
     dsNewCar.CAR_KD ?? '',

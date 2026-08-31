@@ -1090,7 +1090,7 @@ const NewcarInfo = ({
     const exemptionTargetOptions = useMemo(
         () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS)
             .filter(item => (
-                !['07','11', '17', '19'].includes(item.CODE_ID)
+                !['07','11', '17', '19', '20'].includes(item.CODE_ID)
                 && !EXCLUDED_EXEMPTION_TARGET_NAMES.has(normalizeExemptionTargetName(item.CODE_NM))
                 && (String(item.CODE_ID) !== '12' || isJsaEligibleAddress)
             )),

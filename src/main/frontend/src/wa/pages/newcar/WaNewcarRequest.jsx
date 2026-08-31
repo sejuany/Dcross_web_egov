@@ -3018,11 +3018,15 @@ const WaNewcarRequest = ({
 						    className={`wa-action-btn wa-confirm-btn ${
 						        (step === 4 && dsUserInfo.MEMBER_GB === 'SU' && requestDisabled ) ? 'wa-disabled' : ''
 						    }`}
-						    onClick={handleNext}
+						    onClick={step === 4 && (dsUserInfo.MEMBER_GB === 'CA' || dsUserInfo.MEMBER_GB === 'BA')
+								? handleCloseRequest
+								: handleNext}
 						>
 							<span>
 								{
-									purchaseType === 'RENT' ? '확인' 
+									(step === 4 && dsUserInfo.MEMBER_GB === 'CA') ? '닫기'
+									: (step === 4 && dsUserInfo.MEMBER_GB === 'BA') ? '닫기'
+									: purchaseType === 'RENT' ? '확인'
 									: (step === 4 && isRejectedRequest) ? '요청'
 									: (step === 4 && dsUserInfo.MEMBER_GB === 'SU') ? '요청' 
 									: '다음'

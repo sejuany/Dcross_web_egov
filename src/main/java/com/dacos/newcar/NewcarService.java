@@ -1,6 +1,7 @@
 package com.dacos.newcar;
 
 import java.time.LocalDate;
+import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -9,10 +10,13 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.LinkedHashSet;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
 import java.util.StringJoiner;
+import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
@@ -655,6 +659,7 @@ public class NewcarService {
 		List<Map<String, Object>> result = new ArrayList<>();
 		try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
 			Sheet sheet = workbook.getSheetAt(0);
+			Row headerRow = sheet.getRow(0);
 			DataFormatter formatter = new DataFormatter();
 			var evaluator = workbook.getCreationHelper().createFormulaEvaluator();
 			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
@@ -667,6 +672,12 @@ public class NewcarService {
 				row.put("CARID_NO", getCellValue(excelRow.getCell(1), formatter)); // B: 차대번호
 				row.put("CAR_NM", (getCellValue(excelRow.getCell(2), formatter) + " "
 						+ getCellValue(excelRow.getCell(4), formatter)).trim()); // C + E: 차명
+				String carPackage = getExcelCellValue(
+						headerRow, excelRow, formatter, -1, "Package", "CAR_PACKAGE", "패키지");
+				String engine = getExcelCellValue(
+						headerRow, excelRow, formatter, -1, "Engine", "CAR_ENGINE", "엔진");
+				row.put("CAR_PACKAGE", carPackage);
+				row.put("ECO_YN", resolveExcelEcoYn(row.get("CAR_NM"), carPackage, engine));
 				row.put("REGIST_DATE", getCellValue(excelRow.getCell(7), formatter)
 						.replace("-", "").replace(".", "")); // H: 차량등록예정일
 				row.put("DIRECT_YN", getCellValue(excelRow.getCell(8), formatter)); // I: 차량 등록 방법
@@ -682,6 +693,18 @@ public class NewcarService {
 		}
 		return result;
     }
+
+	static String resolveExcelEcoYn(Object carName, String carPackage, String engine) {
+		String model = Objects.toString(carName, "").replaceAll("\\s+", "").toUpperCase(Locale.ROOT);
+		if (model.contains("POLESTAR4")) {
+			return carPackage.toUpperCase(Locale.ROOT).contains("PERFORMANCE") ? "N" : "Y";
+		}
+		if (model.contains("POLESTAR3")) {
+			return engine.toUpperCase(Locale.ROOT).contains("REAR") ? "Y" : "N";
+		}
+		return "Y";
+	}
+
 	private String getExcelCellValue(Row headerRow, Row dataRow, DataFormatter formatter, int fallbackIndex, String... aliases) {
 		int columnIndex = findHeaderIndex(headerRow, formatter, aliases);
 		if (columnIndex < 0) {
@@ -1035,6 +1058,8 @@ public class NewcarService {
 	    dsNewCar.put("CARID_NO", row.get("CARID_NO"));
 	    //dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));									  // 대표소유자명 공란
 	    dsNewCar.put("CAR_NM", row.get("CAR_NM"));
+	    dsNewCar.put("CAR_PACKAGE", row.get("CAR_PACKAGE"));
+	    dsNewCar.put("ECO_YN", row.get("ECO_YN"));
 	    dsNewCar.put("VH_TY_CD", row.get("VH_TY_CD"));
 	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
 	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 						   // 등록일자
@@ -2420,8 +2445,9 @@ public class NewcarService {
 	// 번호판 선택
 	@Transactional
 	public ApiResponse<Object> selectNumplate(Map<String, Object> param, UserDto user) {
+		String serviceId = Objects.toString(param.get("SERVICE_ID"), "");
 		// 선택한 번호판 변경
-		param.put("SERVICE_ID", param.get("SERVICE_ID") + "_S");
+		param.put("SERVICE_ID", serviceId + "_S");
 		param.put("LOGIN_ID", user.getLOGIN_ID());
 		param.put("USE_YN", "S");
 
@@ -2431,7 +2457,168 @@ public class NewcarService {
 	    if(udpateCar <= 0) {
 		return ApiResponse.fail("번호판 상태 변경에 실패했습니다.");
 	    }
+		Map<String, Object> messageParam = Map.of("SERVICE_ID", serviceId);
+		common.update(messageParam, "releasePreviousNumplateMessage");
+		common.update(messageParam, "clearNumplateMessageDetach");
 	    return ApiResponse.ok();
+	}
+
+	static List<String> normalizeNumplateMessageList(Object value) {
+		if (!(value instanceof List<?>)) {
+			throw new BusinessException("번호판 목록이 필요합니다.");
+		}
+		List<?> values = (List<?>) value;
+		LinkedHashSet<String> unique = values.stream()
+				.map(v -> Objects.toString(v, "").trim())
+				.filter(v -> !v.isEmpty())
+				.collect(Collectors.toCollection(LinkedHashSet::new));
+		if (unique.size() != values.size() || unique.isEmpty() || unique.size() > 10) {
+			throw new BusinessException("중복 없는 번호판을 1~10개까지 선택해 주세요.");
+		}
+		return new ArrayList<>(unique);
+	}
+
+	@Transactional
+	public Map<String, Object> sendNumplateSelectionMessage(Map<String, Object> param, UserDto user, HttpSession session) {
+		if (!"SU".equals(user.getMEMBER_GB())) {
+			throw new BusinessException("SP 계정만 번호판 선택 문자를 발송할 수 있습니다.");
+		}
+
+		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
+		String phone = Objects.toString(param.get("PAY_HP_NO"), "").replaceAll("\\D", "");
+		String baseUrl = Objects.toString(param.get("BASE_URL"), "").replaceAll("/+$", "");
+		List<String> carNos = normalizeNumplateMessageList(param.get("CAR_NOS"));
+		if (serviceId.isEmpty() || !phone.matches("\\d{10,11}") || !baseUrl.matches("https?://.+")) {
+			throw new BusinessException("서비스, 수신번호 또는 접속 주소를 확인해 주세요.");
+		}
+
+		List<String> queried = getNumplateSession(session, serviceId);
+		if (queried == null || !queried.containsAll(carNos)) {
+			throw new BusinessException("현재 세션에서 조회하지 않은 번호판이 포함되어 있습니다.");
+		}
+
+		Map<String, Object> work = new HashMap<>();
+		work.put("SERVICE_ID", serviceId);
+		work.put("NUM_LIST", carNos);
+		if (common.select(work, "lockNumplateMessageDetach") == null) {
+			throw new BusinessException("번호판 배정 정보를 찾을 수 없습니다.");
+		}
+		Integer pendingCount = common.select(work, "countPendingNumplateMessageList");
+		if (pendingCount == null || pendingCount != carNos.size()) {
+			throw new BusinessException("이미 사용되었거나 조회 상태가 아닌 번호판이 포함되어 있습니다.");
+		}
+
+		common.update(work, "releasePreviousNumplateMessage");
+		common.update(work, "clearNumplateMessageDetach");
+		String token = UUID.randomUUID().toString().replace("-", "");
+		String confirmNo = String.join(",", carNos);
+		work.put("TOKEN", token);
+		work.put("CONFIRM_NO", confirmNo);
+		if (common.update(work, "assignNumplateMessageList") != carNos.size()
+				|| common.update(work, "updateNumplateMessageDetach") != 1) {
+			throw new BusinessException("번호판 문자 배정에 실패했습니다.");
+		}
+		if (common.update(work, "appendNumplateMessageMemo") != 1) {
+			throw new BusinessException("신규등록 메모 저장에 실패했습니다.");
+		}
+
+		String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + token;
+		Map<String, Object> sms = new HashMap<>();
+		sms.put("PAY_HP_NO", phone);
+		sms.put("MSG_TYPE", "3");
+		sms.put("SUBJECT", "차량 번호 선택");
+		sms.put("TEXT", "아래 링크에서 5분 이내에 차량 번호를 선택해 주세요.\r\n" + url);
+		commonService.sendSms(sms);
+
+		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300);
+	}
+
+	public Map<String, Object> getNumplateSelectionStatus(String serviceId, UserDto user) {
+		if (!"SU".equals(user.getMEMBER_GB())) {
+			throw new BusinessException("SP 계정만 조회할 수 있습니다.");
+		}
+		Map<String, Object> row = common.select(Map.of("SERVICE_ID", serviceId), "selectNumplateMessageStatus");
+		if (row == null || row.get("NUMPLATE_MSG_TOKEN") == null) {
+			return Map.of("state", "NONE");
+		}
+		String selected = Objects.toString(row.get("REQ_CAR_NO"), "");
+		Map<String, Object> result = new HashMap<>(row);
+		String state = !selected.isEmpty() ? "SELECTED" : "Y".equals(row.get("ACTIVE_YN")) ? "ACTIVE" : "EXPIRED";
+		result.put("state", state);
+		if ("ACTIVE".equals(state)) {
+			String confirmNo = Objects.toString(row.get("CONFIRM_NO"), "");
+			result.put("carNos", confirmNo.isBlank() ? List.of() : Arrays.asList(confirmNo.split(",")));
+		}
+		return result;
+	}
+
+	public Map<String, Object> getCustomerNumplateSelection(String token) {
+		Map<String, Object> work = Map.of("TOKEN", Objects.toString(token, ""));
+		Map<String, Object> assignment = common.select(work, "selectNumplateMessageForUpdate");
+		if (assignment == null) {
+			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
+		}
+		String selected = Objects.toString(assignment.get("REQ_CAR_NO"), "");
+		Object appearedAt = assignment.get("APPEAR_DT");
+		if (selected.isEmpty() && (!(appearedAt instanceof java.util.Date)
+				|| ((java.util.Date) appearedAt).toInstant().plusSeconds(300).isBefore(Instant.now()))) {
+			throw new BusinessException("번호판 선택 시간이 만료되었습니다.");
+		}
+		Map<String, Object> listParam = new HashMap<>(work);
+		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
+		List<Map<String, Object>> rows = common.selectList(listParam, "selectNumplateMessageList");
+		Map<String, Object> result = new HashMap<>();
+		result.put("carNos", rows);
+		result.put("selectedCarNo", selected);
+		result.put("expiresAt", rows.isEmpty() ? "" : Objects.toString(rows.get(0).get("EXPIRES_AT"), ""));
+		result.put("customerName", Objects.toString(assignment.get("CUSTOMER_NM"), ""));
+		result.put("carIdNo", Objects.toString(assignment.get("CARID_NO"), ""));
+		result.put("carName", Objects.toString(assignment.get("CAR_NM"), ""));
+		return result;
+	}
+
+	@Transactional
+	public Map<String, Object> confirmCustomerNumplateSelection(Map<String, Object> param) {
+		String token = Objects.toString(param.get("TOKEN"), "").trim();
+		String carNo = Objects.toString(param.get("CAR_NO"), "").trim();
+		Map<String, Object> assignment = common.select(Map.of("TOKEN", token, "LOCK_YN", "Y"), "selectNumplateMessageForUpdate");
+		if (assignment == null) {
+			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
+		}
+		String selected = Objects.toString(assignment.get("REQ_CAR_NO"), "");
+		if (!selected.isEmpty()) {
+			if (selected.equals(carNo)) return Map.of("carNo", carNo, "alreadySelected", true);
+			throw new BusinessException("이미 다른 번호가 선택되었습니다.");
+		}
+		Object appearedAt = assignment.get("APPEAR_DT");
+		if (!(appearedAt instanceof java.util.Date)
+				|| ((java.util.Date) appearedAt).toInstant().plusSeconds(300).isBefore(Instant.now())) {
+			throw new BusinessException("번호판 선택 시간이 만료되었습니다.");
+		}
+
+		Map<String, Object> work = new HashMap<>();
+		work.put("TOKEN", token);
+		work.put("CAR_NO", carNo);
+		work.put("CARID_NO", assignment.get("CARID_NO"));
+		work.put("SERVICE_ID", assignment.get("SERVICE_ID"));
+		work.put("SELECT_SERVICE_ID", assignment.get("SERVICE_ID") + "_S");
+		if (common.update(work, "selectCustomerNumplate") != 1) {
+			throw new BusinessException("배정되지 않은 번호판입니다.");
+		}
+		common.update(work, "releaseOtherNumplateMessageList");
+		work.put("REQ_CAR_NO", carNo);
+		if (common.update(work, "updateReqCarNo") != 1) {
+			throw new BusinessException("선택 번호 저장에 실패했습니다.");
+		}
+		return Map.of("carNo", carNo, "alreadySelected", false);
+	}
+
+	@Transactional
+	public int cleanupExpiredNumplateSelections() {
+		int count = common.update(Map.of(), "clearExpiredNumplateMessageDetach");
+		count += common.update(Map.of(), "releaseExpiredNumplateMessageList");
+		count += common.update(Map.of(), "releaseExpiredPendingNumplateList");
+		return count;
 	}
 
 	// 채권 및 영수증 조회

@@ -239,6 +239,8 @@ const CustomerUpload = () => {
 	// 양식 다운로드
 	const handleDownloadForm = async (doc) => {
 
+		setLoading(true);
+		
 	    try {
 
 	        const res = await axios.post(
@@ -267,7 +269,11 @@ const CustomerUpload = () => {
 	        gf.alert(
 	            e.response?.data?.message || '양식 다운로드 중 오류가 발생했습니다.'
 	        );
-	    }
+	    } finally {
+
+	       // 다운로드 완료 또는 오류 발생 시 로딩 종료
+	       setLoading(false);
+	   }
 	};
 	
 	/* =========================================================

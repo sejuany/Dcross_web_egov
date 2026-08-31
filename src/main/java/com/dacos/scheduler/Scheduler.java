@@ -25,6 +25,11 @@ public class Scheduler {
 
     private final SchedulerService schedulerService;
     private final CommonService commonService;
+
+	@Scheduled(cron = "0 * * * * *", zone = "Asia/Seoul")
+	public void cleanupExpiredNumplateSelections() {
+		schedulerService.cleanupExpiredNumplateSelections();
+	}
     
     @Scheduled(cron = "0 0 8 * * *", zone = "Asia/Seoul")
     public void processTodayNewcarWaitingServices() {
