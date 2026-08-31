@@ -2527,7 +2527,8 @@ public class NewcarService {
 		sms.put("PAY_HP_NO", phone);
 		sms.put("MSG_TYPE", "3");
 		sms.put("SUBJECT", "차량 번호 선택");
-		sms.put("TEXT", "아래 링크에서 5분 이내에 차량 번호를 선택해 주세요.\r\n" + url);
+		sms.put("TEXT", "안녕하세요. 폴스타 차량번호 선택을 위하여 아래 링크에서 5분 이내에 차량 번호를 선택해 주세요.\r\n" + url + "\r\n※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다. \n" + //
+						"담당 스페셜리스트 : " + Objects.toString(user.getMPHONE_NO(), ""));
 		commonService.sendSms(sms);
 
 		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300);
@@ -2615,7 +2616,8 @@ public class NewcarService {
 
 	@Transactional
 	public int cleanupExpiredNumplateSelections() {
-		int count = common.update(Map.of(), "clearExpiredNumplateMessageDetach");
+		int count = common.update(Map.of(), "appendExpiredNumplateMessageMemo");
+		count += common.update(Map.of(), "clearExpiredNumplateMessageDetach");
 		count += common.update(Map.of(), "releaseExpiredNumplateMessageList");
 		count += common.update(Map.of(), "releaseExpiredPendingNumplateList");
 		return count;

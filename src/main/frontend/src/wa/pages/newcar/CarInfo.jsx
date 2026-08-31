@@ -61,9 +61,21 @@ const CarInfo = ({
 				console.error('번호판 선택 상태 조회 실패', e);
 			}
 		};
-		poll();
-		const timer = setInterval(poll, 2000);
-		return () => { stopped = true; clearInterval(timer); };
+		let timer;
+		const handleVisibilityChange = () => {
+			clearInterval(timer);
+			if (!document.hidden) {
+				poll();
+				timer = setInterval(poll, 5000);
+			}
+		};
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		handleVisibilityChange();
+		return () => {
+			stopped = true;
+			clearInterval(timer);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
 	}, [dsCarNoDetach.NUMPLATE_MSG_TOKEN, dsNewCar.REQ_CAR_NO, dsService.SERVICE_ID,
 		dsUserInfo.MEMBER_GB, setDsCarNoDetach, setDsNewCar]);
 	

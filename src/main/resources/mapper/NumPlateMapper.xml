@@ -641,7 +641,9 @@
 
 	<update id="appendNumplateMessageMemo" parameterType="map">
 	    UPDATE TR_NEWCAR
-	       SET MEMO_TX = NVL(MEMO_TX || CHR(10), '') || #{CONFIRM_NO} || ' 조회됨'
+	       SET MEMO_TX = NVL(MEMO_TX || CHR(10), '')
+	           || '[' || TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') || '] '
+	           || #{CONFIRM_NO} || ' 조회됨'
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
@@ -696,6 +698,32 @@
 	     WHERE D.SERVICE_ID = #{SERVICE_ID}
 	     GROUP BY D.NUMPLATE_MSG_TOKEN, D.CONFIRM_NO, N.REQ_CAR_NO
 	</select>
+
+	<update id="appendExpiredNumplateMessageMemo">
+	    MERGE INTO TR_NEWCAR N
+	    USING (
+	        SELECT D.SERVICE_ID, D.CONFIRM_NO
+	          FROM TR_CARNO_DETACH D
+	         WHERE D.NUMPLATE_MSG_TOKEN IS NOT NULL
+	           AND D.CONFIRM_NO IS NOT NULL
+	           AND EXISTS (
+	               SELECT 1 FROM TM_NUMPLATE_LIST P
+	                WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
+	                  AND P.USE_YN = 'P'
+	                  AND P.APPEAR_DT &lt;= SYSDATE - (5 / 1440)
+	           )
+	           AND NOT EXISTS (
+	               SELECT 1 FROM TM_NUMPLATE_LIST P
+	                WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
+	                  AND P.APPEAR_DT &gt; SYSDATE - (5 / 1440)
+	           )
+	    ) E
+	       ON (N.SERVICE_ID = E.SERVICE_ID)
+	     WHEN MATCHED THEN UPDATE
+	       SET MEMO_TX = NVL(N.MEMO_TX || CHR(10), '')
+	           || '[' || TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') || '] '
+	           || E.CONFIRM_NO || ' 미사용처리 완료'
+	</update>
 
 	<update id="clearExpiredNumplateMessageDetach">
 	    UPDATE TR_CARNO_DETACH D

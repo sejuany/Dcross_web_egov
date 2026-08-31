@@ -53,6 +53,7 @@ const WaNumPlateSelectModal = ({
 	const [selected, setSelected] = useState('');
 	const [tel, setTel] = useState('');
 	const [sending, setSending] = useState(false);
+	const [noticeOpen, setNoticeOpen] = useState(true);
 	const preCarNoRef = useRef(''); // ref 내부 기억용
 	const assignCdRef = useRef(''); 
 
@@ -72,6 +73,7 @@ const WaNumPlateSelectModal = ({
 			setSelected('');
 			setKeyword('');
 			setCondition('NOT');
+			setNoticeOpen(true);
 			setCacheNumList([]);
 			preCarNoRef.current = '';
 			setTel(String(dsNewCar.MPHONE_NO || '').replace(/\D/g, ''));
@@ -346,6 +348,13 @@ const WaNumPlateSelectModal = ({
 	    }
 	};
 
+	const formatPhoneNumber = value => {
+		const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+		if (digits.length <= 3) return digits;
+		if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+		const middleEnd = digits.length === 10 ? 6 : 7;
+		return `${digits.slice(0, 3)}-${digits.slice(3, middleEnd)}-${digits.slice(middleEnd)}`;
+	};
 	const handleSendSelectionSms = async () => {
 		if (list.length === 0) return gf.alert('먼저 번호판을 조회해 주세요.');
 		if (!/^\d{10,11}$/.test(tel)) return gf.alert('수신 휴대폰 번호를 확인해 주세요.');
@@ -494,12 +503,37 @@ const WaNumPlateSelectModal = ({
 	                    </div>
 	                </div>
 					
-					<div className="numplate-notice">
-					    <div className="notice-header">
-					        번호 조회 안내
-					    </div>
 
-					    <div className="notice-content">
+					<div className="numplate-sms-wrap">
+						<div className="numplate-sms-title">고객 번호 선택 문자</div>
+						<div className="numplate-sms-row">
+							<label htmlFor="numplate-sms-tel">휴대폰 번호</label>
+							<div className="numplate-sms-controls">
+								<input
+									id="numplate-sms-tel"
+									type="tel"
+									inputMode="numeric"
+									value={formatPhoneNumber(tel)}
+									maxLength={13}
+									onChange={e => setTel(e.target.value.replace(/\D/g, '').slice(0, 11))}
+									placeholder="010-0000-0000"
+								/>
+								<button type="button" className="btn-send" disabled={sending || list.length === 0}
+									onClick={handleSendSelectionSms}>
+									{sending ? '발송 중' : '문자 발송'}
+								</button>
+							</div>
+						</div>
+						<p>조회된 번호판 목록과 고객 선택 링크를 전송합니다.</p>
+					</div>
+					<div className="numplate-notice">
+					    <button type="button" className="notice-header"
+							onClick={() => setNoticeOpen(prev => !prev)} aria-expanded={noticeOpen}>
+					        <span>번호 조회 안내</span>
+							<span className={`notice-toggle ${noticeOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
+					    </button>
+
+					    {noticeOpen && <div className="notice-content">
 						
 					        <p>
 					            번호 조회는 <strong>총 2회</strong> 가능하며, 이후에는 조회된 번호 내에서만 선택할 수 있습니다.
@@ -525,7 +559,7 @@ const WaNumPlateSelectModal = ({
 					            <li>뒷번호 동일 번호 (예: <b>5555</b>)</li>
 					            <li>뒷번호 2~3자리 동일 번호 (예: <b>1004</b>)</li>
 					        </ul>
-					    </div>
+					    </div>}
 					</div>
 
 	                {/* 목록 */}
@@ -579,18 +613,6 @@ const WaNumPlateSelectModal = ({
 
 	            {/* Footer */}
 	            <div className="modal-footer numplate-footer">
-					<input
-						type="tel"
-						value={tel}
-						maxLength={11}
-						aria-label="문자 수신 휴대폰 번호"
-						onChange={e => setTel(e.target.value.replace(/\D/g, ''))}
-						placeholder="문자 수신번호"
-					/>
-					<button type="button" className="btn-select" disabled={sending || list.length === 0}
-						onClick={handleSendSelectionSms}>
-						{sending ? '발송 중' : '문자 발송'}
-					</button>
 	                <button
 	                    type="button"
 	                    className="btn-close"
