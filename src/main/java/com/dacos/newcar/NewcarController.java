@@ -358,6 +358,7 @@ public class NewcarController {
 	    return ResponseEntity.ok(ApiResponse.withKey("result", result));
 	}
 
+	/** SP 로그인 세션으로 번호판을 배정하고 고객 선택 문자를 발송한다. */
 	@PostMapping("/numplate-selection/send")
 	public ResponseEntity<Map<String, Object>> sendNumplateSelection(
 			@RequestBody Map<String, Object> param, HttpSession session) {
@@ -366,6 +367,7 @@ public class NewcarController {
 				"result", newcarService.sendNumplateSelectionMessage(param, user, session)));
 	}
 
+	/** SP 화면의 5초 폴링 및 모달 재오픈에 사용할 현재 배정 상태를 조회한다. */
 	@GetMapping("/numplate-selection/status")
 	public ResponseEntity<Map<String, Object>> getNumplateSelectionStatus(
 			@RequestParam("serviceId") String serviceId, HttpSession session) {

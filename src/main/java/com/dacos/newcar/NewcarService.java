@@ -2457,12 +2457,19 @@ public class NewcarService {
 	    if(udpateCar <= 0) {
 		return ApiResponse.fail("번호판 상태 변경에 실패했습니다.");
 	    }
+		// SP가 직접 번호를 선택한 경우 고객 문자 배정은 더 이상 유효하지 않으므로
+		// 남은 P 번호를 N으로 복구하고 CONFIRM_NO/토큰을 함께 제거한다.
 		Map<String, Object> messageParam = Map.of("SERVICE_ID", serviceId);
 		common.update(messageParam, "releasePreviousNumplateMessage");
 		common.update(messageParam, "clearNumplateMessageDetach");
 	    return ApiResponse.ok();
 	}
 
+	/**
+	 * 문자로 보낼 번호판 목록을 화면 순서대로 정규화한다.
+	 * CONFIRM_NO의 표시 순서도 이 목록을 기준으로 하므로 LinkedHashSet으로 순서를 보존하며,
+	 * 빈 값·중복·10개 초과 요청은 서버에서 다시 차단한다.
+	 */
 	static List<String> normalizeNumplateMessageList(Object value) {
 		if (!(value instanceof List<?>)) {
 			throw new BusinessException("번호판 목록이 필요합니다.");
@@ -2478,6 +2485,16 @@ public class NewcarService {
 		return new ArrayList<>(unique);
 	}
 
+	/**
+	 * SP가 조회한 번호판을 고객에게 5분간 배정하고 선택 링크를 문자로 발송한다.
+	 *
+	 * 처리 순서:
+	 * 1. 로그인 권한과 현재 세션에서 실제 조회한 번호인지 검증한다.
+	 * 2. 서비스의 탈부착 행을 잠가 같은 건의 동시 발송/재발송을 직렬화한다.
+	 * 3. 재발송이면 이전 토큰의 P(표시중) 번호를 N(미사용)으로 돌린다.
+	 * 4. 새 토큰을 번호판 목록과 탈부착 건에 함께 저장하고 조회 이력을 메모에 남긴다.
+	 * 5. 토큰이 포함된 공개 고객 URL을 문자 큐에 등록한다.
+	 */
 	@Transactional
 	public Map<String, Object> sendNumplateSelectionMessage(Map<String, Object> param, UserDto user, HttpSession session) {
 		if (!"SU".equals(user.getMEMBER_GB())) {
@@ -2492,6 +2509,7 @@ public class NewcarService {
 			throw new BusinessException("서비스, 수신번호 또는 접속 주소를 확인해 주세요.");
 		}
 
+		// 브라우저가 임의 번호를 추가해 보내더라도 현재 SP 세션에서 조회한 번호만 허용한다.
 		List<String> queried = getNumplateSession(session, serviceId);
 		if (queried == null || !queried.containsAll(carNos)) {
 			throw new BusinessException("현재 세션에서 조회하지 않은 번호판이 포함되어 있습니다.");
@@ -2500,6 +2518,7 @@ public class NewcarService {
 		Map<String, Object> work = new HashMap<>();
 		work.put("SERVICE_ID", serviceId);
 		work.put("NUM_LIST", carNos);
+		// 재발송과 고객 선택이 엇갈려 서로 다른 토큰을 덮어쓰지 않도록 서비스 행을 잠근다.
 		if (common.select(work, "lockNumplateMessageDetach") == null) {
 			throw new BusinessException("번호판 배정 정보를 찾을 수 없습니다.");
 		}
@@ -2508,6 +2527,7 @@ public class NewcarService {
 			throw new BusinessException("이미 사용되었거나 조회 상태가 아닌 번호판이 포함되어 있습니다.");
 		}
 
+		// 기존 링크를 먼저 무효화하고, 이전 링크에 묶였던 미선택 번호를 재사용 가능 상태로 복구한다.
 		common.update(work, "releasePreviousNumplateMessage");
 		common.update(work, "clearNumplateMessageDetach");
 		String token = UUID.randomUUID().toString().replace("-", "");
@@ -2534,6 +2554,11 @@ public class NewcarService {
 		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300);
 	}
 
+	/**
+	 * SP 화면 폴링 및 모달 재오픈 시 사용하는 배정 상태를 반환한다.
+	 * NONE: 활성 토큰 없음, ACTIVE: 5분 이내 선택 대기, SELECTED: 고객 선택 완료,
+	 * EXPIRED: 토큰은 남아 있으나 선택 가능 시간이 지남.
+	 */
 	public Map<String, Object> getNumplateSelectionStatus(String serviceId, UserDto user) {
 		if (!"SU".equals(user.getMEMBER_GB())) {
 			throw new BusinessException("SP 계정만 조회할 수 있습니다.");
@@ -2553,6 +2578,11 @@ public class NewcarService {
 		return result;
 	}
 
+	/**
+	 * 공개 링크의 토큰으로 고객/차량/배정 번호를 조회한다.
+	 * 아직 선택하지 않은 건만 5분 만료를 적용한다. 이미 선택한 번호는 고객이 같은 링크를
+	 * 다시 열어도 완료 결과를 확인할 수 있도록 만료 후에도 반환한다.
+	 */
 	public Map<String, Object> getCustomerNumplateSelection(String token) {
 		Map<String, Object> work = Map.of("TOKEN", Objects.toString(token, ""));
 		Map<String, Object> assignment = common.select(work, "selectNumplateMessageForUpdate");
@@ -2578,10 +2608,17 @@ public class NewcarService {
 		return result;
 	}
 
+	/**
+	 * 고객이 고른 번호를 확정한다.
+	 * 토큰 행을 FOR UPDATE로 잠근 뒤 선택 번호는 S(사용), 나머지는 N(미사용)으로 바꾸고
+	 * TR_NEWCAR.REQ_CAR_NO까지 한 트랜잭션으로 저장한다. 같은 번호의 재요청은 멱등 성공,
+	 * 다른 번호로 다시 선택하는 요청은 거절한다.
+	 */
 	@Transactional
 	public Map<String, Object> confirmCustomerNumplateSelection(Map<String, Object> param) {
 		String token = Objects.toString(param.get("TOKEN"), "").trim();
 		String carNo = Objects.toString(param.get("CAR_NO"), "").trim();
+		// 더블 클릭이나 여러 브라우저의 동시 확정 요청이 한 번호만 선택하도록 배정 행을 잠근다.
 		Map<String, Object> assignment = common.select(Map.of("TOKEN", token, "LOCK_YN", "Y"), "selectNumplateMessageForUpdate");
 		if (assignment == null) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
@@ -2614,6 +2651,11 @@ public class NewcarService {
 		return Map.of("carNo", carNo, "alreadySelected", false);
 	}
 
+	/**
+	 * 1분 주기 스케줄러에서 5분이 지난 번호판 배정을 정리한다.
+	 * CONFIRM_NO와 토큰을 지우기 전에 번호 목록을 메모에 남겨야 하므로 아래 실행 순서를 바꾸면 안 된다.
+	 * 마지막 쿼리는 문자 토큰 없이 남은 오래된 P 상태까지 안전망으로 복구한다.
+	 */
 	@Transactional
 	public int cleanupExpiredNumplateSelections() {
 		int count = common.update(Map.of(), "appendExpiredNumplateMessageMemo");

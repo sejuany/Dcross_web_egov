@@ -43,12 +43,14 @@ public class CustomerController {
         this.newcarService = newcarService;
     }
 
+	/** 로그인 없이 문자 토큰으로 고객용 번호판 선택 화면 데이터를 조회한다. */
 	@GetMapping("/numplate-selection")
 	public ResponseEntity<Map<String, Object>> getNumplateSelection(@RequestParam("token") String token) {
 		return ResponseEntity.ok(ApiResponse.withKey(
 				"result", newcarService.getCustomerNumplateSelection(token)));
 	}
 
+	/** 로그인 없이 토큰에 배정된 번호 중 하나를 최종 확정한다. */
 	@PostMapping("/numplate-selection/confirm")
 	public ResponseEntity<Map<String, Object>> confirmNumplateSelection(
 			@RequestBody Map<String, Object> param) {

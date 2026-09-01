@@ -199,7 +199,7 @@
 	        MSG_QUEUE_SEQ.NEXTVAL,
 	        #{MSG_TYPE},
 	        #{PAY_HP_NO},
-	        '16886112',
+	        '18440801',
 	        '0',
 	        #{TEXT},
 	        <if test="SUBJECT != null and SUBJECT != ''">
@@ -225,7 +225,7 @@
 	        MSG_QUEUE_SEQ.NEXTVAL,
 	        #{MSG_TYPE},
 	        #{PAY_HP_NO},
-	        '16886112',
+	        '18440801',
 	        '0',
 	        #{TEXT},
 	        #{SUBJECT},

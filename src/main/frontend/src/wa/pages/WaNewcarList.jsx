@@ -29,7 +29,7 @@ const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
     'INS_DATE',
     'JUDGE_DT',
     'INSTALL_YN',
-    'DELIVERY_ADDR'
+    'LAST_DELIVERY_ADDR'
 ]);
 
 
@@ -122,7 +122,7 @@ const columns = [
     { key: 'JUDGE_DT', label: '등록일자', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'INSTALL_YN', label: '배송여부', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'SPACE', label: 'SPACE', width: 116, minWidth: 60 },
-    { key: 'DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
+    { key: 'LAST_DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
     { key: 'MEMBER_ID', label: '담당SP명', width: 112, minWidth: 60 },
     { key: 'RETURN_TX', label: '비고', type: 'remark', width: 190, minWidth: 60, className: 'wide-text' }
 ];
@@ -243,6 +243,7 @@ const getUserBranchId = (user) => String(
 const toYmd = (value) => String(value || '').replace(/-/g, '');
 
 const toStringValue = (value) => String(value ?? '').trim();
+const formatBizNo = (value) => toStringValue(value).replace(/\D/g, '').replace(/^(\d{3})(\d{2})(\d{5})$/, '$1-$2-$3');
 
 const formatAmount = (value) => {
     const digits = String(value ?? '').replace(/[^0-9-]/g, '');
@@ -478,7 +479,7 @@ const WaNewcarList = () => {
             JUDGE_DT: row.JUDGE_DT || '',
             INSTALL_YN: row.INSTALL_YN || '',
             SPACE: row.SPACE || '',
-            DELIVERY_ADDR: row.DELIVERY_ADDR || '',
+            LAST_DELIVERY_ADDR: row.LAST_DELIVERY_ADDR || '',
             MEMBER_ID: row.MEMBER_ID || '',
             RETURN_TX: row.RETURN_TX || '',
             CAR_NM: row.CAR_NM || ''
@@ -509,7 +510,7 @@ const WaNewcarList = () => {
             regDate: displayValues.JUDGE_DT,
             installYn: displayValues.INSTALL_YN,
             space: displayValues.SPACE,
-            address: displayValues.DELIVERY_ADDR,
+            address: displayValues.LAST_DELIVERY_ADDR,
             sp: displayValues.MEMBER_ID,
             remark: displayValues.RETURN_TX
         };
@@ -765,15 +766,15 @@ const WaNewcarList = () => {
                         SEQ: index + 1,
                         OWNER_NM: privacy.OWNER_NM || row.displayValues.OWNER_NM || '',
                         OWNER_TYPE: privacy.OWNER_TYPE || '',
-                        OWNER_REG_NO: privacy.OWNER_REG_NO || '',
-                        OWNER_BIZ_NO: privacy.OWNER_BIZ_NO || '',
+                        OWNER_REG_NO: gf.formatRegNo(privacy.OWNER_REG_NO),
+                        OWNER_BIZ_NO: formatBizNo(privacy.OWNER_BIZ_NO),
                         OWNER_ADDRESS: privacy.OWNER_ADDRESS || '',
                         OWNER_EMAIL1: privacy.OWNER_EMAIL1 || '',
                         OWNER_EMAIL2: privacy.OWNER_EMAIL2 || '',
                         JOINT_OWNER_NM: privacy.JOINT_OWNER_NM || '',
                         JOINT_OWNER_TYPE: privacy.JOINT_OWNER_TYPE || '',
-                        JOINT_OWNER_REG_NO: privacy.JOINT_OWNER_REG_NO || '',
-                        JOINT_OWNER_BIZ_NO: privacy.JOINT_OWNER_BIZ_NO || '',
+                        JOINT_OWNER_REG_NO: gf.formatRegNo(privacy.JOINT_OWNER_REG_NO),
+                        JOINT_OWNER_BIZ_NO: formatBizNo(privacy.JOINT_OWNER_BIZ_NO),
                         JOINT_OWNER_ADDRESS: privacy.JOINT_OWNER_ADDRESS || ''
                     }
                 };

@@ -40,6 +40,13 @@ const CarInfo = ({
 	const assignCdRef = useRef('');
 	const [numplateDisabled, setNumplateDisabled] = useState(false); 
 
+	/*
+	 * 고객 선택 결과 자동 반영:
+	 * - SP 계정이며 활성 문자 토큰이 있고 아직 차량번호가 없는 동안만 동작한다.
+	 * - 보이는 탭에서만 즉시 1회 조회 후 5초 간격으로 폴링하여 불필요한 서버 요청을 줄인다.
+	 * - 고객 선택이 확인되면 REQ_CAR_NO를 반영하고 모달을 닫는다.
+	 * - 만료/정리된 토큰은 화면 state에서도 제거해 폴링을 종료한다.
+	 */
 	useEffect(() => {
 		if (dsUserInfo.MEMBER_GB !== 'SU' || !dsService.SERVICE_ID
 				|| !dsCarNoDetach.NUMPLATE_MSG_TOKEN || dsNewCar.REQ_CAR_NO) return;
@@ -62,6 +69,7 @@ const CarInfo = ({
 			}
 		};
 		let timer;
+		// 비활성 탭에서는 interval을 완전히 제거하고, 다시 보일 때 즉시 최신 상태부터 확인한다.
 		const handleVisibilityChange = () => {
 			clearInterval(timer);
 			if (!document.hidden) {

@@ -33,6 +33,7 @@ public class SchedulerService {
         this.newcarService = newcarService;
     }
 
+	/** 만료 정리의 트랜잭션 경계는 NewcarService에 두고 스케줄러는 해당 흐름만 위임한다. */
 	public int cleanupExpiredNumplateSelections() {
 		return newcarService.cleanupExpiredNumplateSelections();
 	}

@@ -51,8 +51,8 @@ export const ATTACH_DOC = {
         code: 'JOINT_OWNER_AGREEMENT',
         name: '공동명의 등록조서',
         seq: 40,
-        gubun: 'NWEB',
-		formYn: 'Y'
+        gubun: 'NWEB'
+		//formYn: 'Y'
     },
 
     // ===== 이용자명의 리스 =====
@@ -349,7 +349,7 @@ export const NTAX_POLICY = {
 			    NTAX_ATTACH_DOC.BASIC_CERT,		// 기본증명서(상세)
 			    NTAX_ATTACH_DOC.MINOR_AGREEMENT, // (보호자)법정대리인 동의서
 			    NTAX_ATTACH_DOC.GUARDIAN_CERT, 	// (보호자)보호자 인감증명서 또는 본인서명사실확인서
-			    NTAX_ATTACH_DOC.GUARDIAN_ID 		// (보호자)보호자 신분증
+			    NTAX_ATTACH_DOC.GUARDIAN_ID 	// (보호자)보호자 신분증
 		],
 		
 		// 취득세 면제인 것들만 사인을 하고, 감면신청서 없이 파일끼리 병합만 한다. (병합 pdf는 만들어야 됨)

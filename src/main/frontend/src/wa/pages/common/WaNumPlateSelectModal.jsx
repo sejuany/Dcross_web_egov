@@ -63,7 +63,12 @@ const WaNumPlateSelectModal = ({
 	// 폴스타
 	const isUserWa001 = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
 	
-	// 모달 열릴 때 초기 조회
+	/*
+	 * 모달을 다시 열었을 때 아직 5분이 지나지 않은 문자 배정이 있으면 새 번호를 조회하지 않고
+	 * 기존에 고객에게 보낸 번호 목록을 그대로 복원한다. CONFIRM_NO 순서는 서버가 보장한다.
+	 * preCarNoRef에도 넣어 기존 모달의 닫기/재조회 흐름을 유지하되, 서버는 문자 토큰이 있는
+	 * 번호를 일반 numplateRelease 요청으로 해제하지 않아 고객 배정이 보호된다.
+	 */
 	useEffect(() => {
 		let cancelled = false;
 		const restoreAssignedList = async () => {
@@ -355,6 +360,11 @@ const WaNumPlateSelectModal = ({
 		const middleEnd = digits.length === 10 ? 6 : 7;
 		return `${digits.slice(0, 3)}-${digits.slice(3, middleEnd)}-${digits.slice(middleEnd)}`;
 	};
+	/*
+	 * 현재 화면의 1~10개 번호를 서버에 전달한다. 실제 권한, 세션 조회 이력, P 상태 검증과
+	 * 토큰 생성은 신뢰 경계인 서버에서 수행하며, 성공 후 받은 토큰을 부모 state에 저장해
+	 * CarInfo의 상태 폴링을 시작한다.
+	 */
 	const handleSendSelectionSms = async () => {
 		if (list.length === 0) return gf.alert('먼저 번호판을 조회해 주세요.');
 		if (!/^\d{10,11}$/.test(tel)) return gf.alert('수신 휴대폰 번호를 확인해 주세요.');
@@ -373,7 +383,7 @@ const WaNumPlateSelectModal = ({
 				CONFIRM_NO: result.confirmNo,
 				NUMPLATE_MSG_TOKEN: result.token
 			}));
-			gf.alert('번호판 선택 문자를 발송했습니다. 5분 동안 선택할 수 있습니다.');
+			gf.alert('[문자 발송 완료] 문자 발송 시점부터 5분 동안 번호 선택이 가능합니다.');
 		} catch (e) {
 			gf.alert(e.response?.data?.message || '문자 발송 중 오류가 발생했습니다.');
 		} finally {
@@ -527,13 +537,17 @@ const WaNumPlateSelectModal = ({
 						<p>조회된 번호판 목록과 고객 선택 링크를 전송합니다.</p>
 					</div>
 					<div className="numplate-notice">
-					    <button type="button" className="notice-header"
-							onClick={() => setNoticeOpen(prev => !prev)} aria-expanded={noticeOpen}>
-					        <span>번호 조회 안내</span>
-							<span className={`notice-toggle ${noticeOpen ? 'open' : ''}`} aria-hidden="true">⌄</span>
-					    </button>
+						<h3 className="notice-heading">
+							<button type="button" id="numplateNoticeButton" className="notice-header"
+								onClick={() => setNoticeOpen(prev => !prev)} aria-expanded={noticeOpen}
+								aria-controls="numplateNoticeContent">
+								<span>번호 조회 안내</span>
+								<span className="notice-toggle" aria-hidden="true" />
+							</button>
+						</h3>
 
-					    {noticeOpen && <div className="notice-content">
+					    <div id="numplateNoticeContent" className="notice-content" role="region"
+							aria-labelledby="numplateNoticeButton" hidden={!noticeOpen}>
 						
 					        <p>
 					            번호 조회는 <strong>총 2회</strong> 가능하며, 이후에는 조회된 번호 내에서만 선택할 수 있습니다.
@@ -559,7 +573,7 @@ const WaNumPlateSelectModal = ({
 					            <li>뒷번호 동일 번호 (예: <b>5555</b>)</li>
 					            <li>뒷번호 2~3자리 동일 번호 (예: <b>1004</b>)</li>
 					        </ul>
-					    </div>}
+					    </div>
 					</div>
 
 	                {/* 목록 */}

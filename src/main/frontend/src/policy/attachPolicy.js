@@ -106,7 +106,7 @@ export function getAttachPolicy(dsNewCar, dsOwnerInfo) {
     if (Number(dsNewCar.RATIO_NO || 100) !== 100) {
 
         addGroup('joint', [
-            ATTACH_DOC.JOINT_OWNER_AGREEMENT
+            //ATTACH_DOC.JOINT_OWNER_AGREEMENT
         ]);
     }
 

@@ -432,9 +432,8 @@ export const newCarMap = {
 	CONTRACTOR_DT: 'CONTRACTOR_DT',
 	
 	// 다목적 차량
-	VH_TY_CD: 'VH_TY_CD'
-
-	,
+	VH_TY_CD: 'VH_TY_CD',
+	
 	CAR_PACKAGE: 'CAR_PACKAGE',
 	ECO_YN: 'ECO_YN',
 };

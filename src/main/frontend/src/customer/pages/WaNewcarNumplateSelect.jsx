@@ -13,7 +13,8 @@ const WaNewcarNumplateSelect = () => {
     const [loading, setLoading] = useState(true);
     const [remainingSeconds, setRemainingSeconds] = useState(null);
 
-    useEffect(() => {
+	// URL의 공개 토큰만 서버로 보내며, 고객/차량/번호 목록과 서버 기준 만료 시각을 조회한다.
+	useEffect(() => {
         axios.get('/api/customer/numplate-selection', { params: { token } })
             .then(({ data: response }) => {
                 setData(response.result);
@@ -23,7 +24,11 @@ const WaNewcarNumplateSelect = () => {
             .finally(() => setLoading(false));
     }, [token]);
 
-    useEffect(() => {
+	/*
+	 * 초 단위 카운트다운은 안내용 UI다. 브라우저 시간이 다르거나 탭이 지연되더라도
+	 * 최종 선택 가능 여부는 confirm API가 DB의 APPEAR_DT를 기준으로 다시 검증한다.
+	 */
+	useEffect(() => {
         if (!data?.expiresAt || data.selectedCarNo) return;
         const expiresAt = new Date(data.expiresAt.replace(' ', 'T')).getTime();
         const tick = () => setRemainingSeconds(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
@@ -32,7 +37,8 @@ const WaNewcarNumplateSelect = () => {
         return () => clearInterval(timer);
     }, [data?.expiresAt, data?.selectedCarNo]);
 
-    const confirm = async () => {
+	// 서버가 동시 요청을 잠금 처리하므로 더블 클릭/재요청에도 한 번호만 최종 확정된다.
+	const confirm = async () => {
         if (!selected) return setMessage('번호판을 선택해 주세요.');
         setLoading(true);
         try {
