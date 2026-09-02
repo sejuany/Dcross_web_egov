@@ -1,7 +1,12 @@
 package com.dacos.newcar;
 
-import java.time.LocalDate;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
+import java.io.OutputStream;
+import java.net.URLEncoder;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -9,8 +14,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -53,6 +58,7 @@ import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
 import com.fasterxml.jackson.databind.JsonNode;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 import lombok.RequiredArgsConstructor;
 
@@ -98,7 +104,6 @@ public class NewcarService {
     private final SchedulerMapper schedulerMapper;
     private final AttachService attachService;
     private final SearchLogInterceptor searchLogInterceptor;
-    
 
     /**
      * 신차 등록 목록 조회
@@ -823,6 +828,49 @@ public class NewcarService {
 
 		return Map.of("success", true, "insertCount", insertCount, "errors", List.of());
 	}
+	
+	/**
+	 * 엑셀 업로드 양식 다운로드
+	 */
+	public void downloadExcelTemplate(
+	        String fileName,
+	        HttpServletResponse response) throws Exception {
+
+	    File file = new File(attachService.getFormRoot(), fileName);
+
+	    if (!file.exists()) {
+	        throw new FileNotFoundException("엑셀 업로드 양식 파일이 없습니다.");
+	    }
+
+	    String encodedFileName = URLEncoder.encode(fileName, "UTF-8")
+	            .replace("+", "%20");
+
+	    response.setContentType(
+	            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+	    );
+
+	    response.setHeader(
+	            "Content-Disposition",
+	            "attachment; filename=\"" + encodedFileName + "\""
+	    );
+
+	    response.setContentLength((int) file.length());
+
+	    try (
+	        FileInputStream fis = new FileInputStream(file);
+	        OutputStream os = response.getOutputStream()
+	    ) {
+	        byte[] buffer = new byte[8192];
+	        int length;
+
+	        while ((length = fis.read(buffer)) != -1) {
+	            os.write(buffer, 0, length);
+	        }
+
+	        os.flush();
+	    }
+	}
+
 
 	/**
 	 * 제작증 PDF 업로드
@@ -2135,9 +2183,12 @@ public class NewcarService {
 
 		String serviceId = input.get("SERVICE_ID").toString();
 
+		/*
+		// 저장시 차대번호 체크?
+		// 주석 풀 때 확인. isDuplicateCar안에 'SAV'있어서 오류
 	    if (!Objects.equals("RET", input.get("JUDGE_ST")) && isDuplicateCar(input)) {
 	        throw new RuntimeException("중복된 차대번호입니다.");
-	    }
+	    }*/
 
 		logger.info("ADDR_INFO={}", input.get("ADDR_INFO"));
 		logger.info("ADDR_INFO2={}", input.get("ADDR_INFO2"));
@@ -2167,6 +2218,12 @@ public class NewcarService {
 	private boolean isDuplicateCar(Map<String, Object> input) {
 	    var where = Map.of("CARID_NO", input.get("CARID_NO"));
 	    return !common.selectList(where, "selectDuplicateCarIdNO").isEmpty();
+	}
+	
+	// 중복된 차대번호 조회
+	private boolean isDuplicateCar3(Map<String, Object> input) {
+	    var where = Map.of("CARID_NO", input.get("CARID_NO"));
+	    return !common.selectList(where, "selectDuplicateCarIdNO3").isEmpty();
 	}
 
 	// 중복된 차대번호 조회 (엑셀업로드 시)
@@ -2504,6 +2561,9 @@ public class NewcarService {
 		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 		String phone = Objects.toString(param.get("PAY_HP_NO"), "").replaceAll("\\D", "");
 		String baseUrl = Objects.toString(param.get("BASE_URL"), "").replaceAll("/+$", "");
+		boolean isResend = Boolean.parseBoolean(Objects.toString(param.get("IS_RESEND"), "false"))
+				|| "Y".equalsIgnoreCase(Objects.toString(param.get("IS_RESEND"), ""));
+
 		List<String> carNos = normalizeNumplateMessageList(param.get("CAR_NOS"));
 		if (serviceId.isEmpty() || !phone.matches("\\d{10,11}") || !baseUrl.matches("https?://.+")) {
 			throw new BusinessException("서비스, 수신번호 또는 접속 주소를 확인해 주세요.");
@@ -2519,9 +2579,37 @@ public class NewcarService {
 		work.put("SERVICE_ID", serviceId);
 		work.put("NUM_LIST", carNos);
 		// 재발송과 고객 선택이 엇갈려 서로 다른 토큰을 덮어쓰지 않도록 서비스 행을 잠근다.
-		if (common.select(work, "lockNumplateMessageDetach") == null) {
+		Map<String, Object> detachRow = common.select(work, "lockNumplateMessageDetach");
+		if (detachRow == null) {
 			throw new BusinessException("번호판 배정 정보를 찾을 수 없습니다.");
 		}
+
+		String existingToken = Objects.toString(detachRow.get("NUMPLATE_MSG_TOKEN"), "").trim();
+
+		// 재발송 요청인 경우: 기존 토큰과 번호판 상태를 유지한 채 문자만 재발송한다.
+		if (isResend) {
+			if (existingToken.isEmpty()) {
+				throw new BusinessException("기존 발송된 번호판 선택 정보가 없습니다. 새로 발송해 주세요.");
+			}
+			// 이미 고객이 선택을 완료했는지 확인
+			Map<String, Object> currentStatus = common.select(Map.of("SERVICE_ID", serviceId), "selectNumplateMessageStatus");
+			if (currentStatus != null && !Objects.toString(currentStatus.get("REQ_CAR_NO"), "").isEmpty()) {
+				throw new BusinessException("고객이 이미 번호판 선택을 완료했습니다.");
+			}
+
+			String confirmNo = Objects.toString(detachRow.get("CONFIRM_NO"), String.join(",", carNos));
+			String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + existingToken;
+			Map<String, Object> sms = new HashMap<>();
+			sms.put("PAY_HP_NO", phone);
+			sms.put("MSG_TYPE", "3");
+			sms.put("SUBJECT", "차량 번호 선택");
+			sms.put("TEXT", "안녕하세요. 폴스타 차량번호 선택을 위하여 아래 링크에서 5분 이내에 차량 번호를 선택해 주세요.\r\n" + url + "\r\n※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다. \n" + //
+							"담당 스페셜리스트 : " + Objects.toString(user.getMPHONE_NO(), ""));
+			commonService.sendSms(sms);
+
+			return Map.of("token", existingToken, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300, "isResend", true);
+		}
+
 		Integer pendingCount = common.select(work, "countPendingNumplateMessageList");
 		if (pendingCount == null || pendingCount != carNos.size()) {
 			throw new BusinessException("이미 사용되었거나 조회 상태가 아닌 번호판이 포함되어 있습니다.");
@@ -2551,7 +2639,7 @@ public class NewcarService {
 						"담당 스페셜리스트 : " + Objects.toString(user.getMPHONE_NO(), ""));
 		commonService.sendSms(sms);
 
-		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300);
+		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300, "isResend", false);
 	}
 
 	/**
@@ -2604,6 +2692,7 @@ public class NewcarService {
 		result.put("expiresAt", rows.isEmpty() ? "" : Objects.toString(rows.get(0).get("EXPIRES_AT"), ""));
 		result.put("customerName", Objects.toString(assignment.get("CUSTOMER_NM"), ""));
 		result.put("carIdNo", Objects.toString(assignment.get("CARID_NO"), ""));
+		result.put("linkId", Objects.toString(assignment.get("LINK_ID"), ""));
 		result.put("carName", Objects.toString(assignment.get("CAR_NM"), ""));
 		return result;
 	}

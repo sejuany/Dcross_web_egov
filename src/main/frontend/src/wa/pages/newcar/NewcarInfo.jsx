@@ -1029,6 +1029,9 @@ const RefundAccountFields = memo(({
                         data-type="newcar"
                         value={returnAccount}
                         onCommit={onFieldCommit}
+						
+						// 계좌번호는 숫자와 하이픈(-)만 입력 가능
+					    sanitizeValue={(value) => value.replace(/[^0-9-]/g, '')}
                         placeholder="계좌번호 입력"
                     />
                 </div>

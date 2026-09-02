@@ -2427,7 +2427,8 @@ const WaNewcarRequest = ({
 			|| (Number(dsNewCar.BUY_AMT || 0) > 0 ? '' : '공급가액을 입력해주세요.')
 			|| requireValue(dsNewCar.NUMPLATE_GB, '번호판 종류')
 			|| requireValue(dsNewCar.REQ_CAR_NO, '차량번호')
-			|| requireValue(dsCarNoDetach.DELIVERY_GB, '번호판 배송지');
+			|| requireValue(dsCarNoDetach.DELIVERY_GB, '번호판 배송지')
+			|| requireValue(dsNewCar.CARP_ADDRESS, '등록증 수령지');
 
 		if (message) {
 			return message;

@@ -159,15 +159,15 @@ const WaNewcarDetail = ({
 				               		 : '';
 	
 	const handleDeliverySearch = () => {
-	    const songjangNo = (dsCarNoDetach?.SONGJANG_NO || '').replace(/-/g, '');
+	    const ETC5 = (dsCarNoDetach?.ETC5 || '').replace(/-/g, '');
 
-	    if (!songjangNo) {
-	        gf.alert('송장번호가 없습니다.');
+	    if (!ETC5) {
+	        gf.alert('등기번호가 없습니다.');
 	        return;
 	    }
 
 	    window.open(
-	        `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${songjangNo}&displayHeader=N`,
+	        `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${ETC5}&displayHeader=N`,
 	        '_blank'
 	    );
 	};
@@ -656,8 +656,21 @@ const WaNewcarDetail = ({
 				                <span className="wa-detail-name">SPACE</span>
 				                <span>{dsDLVGB?.find(item => item.CODE_ID === dsCarNoDetach.DELIVERY_GB)?.CODE_NM ?? '-'}</span>
 				            </div>
-
-				        </div>
+							
+							<div className="wa-detail-row">
+				                <span className="wa-detail-name">등록증 수령지</span>
+				                <span>
+									{`${dsNewCar.CARP_ADDRESS || ''} ${dsNewCar.CARP_ADDRESS_DT || ''}`}
+								</span>
+								
+				            </div>
+						</div>
+							<div className="wa-detail-right">
+								<button type="button" className="wa-detail-delivery-btn" onClick={handleDeliverySearch}>
+							    	<Search size={20} strokeWidth={2.5} />
+					                <span>등록서류 현황</span>
+					            </button>
+					        </div>
 				    </div>
 				</div>
 				

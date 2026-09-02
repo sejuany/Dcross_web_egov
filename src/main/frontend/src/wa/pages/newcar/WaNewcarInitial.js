@@ -50,8 +50,6 @@ export const initialDsNewCar = {
 	LAST_DT: '',
 	GOVT_TX: '',
 	REGIST_DATE: '',
-	GETIN_NO: '',
-	CAR_CC: '',
 
 	// 번호판
 	NUMPLATE_GB: '7',
@@ -132,8 +130,6 @@ export const initialDsNewCar = {
 	RATIO_NO: '100',
 	CONTRACTOR_NM: '',
 	CONTRACTOR_DT: '',
-	CAR_PACKAGE: '',
-	ECO_YN: '',
 };
 
 export const initialOwnerInfo = {
@@ -343,8 +339,6 @@ export const newCarMap = {
 	LAST_DT: 'LAST_DT',
 	GOVT_TX: 'GOVT_TX',
 	REGIST_DATE: 'REGIST_DATE',
-	GETIN_NO: 'GETIN_NO',
-	CAR_CC: 'CAR_CC',
 	// 번호판
 	NUMPLATE_GB: 'NUMPLATE_GB',
 	IMSINUM_YN: 'IMSINUM_YN',

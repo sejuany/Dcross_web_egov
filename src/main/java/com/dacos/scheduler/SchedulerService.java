@@ -68,6 +68,14 @@ public class SchedulerService {
 					logger.error("[보험접수] 08시 스케줄 처리 실패 - serviceId: {}", serviceId, e);
 				}
 
+                // 고객 연락처 및 SMS 발송 결과와 관계없이 심사요청으로 상태 변경
+                int updated = schedulerMapper.updateServiceToJudgeRequest(serviceId);
+                updateCount += updated;
+
+                if (updated == 0) {
+                    logger.warn("[SchedulerService] 상태 변경 대상 없음 - serviceId: {}, currentProcSt: {}", serviceId, target.getPROC_ST());
+                }
+
                 if (isBlank(target.getMPHONE_NO())) {
                     logger.warn("[SchedulerService] SMS 발송 제외 - 고객 연락처 없음, serviceId: {}", serviceId);
                     continue;
@@ -147,15 +155,6 @@ public class SchedulerService {
                 param.put("SUBJECT", sSubject);                   // 문자메세지 제목
                 commonService.sendSms(param);
                 logger.info("[SchedulerService] SMS문자 발송완료 - serviceId: {}, 문자내용: {}", serviceId, smsText);
-
-                // 심사요청으로 상태 변경
-                // 한성자동차는 S_WAIT 라서 납부요청 조건 제거
-                int updated = schedulerMapper.updateServiceToJudgeRequest(serviceId);
-                updateCount += updated;
-
-                if (updated == 0) {
-                    logger.warn("[SchedulerService] 상태 변경 대상 없음 - serviceId: {}, currentProcSt: {}", serviceId, target.getPROC_ST());
-                }
             } catch (Exception e) {
                 logger.error("[SchedulerService] 처리 실패 - serviceId: {}, message: {}", serviceId, e.getMessage(), e);
             }

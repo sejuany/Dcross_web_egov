@@ -79,6 +79,18 @@ const useAddressHandler = ({
 
 		    return;
 		}
+		// 등록증 배송지
+		else if (type === 'CARP_ADDRESS') {
+
+		    setDsNewCar(prev => ({
+				...prev,
+		        CARP_ADDRESS: addr.ADDR,
+		        //CARP_ADDRESS_DT:  addr.ADDRESS_DT ?? addr.ADDR_DT ?? '',
+		        CARP_POST_NO: addr.POST_NO
+		    }));
+
+		    return;
+		}
 
 		const addrInfo = corp ? (addr.ROAD_CD ?? '') + 'þ' +
 	          String(addr.BUBJUNG_CD ?? '').substring(0, 8) + '00þ' +
@@ -333,6 +345,18 @@ const useAddressHandler = ({
 	        }));
 	        return;
 	    }
+		
+		// 등록증 배송지
+	    if (type === 'CARP_ADDRESS') {
+	        setDsNewCar(prev => ({
+	            ...prev,
+	            CARP_ADDRESS: '',
+	            CARP_ADDRESS_DT: '',
+	            CARP_POST_NO: ''
+	        }));
+	        return;
+	    }
+
 
 	    setDsNewCar(prev => {
 

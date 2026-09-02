@@ -102,7 +102,9 @@ const AddressSearch = ({
 	onSelect,
 	onClear,
 	showSameCheckbox = false,
+	showBaseAddressCheckbox = false,
 	onSameChange,
+	onBaseAddressChange,
 	sameLabel,
 	data,
 	dataType = 'newcar',
@@ -169,6 +171,16 @@ const AddressSearch = ({
 				        <input
 				            type="checkbox"
 				            onChange={onSameChange}
+				        />
+				    </label>
+				)}
+				
+				{showBaseAddressCheckbox && (
+				    <label className="wa-form-sub-label">
+				        &nbsp;사용본거지와 동일
+				        <input
+				            type="checkbox"
+				            onChange={onBaseAddressChange}
 				        />
 				    </label>
 				)}

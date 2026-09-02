@@ -36,7 +36,8 @@ const CarInfo = ({
 	    ['l', 'm', 'n', 'o', 'p'].includes(dsNewCar.FUEL_CD);
 	// 배송지 직접입력 여부
 	//const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
-	
+	// 법인 등록번호 선택 시 화면 변경 
+	const isCorporate = dsNewCar.REG_GB === 'B';
 	const assignCdRef = useRef('');
 	const [numplateDisabled, setNumplateDisabled] = useState(false); 
 
@@ -178,7 +179,33 @@ const CarInfo = ({
 		setDsCarNoDetach(newDsCarNoDetach);	
 		
 		return newDsCarNoDetach;
-	}
+	};
+	
+	// 주소 기능 추가
+	const {
+	    handleAddressSelect,
+	    handleClearAddress,
+	} = address;
+
+	// 주소 밑 체크 
+	const handleSameAddress = (e) => {
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        CARP_ADDRESS: e.target.checked ? prev.ADDRESS : '',
+	        CARP_ADDRESS_DT: e.target.checked ? prev.ADDRESS_DT : '',
+	        CARP_POST_NO: e.target.checked ? prev.POST_NO : ''
+	    }));
+	};
+
+	// 사용본거지 밑 체크 
+	const handleBaseAddressChange = (e) => {
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        CARP_ADDRESS: e.target.checked ? prev.BASE_ADDRESS : '',
+	        CARP_ADDRESS_DT: e.target.checked ? prev.BASE_ADDRESS_DT : '',
+	        CARP_POST_NO: e.target.checked ? prev.BASE_POST_NO : ''
+	    }));
+	};
 	
 	// 번호선택 버튼 눌렀을 때 체크
 	const handleOpenModal = async () => {
@@ -382,6 +409,23 @@ const CarInfo = ({
 				    </>
 				)}
 				*/}
+				
+				<AddressSearch
+		            label="등록증 수령지"
+					sameLabel={isCorporate ? '본점 소재지' : '소유자 주소'}
+		            placeholder="건물, 지번 또는 도로명 검색"
+		            type="CARP_ADDRESS"
+		            detailName="CARP_ADDRESS_DT"
+		            postName="CARP_POST_NO"
+					dsNewCar={dsNewCar}
+				    handleChange={handleChange}
+				    onSelect={handleAddressSelect}
+				    onClear={handleClearAddress}
+					showSameCheckbox
+					onSameChange={handleSameAddress}
+					showBaseAddressCheckbox={isCorporate}
+					onBaseAddressChange={handleBaseAddressChange}
+		        />
 		    </div>
 			
 

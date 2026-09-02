@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
-import { CarFront, CheckCircle2, Clock3, ScanLine, UserRound } from 'lucide-react';
+import { CarFront, CheckCircle2, Clock3, FileText, ScanLine, UserRound } from 'lucide-react';
 import '../styles/CustomerPage.css';
 
 const WaNewcarNumplateSelect = () => {
@@ -72,7 +72,7 @@ const WaNewcarNumplateSelect = () => {
                     <div className="numplate-car-summary">
                         <div><UserRound size={18} /><span>고객명<strong>{data.customerName || '-'}</strong></span></div>
                         <div><ScanLine size={18} /><span>차대번호<strong>{data.carIdNo || '-'}</strong></span></div>
-                        <div><CarFront size={18} /><span>차명<strong>{data.carName || '-'}</strong></span></div>
+                        <div><FileText size={18} /><span>주문번호<strong>{data.linkId || '-'}</strong></span></div>
                     </div>
                 )}
 
@@ -98,7 +98,7 @@ const WaNewcarNumplateSelect = () => {
                                         checked={selected === item.CAR_NO} disabled={expired}
                                         onChange={() => { setSelected(item.CAR_NO); setMessage(''); }} />
                                     <span>{item.CAR_NO}</span>
-                                    {selected === item.CAR_NO && <CheckCircle2 size={22} />}
+                                    {selected === item.CAR_NO && <CheckCircle2 size={18} className="numplate-check-icon" />}
                                 </label>
                             ))}
                         </div>

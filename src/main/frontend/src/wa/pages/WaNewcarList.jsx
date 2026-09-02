@@ -19,7 +19,8 @@ const processStatusFallbackOptions = [];
 const SEARCH_START_LIMIT_YEARS = 2;
 const DIRECT_REGISTRATION_PROCESS_CODE = 'DIRCT';
 const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
-    'REGIST_DATE',
+	// 26.09.01 자가등록건도 등록예정일자 표시하도록 처리
+	//'REGIST_DATE',
     'ATTACH_YN',
     'CARD_YN',
     'NTAX_YN',
@@ -27,7 +28,8 @@ const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
     'BPAY_DT',
     'PAY_DT',
     'INS_DATE',
-    'JUDGE_DT',
+	// 26.09.01 자가등록건은 등록일자 대신 등록예정일자를 표시하므로 blank 처리하지 않음
+    //'JUDGE_DT',
     'INSTALL_YN',
     'LAST_DELIVERY_ADDR'
 ]);
@@ -381,6 +383,10 @@ const WaNewcarList = () => {
     const searchStartLimitDate = getSearchStartLimitDate();
 	// 더블클릭 했을 때 해당 건으로 들어가기 위해
 	const [clickTimer, setClickTimer] = useState(null);
+	// 엑셀 업로드 / 양식 다운로드 선택 모달
+	const [excelUploadModalOpen, setExcelUploadModalOpen] = useState(false);
+	// 전체 로딩중
+	const [templateDownloading, setTemplateDownloading] = useState(false);
 
 	// SERVICE_ID별 진행단계 기억
 	// - 신규등록현황 화면이 살아있는 동안만 유지되는 휘발성 데이터
@@ -476,7 +482,12 @@ const WaNewcarList = () => {
             BPAY_DT: row.BPAY_DT || '',
             PAY_DT: row.PAY_DT || '',
             INS_DATE: row.INS_DATE || '',
-            JUDGE_DT: row.JUDGE_DT || '',
+			
+			// DIRECT(자가등록)건은 JUDGE_DT 대신 REGIST_DATE(등록예정일) 날짜를 사용
+			JUDGE_DT: isDirectRegistrationRow(row)
+			    ? (row.REGIST_DATE || '')
+			    : (row.JUDGE_DT || ''),
+				
             INSTALL_YN: row.INSTALL_YN || '',
             SPACE: row.SPACE || '',
             LAST_DELIVERY_ADDR: row.LAST_DELIVERY_ADDR || '',
@@ -872,8 +883,79 @@ const WaNewcarList = () => {
 
         setErrorMessage('');
         setNoticeMessage('');
-        fileInputRef.current?.click();
+        //fileInputRef.current?.click();
+		
+		// 바로 파일 선택창을 열지 않고 엑셀 작업 선택 모달을 연다.
+		setExcelUploadModalOpen(true);
     };
+	
+	// 엑셀 파일 업로드 선택
+	const handleExcelUploadClick = () => {
+
+	    setExcelUploadModalOpen(false);
+
+	    // 기존 파일 선택창 호출
+	    fileInputRef.current?.click();
+	};
+	
+	// 신규등록 엑셀 업로드 양식 다운로드
+	const handleExcelTemplateDownload = async () => {
+
+	    const companyId = getUserCompanyId(user);
+	    let fileNm;
+
+	    if (companyId === 'WA001') {
+	        fileNm = '폴스타_엑셀업로드양식.xlsx';
+	    }
+
+	    if (!fileNm) {
+	        gf.alert('등록된 엑셀 양식이 없습니다.');
+	        return;
+	    }
+
+	    setExcelUploadModalOpen(false);
+
+	    // 전체 화면 로딩 시작
+	    setTemplateDownloading(true);
+
+	    try {
+
+	        // React가 로딩 화면을 먼저 렌더링할 시간 확보
+	        await new Promise(resolve => setTimeout(resolve, 100));
+
+	        // 로컬 테스트용 2초 지연
+	        //await new Promise(resolve => setTimeout(resolve, 1500));
+
+	        const response = await axios.get('/api/newcar/excel-template', {
+	            params: {
+	                fileName: fileNm
+	            },
+	            responseType: 'blob'
+	        });
+
+	        const url = window.URL.createObjectURL(response.data);
+	        const link = document.createElement('a');
+
+	        link.href = url;
+	        link.download = fileNm;
+
+	        document.body.appendChild(link);
+	        link.click();
+	        link.remove();
+
+	        window.URL.revokeObjectURL(url);
+
+	    } catch (error) {
+
+	        console.error('엑셀 양식 다운로드 실패:', error);
+	        gf.alert('엑셀 양식 다운로드 중 오류가 발생했습니다.');
+
+	    } finally {
+
+	        setTemplateDownloading(false);
+
+	    }
+	};
 
     const handleExcelUpload = async (event) => {
         const fileInput = event.target;
@@ -1919,6 +2001,69 @@ const WaNewcarList = () => {
                     </section>
                 </div>
             )}
+			{excelUploadModalOpen && (
+
+			    <div
+			        className="wa-request-modal-backdrop"
+			        role="presentation"
+			        onMouseDown={() => setExcelUploadModalOpen(false)}
+			    >
+			        <section
+			            className="wa-action-confirm-frame"
+			            role="dialog"
+			            aria-modal="true"
+			            aria-labelledby="wa-excel-upload-title"
+			            onMouseDown={event => event.stopPropagation()}
+			        >
+
+			            <header className="wa-action-confirm-header">
+
+			                <strong id="wa-excel-upload-title">
+			                    엑셀 업로드
+			                </strong>
+
+			                <button
+			                    type="button"
+			                    className="wa-request-modal-close"
+			                    onClick={() => setExcelUploadModalOpen(false)}
+			                    aria-label="닫기"
+			                >
+			                    <X size={18} />
+			                </button>
+
+			            </header>
+
+			            <div className="wa-action-confirm-content">
+			                엑셀 양식을 다운로드하거나 작성한 엑셀 파일을 업로드해주세요.
+			            </div>
+
+			            <footer className="wa-action-confirm-footer">
+
+			                <button
+			                    type="button"
+			                    className="wa-status-action outline"
+			                    onClick={handleExcelTemplateDownload}
+			                >
+			                    <Download size={15} />
+			                    <span>양식 다운로드</span>
+			                </button>
+
+			                <button
+			                    type="button"
+			                    className="wa-status-action primary"
+			                    onClick={handleExcelUploadClick}
+			                >
+			                    <Upload size={15} />
+			                    <span>엑셀 업로드</span>
+			                </button>
+
+			            </footer>
+
+			        </section>
+
+			    </div>
+
+			)}
             {activeRequest && (
 
 				<div className={`wa-request-modal-backdrop ${isOverflow ? 'overflow' : ''}`}>
@@ -2019,6 +2164,35 @@ const WaNewcarList = () => {
 			    </section>
 			</div>
 			)}
+			
+
+			{templateDownloading && (
+			    <div
+			        style={{
+			            position: 'fixed',
+			            top: 0,
+			            left: 0,
+			            width: '100vw',
+			            height: '100vh',
+			            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+			            zIndex: 999999,
+			            display: 'flex',
+			            alignItems: 'center',
+			            justifyContent: 'center'
+			        }}
+			    >
+			        <div
+			            style={{
+			                color: '#fff',
+			                fontSize: '24px',
+			                fontWeight: 'bold'
+			            }}
+			        >
+			            로딩 중...
+			        </div>
+			    </div>
+			)}
+			
         </div>
     );
 };

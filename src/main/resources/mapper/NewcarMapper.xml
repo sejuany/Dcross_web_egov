@@ -475,10 +475,10 @@
                     AND TS.PROC_ST = 'P_END'
                 </when>
                 <when test="PROC_ST == 'S_REQ'">
-                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC')
+                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_MAN', 'D_PAM', 'D_DAC')
                 </when>
                 <when test="PROC_ST == 'S_END'">
-                    AND TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END')
+                    AND TS.PROC_ST IN ('J_REQ', 'J_ING', 'J_END', 'J_WTX', 'END')
                 </when>
                 <when test="PROC_ST == 'DIRCT'">
                     AND NVL(TN.DIRECT_YN, 'N') = 'Y'
@@ -627,17 +627,17 @@
 	    FROM TR_SERVICE SV
 	         JOIN TR_NEWCAR NC ON SV.SERVICE_ID = NC.SERVICE_ID
 	    WHERE NC.CARID_NO = #{CARID_NO}
-		AND SV.PROC_ST IN ('REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END')
+		AND SV.PROC_ST IN ('SAV', 'REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END')
 	      AND SV.REQUEST_DT <![CDATA[<=]]> SYSDATE
 	</select>
 
-		<!-- 신청건 중 차대번호 조회 -->
+	<!-- 신청건 중 차대번호 조회 -->
 	<select id="selectDuplicateCarIdNO2" parameterType="map" resultType="java.util.Map">
 	    SELECT SV.SERVICE_ID
 	    FROM TR_SERVICE SV
 	         JOIN TR_NEWCAR NC ON SV.SERVICE_ID = NC.SERVICE_ID
 	    WHERE NC.CARID_NO = #{CARID_NO}
-		AND SV.PROC_ST IN ('C_REQ','REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END')
+		AND SV.PROC_ST IN ('SAV', 'C_REQ','REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END')
 	      AND SV.REQUEST_DT <![CDATA[<=]]> SYSDATE
 	</select>
 
@@ -1197,6 +1197,15 @@
 			</if>
 			<if test="DIRECT_YN != null and DIRECT_YN != ''">
 			    DIRECT_YN = #{DIRECT_YN},
+			</if>
+			<if test="CARP_ADDRESS != null">
+			    CARP_ADDRESS = PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}),
+			</if>
+			<if test="CARP_ADDRESS_DT != null">
+			    CARP_ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}),
+			</if>
+			<if test="CARP_POST_NO != null">
+			    CARP_POST_NO = #{CARP_POST_NO},
 			</if>
 	        UPD_DATE = SYSDATE
 		</set>

@@ -108,7 +108,7 @@ const WaNumPlateSelectModal = ({
 	// 처음은 서버 조회(20개)를 하고, 2번 이상부터는 캐시에서 조회 하도록 함 
 	// 선택 가능한 번호판 조회
 	const fetchList = async () => {
-
+		setNoticeOpen(false);
 
 		// 이전 조회 번호가 있으면 미사용 상태로 복구
 		if (preCarNoRef.current) {
@@ -368,14 +368,25 @@ const WaNumPlateSelectModal = ({
 	const handleSendSelectionSms = async () => {
 		if (list.length === 0) return gf.alert('먼저 번호판을 조회해 주세요.');
 		if (!/^\d{10,11}$/.test(tel)) return gf.alert('수신 휴대폰 번호를 확인해 주세요.');
-		if (!await gf.confirm(`조회된 번호 ${list.length}개를 문자로 발송하시겠습니까?`)) return;
+
+		const isAlreadySent = Boolean(dsCarNoDetach?.NUMPLATE_MSG_TOKEN);
+		let isResend = false;
+		if (isAlreadySent) {
+			const confirmResend = await gf.confirm('이미 발송된 번호 선택 문자가 있습니다.\n기존 링크로 문자를 재발송하시겠습니까?');
+			if (!confirmResend) return;
+			isResend = true;
+		} else {
+			if (!await gf.confirm(`조회된 번호 ${list.length}개를 문자로 발송하시겠습니까?`)) return;
+		}
+
 		setSending(true);
 		try {
 			const { data } = await axios.post('/api/newcar/numplate-selection/send', {
 				SERVICE_ID: dsService.SERVICE_ID,
 				PAY_HP_NO: tel,
 				CAR_NOS: list,
-				BASE_URL: window.location.origin
+				BASE_URL: window.location.origin,
+				IS_RESEND: isResend
 			});
 			const result = data.result;
 			setDsCarNoDetach(prev => ({
@@ -383,7 +394,11 @@ const WaNumPlateSelectModal = ({
 				CONFIRM_NO: result.confirmNo,
 				NUMPLATE_MSG_TOKEN: result.token
 			}));
-			gf.alert('[문자 발송 완료] 문자 발송 시점부터 5분 동안 번호 선택이 가능합니다.');
+			if (isResend) {
+				gf.alert('[문자 재발송 완료] 기존 선택 링크로 문자가 재발송되었습니다.');
+			} else {
+				gf.alert('[문자 발송 완료] 문자 발송 시점부터 5분 동안 번호 선택이 가능합니다.');
+			}
 		} catch (e) {
 			gf.alert(e.response?.data?.message || '문자 발송 중 오류가 발생했습니다.');
 		} finally {
@@ -530,7 +545,7 @@ const WaNumPlateSelectModal = ({
 								/>
 								<button type="button" className="btn-send" disabled={sending || list.length === 0}
 									onClick={handleSendSelectionSms}>
-									{sending ? '발송 중' : '문자 발송'}
+									{sending ? '발송 중' : (dsCarNoDetach?.NUMPLATE_MSG_TOKEN ? '문자 재발송' : '문자 발송')}
 								</button>
 							</div>
 						</div>

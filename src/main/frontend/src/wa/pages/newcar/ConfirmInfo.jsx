@@ -354,6 +354,11 @@ const ConfirmInfo = ({
 		                <span>SPACE</span>
 		                <strong>{dsDLVGB?.find(item => item.CODE_ID === dsCarNoDetach.DELIVERY_GB)?.CODE_NM ?? ''}</strong>
 		            </div>
+					
+					<div className="wa-confirm-item">
+						<span>등록증 수령지</span>
+						<strong>{dsNewCar.CARP_ADDRESS} {dsNewCar.CARP_ADDRESS_DT}</strong>
+					</div>
 		
 		        </div>
 		

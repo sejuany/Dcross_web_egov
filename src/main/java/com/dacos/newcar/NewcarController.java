@@ -36,6 +36,7 @@ import com.dacos.common.util.AuthUtil;
 import com.dacos.newcar.dto.NewcarSearchRequest;
 import com.dacos.newcar.dto.WaPrivacyExcelRequest;
 
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 /**
@@ -165,6 +166,28 @@ public class NewcarController {
                     "success", false,
                     "message", "처리 중 오류가 발생하였습니다"
             ));
+        }
+    }
+    
+    /**
+     * 엑셀 업로드 양식 다운로드
+     * GET /api/newcar/excel-template
+     */
+    @GetMapping("/excel-template")
+    public void downloadExcelTemplate(
+            @RequestParam("fileName") String fileName,
+            HttpServletResponse response) {
+
+        try {
+
+            newcarService.downloadExcelTemplate(fileName, response);
+
+        } catch (Exception e) {
+
+            logger.error("엑셀 업로드 양식 다운로드 오류", e);
+
+            response.setStatus(HttpServletResponse.SC_INTERNAL_SERVER_ERROR);
+
         }
     }
 

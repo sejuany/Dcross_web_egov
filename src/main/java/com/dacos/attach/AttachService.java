@@ -194,7 +194,7 @@ public class AttachService {
 	/*
 	 * 양식 파일 저장 루트 경로 조회
 	 */
-	private String getFormRoot() {
+	public String getFormRoot() {
 
 	    String serverIp = getServerAddress("IP");
 

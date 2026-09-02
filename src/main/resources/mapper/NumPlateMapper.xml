@@ -596,7 +596,7 @@
 
 	<!-- 같은 SERVICE_ID의 문자 발송/재발송을 직렬화하는 트랜잭션 잠금 -->
 	<select id="lockNumplateMessageDetach" parameterType="map" resultType="map">
-	    SELECT SERVICE_ID FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID} FOR UPDATE
+	    SELECT SERVICE_ID, NUMPLATE_MSG_TOKEN, CONFIRM_NO FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID} FOR UPDATE
 	</select>
 
 	<!-- 화면이 전달한 모든 번호가 아직 P(조회되어 임시 점유 중)인지 서버에서 재검증 -->
@@ -618,6 +618,12 @@
 	       AND NUMPLATE_MSG_TOKEN = (
 	           SELECT NUMPLATE_MSG_TOKEN FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID}
 	       )
+	       <if test="NUM_LIST != null and NUM_LIST.size() > 0">
+	       AND CAR_NO NOT IN
+	       <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
+	           #{carNo}
+	       </foreach>
+	       </if>
 	</update>
 
 	<update id="clearNumplateMessageDetach" parameterType="map">
@@ -661,10 +667,12 @@
 	    SELECT D.SERVICE_ID, D.CONFIRM_NO, D.NUMPLATE_MSG_TOKEN,
 	           NVL(D.CUSTOMER_NM, N.OWNER_NM) AS CUSTOMER_NM,
 	           N.CARID_NO, N.CAR_NM, N.REQ_CAR_NO,
+	           S.LINK_ID,
 	           (SELECT MAX(P.APPEAR_DT) FROM TM_NUMPLATE_LIST P
 	             WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN) AS APPEAR_DT
 	      FROM TR_CARNO_DETACH D
 	      JOIN TR_NEWCAR N ON N.SERVICE_ID = D.SERVICE_ID
+	      LEFT JOIN TR_SERVICE S ON S.SERVICE_ID = D.SERVICE_ID
 	     WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
 	     <if test='"Y".equals(LOCK_YN)'>
 	         FOR UPDATE OF D.NUMPLATE_MSG_TOKEN
