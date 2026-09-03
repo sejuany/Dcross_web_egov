@@ -133,6 +133,24 @@ public class CommonController {
         throw new IllegalArgumentException("지원하지 않는 GUBUN : " + gubun);
     }
     
+	
+	/**
+	 * 화면에서 바로 쿼리 조회 (목록 조회)
+	 * POST /api/common/query-list
+	 */
+	@PostMapping("/query-list")
+	public ResponseEntity<Map<String, Object>> queryList(
+	        @RequestBody Map<String, Object> request) {
+	
+	    String queryId = (String) request.remove("QUERY_ID");
+	
+	    logger.info("queryId >> {} 목록 조회 시작", queryId);
+	
+	    return ResponseEntity.ok(
+	        ApiResponse.withKey("list", comm.selectList(request, queryId))
+	    );
+	}
+    
     @PostMapping("/procedure/board")
     public void procedureTmBoard(
             @RequestBody Map<String, Object> param, HttpSession session) {

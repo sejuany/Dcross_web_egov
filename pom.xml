@@ -22,6 +22,26 @@
 		<spring.framework.version>6.2.18</spring.framework.version>
 	</properties>
 
+	<!-- Firebase와 Selenium이 참조하는 OpenTelemetry 버전을 하나로 맞춘다. -->
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>io.opentelemetry</groupId>
+				<artifactId>opentelemetry-bom</artifactId>
+				<version>1.57.0</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>com.fasterxml.jackson</groupId>
+				<artifactId>jackson-bom</artifactId>
+				<version>2.22.2</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<repositories>
 		<repository>
 			<id>mvn2s</id>
@@ -59,7 +79,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
-			<version>3.5.16</version>
+			<version>3.5.15</version>
 		</dependency>
 
 		<!-- 표준프레임워크 실행환경 -->
@@ -179,13 +199,6 @@
 			<scope>test</scope>
 		</dependency>
 		
-		<!--리액트 연동을 위한 핵심 설정-->
-		<dependency>
-		    <groupId>com.fasterxml.jackson.core</groupId>
-		    <artifactId>jackson-databind</artifactId>
-		    <version>2.15.2</version>
-		</dependency>
-		
 		<dependency>
 		    <groupId>org.apache.poi</groupId>
 		    <artifactId>poi-ooxml</artifactId>
@@ -235,6 +248,20 @@
 			<version>6.2.2</version>
 		</dependency>
 
+		<!-- 번호판 매니저 Face ID/Touch ID 패스키(WebAuthn) 서버 검증 -->
+		<dependency>
+			<groupId>com.yubico</groupId>
+			<artifactId>webauthn-server-core</artifactId>
+			<version>2.9.0</version>
+		</dependency>
+
+		<!-- Java 21 서버에서 FCM HTTP v1 개별 푸시 발송 -->
+		<dependency>
+			<groupId>com.google.firebase</groupId>
+			<artifactId>firebase-admin</artifactId>
+			<version>9.10.0</version>
+		</dependency>
+
 		<!-- Database Dependencies -->
 		<dependency>
 			<groupId>org.springframework</groupId>
@@ -257,7 +284,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
-			<version>3.5.16</version>
+			<version>3.5.15</version>
 			<optional>true</optional>
 			<exclusions>
 				<exclusion>
@@ -275,7 +302,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-			<version>3.5.16</version>
+			<version>3.5.15</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -464,7 +491,7 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-			<version>3.5.16</version>
+			<version>3.5.15</version>
 				<configuration>
 					<jvmArguments>-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dstdout.encoding=UTF-8</jvmArguments>
 					<includeSystemScope>true</includeSystemScope>

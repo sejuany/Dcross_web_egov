@@ -4,7 +4,6 @@ import axios from 'axios';
 import {
     Calculator,
     CheckCircle2,
-    CircleHelp,
     CircleAlert,
     CreditCard,
     LoaderCircle,
@@ -391,6 +390,7 @@ const PHONE_FIXED_VALUES = ['010'];
 const PHONE_PLACEHOLDERS = ['010', '1234', '5678'];
 const BUSINESS_NO_PART_LENGTHS = [3, 2, 5];
 const BUSINESS_NO_PLACEHOLDERS = ['123', '45', '67890'];
+const removeHangul = (value) => String(value ?? '').replace(/[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uAC00-\uD7AF\uD7B0-\uD7FF]/g, '');
 
 /**
  * 문자 입력 중에는 해당 input만 다시 렌더링하고, 입력이 확정되는 시점에만
@@ -404,6 +404,7 @@ const DeferredInput = memo(({
     name,
     value = '',
     onCommit,
+    sanitizeValue,
     ...inputProps
 }) => {
     // 화면에 보이는 값은 로컬 draft로 관리한다.
@@ -448,14 +449,14 @@ const DeferredInput = memo(({
 
     // 키 입력 시에는 작은 DeferredInput 컴포넌트의 로컬 state만 갱신한다.
     const handleDraftChange = (event) => {
-        const nextValue = event.target.value;
+        const nextValue = sanitizeValue ? sanitizeValue(event.target.value) : event.target.value;
         latestValueRef.current = nextValue;
         setDraftValue(nextValue);
     };
 
     // 한글 조합이 완료되면 완성된 문자열만 상위 state에 반영한다.
     const handleCompositionEnd = (event) => {
-        const nextValue = event.currentTarget.value;
+        const nextValue = sanitizeValue ? sanitizeValue(event.currentTarget.value) : event.currentTarget.value;
         composingRef.current = false;
         latestValueRef.current = nextValue;
         setDraftValue(nextValue);
@@ -647,7 +648,14 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
     const ecoNotice = notice.type === 'eco'
         ? ECO_EXEMPTION_NOTICE_BY_CODE[notice.targetCode]
         : null;
-    const title = ecoNotice ? '친환경 차량 감면 안내' : '기감면 조건 적용 불가 안내';
+
+	const isExchange = notice.type === 'exchange'; // 교환 자동차 
+
+	const title = ecoNotice
+	    ? '친환경 차량 감면 안내'
+	    : isExchange
+	        ? '교환자동차 감면 안내'
+	        : '기감면 조건 적용 불가 안내';
 
     return (
         <div className="wa-attach-modal-backdrop" onClick={onClose}>
@@ -685,7 +693,20 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
                                 <div>■ {ecoNotice.benefit}</div>
                             </div>
                         </>
-                    ) : (
+					) : isExchange ? (
+					    <>
+							<div style={{ margin: '25px 0 40px 0' }}>
+						        {/* 교환자동차 감면 안내 */}
+						        <p className="wa-exemption-warning-main normal">
+						            교환자동차 감면은 <b>다코스 담당자</b>에게 문의 바랍니다. 
+						        </p>
+	
+						        <h3 className="wa-exemption-warning-main normal small">
+						            070-7931-2380 또는 070-7931-2818
+						        </h3>
+							</div>
+					    </>
+					) : (
                         <>
                             <strong className="wa-exemption-warning-highlight">
                                 같은 감면 조건 여러 차량에 적용 불가
@@ -702,14 +723,36 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
                         </>
                     )}
 
-                    <div className="wa-attach-btn-div">
-                        <button type="button" className="wa-attach-cancel-btn" onClick={onClose}>
-                            닫기
-                        </button>
-                        <button type="button" className="wa-attach-confirm-btn" onClick={onConfirm}>
-                            확인
-                        </button>
-                    </div>
+
+					<div className="wa-attach-btn-div">
+					    {notice.type === 'exchange' ? (
+					        <button
+					            type="button"
+					            className="wa-attach-confirm-btn"
+					            onClick={onClose}
+					        >
+					            확인
+					        </button>
+					    ) : (
+					        <>
+					            <button
+					                type="button"
+					                className="wa-attach-cancel-btn"
+					                onClick={onClose}
+					            >
+					                닫기
+					            </button>
+
+					            <button
+					                type="button"
+					                className="wa-attach-confirm-btn"
+					                onClick={onConfirm}
+					            >
+					                확인
+					            </button>
+					        </>
+					    )}
+					</div>
                 </div>
             </div>
         </div>
@@ -743,8 +786,12 @@ const EstimateResultPanel = memo(({
         && hasFullExemptionReason(estimateSummary.exemptionReason);
     const isBondFullyExempt = Boolean(estimateSummary)
         && Number(estimateSummary.bondBaseAmt) === 0
-        && hasFullExemptionReason(estimateSummary.bondReliefReason);
-    const showAcqReductionCard = Number(estimateSummary?.acqReductionAmt) > 0 || isAcqFullyExempt;
+        && (estimateSummary.bondPreExempt || hasFullExemptionReason(estimateSummary.bondReliefReason));
+    const hasSelectedAcqExemption = Boolean(estimateSummary?.exemptionName)
+        && !['', '00'].includes(String(estimateSummary?.exemptionCode ?? ''));
+    const showAcqReductionCard = Number(estimateSummary?.acqReductionAmt) > 0
+        || isAcqFullyExempt
+        || hasSelectedAcqExemption;
     // 공채 금액이 0원이어도 조회 매입률과 감면 판단 근거를 확인할 수 있도록 항상 표시한다.
     const showBondCalculationCard = Boolean(estimateSummary);
     // 운영 프로시저는 실제 공채액이 감면 한도보다 작아도 정책 감면액(예: 250만원)을 먼저 설정한다.
@@ -752,6 +799,9 @@ const EstimateResultPanel = memo(({
         ? Number(estimateSummary.bondReductionLimit)
         : Number(estimateSummary?.bondReductionAmt);
     const hasBondRelief = bondPolicyReductionAmt > 0 || isBondFullyExempt;
+    const bondCardTitle = isAcqFullyExempt && isBondFullyExempt && estimateSummary?.exemptionName
+        ? `공채 감면 · ${estimateSummary.exemptionName}`
+        : `공채 계산 · ${estimateSummary?.bondArea || '지역 확인'}`;
 
     return (
         <>
@@ -787,7 +837,9 @@ const EstimateResultPanel = memo(({
                                 <span>취득세 감면 · {(estimateSummary.exemptionName ? `${estimateSummary.exemptionName}` : '')}</span>
                                 <strong>{isAcqFullyExempt
                                     ? '전액 감면'
-                                    : `- ${formatAmount(estimateSummary.acqReductionAmt)} 원`}</strong>
+                                    : (Number(estimateSummary.acqReductionAmt) > 0
+                                        ? `- ${formatAmount(estimateSummary.acqReductionAmt)} 원`
+                                        : '감면 없음')}</strong>
                             </div>
                             <p>
                                 감면 전 {formatAmount(estimateSummary.grossAcqTax)} 원
@@ -809,7 +861,7 @@ const EstimateResultPanel = memo(({
                             hasBondRelief ? 'applied' : 'review'
                         ].join(' ')}>
                             <div className="wa-acq-reduction-title">
-                                <span>공채 계산 · {estimateSummary.bondArea || '지역 확인'}</span>
+                                <span>{bondCardTitle}</span>
                                 <strong>
                                     {isBondFullyExempt
                                         ? '전액 감면'
@@ -828,9 +880,9 @@ const EstimateResultPanel = memo(({
                             <p>
                                 {estimateSummary.bondReliefReason || '공채 감면 사유 없음'}
                                 {bondPolicyReductionAmt > 0
-                                    && ` / 실제 차감 ${formatAmount(estimateSummary.bondReductionAmt)} 원`}
+                                    && ` / 최종 감면액 ${formatAmount(estimateSummary.bondReductionAmt)} 원`}
                                 {' / '}
-                                매입기준금액 {Number(estimateSummary.bondBaseAmt) === 0
+                                최종매입금액 {Number(estimateSummary.bondBaseAmt) === 0
                                     ? '전액 감면'
                                     : `${formatAmount(estimateSummary.bondBaseAmt)} 원`}
                             </p>
@@ -841,7 +893,7 @@ const EstimateResultPanel = memo(({
                                         ? '매입 선택'
                                         : `매도(할인율 ${(estimateSummary.bondDiscountRate * 100).toLocaleString()}%)`)}
                                 {' / '}
-                                실제 채권 납부액 {formatAmount(estimateSummary.bond)} 원
+                                예상 채권 납부액 {formatAmount(estimateSummary.bond)} 원
                             </p>
                         </div>
                     )}
@@ -892,9 +944,54 @@ const RefundAccountFields = memo(({
     returnAccount,
     bankOptions,
     onFieldChange,
-    onFieldCommit
+    onFieldCommit,
+	dsTaxReceipt,
+	receiptType,
+	onTaxReceiptCommit
 }) => (
     <>
+		<div className="wa-form-row" style={{ marginBottom: '0px'}} >
+            <label className="wa-form-label" style={{ alignSelf: 'flex-start', marginTop: '13px' }}>이메일 주소</label>
+				
+		    <div className="wa-form-control">
+		        <DeferredInput
+		            className="wa-input"
+		            maxLength={50}
+		            name="MAIL1"
+		            data-type="taxReceipt"
+					onCommit={onTaxReceiptCommit}
+					value={dsTaxReceipt.MAIL1 ?? ''}
+		            sanitizeValue={removeHangul}
+		            placeholder="example@company.com"
+		        />
+				<p className="mailInfoBox">
+				{receiptType === 'CASH'
+				    ? '*차량대금 세금계산서 발행용입니다. (등록수수료는 현금영수증 발행)'
+				    : receiptType === 'TAX'
+				        ? '*차량대금 및 등록수수료 세금계산서 발행용입니다.'
+				        : '*차량대금 세금계산서 발행용입니다.'
+				}
+				</p>
+		    </div>
+		</div>
+
+		<div className="wa-form-row">
+		    <label className="wa-form-label">이메일 주소2</label>
+				
+		    <div className="wa-form-control">
+		        <DeferredInput
+		            className="wa-input"
+		            maxLength={50}
+		            name="MAIL2"
+		            data-type="taxReceipt"
+					onCommit={onTaxReceiptCommit}
+					value={dsTaxReceipt.MAIL2 ?? ''}
+		            sanitizeValue={removeHangul}
+		            placeholder="추가 수신 이메일"
+		        />
+		    </div>
+		</div>
+		
         <div className="wa-form-row">
             <label className="wa-form-label">환불 예금주</label>
 
@@ -932,6 +1029,9 @@ const RefundAccountFields = memo(({
                         data-type="newcar"
                         value={returnAccount}
                         onCommit={onFieldCommit}
+						
+						// 계좌번호는 숫자와 하이픈(-)만 입력 가능
+					    sanitizeValue={(value) => value.replace(/[^0-9-]/g, '')}
                         placeholder="계좌번호 입력"
                     />
                 </div>
@@ -966,14 +1066,34 @@ const NewcarInfo = ({
     const [receiptType, setReceiptType] = useState('');
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
     const [cashReceiptPhoneSource, setCashReceiptPhoneSource] = useState('');
+    const isPrivateBusinessEligible = (
+        (
+            (dsNewCar.TASK_CD === 'NORML' && dsNewCar.PROC_CD === 'I')
+            || (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')
+        )
+        && ['R', 'F'].includes(dsNewCar.REG_GB)
+    );
     const isJsaEligibleAddress = ['대성동길', '조산리'].some(
         keyword => String(dsNewCar.BASE_ADDRESS ?? '').includes(keyword)
     );
+	
+	// 현금영수증 발급구분 설정
+	// 휴대폰번호가 있으면 휴대폰번호(R), 사업자번호가 있으면 사업자번호(B), 둘 다 없으면 선택
+	const [receiptRegGb, setReceiptRegGb] = useState('');
+	
+	// 저장된 현금영수증 정보가 있는 경우에만 발급구분 설정
+	useEffect(() => {
+	    if (dsTaxReceipt.PHONE_NO) {
+	        setReceiptRegGb('R');
+	    } else if (dsTaxReceipt.REG_NO) {
+	        setReceiptRegGb('B');
+	    }
+	}, [dsTaxReceipt.PHONE_NO, dsTaxReceipt.REG_NO]);
 
     const exemptionTargetOptions = useMemo(
         () => getCodeOptions(codes, 'NTTCD', FALLBACK_EXEMPTION_TARGETS)
             .filter(item => (
-                !['07','11', '17', '19'].includes(item.CODE_ID)
+                !['07','11', '17', '19', '20'].includes(item.CODE_ID)
                 && !EXCLUDED_EXEMPTION_TARGET_NAMES.has(normalizeExemptionTargetName(item.CODE_NM))
                 && (String(item.CODE_ID) !== '12' || isJsaEligibleAddress)
             )),
@@ -1120,6 +1240,16 @@ const NewcarInfo = ({
 
         setDsTaxReceipt(prev => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
     }, [setDsTaxReceipt]);
+
+    useEffect(() => {
+        const nextPrivateBusinessYn = (
+            isPrivateBusinessEligible && dsTaxReceipt.ETC1 === 'Y'
+        ) ? 'Y' : 'N';
+
+        if (dsTaxReceipt.ETC1 !== nextPrivateBusinessYn) {
+            updateTaxReceipt({ ETC1: nextPrivateBusinessYn });
+        }
+    }, [dsTaxReceipt.ETC1, isPrivateBusinessEligible, updateTaxReceipt]);
 
     // CommonSelect의 표준 change event를 dsNewCar 필드 갱신으로 변환한다.
     // 기존 값과 같으면 이전 객체를 그대로 반환해 불필요한 부모 렌더를 막는다.
@@ -1343,6 +1473,15 @@ const NewcarInfo = ({
     const handleExemptionFieldChange = useCallback(async (event) => {
         const { name, value } = event.target;
 
+		// 교환자동차 감면 선택
+		if (name === 'NTAX_TRGET_CD' && String(value) === '09') {
+			handleNewCarFieldChange(event); // 09 선택값 반영, 선택 안 되게 하려면 이거 주석처리하면 됨 
+			
+		    setExemptionNotice({type: 'exchange'});
+			
+		    return;
+		}
+		
         if (name === 'NTAX_TRGET_CD' && String(value) === '12' && !isJsaEligibleAddress) {
             await showAlert('사용본거지 주소가 대성동길 또는 조산리인 경우에만 공동경비구역 거주자를 선택할 수 있습니다.');
             return;
@@ -1407,6 +1546,15 @@ const NewcarInfo = ({
             return;
         }
 
+        const selectedGradeCode = String(dsNewCar.NTAX_TRGET_GR_CD ?? '');
+        const hasValidGrade = exemptionGradeOptions.some(
+            option => String(option.CODE_ID) === selectedGradeCode
+        );
+        if (!isExemptionGradeDisabled && !hasValidGrade) {
+            await showAlert('감면 등급을 선택해주세요.');
+            return;
+        }
+
         setEstimating(true);
 
         try {
@@ -1455,9 +1603,7 @@ const NewcarInfo = ({
                 ADDR_DT: '',
                 POST_NO: '',
                 BUSINESS_TYPE: '',
-                INDUSTRY_TYPE: '',
-                MAIL1: '',
-                MAIL2: ''
+                INDUSTRY_TYPE: ''
             }));
             return;
         }
@@ -1479,7 +1625,7 @@ const NewcarInfo = ({
         setReceiptType('');
         setTaxReceiptSameOwner(false);
         setCashReceiptPhoneSource('');
-        updateTaxReceipt({ GUBUN: '' });
+        updateTaxReceipt({ GUBUN: '', ETC1: 'N' });
     };
 
     const handleCashReceiptPhoneSource = (source, checked) => {
@@ -1608,6 +1754,27 @@ const NewcarInfo = ({
 
             <div className="wa-info-section">
                 <div className="wa-form-row">
+					<label className="wa-form-label">
+					    {dsNewCar?.PROC_CD === "C" || dsNewCar?.TASK_CD === "LEASE"
+						        ? "리스 담당자 연락처"
+						        : "결제자 연락처"}
+					</label>
+
+                    <div className="wa-form-control">
+                        <div className="wa-inline-group">
+                            <SplitInput
+								type="TEL"
+                                value={dsNewCar.PAY_HP_NO ?? ''}
+                                lengths={PHONE_PART_LENGTHS}
+                                placeholders={PHONE_PLACEHOLDERS}
+                                deferred
+                                onChange={value => updateNewCar({ PAY_HP_NO: value })}
+                            />
+                        </div>
+                    </div>
+                </div>
+
+                <div className="wa-form-row">
                     <label className="wa-form-label">수수료 증빙 선택</label>
 
                     <div className="wa-form-control">
@@ -1661,24 +1828,93 @@ const NewcarInfo = ({
                                                 />
                                             </label>
                                         </div>
-                                        <div className="wa-form-row compact">
-                                            <label className="wa-form-label">휴대폰번호</label>
-                                            <div className="wa-form-control">
-                                                <div className="wa-inline-group">
-                                                    <SplitInput
-                                                        value={dsTaxReceipt.PHONE_NO ?? ''}
-                                                        lengths={PHONE_PART_LENGTHS}
-                                                        fixedValues={PHONE_FIXED_VALUES}
-                                                        placeholders={PHONE_PLACEHOLDERS}
-                                                        deferred
-                                                        onChange={value => {
-                                                            setCashReceiptPhoneSource('');
-                                                            updateTaxReceipt({ GUBUN: 'CASH', PHONE_NO: value });
-                                                        }}
-                                                    />
+										<div className="wa-inline-group wa-cash-receipt-input">
+											<select
+											    className="wa-select"
+												style={{ width: receiptRegGb === '' ? '100%' : undefined,
+												        textAlign: 'center' }}
+											    value={receiptRegGb}
+												onChange={e => {
+												    const value = e.target.value;
+
+												    setReceiptRegGb(value);
+
+												    if (value === 'R') {
+												        // 휴대폰번호 선택 시 사업자번호 초기화
+												        updateTaxReceipt({
+												            GUBUN: 'CASH',
+												            REG_NO: ''
+												        });
+												    } else if (value === 'B') {
+												        // 사업자번호 선택 시 휴대폰번호 초기화
+												        updateTaxReceipt({
+												            GUBUN: 'CASH',
+												            PHONE_NO: ''
+												        });
+												    }
+												}}
+											>
+											    <option value="">선택</option>
+											    <option value="R">휴대폰번호</option>
+											    <option value="B">사업자번호</option>
+											</select> 
+											
+											{receiptRegGb === 'R' && (
+											    <SplitInput
+											        value={dsTaxReceipt.PHONE_NO ?? ''}
+											        lengths={PHONE_PART_LENGTHS}
+											        fixedValues={PHONE_FIXED_VALUES}
+											        placeholders={PHONE_PLACEHOLDERS}
+											        deferred
+											        onChange={value => {
+											            setCashReceiptPhoneSource('');
+											            updateTaxReceipt({
+											                GUBUN: 'CASH',
+											                PHONE_NO: value
+											            });
+											        }}
+											    />
+											)}
+
+											{receiptRegGb === 'B' && (
+											    <SplitInput
+											        value={dsTaxReceipt.REG_NO ?? ''}
+											        lengths={[3, 2, 5]}
+											        deferred
+											        onChange={value => {
+											            updateTaxReceipt({
+											                GUBUN: 'CASH',
+											                REG_NO: value
+											            });
+											        }}
+											    />
+											)}
+										</div>
+                                        {isPrivateBusinessEligible && (
+                                            <div className="wa-form-row compact wa-private-business-row">
+                                                <label className="wa-form-label">개인사업자 여부</label>
+                                                <div className="wa-form-control">
+                                                    <div className="wa-private-business-options">
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 === 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 === 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'Y' })}
+                                                        >
+                                                            예
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 !== 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 !== 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'N' })}
+                                                        >
+                                                            아니오
+                                                        </button>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </div>
+                                        )}
                                     </>
                                 ) : (
                                     <>
@@ -1788,7 +2024,35 @@ const NewcarInfo = ({
                                                     />
                                                 </div>
                                             </div>
+                                        </div>
 
+                                        {isPrivateBusinessEligible && (
+                                            <div className="wa-form-row compact wa-private-business-row">
+                                                <label className="wa-form-label">개인사업자 여부</label>
+                                                <div className="wa-form-control">
+                                                    <div className="wa-private-business-options">
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 === 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 === 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'Y' })}
+                                                        >
+                                                            예
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 !== 'Y' ? 'active' : ''}`}
+                                                            aria-pressed={dsTaxReceipt.ETC1 !== 'Y'}
+                                                            onClick={() => updateTaxReceipt({ ETC1: 'N' })}
+                                                        >
+                                                            아니오
+                                                        </button>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
+											
+											{/*
                                             <div className="wa-form-row compact">
                                                 <label className="wa-form-label">이메일주소</label>
                                                 <div className="wa-form-control">
@@ -1800,6 +2064,7 @@ const NewcarInfo = ({
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL1 ?? ''}
                                                         onCommit={commitTaxReceiptField}
+                                                        sanitizeValue={removeHangul}
                                                         placeholder="example@company.com"
                                                     />
                                                 </div>
@@ -1816,36 +2081,15 @@ const NewcarInfo = ({
                                                         data-type="taxReceipt"
                                                         value={dsTaxReceipt.MAIL2 ?? ''}
                                                         onCommit={commitTaxReceiptField}
+                                                        sanitizeValue={removeHangul}
                                                         placeholder="추가 수신 이메일"
                                                     />
                                                 </div>
-                                            </div>
-                                        </div>
+                                            </div>*/}
                                     </>
                                 )}
                             </div>
                         )}
-                    </div>
-                </div>
-
-                <div className="wa-form-row">
-					<label className="wa-form-label">
-					    {dsNewCar?.PROC_CD === "C" || dsNewCar?.TASK_CD === "LEASE"
-						        ? "리스 담당자 연락처"
-						        : "결제자 연락처"}
-					</label>
-
-                    <div className="wa-form-control">
-                        <div className="wa-inline-group">
-                            <SplitInput
-                                value={dsNewCar.PAY_HP_NO ?? ''}
-                                lengths={PHONE_PART_LENGTHS}
-                                fixedValues={PHONE_FIXED_VALUES}
-                                placeholders={PHONE_PLACEHOLDERS}
-                                deferred
-                                onChange={value => updateNewCar({ PAY_HP_NO: value })}
-                            />
-                        </div>
                     </div>
                 </div>
 
@@ -1858,6 +2102,9 @@ const NewcarInfo = ({
                     bankOptions={bankOptions}
                     onFieldChange={handleNewCarFieldChange}
                     onFieldCommit={commitNewCarField}
+					dsTaxReceipt={dsTaxReceipt}
+					receiptType={receiptType}
+					onTaxReceiptCommit={commitTaxReceiptField}
                 />
 
             </div>

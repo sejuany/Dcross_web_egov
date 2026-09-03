@@ -8,6 +8,7 @@ import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
+import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
@@ -16,6 +17,16 @@ public class GlobalExceptionHandler {
 
     private static final Logger logger =
             LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    /** DTO 검증 실패 시 내부 예외 대신 첫 번째 사용자용 검증 메시지만 반환한다. */
+    @ExceptionHandler(MethodArgumentNotValidException.class)
+    public ResponseEntity<ApiResponse<Void>> handleValidation(MethodArgumentNotValidException e) {
+        String message = e.getBindingResult().getFieldErrors().stream()
+                .findFirst()
+                .map(error -> error.getDefaultMessage())
+                .orElse("입력값을 확인해 주세요.");
+        return ResponseEntity.badRequest().body(ApiResponse.fail(message));
+    }
 
     /**
      * 비즈니스 예외

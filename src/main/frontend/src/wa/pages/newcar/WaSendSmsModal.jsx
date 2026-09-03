@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Send, X } from 'lucide-react';
 
 import axios from 'axios';
@@ -18,6 +18,7 @@ const splitPhone = (value) => {
 const WaSendSmsModal = ({
 	dsService,
     dsNewCar,
+	dsOwnerInfo,
 	dsCarNoDetach,
 	setDsCarNoDetach,
 	dsUserInfo,
@@ -28,10 +29,21 @@ const WaSendSmsModal = ({
 	const hp1Ref = useRef(null);
 	const hp2Ref = useRef(null);
 	const hp3Ref = useRef(null);
-	
-    const initialPhone = useMemo(() => splitPhone(dsNewCar?.MPHONE_NO), [dsNewCar?.MPHONE_NO]);
+
+	const recipientPhone =
+		dsNewCar?.NTAX_TRGET_CD !== '00' && dsNewCar?.NTAX_WHO === 'UNION'
+			? dsOwnerInfo?.DEBTOR_TEL_NO
+			: dsNewCar?.MPHONE_NO;
+
+    const initialPhone = useMemo(() => splitPhone(recipientPhone), [recipientPhone]);
 
     const [phone, setPhone] = useState(initialPhone);
+
+	useEffect(() => {
+		if (open) {
+			setPhone(initialPhone);
+		}
+	}, [open, initialPhone]);
 
     if (!open) {
         return null;

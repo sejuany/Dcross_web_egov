@@ -173,14 +173,15 @@ const OwnerPersonal = ({
 						>
 						    <option value="">선택</option>
 						    <option value="R">주민등록번호</option>
-						    <option value="F">외국인등록번호</option>
 						    <option value="B">법인등록번호</option>
+						    <option value="F">외국인등록번호</option>
 						</select>
 	
 						<SplitInput
 						    value={dsNewCar.REG_NO}
 						    lengths={[6, 7]}
 							maskLast={['R', 'F'].includes(dsNewCar.REG_GB)}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,
@@ -212,6 +213,7 @@ const OwnerPersonal = ({
 							    value={dsNewCar.BIZ_NO}
 							    lengths={[3, 2, 5]}
 							    placeholders={['123', '45', '67890']}
+								inputClassName="wa-number-center"
 							    onChange={value =>
 							        setDsNewCar(prev => ({
 							            ...prev,
@@ -237,6 +239,7 @@ const OwnerPersonal = ({
 						    lengths={[3, 4, 4]}
 						    fixedValues={['010']}
 						    placeholders={['010', '1234', '5678']}
+							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsNewCar(prev => ({
 						            ...prev,
@@ -288,7 +291,7 @@ const OwnerPersonal = ({
 		
 			
 		    {/* 공동소유 */}
-			{!isCorporate && (
+			{/*!isCorporate && (*/}
 				<button
 				    type="button"
 				    className={`wa-joint-btn ${isJointOwnerOpen ? 'active' : ''}`}
@@ -303,7 +306,7 @@ const OwnerPersonal = ({
 
 				    공동 명의 시 클릭
 				</button>
-			)}
+			{/*})}*/}
 			
 			
 			{isJointOwnerOpen && (

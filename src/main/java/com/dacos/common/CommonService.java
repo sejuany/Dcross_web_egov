@@ -607,14 +607,28 @@ public class CommonService {
             sReturnMsg = "국토부 자동차 원부 연계 시스템 점검중";
         }
         
-        ObjectNode jsonReturn = objectMapper.createObjectNode();
-
-        jsonReturn.put("errorCode", sReturnCode);
-        jsonReturn.put("returnMSG", sReturnMsg);
+        ObjectNode jsonReturn = createLinkResponse(sReturnCode, sReturnMsg);
 
         logger.debug("sReturnCode : " + sReturnCode + " / sReturnMsg : " + sReturnMsg);
 
         return jsonReturn;
+    }
+
+    /** 복호화된 관청 응답은 JSON 객체로, 통신 오류 안내문은 문자열로 보존한다. */
+    ObjectNode createLinkResponse(String returnCode, String returnMessage) {
+        ObjectNode response = objectMapper.createObjectNode();
+        response.put("errorCode", returnCode);
+        try {
+            JsonNode message = objectMapper.readTree(returnMessage);
+            if (message != null && !message.isTextual()) {
+                response.set("returnMSG", message);
+                return response;
+            }
+        } catch (Exception ignored) {
+            // 통신 오류 메시지는 JSON이 아닐 수 있으므로 기존 문자열 형식을 유지한다.
+        }
+        response.put("returnMSG", returnMessage);
+        return response;
     }
     
 	// List에서 특정 행에 있는 데이터 컬럼값 가져오기

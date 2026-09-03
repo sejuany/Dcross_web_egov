@@ -1,9 +1,9 @@
 import  React, {useState} from 'react';
 
 import axios from 'axios';
-import { CalendarDays, CarFront, FileText, LoaderCircle, UserRound, Search } from 'lucide-react';
+import { CalendarDays, CarFront, FileText, LoaderCircle, UserRound, Search, X } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
-import { useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import '../../styles/WaNewcarDetail.css';
 // 첨부서류 모달
@@ -24,6 +24,8 @@ const paymentInfo = {
     UNUM: { order: 10, name: '입금 합계' }
 };
 
+const RECEIPT_ALLOWED_PROC_ST = new Set(['J_REQ', 'J_ING', 'J_END', 'END', 'J_WTX']);
+
 // 결제정보 행 스타일
 const getPaymentRowClass = (payKd) => {
 
@@ -39,6 +41,7 @@ const getPaymentRowClass = (payKd) => {
 };
 
 const WaNewcarDetail = ({
+	embedded = false,
     dsService,
     dsNewCar,
     dsOwnerInfo,
@@ -48,7 +51,6 @@ const WaNewcarDetail = ({
     dsCompanyInfo,
     dsWorkCp,
     dsUserInfo,
-	loading,
 	dsTaxReceipt,
 	saveProcess,
 	setDsCarNoDetach,
@@ -66,11 +68,30 @@ const WaNewcarDetail = ({
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
 	const [receiptModalOpen, setReceiptModalOpen] = useState(false);
 	const [searchParams] = useSearchParams();
+	const navigate = useNavigate();
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const serviceId = searchParams.get('serviceId');
+	// 로딩중
+	const [loading, setLoading] = useState(false);
+
+	const handleClose = () => {
+		if (onClose) {
+			onClose();
+			return;
+		}
+
+		navigate('/wa/newcar-status');
+	};
 	
 	// 영수증
 	const handleReceipt = () => {
+		const procSt = String(dsService?.PROC_ST || '').trim().toUpperCase();
+
+		if (!RECEIPT_ALLOWED_PROC_ST.has(procSt)) {
+			gf.alert('취득세 부과 및 채권처리 후 영수증 확인이 가능합니다.');
+			return;
+		}
+
 		window.open(
 		    `/wa/newcar/receipt/${dsService.SERVICE_ID}`,
 		    'paymentReceipt',
@@ -139,15 +160,15 @@ const WaNewcarDetail = ({
 				               		 : '';
 	
 	const handleDeliverySearch = () => {
-	    const songjangNo = (dsCarNoDetach?.SONGJANG_NO || '').replace(/-/g, '');
+	    const ETC5 = (dsCarNoDetach?.ETC5 || '').replace(/-/g, '');
 
-	    if (!songjangNo) {
-	        gf.alert('송장번호가 없습니다.');
+	    if (!ETC5) {
+	        gf.alert('등기번호가 없습니다.');
 	        return;
 	    }
 
 	    window.open(
-	        `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${songjangNo}&displayHeader=N`,
+	        `https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${ETC5}&displayHeader=N`,
 	        '_blank'
 	    );
 	};
@@ -204,6 +225,14 @@ const WaNewcarDetail = ({
 		        .replace(/[^0-9]/g, '')   // 숫자만
 		        .slice(2);                // 앞의 20 제거 → 260715
 
+			// 로딩 시작
+			setLoading(true);
+
+			// 로컬에서는 로딩 화면 확인을 위해 1초 지연
+			if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+			    await new Promise(resolve => setTimeout(resolve, 1000));
+			}
+				
 	        const response = await axios.get(
 	            `/api/newcar/carpaper/download?date=${judgeDt}&carNo=${encodeURIComponent(dsNewCar.CAR_NO)}`,
 	            {
@@ -228,6 +257,10 @@ const WaNewcarDetail = ({
 
 	        gf.alert('등록증 다운로드 중 오류가 발생했습니다.');
 	    }
+		finally {
+		   // 로딩 종료
+		   setLoading(false);
+	   }
 	};
 	
 	
@@ -272,7 +305,17 @@ const WaNewcarDetail = ({
 			    </div>
 			)}
 			
-			<div className="wa-request-card detail">
+			<div className={`wa-request-card detail${embedded ? ' embedded' : ''}`}>
+				<div className="marginBox-b10">
+					<button
+						type="button"
+						className="wa-detail-top-close"
+						onClick={handleClose}
+						aria-label="상세 화면 닫기"
+					>
+						<X size={20} aria-hidden="true" />
+					</button>
+				</div>
 	
 				{/* 처리상태 / 반려사유 */}
 				<div className="wa-detail-header">
@@ -626,17 +669,21 @@ const WaNewcarDetail = ({
 				                <span className="wa-detail-name">SPACE</span>
 				                <span>{dsDLVGB?.find(item => item.CODE_ID === dsCarNoDetach.DELIVERY_GB)?.CODE_NM ?? '-'}</span>
 				            </div>
-
-				        </div>
-
-				        <div className="wa-detail-right">
-
-							<button type="button" className="wa-detail-delivery-btn" onClick={handleDeliverySearch}>
-						    	<Search size={20} strokeWidth={2.5} />
-				                <span>배송현황</span>
-				            </button>
-
-				        </div>
+							
+							<div className="wa-detail-row">
+				                <span className="wa-detail-name">등록증 수령지</span>
+				                <span>
+									{`${dsNewCar.CARP_ADDRESS || ''} ${dsNewCar.CARP_ADDRESS_DT || ''}`}
+								</span>
+								
+				            </div>
+						</div>
+							<div className="wa-detail-right">
+								<button type="button" className="wa-detail-delivery-btn" onClick={handleDeliverySearch}>
+							    	<Search size={20} strokeWidth={2.5} />
+					                <span>등록서류 현황</span>
+					            </button>
+					        </div>
 				    </div>
 				</div>
 				
@@ -780,7 +827,7 @@ const WaNewcarDetail = ({
 					<button
 	                    type="button"
 	                    className="wa-btn-primary"
-	                    onClick={onClose}
+	                    onClick={handleClose}
 	                >
 	                    닫기
 	                </button>
@@ -811,6 +858,7 @@ const WaNewcarDetail = ({
 				    open={receiptModalOpen}
 				    onClose={() => setReceiptModalOpen(false)}
 				    dsTaxReceipt={dsTaxReceipt}
+				    dsNewCar={dsNewCar}
 				/>
 				
 			</div>

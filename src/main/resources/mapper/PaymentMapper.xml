@@ -23,8 +23,8 @@
                 WHEN TS.PROC_ST = 'PREND' THEN 'PREND'
                 WHEN TS.PROC_ST = 'PBEND' THEN 'PBEND'
                 WHEN TS.PROC_ST = 'P_END' THEN 'P_END'
-                WHEN TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC') THEN 'S_REQ'
-                WHEN TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END') THEN 'S_END'
+                WHEN TS.PROC_ST IN ('S_REQ', 'S_END', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_MAN', 'D_PAM', 'D_DAC') THEN 'S_REQ'
+                WHEN TS.PROC_ST IN ('J_REQ', 'J_ING', 'J_END', 'J_WTX', 'END') THEN 'S_END'
                 WHEN TS.PROC_ST IN ('RET', 'REJECT') THEN 'RET'
                 ELSE TS.PROC_ST
             END AS NPROC_ST,
@@ -93,7 +93,7 @@
           AND TS.COMPANY_ID = #{COMPANY_ID}
         </if>
         <choose>
-          <when test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+          <when test="COMPANY_ID != null and COMPANY_ID.startsWith('WA')  and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
             AND TS.BRANCH_ID = #{BRANCH_ID}
           </when>
           <otherwise>
@@ -137,10 +137,10 @@
                     AND TS.PROC_ST = 'P_END'
                 </when>
                 <when test="PROC_ST == 'S_REQ'">
-                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'J_REQ', 'J_ING', 'D_MAN', 'D_PAM', 'D_DAC')
+                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_MAN', 'D_PAM', 'D_DAC')
                 </when>
                 <when test="PROC_ST == 'S_END'">
-                    AND TS.PROC_ST IN ('J_END', 'J_WTX', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'END')
+                    AND TS.PROC_ST IN ('J_REQ', 'J_ING', 'J_END', 'J_WTX', 'END')
                 </when>
                 <when test="PROC_ST == 'DIRCT'">
                     AND NVL(TN.DIRECT_YN, 'N') = 'Y'
@@ -196,7 +196,7 @@
         WHERE COMPANY_ID = #{COMPANY_ID}
           AND NVL(USE_YN, 'Y') = 'Y'
         <choose>
-          <when test="COMPANY_ID == 'WA001' and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
+          <when test="COMPANY_ID != null and COMPANY_ID.startsWith('WA') and (MEMBER_GB == 'BA' or MEMBER_GB == 'SU')">
             AND BRANCH_ID = #{BRANCH_ID}
           </when>
           <otherwise>

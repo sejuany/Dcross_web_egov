@@ -27,3 +27,13 @@ mobile-ok:
   token-url: ${MOBILE_OK_TOKEN_URL:https://scert-dir.mobile-ok.com/agent/v1/token/get}
   auth-request-url: ${MOBILE_OK_AUTH_REQUEST_URL:https://scert-dir.mobile-ok.com/agent/v1/auth/request}
   confirm-url: ${MOBILE_OK_CONFIRM_URL:https://scert-dir.mobile-ok.com/agent/v1/confirm/request}
+
+with-auth:
+  enabled: ${WITHAUTH_ENABLED:true}
+  issue-oauth-url: ${WITHAUTH_ISSUE_OAUTH_URL:https://t-api.withauth.co.kr/oauth/token}
+  parse-token-url: ${WITHAUTH_PARSE_TOKEN_URL:https://t-api.withauth.co.kr/cert/v1.0/kcert/v1.0/parse}
+  sdk-url: ${WITHAUTH_SDK_URL:https://t-api.withauth.co.kr/v1/assets/js/withauthSdk/client_init.js}
+  client-id: ${WITHAUTH_CLIENT_ID:}
+  client-secret: ${WITHAUTH_CLIENT_SECRET:}
+  encrypt-key: ${WITHAUTH_ENCRYPT_KEY:}
+  encrypt-iv: ${WITHAUTH_ENCRYPT_IV:}

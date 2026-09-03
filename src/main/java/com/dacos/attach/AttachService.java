@@ -15,8 +15,10 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Stream;
-
+import java.awt.Graphics2D;
+import java.awt.RenderingHints;
 import javax.imageio.ImageIO;
 
 import org.apache.pdfbox.Loader;
@@ -64,7 +66,9 @@ public class AttachService {
     private static final Logger logger = LoggerFactory.getLogger(AttachService.class);
     // DB 저장 경로
     private static final String WA_ATTACH_PATH_NM = "/upload";
-    private static final long WA_ATTACH_MAX_SIZE = 10L * 1024L * 1024L;
+    private static final int A4_WIDTH_PX = 800; // A4 210mm @ 300 DPI
+    private static final Set<String> ALLOWED_UPLOAD_EXTENSIONS =
+            Set.of(".jpg", ".jpeg", ".png", ".webp", ".pdf");
     
     private final AttachMapper attachMapper;
     private final CustomerService customerService;
@@ -190,7 +194,7 @@ public class AttachService {
 	/*
 	 * 양식 파일 저장 루트 경로 조회
 	 */
-	private String getFormRoot() {
+	public String getFormRoot() {
 
 	    String serverIp = getServerAddress("IP");
 
@@ -220,7 +224,8 @@ public class AttachService {
 	 */
 	@Transactional
 	public List<Map<String, Object>> uploadAttachFile(
-	        String serviceId, String code, String gubun, String docName,
+	        String serviceId, String code, String gubun, 
+	        String duplicateMinor, String docName,
 	        MultipartFile file, UserDto user, String token
 	) {
 		
@@ -248,83 +253,105 @@ public class AttachService {
 	        throw new BusinessException("첨부파일이 없습니다.", 400);
 	    }
 
-	    if (file.getSize() > WA_ATTACH_MAX_SIZE) {
-	        throw new BusinessException("첨부파일은 10MB 이하만 가능합니다.", 400);
-	    }
-	    
 	    try {
-			 // ============================
-			 // 기존 첨부파일 삭제
-			 // ============================
-			 Path uploadDir = Paths.get(getAttachUploadRoot());
-			 Files.createDirectories(uploadDir);
-		
-			 deleteOldAttachFiles(
-			         uploadDir, cleanServiceId, cleanCode, cleanGubun
-			 );
-			 
-			 // ============================
-			 // SEQ 결정
-			 // 삭제 후 현재 첨부파일 개수를 다음 SEQ로 사용
-			 // ============================
-			 List<Map<String, Object>> attachList =
-			         getAttachFiles(cleanServiceId, token, user);
-		
-			 int seq = attachList.stream()
-				        .map(m -> Objects.toString(m.get("SEQ"), ""))
-				        .filter(s -> !s.isBlank())
-				        .mapToInt(Integer::parseInt)
-				        .max()
-				        .orElse(-1) + 1;
-		
-			 logger.info("seq={}", seq);
-		
-			 String originalFileName = sanitizeOriginalFileName(file.getOriginalFilename());
-			 String extension = getFileExtension(originalFileName);
-			 
-			 // 화면에 표시할 한글 파일명
-			 String koreanFileName = docName + extension;
-		
-			 // {서비스아이디}_{첨부파일코드}.{확장자}
-			 String savedFileName =
-			         cleanServiceId + "_" + cleanCode + extension;
 
-	    
+	        // ============================
+	        // 저장 파일 정보 생성
+	        // ============================
+	        String originalFileName = sanitizeOriginalFileName(file.getOriginalFilename());
+	        String extension = getFileExtension(originalFileName);
+	        validateUploadFile(file, extension);
+
+	        // 화면에 표시할 한글 파일명
+	        String koreanFileName = docName + extension;
+
+	        // 서버 저장 파일명
+	        String savedFileName =
+	                cleanServiceId + "_" + cleanCode + extension;
+
+	        String loginId = user != null
+	                ? Objects.toString(user.getLOGIN_ID(), "")
+	                : "CUSTOMER";
+
+	        // ============================
+	        // 업로드 폴더 생성
+	        // ============================
+	        // 업로드 폴더가 없으면 생성
+	        Path uploadDir = Paths.get(getAttachUploadRoot());
+	        Files.createDirectories(uploadDir);
+
+	        // ============================
+	        // SEQ 결정
+	        // ============================
+	        // 현재 가장 큰 SEQ 다음 번호 사용
+	        List<Map<String, Object>> attachList =
+	                getAttachFiles(cleanServiceId, token, user);
+
+	        int seq = attachList.stream()
+	                .map(m -> Objects.toString(m.get("SEQ"), ""))
+	                .filter(s -> !s.isBlank())
+	                .mapToInt(Integer::parseInt)
+	                .max()
+	                .orElse(-1) + 1;
+
+	        // ============================
+	        // 공통 파라미터 생성
+	        // ============================
+	        Map<String, Object> param = new HashMap<>();
+
+	        param.put("SERVICE_ID", cleanServiceId);
+	        param.put("CODE", cleanCode);           // 삭제 시 사용
+	        param.put("SEQ", String.valueOf(seq));
+	        param.put("ATCHFILE_NM", koreanFileName);
+	        param.put("ATCHSVRFILE_NM", savedFileName);
+	        param.put("ATCHFILEPATH_NM", WA_ATTACH_PATH_NM);
+	        param.put("GUBUN", cleanGubun);
+	        param.put("INS_USER", loginId);
+	        param.put("UPD_USER", loginId);
+
+	        // ============================
+	        // 기존 첨부파일 삭제
+	        // ============================
+	        // 동일한 CODE의 기존 첨부파일 삭제
+	        deleteOldAttachFiles(uploadDir, param);
+
+	        if ("Y".equals(duplicateMinor) && !"MINOR".equals(cleanGubun)) {
+	        	// 미성년자 확인서류 병합 대상이면 MINOR도 함께 삭제
+	            param.put("GUBUN", "MINOR");
+	            deleteOldAttachFiles(uploadDir, param);
+
+	            // 원래 GUBUN 복원
+	            param.put("GUBUN", cleanGubun);
+	        }
+
+	        // ============================
+	        // 파일 저장
+	        // ============================
+	        // 서버에 실제 파일 저장
 	        Path savePath = uploadDir.resolve(savedFileName).normalize();
 
-	        logger.info("[WA 첨부 업로드] serviceId={}, code={}, gubun={}, seq={}",
-	                cleanServiceId, cleanCode, cleanGubun, seq);
+	        saveResizeImage(file, savePath);
 
-	        logger.info("[WA 첨부 업로드] koreanFileName={}", koreanFileName);
-	        logger.info("[WA 첨부 업로드] contentType={}", file.getContentType());
-	        logger.info("[WA 첨부 업로드] fileSize={}", file.getSize());
-	        logger.info("[WA 첨부 업로드] savePath={}", savePath);
+	        // ============================
+	        // DB 저장
+	        // ============================
+	        param.put("SEQ", String.valueOf(seq++));
+	        param.put("GUBUN", cleanGubun);
+	        attachMapper.insertAttachFile(param);
 
-	        // 업로드
-	        file.transferTo(savePath.toFile());
+	        if ("Y".equals(duplicateMinor) && !"MINOR".equals(cleanGubun)) {
+	        	// 미성년자 확인서류 병합을 위해 MINOR도 함께 저장
+	            param.put("SEQ", String.valueOf(seq++));
+	            param.put("GUBUN", "MINOR");
+	            attachMapper.insertAttachFile(param);
+	        }
 
-	        logger.info("[WA 첨부 업로드] savedFileSize={}", Files.size(savePath));
+	        logger.info("[WA 첨부 업로드] serviceId={}, code={}, gubun={}, duplicateMinor={}, seq={}",
+	                cleanServiceId, cleanCode, cleanGubun, duplicateMinor, seq);
 
-		    // 고객페이지에서 업로드 하는 경우
-			String loginId = user != null
-			        ? Objects.toString(user.getLOGIN_ID(), "")
-			        : "CUSTOMER";
-
-		    Map<String, Object> param = new HashMap<>();
-
-		    param.put("SERVICE_ID", cleanServiceId);
-		    param.put("SEQ", String.valueOf(seq));
-		    param.put("ATCHFILE_NM", koreanFileName);
-		    param.put("ATCHSVRFILE_NM", savedFileName);
-		    param.put("ATCHFILEPATH_NM", WA_ATTACH_PATH_NM);
-		    param.put("GUBUN", cleanGubun);
-		    param.put("INS_USER", loginId);
-		    param.put("UPD_USER", loginId);
-
-		    attachMapper.insertAttachFile(param);
 	    } catch (IOException e) {
 
-	        logger.error("[NewcarService] WA 신규등록 첨부파일 저장 실패", e);
+	        logger.error("[NewcarService] WA 신규등록 첨부파일 저장 실패");
 
 	        throw new BusinessException("첨부파일 저장 중 오류가 발생했습니다.", 500);
 	    }
@@ -332,34 +359,119 @@ public class AttachService {
 	    return getAttachFiles(cleanServiceId, token, user);
 	}
 	
+	/**
+	 * 이미지 크기 조절
+	 */
+	private void saveResizeImage(MultipartFile file, Path savePath) throws IOException {
+
+	    BufferedImage original = ImageIO.read(file.getInputStream());
+
+	    // 이미지가 아닌 파일(PDF 등)은 그대로 저장
+	    if (original == null) {
+	        file.transferTo(savePath.toFile());
+	        return;
+	    }
+
+	    int originalWidth = original.getWidth();
+	    int originalHeight = original.getHeight();
+
+	    // A4 가로보다 작으면 원본 그대로 저장
+	    if (originalWidth <= A4_WIDTH_PX) {
+	        file.transferTo(savePath.toFile());
+	        return;
+	    }
+
+	    // 비율 유지
+	    double ratio = (double) A4_WIDTH_PX / originalWidth;
+
+	    int newWidth = A4_WIDTH_PX;
+	    int newHeight = (int) Math.round(originalHeight * ratio);
+
+	    BufferedImage resized = new BufferedImage(
+	        newWidth,
+	        newHeight,
+	        original.getType() == BufferedImage.TYPE_CUSTOM
+	            ? BufferedImage.TYPE_INT_RGB
+	            : original.getType()
+	    );
+
+	    Graphics2D g = resized.createGraphics();
+
+	    // 축소 품질
+	    g.setRenderingHint(
+	        RenderingHints.KEY_INTERPOLATION,
+	        RenderingHints.VALUE_INTERPOLATION_BICUBIC
+	    );
+	    g.setRenderingHint(
+	        RenderingHints.KEY_RENDERING,
+	        RenderingHints.VALUE_RENDER_QUALITY
+	    );
+	    g.setRenderingHint(
+	        RenderingHints.KEY_ANTIALIASING,
+	        RenderingHints.VALUE_ANTIALIAS_ON
+	    );
+
+	    g.drawImage(
+	        original,
+	        0, 0,
+	        newWidth, newHeight,
+	        null
+	    );
+
+	    g.dispose();
+
+	    String fileName = savePath.getFileName().toString();
+	    String extension = getFileExtension(fileName)
+	        .replace(".", "")
+	        .toLowerCase();
+
+	    // jpg → jpeg
+	    if ("jpg".equals(extension)) {
+	        extension = "jpeg";
+	    }
+
+	    ImageIO.write(resized, extension, savePath.toFile());
+	}
 	
 	/**
-	 * 기존 첨부파일 삭제 ( 저장할 때 사용 ) 
-	 * - DB : 같은 SERVICE_ID + GUBUN + CODE(확장자 무관)
-	 * - 파일 : 같은 SERVICE_ID_CODE(확장자 무관)
+	 * 기존 첨부파일 삭제 (저장 시 사용)
+	 * - DB : SERVICE_ID + GUBUN + ATCHSVRFILE_NM 기준 (확장자 제외)
+	 * - 파일 : ATCHSVRFILE_NM 기준 (확장자 제외)
 	 */
 	private void deleteOldAttachFiles(
 	        Path uploadDir,
-	        String serviceId,
-	        String code,
-	        String gubun) {
+	        Map<String, Object> param) {
 
-	    String prefix = serviceId + "_" + code;
+	    String serviceId = Objects.toString(param.get("SERVICE_ID"), "");
+	    String gubun = Objects.toString(param.get("GUBUN"), "");
+	    String serverFileName =
+	            Objects.toString(param.get("ATCHSVRFILE_NM"), "");
+
+	    // 확장자를 제외한 서버 파일명
+	    int dotIndex = serverFileName.lastIndexOf('.');
+	    String baseFileName = dotIndex > -1
+	            ? serverFileName.substring(0, dotIndex)
+	            : serverFileName;
 
 	    // ===== DB 삭제 =====
-	    Map<String, Object> param = new HashMap<>();
-	    param.put("SERVICE_ID", serviceId);
-	    param.put("GUBUN", gubun);
+	    Map<String, Object> selectParam = new HashMap<>();
+	    selectParam.put("SERVICE_ID", serviceId);
+	    selectParam.put("GUBUN", gubun);
 
 	    List<Map<String, Object>> attachList =
-	            attachMapper.getAttachFiles(param);
+	            attachMapper.getAttachFiles(selectParam);
 
 	    for (Map<String, Object> row : attachList) {
 
-	        String serverFileName =
+	        String oldServerFileName =
 	                Objects.toString(row.get("ATCHSVRFILE_NM"), "");
 
-	        if (!serverFileName.startsWith(prefix)) {
+	        int oldDotIndex = oldServerFileName.lastIndexOf('.');
+	        String oldBaseFileName = oldDotIndex > -1
+	                ? oldServerFileName.substring(0, oldDotIndex)
+	                : oldServerFileName;
+
+	        if (!baseFileName.equals(oldBaseFileName)) {
 	            continue;
 	        }
 
@@ -375,8 +487,16 @@ public class AttachService {
 	    try (Stream<Path> stream = Files.list(uploadDir)) {
 
 	        stream.filter(Files::isRegularFile)
-	              .filter(path ->
-	                      path.getFileName().toString().startsWith(prefix))
+	              .filter(path -> {
+	                  String fileName = path.getFileName().toString();
+
+	                  int index = fileName.lastIndexOf('.');
+	                  String baseName = index > -1
+	                          ? fileName.substring(0, index)
+	                          : fileName;
+
+	                  return baseFileName.equals(baseName);
+	              })
 	              .forEach(path -> {
 	                  try {
 	                      Files.deleteIfExists(path);
@@ -385,8 +505,11 @@ public class AttachService {
 	                  }
 	              });
 
-	    } catch (IOException e) {
-	        throw new BusinessException("기존 첨부파일 삭제 중 오류가 발생했습니다.", 500);
+	    } catch (IOException | UncheckedIOException e) {
+	        throw new BusinessException(
+	                "기존 첨부파일 삭제 중 오류가 발생했습니다.",
+	                500
+	        );
 	    }
 	}
 	
@@ -457,29 +580,29 @@ public class AttachService {
 	        throw new BusinessException("파일이 존재하지 않습니다.", 404);
 	    }
 
-	    // 파일 Resource 생성
-	    Resource resource = new UrlResource(path.toUri());
-
 	    // 원본 파일명
 	    String originalName = Objects.toString(fileInfo.get("ATCHFILE_NM"), "");
 
-	    // MIME 타입 자동 판별
-	    String contentType = Files.probeContentType(path);
+	    return buildSafeFileResponse(path, originalName);
+	}
 
-	    if (contentType == null || contentType.isBlank()) {
-	        contentType = "application/octet-stream";
-	    }
+	/**
+	 * 검증된 이미지/PDF만 브라우저에서 열고, 그 외 파일은 다운로드로 강제한다.
+	 */
+	public ResponseEntity<Resource> buildSafeFileResponse(Path path, String originalName) throws IOException {
+	    Resource resource = new UrlResource(path.toUri());
+	    MediaType contentType = getSafeMediaType(getFileExtension(path.getFileName().toString()));
+	    boolean inline = !MediaType.APPLICATION_OCTET_STREAM.equals(contentType);
+	    ContentDisposition disposition = (inline
+	            ? ContentDisposition.inline()
+	            : ContentDisposition.attachment())
+	            .filename(originalName, StandardCharsets.UTF_8)
+	            .build();
 
-	    // 브라우저에서 바로 표시(inline)하도록 응답
 	    return ResponseEntity.ok()
-	            .contentType(MediaType.parseMediaType(contentType))
-	            .header(
-	                    HttpHeaders.CONTENT_DISPOSITION,
-	                    ContentDisposition.inline()
-	                            .filename(originalName, StandardCharsets.UTF_8)
-	                            .build()
-	                            .toString()
-	            )
+	            .contentType(contentType)
+	            .header(HttpHeaders.CONTENT_DISPOSITION, disposition.toString())
+	            .header("X-Content-Type-Options", "nosniff")
 	            .body(resource);
 	}
 
@@ -518,6 +641,72 @@ public class AttachService {
 
         return value.substring(dotIndex).toLowerCase();
     }
+
+	static void validateUploadFile(MultipartFile file, String extension) {
+	    if (!ALLOWED_UPLOAD_EXTENSIONS.contains(extension)) {
+	        throw new BusinessException("JPG, PNG, WEBP, PDF 파일만 업로드할 수 있습니다.", 400);
+	    }
+
+	    try {
+	        byte[] header;
+	        try (var input = file.getInputStream()) {
+	            header = input.readNBytes(12);
+	        }
+
+	        boolean validSignature = switch (extension) {
+	            case ".jpg", ".jpeg" -> header.length >= 3
+	                    && (header[0] & 0xff) == 0xff
+	                    && (header[1] & 0xff) == 0xd8
+	                    && (header[2] & 0xff) == 0xff;
+	            case ".png" -> header.length >= 8
+	                    && (header[0] & 0xff) == 0x89
+	                    && header[1] == 'P' && header[2] == 'N' && header[3] == 'G'
+	                    && (header[4] & 0xff) == 0x0d && (header[5] & 0xff) == 0x0a
+	                    && (header[6] & 0xff) == 0x1a && (header[7] & 0xff) == 0x0a;
+	            case ".webp" -> header.length >= 12
+	                    && header[0] == 'R' && header[1] == 'I' && header[2] == 'F' && header[3] == 'F'
+	                    && header[8] == 'W' && header[9] == 'E' && header[10] == 'B' && header[11] == 'P';
+	            case ".pdf" -> header.length >= 5
+	                    && header[0] == '%' && header[1] == 'P' && header[2] == 'D'
+	                    && header[3] == 'F' && header[4] == '-';
+	            default -> false;
+	        };
+
+	        if (!validSignature) {
+	            throw new BusinessException("파일 확장자와 실제 형식이 일치하지 않습니다.", 400);
+	        }
+
+	        if (".jpg".equals(extension) || ".jpeg".equals(extension) || ".png".equals(extension)) {
+	            try (var input = file.getInputStream()) {
+	                if (ImageIO.read(input) == null) {
+	                    throw new BusinessException("손상되었거나 지원하지 않는 이미지 파일입니다.", 400);
+	                }
+	            }
+	        }
+
+	        if (".pdf".equals(extension)) {
+	            try (PDDocument document = Loader.loadPDF(file.getBytes())) {
+	                if (document.getNumberOfPages() < 1) {
+	                    throw new BusinessException("페이지가 없는 PDF 파일입니다.", 400);
+	                }
+	            }
+	        }
+	    } catch (BusinessException e) {
+	        throw e;
+	    } catch (IOException e) {
+	        throw new BusinessException("파일 형식을 확인할 수 없습니다.", 400);
+	    }
+	}
+
+	private MediaType getSafeMediaType(String extension) {
+	    return switch (extension) {
+	        case ".jpg", ".jpeg" -> MediaType.IMAGE_JPEG;
+	        case ".png" -> MediaType.IMAGE_PNG;
+	        case ".webp" -> MediaType.parseMediaType("image/webp");
+	        case ".pdf" -> MediaType.APPLICATION_PDF;
+	        default -> MediaType.APPLICATION_OCTET_STREAM;
+	    };
+	}
 
     /**
      * 첨부파일 조회 URL 생성
@@ -577,29 +766,46 @@ public class AttachService {
 
     
     /* *******************************************************************
-     * - 감면신청서 PDF 생성 및 병합
+     * - 감면서류 PDF 생성 및 병합
+     *   · CREATE_YN = Y : 감면신청서 생성 후 증빙서류 병합
+     *   · CREATE_YN = N : 증빙서류만 병합
      * *******************************************************************/
     @Transactional
     public void mergePdf(String serviceId, Map<String, Object> exemption) {
 
-        // 1. 병합 대상 조회
-        List<Map<String, Object>> attachList =
-                getMergeAttachFiles(serviceId, "MERGE", "SIGN");
+    	// 감면신청서 생성 여부
+		boolean createForm =
+		        "Y".equals(exemption.get("CREATE_YN"));
+		
+		// CREATE_YN에 따라 병합 대상 조회
+	    // - Y : 감면 증빙(MERGE) + 전자서명(SIGN)
+	    // - N : 감면 증빙(MERGE)만
+		List<Map<String, Object>> attachList =
+		        createForm
+		            ? getMergeAttachFiles(serviceId, "MERGE", "SIGN")
+		            : getMergeAttachFiles(serviceId, "MERGE", null);
+
+		// 생성 파일명
+        String fileName =
+                createForm
+                    ? serviceId + "_감면신청서.pdf"
+                    : serviceId + "_감면서류.pdf";
 
         if (attachList.isEmpty()) {
             logger.info("병합 대상 첨부파일이 없어 PDF 생성을 건너뜁니다. serviceId={}", serviceId);
             return;
         }
 
-        // 2. 병합할 실제 파일 조회
+        // 병합할 실제 파일 조회
         List<Path> mergeFiles = getMergeFiles(attachList);
-
-        // 3. PDF 생성
+	
+        // CREATE_YN이 Y이면 감면신청서를 생성한 후 병합,
+        // N이면 첨부파일만 병합
         Path pdfPath = createMergePdf(
                 serviceId,
-                serviceId + "_감면신청서.pdf",
+                fileName,
                 mergeFiles,
-                exemption);
+                createForm ? exemption : null);
 
         if (pdfPath == null || Files.notExists(pdfPath)) {
             logger.warn("감면신청서 PDF 생성 실패");
@@ -645,7 +851,7 @@ public class AttachService {
     }
     
 	/*
-	 * 1. 병합 대상 조회
+	 * 병합 대상 조회
 	 */
 	private List<Map<String, Object>> getMergeAttachFiles(
 	        String serviceId,
@@ -704,6 +910,8 @@ public class AttachService {
 	        String fileName,
 	        List<Path> mergeFiles,
 	        Map<String, Object> exemption) {
+		
+		logger.info("createMergePdf?");
 
 	    Path uploadRoot = Paths.get(getAttachUploadRoot());
 	    Path pdfPath = uploadRoot.resolve(fileName);
@@ -718,18 +926,23 @@ public class AttachService {
 
 	        PDFMergerUtility merger = new PDFMergerUtility();
 	        merger.setDestinationFileName(pdfPath.toString());
-
+	        
+	        logger.info("exemption?" + exemption);
+	        
 	        // ===============================
 	        // 감면신청서 생성
 	        // ===============================
 	        if (exemption != null) {
 
+	        	logger.info("pdfData 하기 전");
 	            // 감면신청서 PDF 생성에 필요한 데이터 조회
 	            Map<String, Object> pdfData =
-	                    common.select(
-	                            Map.of("SERVICE_ID", serviceId),
+	                    common.select(Map.of("SERVICE_ID", serviceId),
 	                            "selectExemptionInfo");
-
+	            
+	            logger.info("pdfData >>", pdfData);
+	            
+	            
 	            // 프론트에서 전달된 감면 정보 병합
 	            if (!exemption.isEmpty()) {
 	                pdfData.putAll(exemption);
@@ -750,11 +963,7 @@ public class AttachService {
 	            }
 
 	            // 지방세 감면 신청서 추가
-	            addTaxExemptionPdf(
-	                    merger,
-	                    tempPdfList,
-	                    pdfData,
-	                    signFile);
+	            addTaxExemptionPdf(merger, tempPdfList, pdfData, signFile);
 	        }
 
 	        // ===============================
@@ -827,18 +1036,31 @@ public class AttachService {
 	        Map<String, Object> pdfData,
 	        Path signFile) throws Exception {
 		
+		System.out.println("addTaxExemptionPdf");
+		
 		// PDF 생성에 필요한 데이터를 DTO로 변환
 	    PdfExemptionDto dto = new PdfExemptionDto();
 
+	    // 신청인 정보
+	    // 비과세 대상이 공동소유자인 경우 공동소유자 정보를 넣는다.
+	    if("REPRE".equals((String) pdfData.get("NTAX_WHO"))) {
+	    	dto.setOWNER_NM((String) pdfData.get("OWNER_NM"));
+	    	dto.setREG_NO((String) pdfData.get("REG_NO"));
+	    	dto.setMPHONE_NO((String) pdfData.get("MPHONE_NO"));
+	    	dto.setADDRESS((String) pdfData.get("ADDRESS"));
+	    	dto.setADDRESS_DT((String) pdfData.get("ADDRESS_DT"));
+	    } else {
+	    	dto.setOWNER_NM((String) pdfData.get("DEBTOR_NM"));
+	    	dto.setREG_NO((String) pdfData.get("DEBTOR_NO"));
+	    	dto.setMPHONE_NO((String) pdfData.get("DEBTOR_TEL"));
+	    	dto.setADDRESS((String) pdfData.get("DEBTOR_ADDR"));
+	    	dto.setADDRESS_DT((String) pdfData.get("DEBTOR_ADDR_DT"));
+	    }
+	    
 	    dto.setSERVICE_ID((String) pdfData.get("SERVICE_ID"));
 	    dto.setCAR_NO((String) pdfData.get("CAR_NO"));
-	    dto.setOWNER_NM((String) pdfData.get("OWNER_NM"));
 	    dto.setBIZ_NO((String) pdfData.get("BIZ_NO"));
 	    dto.setREQUEST_DT((String) pdfData.get("REQUEST_DT"));
-	    dto.setREG_NO((String) pdfData.get("REG_NO"));
-	    dto.setADDRESS((String) pdfData.get("ADDRESS"));
-	    dto.setADDRESS_DT((String) pdfData.get("ADDRESS_DT"));
-	    dto.setMPHONE_NO((String) pdfData.get("MPHONE_NO"));
 	    dto.setREASON((String) pdfData.get("REASON"));
 	    dto.setDOCUMENT((String) pdfData.get("DOCUMENT"));
 	    dto.setGOVT_NM((String) pdfData.get("GOVT_NM"));
@@ -860,7 +1082,7 @@ public class AttachService {
 	    try (PDDocument doc = Loader.loadPDF(file.toFile())) {
 	        return true;
 	    } catch (Exception e) {
-	        logger.warn("손상된 PDF : {}", file, e);
+	        logger.warn("손상된 PDF : {}", file);
 	        return false;
 	    }
 	}

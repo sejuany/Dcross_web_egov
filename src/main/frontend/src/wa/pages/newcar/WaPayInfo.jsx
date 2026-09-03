@@ -1,8 +1,7 @@
 ﻿import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import axios from 'axios';
-import { BarChart3, Download, RotateCcw, Search, X } from 'lucide-react';
+import { BarChart3, Download, Filter, MoreVertical, RotateCcw, Search, X } from 'lucide-react';
 import { useAuth } from '../../../context/AuthContext';
-import { exportRowsToXlsx } from '../../../utils/xlsxExport';
 import { exportRowsWithSummaryToXlsx } from '../../../utils/xlsxExport';
 import '../../styles/wa.css';
 
@@ -46,7 +45,7 @@ const PINNED_COLUMN_KEYS = ['SEQ', 'LINK_ID', 'CARID_NO', 'CAR_NO', 'PROC_ST', '
 const PINNED_COLUMN_SET = new Set(PINNED_COLUMN_KEYS);
 
 const columns = [
-    { key: 'SEQ', label: '순번', width: 52, minWidth: 44, sortType: 'number'},
+    { key: 'SEQ', label: '순번', width: 52, minWidth: 44, sortType: 'number', sortable: false},
     { key: 'LINK_ID', label: '주문번호', width: 106, minWidth: 74 },
     { key: 'CARID_NO', label: '차대번호', width: 156, minWidth: 100 },
     { key: 'CAR_NO', label: '차량번호', width: 104, minWidth: 72 },
@@ -526,8 +525,16 @@ const WaPayInfo = () => {
     const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
     const [columnWidths, setColumnWidths] = useState({});
     const [showStatistics, setShowStatistics] = useState(false);
+    const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
 
     const selectedCompanyId = searchFilters.companyId || userCompanyId;
+    const mobileDetailFilterCount = [
+        canSelectCompany && selectedCompanyId !== userCompanyId,
+        !isBranchFixed && searchFilters.branchId,
+        !isMemberFixed && searchFilters.memberId,
+        searchFilters.carNo,
+        searchFilters.processStatus
+    ].filter(Boolean).length;
 
     // 조회 조건 select option과 코드명 표시값을 계산함
     const codeMap = useMemo(() => buildCodeMap(codeListMap), [codeListMap]);
@@ -825,6 +832,18 @@ const WaPayInfo = () => {
         }));
     };
 
+    // 모바일 납부상태 칩은 선택과 동시에 목록을 다시 조회함.
+    const handleMobilePaymentStatus = (paymentStatus) => {
+        const nextFilters = { ...searchFilters, paymentStatus };
+        setSearchFilters(nextFilters);
+        fetchPaymentList(nextFilters);
+    };
+
+    const applyMobileFilters = () => {
+        setMobileFilterOpen(false);
+        fetchPaymentList(searchFilters);
+    };
+
     // 회사 변경 시 지점/담당SP 선택값을 초기화하고 하위 목록을 재조회함
 	const handleCompanyChange = async (event) => {
 	    const nextCompanyId = event.target.value;
@@ -1098,8 +1117,72 @@ const WaPayInfo = () => {
     };
 
     return (
-        <div className="wa-status-page">
+        <div className="wa-status-page wa-pay-list-page">
             <div className="wa-status-page-content">
+                <div className="wa-mobile-sticky-controls">
+                    <section className="wa-mobile-list-toolbar" aria-label="모바일 납부현황 조회 조건">
+                        <div className="wa-mobile-period-row">
+                            <select name="dateType" value={searchFilters.dateType} onChange={handleFilterChange} aria-label="기준일자">
+                                {dateTypeOptions.map(option => (
+                                    <option key={option.value} value={option.value}>{option.label}</option>
+                                ))}
+                            </select>
+                            <input type="date" name="startDate" value={searchFilters.startDate} onChange={handleFilterChange} aria-label="조회 시작일" />
+                            <input type="date" name="endDate" value={searchFilters.endDate} onChange={handleFilterChange} aria-label="조회 종료일" />
+                        </div>
+
+                        <div className="wa-mobile-toolbar-actions">
+                            <button type="button" className="wa-mobile-toolbar-button" onClick={() => setMobileFilterOpen(true)}>
+                                <Filter size={17} />
+                                <span>필터</span>
+                                {mobileDetailFilterCount > 0 && <strong>{mobileDetailFilterCount}</strong>}
+                            </button>
+                            <button type="button" className="wa-mobile-toolbar-button primary" onClick={() => fetchPaymentList(searchFilters)} disabled={loading}>
+                                <Search size={17} />
+                                <span>조회</span>
+                            </button>
+                            <details className="wa-mobile-more-menu">
+                                <summary aria-label="납부현황 추가 기능">
+                                    <MoreVertical size={19} />
+                                </summary>
+                                <div className="wa-mobile-more-popover">
+                                    <button type="button" onClick={event => { setShowStatistics(true); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                                        <BarChart3 size={16} /> 통계
+                                    </button>
+                                    <button type="button" onClick={event => { handleExport(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                                        <Download size={16} /> 엑셀 다운로드
+                                    </button>
+                                    <button type="button" onClick={event => { handleReset(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                                        <RotateCcw size={16} /> 조회조건 초기화
+                                    </button>
+                                    <button type="button" onClick={() => window.history.back()}>
+                                        <X size={16} /> 닫기
+                                    </button>
+                                </div>
+                            </details>
+                        </div>
+                    </section>
+
+                    <nav className="wa-mobile-status-chips" aria-label="납부상태 필터">
+                        {paymentStatusOptions.map(option => (
+                            <button
+                                key={option.value || 'ALL_PAYMENT'}
+                                type="button"
+                                className={searchFilters.paymentStatus === option.value ? 'active' : ''}
+                                aria-pressed={searchFilters.paymentStatus === option.value}
+                                onClick={() => handleMobilePaymentStatus(option.value)}
+                                disabled={loading}
+                            >
+                                {option.label}
+                            </button>
+                        ))}
+                    </nav>
+
+                    <div className="wa-mobile-result-heading">
+                        <strong>검색 결과 총 {rows.length}건</strong>
+                    </div>
+                </div>
+
                 {/* 조회 기간과 상단 기능 버튼을 렌더링함 */}
                 <section className="wa-status-top-toolbar" aria-label="납부현황 조회 조건">
                     <section className="wa-status-period-panel" aria-label="조회 기간">
@@ -1147,27 +1230,32 @@ const WaPayInfo = () => {
                     </div>
                 </section>
                 {/* 회사/지점, 담당SP, 차량번호, 처리/납부상태 검색 조건을 렌더링함 */}
-                <section className="wa-status-filter-panel" aria-label="검색 조건" style= {{ gridTemplateColumns: 'repeat(6, minmax(0, 1fr))' }} >
-                    <label className="wa-status-field wa-pay-registration-field">
-                        <span>등록구분</span>
+                <section className="wa-status-filter-panel" aria-label="검색 조건">
+                    <div className="wa-status-field wa-pay-registration-field">
                         <div className="wa-pay-registration-controls">
-                            <select name="companyId" value={selectedCompanyId} onChange={handleCompanyChange} disabled={!canSelectCompany}>
-                                {companyOptions.map(option => (
-                                    <option key={option.value} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
-							<select
-							    name="branchId"
-							    value={searchFilters.branchId}
-							    onChange={handleBranchChange}
-							    disabled={isBranchFixed}
-							>
-                                {branchOptions.map(option => (
-                                    <option key={option.value || 'ALL_BRANCH'} value={option.value}>{option.label}</option>
-                                ))}
-                            </select>
+                            <label>
+                                <span>등록구분</span>
+                                <select name="companyId" value={selectedCompanyId} onChange={handleCompanyChange} disabled={!canSelectCompany}>
+                                    {companyOptions.map(option => (
+                                        <option key={option.value} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+                            <label>
+                                <span>스페이스</span>
+								<select
+								    name="branchId"
+								    value={searchFilters.branchId}
+								    onChange={handleBranchChange}
+								    disabled={isBranchFixed}
+								>
+                                    {branchOptions.map(option => (
+                                        <option key={option.value || 'ALL_BRANCH'} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
                         </div>
-                    </label>
+                    </div>
 
                     <label className="wa-status-field">
                         <span>담당SP명</span>
@@ -1209,9 +1297,8 @@ const WaPayInfo = () => {
                 {/* 조회 결과 그리드를 렌더링함 */}
 				{/* 1. 최상단 section에 Flexbox를 적용하여 자식 요소들이 높이를 꽉 채우도록 합니다. */}
 				<section 
-				    className="wa-status-grid-panel" 
+				    className="wa-status-grid-panel wa-pay-grid-panel"
 				    aria-label="납부현황 목록" 
-				    style={{ display: 'flex', flexDirection: 'column', minHeight: `52vh`, maxHeight: `70vh` }}
 				>
 				    <section className="wa-status-heading">
 				        <div className="wa-status-actions" aria-label="납부현황 결과 요약">
@@ -1222,10 +1309,64 @@ const WaPayInfo = () => {
 				    {errorMessage && <div className="wa-status-error">{errorMessage}</div>}
 				    {noticeMessage && <div className="wa-status-notice">{noticeMessage}</div>}
 
+                    <div className="wa-mobile-newcar-list wa-mobile-pay-list">
+                        {loading ? (
+                            <div className="wa-mobile-list-empty">조회 중입니다.</div>
+                        ) : sortedRows.length === 0 ? (
+                            <div className="wa-mobile-list-empty">조회된 데이터가 없습니다.</div>
+                        ) : sortedRows.map(row => (
+                            <article key={row.rowKey} className="wa-mobile-newcar-card wa-mobile-pay-card">
+                                <header>
+                                    <span className={`wa-grid-status ${getPaymentStatusClass(row)}`}>
+                                        {row.displayValues.PAY_STATUS_NM || '-'}
+                                    </span>
+                                    <span className={`wa-grid-status ${getStatusClass(row.displayValues.PROC_ST, row.NPROC_ST || row.PROC_ST)}`}>
+                                        {row.displayValues.PROC_ST || '-'}
+                                    </span>
+                                    <time>{row.displayValues.REQUEST_DT || '신청일 미정'}</time>
+                                </header>
+
+                                <div className="wa-mobile-card-open wa-mobile-pay-card-content">
+                                    <span className="wa-mobile-card-field primary">
+                                        <small>주문번호</small>
+                                        <strong>{row.displayValues.LINK_ID || '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field wa-mobile-pay-total">
+                                        <small>입금총액</small>
+                                        <strong>{row.displayValues.TOTAL_AMT ? `${row.displayValues.TOTAL_AMT}원` : '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field">
+                                        <small>차량번호</small>
+                                        <strong>{row.displayValues.CAR_NO || '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field">
+                                        <small>SPACE / 담당SP</small>
+                                        <strong>{[row.displayValues.BRANCH_NM, row.displayValues.MEMBER_NM].filter(Boolean).join(' / ') || '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field wide">
+                                        <small>차대번호</small>
+                                        <strong>{row.displayValues.CARID_NO || '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field">
+                                        <small>차량대금 납부일</small>
+                                        <strong>{row.displayValues.BPAY_DT || '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field">
+                                        <small>등록일자</small>
+                                        <strong>{row.displayValues.REGIST_DT || '-'}</strong>
+                                    </span>
+                                    <span className="wa-mobile-card-field wide">
+                                        <small>가상계좌</small>
+                                        <strong>{row.displayValues.VBANK_NO || '-'}</strong>
+                                    </span>
+                                </div>
+                            </article>
+                        ))}
+                    </div>
+
 				    {/* 2. 스크롤 컨테이너 역시 Flexbox로 만들어서 내부 요소들을 위아래로 배치합니다. */}
 				    <div 
-				        className="wa-status-table-scroll" 
-				        style={{ flex: 1, overflow: 'auto', display: 'flex', flexDirection: 'column' }}
+				        className="wa-status-table-scroll wa-pay-table-scroll"
 				    >
 				        {/* 3. 데이터 테이블을 div로 감싸고 flex: 1 속성을 주어, 데이터가 적어도 하얀 여백을 이 div가 모두 차지하게(밀어내게) 합니다. */}
 				        <div style={{ flex: '1 1 auto' }}>
@@ -1268,11 +1409,13 @@ const WaPayInfo = () => {
 				                        <tr>
 				                            <td className="wa-status-empty" colSpan={columns.length}>조회된 데이터가 없습니다.</td>
 				                        </tr>
-				                    ) : sortedRows.map(row => (
+				                    ) : sortedRows.map((row, rowIndex) => (
 				                        <tr key={row.rowKey} className="wa-status-data-row" tabIndex={0}>
 				                            {columns.map(column => (
 				                                <td key={`${row.rowKey}-${column.key}`} className={getColumnClassName(column)} style={getStickyColumnStyle(column)}>
-				                                    {renderGridCell(row, column)}
+												{column.key === 'SEQ'
+												    ? rowIndex + 1
+												    : renderGridCell(row, column)}
 				                                </td>
 				                            ))}
 				                        </tr>
@@ -1337,6 +1480,73 @@ const WaPayInfo = () => {
 				        )}
 				    </div>
 				</section>
+
+                {mobileFilterOpen && (
+                    <div className="wa-mobile-filter-backdrop" role="presentation" onMouseDown={() => setMobileFilterOpen(false)}>
+                        <section className="wa-mobile-filter-sheet" role="dialog" aria-modal="true" aria-labelledby="wa-pay-mobile-filter-title" onMouseDown={event => event.stopPropagation()}>
+                            <header>
+                                <strong id="wa-pay-mobile-filter-title">상세 검색</strong>
+                                <button type="button" onClick={() => setMobileFilterOpen(false)} aria-label="상세 검색 닫기">
+                                    <X size={21} />
+                                </button>
+                            </header>
+
+                            <div className="wa-mobile-filter-fields">
+                                {canSelectCompany && (
+                                    <label>
+                                        <span>회사</span>
+                                        <select name="companyId" value={selectedCompanyId} onChange={handleCompanyChange}>
+                                            {companyOptions.map(option => (
+                                                <option key={option.value} value={option.value}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                )}
+
+                                {!isBranchFixed && (
+                                    <label>
+                                        <span>SPACE</span>
+                                        <select name="branchId" value={searchFilters.branchId} onChange={handleBranchChange}>
+                                            {branchOptions.map(option => (
+                                                <option key={option.value || 'ALL_BRANCH'} value={option.value}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                )}
+
+                                {!isMemberFixed && (
+                                    <label>
+                                        <span>담당SP명</span>
+                                        <select name="memberId" value={searchFilters.memberId} onChange={handleFilterChange}>
+                                            {memberOptions.map(option => (
+                                                <option key={option.value || 'ALL_MEMBER'} value={option.value}>{option.label}</option>
+                                            ))}
+                                        </select>
+                                    </label>
+                                )}
+
+                                <label>
+                                    <span>처리상태</span>
+                                    <select name="processStatus" value={searchFilters.processStatus} onChange={handleFilterChange}>
+                                        {processStatusOptions.map(option => (
+                                            <option key={option.value || 'ALL_PROCESS'} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                </label>
+
+                                <label>
+                                    <span>차량/차대번호</span>
+                                    <input type="text" name="carNo" value={searchFilters.carNo} onChange={handleFilterChange} placeholder="번호 입력" autoComplete="off" />
+                                </label>
+                            </div>
+
+                            <footer>
+                                <button type="button" className="outline" onClick={() => { setMobileFilterOpen(false); handleReset(); }}>전체 초기화</button>
+                                <button type="button" className="primary" onClick={applyMobileFilters} disabled={loading}>필터 적용</button>
+                            </footer>
+                        </section>
+                    </div>
+                )}
                 {/* 통계 버튼 클릭 시 표시되는 모달을 렌더링함 */}
                 {showStatistics && (
                     <div className="wa-pay-dashboard-backdrop" role="presentation" onClick={() => setShowStatistics(false)}>

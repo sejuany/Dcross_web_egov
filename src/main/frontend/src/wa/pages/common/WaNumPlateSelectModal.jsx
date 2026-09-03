@@ -1,5 +1,36 @@
+/* ================================================
+
+	 세션 + SERVICE_ID 단위로 최초 조회 번호판 최대 20개 기억
+	
+	 모달 OPEN
+	   ↓
+	 조회 버튼
+	   ↓
+	 세션에 SERVICE_ID 이력 없음
+	   → 신규 번호 조회
+	   → 최초 번호들을 세션에 누적 저장 (최대 20개)
+	
+	 세션에 SERVICE_ID 이력 있음
+	   → 저장된 번호들만 대상으로 조회
+	   → 현재 미사용인 번호만 다시 표시중 처리
+	   → 사용/다른 사용자 표시중 번호는 제외
+	
+	 모달 CLOSE / 번호 선택
+	   → 현재 표시중 번호는 미사용으로 원복
+	   → 단, 선택 번호는 사용 처리
+	   → 세션의 20개 이력은 유지
+	
+	 재조회
+	 → 화면에 안 떠 있으면 미사용 처리
+	 → 화면에 떠 있는 번호판만 표시중
+	   
+	 로그아웃 / 세션 만료
+	   → 전체 조회 이력 삭제
+	   
+ ================================================ */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 
 import '../../../components/newcar/NumPlateSelectModal.css';
 import axios from 'axios';
@@ -7,7 +38,8 @@ import { gf } from '../../../utils/utils'; // 공통 유틸 함수
 
 const WaNumPlateSelectModal = ({ 
 	isOpen, onClose, carIdNo, taskCd, onSelect,
-	dsService, dsNewCar, dsCarNoDetach, dsUserInfo
+	dsService, dsNewCar, dsCarNoDetach, dsUserInfo,
+	dsBranchList, setDsCarNoDetach
  }) => {
 	
 	// 차종
@@ -20,7 +52,10 @@ const WaNumPlateSelectModal = ({
 	const [list, setList] = useState([]);
 	const [selected, setSelected] = useState('');
 	const [tel, setTel] = useState('');
+	const [sending, setSending] = useState(false);
+	const [noticeOpen, setNoticeOpen] = useState(true);
 	const preCarNoRef = useRef(''); // ref 내부 기억용
+	const assignCdRef = useRef(''); 
 
 	// 최초 조회한 전체 번호판(20개)
 	const [cacheNumList, setCacheNumList] = useState([]);
@@ -28,154 +63,76 @@ const WaNumPlateSelectModal = ({
 	// 폴스타
 	const isUserWa001 = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
 	
-	// 모달 열릴 때 초기 조회
+	/*
+	 * 모달을 다시 열었을 때 아직 5분이 지나지 않은 문자 배정이 있으면 새 번호를 조회하지 않고
+	 * 기존에 고객에게 보낸 번호 목록을 그대로 복원한다. CONFIRM_NO 순서는 서버가 보장한다.
+	 * preCarNoRef에도 넣어 기존 모달의 닫기/재조회 흐름을 유지하되, 서버는 문자 토큰이 있는
+	 * 번호를 일반 numplateRelease 요청으로 해제하지 않아 고객 배정이 보호된다.
+	 */
 	useEffect(() => {
-		if (isOpen) {
-		    setList([]);
-		    setSelected('');
-		    setKeyword('');
-		    setCondition('NOT');
-		    setCacheNumList([]);
-		    preCarNoRef.current = '';
-		}
-	}, [isOpen])
-	
-	// 선택 가능한 번호판 조회
-	const fetchList2 = async() => {
+		let cancelled = false;
+		const restoreAssignedList = async () => {
+			if (!isOpen) return;
 
-		// 이미 최초 조회를 완료한 경우
-		// 서버를 호출하지 않고 조회한 20건 중 랜덤 10건만 표시
-		if (cacheNumList.length > 0) {
+			setList([]);
+			setSelected('');
+			setKeyword('');
+			setCondition('NOT');
+			setNoticeOpen(true);
+			setCacheNumList([]);
+			preCarNoRef.current = '';
+			setTel(String(dsNewCar.MPHONE_NO || '').replace(/\D/g, ''));
 
-		    const randomList = [...cacheNumList]
-		        .sort(() => Math.random() - 0.5)
-		        .slice(0, 10);
-
-		    setList(randomList);
-		    return;
-		}
-		
-		let assignCd = '';
-		
-		// 폴스타
-		if(isUserWa001) {
-			// 지점코드 1로 들어가도록 설정
-			assignCd = dsUserInfo.COMPANY_ID + '1'; 
-		}
-		// 나머지는 회원사 코드 + 지점코드
-		else {
-			assignCd = `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
-		}
-			
-		console.log("assignCd : " + assignCd);
-		
-		// 번호판 조회 조건
-		const dsWhere = {
-		    SERVICE_ID: dsService.SERVICE_ID,
-		    PRE_CAR_NO: preCarNoRef.current,
-		    CAR_KD: carKdNumChange(carType),
-		    NUM_KIND: dsNewCar.NUMPLATE_GB,
-		    CARID_NO: dsNewCar.CARID_NO,
-		    LIMIT: '10',
-		    GOVT_ID: dsService.GOVT_ID,
-		    CONDITION: condition,
-		    WANT_CAR_NO: keyword,
-		    ASSIGN_CD: assignCd,
-		    TASK_CD: taskCd,
-		    HOLE_YN: dsCarNoDetach.HOLE_YN,
-		    SEAL_YN: dsCarNoDetach.SEAL_YN
+			if (dsService.SERVICE_ID && dsCarNoDetach.NUMPLATE_MSG_TOKEN) {
+				try {
+					const { data } = await axios.get('/api/newcar/numplate-selection/status', {
+						params: { serviceId: dsService.SERVICE_ID }
+					});
+					const assigned = data.result?.state === 'ACTIVE' ? data.result.carNos || [] : [];
+					if (!cancelled && assigned.length > 0) {
+						setList(assigned);
+						setCacheNumList(assigned);
+						preCarNoRef.current = assigned.join(',');
+					}
+				} catch (e) {
+					console.error('문자 배정 번호판 복원 실패', e);
+				}
+			}
 		};
-		
-		// 최초 조회 시 패키지에서 20건 조회
-		const res = await axios.post('/api/newcar/numplateList', dsWhere);
-		
-		// null 데이터 제거
-		const lData = (res.data || []).filter(
-		    no => String(no).toLowerCase() !== 'null'
-		);
-		
-		// 조회한 전체 번호판(20건) 저장
-		setCacheNumList(lData);
-
-		// 화면에는 랜덤 10건만 표시
-		setList(
-		    [...lData]
-		        .sort(() => Math.random() - 0.5)
-		        .slice(0, 10)
-		);
-		
-		// 번호판 상태 복구를 위해 조회한 전체 번호판 저장
-		preCarNoRef.current = lData.join(',');
-	};
+		restoreAssignedList();
+		return () => { cancelled = true; };
+	}, [isOpen, dsNewCar.MPHONE_NO, dsService.SERVICE_ID, dsCarNoDetach.NUMPLATE_MSG_TOKEN])
 	
 
 	// 선택 가능한 번호판 조회
 	// 처음은 서버 조회(20개)를 하고, 2번 이상부터는 캐시에서 조회 하도록 함 
+	// 선택 가능한 번호판 조회
 	const fetchList = async () => {
+		setNoticeOpen(false);
 
-	    // ======================================================
-	    // 캐시 조회
-	    // ======================================================
-	    if (cacheNumList.length > 0) {
+		// 이전 조회 번호가 있으면 미사용 상태로 복구
+		if (preCarNoRef.current) {
+		    await axios.post('/api/newcar/numplateRelease', {
+		        SERVICE_ID: dsService.SERVICE_ID,
+		        PRE_CAR_NO: preCarNoRef.current
+		    });
 
-	        // 번호 검색
-	        if (keyword.trim()) {
-	            setList(cacheNumList.filter(no => no === keyword.trim()));
-	            return;
-	        }
+		    preCarNoRef.current = '';
+		}
+		
+		const isBranchInfo = dsBranchList.find(
+		    e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
+		);
 
-	        // 무작위
-	        if (condition === 'NOT') {
-	            setList(
-	                [...cacheNumList]
-	                    .sort(() => Math.random() - 0.5)
-	                    .slice(0, 10)
-	            );
-	            return;
-	        }
+		assignCdRef.current = isBranchInfo.ASSIGN_CD ?? '';
 
-	        // 끝자리
-	        if (/^\d{2}$/.test(condition)) {
-
-	            const lastNo = condition.charAt(1);
-
-	            const cacheResult = cacheNumList.filter(no =>
-	                no.endsWith(lastNo)
-	            );
-
-	            // 캐시에 있으면 랜덤 1개
-	            if (cacheResult.length > 0) {
-
-	                const randomNo =
-	                    cacheResult[Math.floor(Math.random() * cacheResult.length)];
-
-	                setList([randomNo]);
-	                return;
-	            }
-
-	            // 캐시에 없으면 아래 서버조회까지 내려감
-	        }
-	    }
-
-	    // ======================================================
-	    // 서버 조회
-	    // ======================================================
-
-	    let assignCd = '';
-
-	    if (isUserWa001) {
-	        assignCd = dsUserInfo.COMPANY_ID + '1';
-	    } else {
-	        assignCd = `${dsUserInfo.COMPANY_ID}${dsUserInfo.BRANCH_ID}`;
-	    }
+	    const assignCd = assignCdRef.current;
 
 	    const dsWhere = {
 	        SERVICE_ID: dsService.SERVICE_ID,
-	        PRE_CAR_NO: preCarNoRef.current,
 	        CAR_KD: carKdNumChange(carType),
 	        NUM_KIND: dsNewCar.NUMPLATE_GB,
 	        CARID_NO: dsNewCar.CARID_NO,
-	        LIMIT: '10',
 	        GOVT_ID: dsService.GOVT_ID,
 	        CONDITION: condition,
 	        WANT_CAR_NO: keyword,
@@ -190,75 +147,18 @@ const WaNumPlateSelectModal = ({
 	    const lData = (res.data || []).filter(
 	        no => String(no).toLowerCase() !== 'null'
 	    );
-		
-		console.log(lData);
 
-	    // ======================================================
-	    // 최초 조회
-	    // ======================================================
-		if (cacheNumList.length === 0) {
-
-		    // 캐시는 항상 전체 저장
-		    setCacheNumList(lData);
-		    preCarNoRef.current = lData.join(',');
-
-		    // 끝자리 조회
-		    if (/^\d{2}$/.test(condition)) {
-
-		        if (lData.length > 0) {
-
-		            const randomNo =
-		                lData[Math.floor(Math.random() * lData.length)];
-
-		            setList([randomNo]);
-
-		        } else {
-		            setList([]);
-		        }
-
-		    } else {
-
-		        // 무작위 조회
-		        setList(
-		            [...lData]
-		                .sort(() => Math.random() - 0.5)
-		                .slice(0, 10)
-		        );
-		    }
-
-		    return;
-		}
-
-	    // ======================================================
-	    // 끝자리 조회 (캐시에 없어서 서버를 탄 경우)
-	    // ======================================================
-	    if (/^\d{2}$/.test(condition)) {
-
-	        if (lData.length > 0) {
-
-	            const randomNo =
-	                lData[Math.floor(Math.random() * lData.length)];
-
-	            const nextCache = [...new Set([
-	                ...cacheNumList,
-	                randomNo
-	            ])];
-
-	            setCacheNumList(nextCache);
-
-	            preCarNoRef.current = nextCache.join(',');
-
-	            setList([randomNo]);
-
-	        } else {
-	            setList([]);
-	        }
-
-	        return;
-	    }
-
-	    // 번호 검색 등 기타
+	    // 현재 화면에 표시할 번호
 	    setList(lData);
+	    setSelected('');
+
+	    // 현재 P 상태인 번호 기억
+	    preCarNoRef.current = lData.join(',');
+
+	    // 모달에서 조회한 번호 누적
+	    setCacheNumList(prev => [
+	        ...new Set([...prev, ...lData])
+	    ]);
 	};
 	
 	// 미사용 번호판 상태복구
@@ -267,30 +167,16 @@ const WaNumPlateSelectModal = ({
 	    if (!preCarNoRef.current) {
 	        return;
 	    }
-
-	    // 조회한 번호판(20건)
-	    const numList = preCarNoRef.current.split(',');
-
-	    // 10개씩 나누어 원복
-	    for (let i = 0; i < numList.length; i += 10) {
-
-	        const dsWhere = {
-	            SERVICE_ID: dsService.SERVICE_ID,
-	            PRE_CAR_NO: numList.slice(i, i + 10).join(','),
-	            CAR_KD: carKdNumChange(carType),
-	            HOLE_YN: dsCarNoDetach.HOLE_YN,
-	            LIMIT: '0',                     // 조회 없이 원복만 수행
-	            NUM_KIND: dsNewCar.NUMPLATE_GB,
-	            GOVT_ID: dsService.GOVT_ID,
-	            CONDITION: 'NOT'
-	        };
-
-	        await axios.post('/api/newcar/numplateRelease', dsWhere);
-	    }
-
-	    // 초기화
-	    preCarNoRef.current = '';
-	    setCacheNumList([]);
+		
+		// 조회한 번호판 전체를 한 번에 원복
+		await axios.post('/api/newcar/numplateRelease', {
+		    SERVICE_ID: dsService.SERVICE_ID,
+		    PRE_CAR_NO: preCarNoRef.current
+		});
+		
+		// 화면 데이터 초기화
+		preCarNoRef.current = '';
+		setCacheNumList([]);
 	};
 	
 
@@ -317,9 +203,6 @@ const WaNumPlateSelectModal = ({
 	const handleClose = async () => {
 
 	    try {
-			// 조회한 전체 번호판(20건) 상태 복구
-			preCarNoRef.current = cacheNumList.join(',');
-
 			// 미사용 번호판 상태복구
 	        await releaseNumplate();
 	    } catch (err) {
@@ -440,8 +323,12 @@ const WaNumPlateSelectModal = ({
 		}
 		 
 		if (bTrue) {
-		    resetModal();
-		    onSelect(bTrue, selectedCarNo);
+
+			// 부모에게 선택 완료 먼저 전달
+			await onSelect(true, selectedCarNo);
+			
+			// 부모 처리 완료 후 모달 초기화/닫기
+			resetModal();
 		    onClose();
 		}
 		
@@ -465,10 +352,63 @@ const WaNumPlateSelectModal = ({
 				return '70';
 	    }
 	};
+
+	const formatPhoneNumber = value => {
+		const digits = String(value || '').replace(/\D/g, '').slice(0, 11);
+		if (digits.length <= 3) return digits;
+		if (digits.length <= 7) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
+		const middleEnd = digits.length === 10 ? 6 : 7;
+		return `${digits.slice(0, 3)}-${digits.slice(3, middleEnd)}-${digits.slice(middleEnd)}`;
+	};
+	/*
+	 * 현재 화면의 1~10개 번호를 서버에 전달한다. 실제 권한, 세션 조회 이력, P 상태 검증과
+	 * 토큰 생성은 신뢰 경계인 서버에서 수행하며, 성공 후 받은 토큰을 부모 state에 저장해
+	 * CarInfo의 상태 폴링을 시작한다.
+	 */
+	const handleSendSelectionSms = async () => {
+		if (list.length === 0) return gf.alert('먼저 번호판을 조회해 주세요.');
+		if (!/^\d{10,11}$/.test(tel)) return gf.alert('수신 휴대폰 번호를 확인해 주세요.');
+
+		const isAlreadySent = Boolean(dsCarNoDetach?.NUMPLATE_MSG_TOKEN);
+		let isResend = false;
+		if (isAlreadySent) {
+			const confirmResend = await gf.confirm('이미 발송된 번호 선택 문자가 있습니다.\n기존 링크로 문자를 재발송하시겠습니까?');
+			if (!confirmResend) return;
+			isResend = true;
+		} else {
+			if (!await gf.confirm(`조회된 번호 ${list.length}개를 문자로 발송하시겠습니까?`)) return;
+		}
+
+		setSending(true);
+		try {
+			const { data } = await axios.post('/api/newcar/numplate-selection/send', {
+				SERVICE_ID: dsService.SERVICE_ID,
+				PAY_HP_NO: tel,
+				CAR_NOS: list,
+				BASE_URL: window.location.origin,
+				IS_RESEND: isResend
+			});
+			const result = data.result;
+			setDsCarNoDetach(prev => ({
+				...prev,
+				CONFIRM_NO: result.confirmNo,
+				NUMPLATE_MSG_TOKEN: result.token
+			}));
+			if (isResend) {
+				gf.alert('[문자 재발송 완료] 기존 선택 링크로 문자가 재발송되었습니다.');
+			} else {
+				gf.alert('[문자 발송 완료] 문자 발송 시점부터 5분 동안 번호 선택이 가능합니다.');
+			}
+		} catch (e) {
+			gf.alert(e.response?.data?.message || '문자 발송 중 오류가 발생했습니다.');
+		} finally {
+			setSending(false);
+		}
+	};
 	
 	if(!isOpen) return null; 
 
-	return (
+	return createPortal(
 	    <div className="modal-overlay">
 	        <div className="modal-container NumPlateSelect">
 
@@ -588,12 +528,41 @@ const WaNumPlateSelectModal = ({
 	                    </div>
 	                </div>
 					
-					<div className="numplate-notice">
-					    <div className="notice-header">
-					        번호 조회 안내
-					    </div>
 
-					    <div className="notice-content">
+					<div className="numplate-sms-wrap">
+						<div className="numplate-sms-title">고객 번호 선택 문자</div>
+						<div className="numplate-sms-row">
+							<label htmlFor="numplate-sms-tel">휴대폰 번호</label>
+							<div className="numplate-sms-controls">
+								<input
+									id="numplate-sms-tel"
+									type="tel"
+									inputMode="numeric"
+									value={formatPhoneNumber(tel)}
+									maxLength={13}
+									onChange={e => setTel(e.target.value.replace(/\D/g, '').slice(0, 11))}
+									placeholder="010-0000-0000"
+								/>
+								<button type="button" className="btn-send" disabled={sending || list.length === 0}
+									onClick={handleSendSelectionSms}>
+									{sending ? '발송 중' : (dsCarNoDetach?.NUMPLATE_MSG_TOKEN ? '문자 재발송' : '문자 발송')}
+								</button>
+							</div>
+						</div>
+						<p>조회된 번호판 목록과 고객 선택 링크를 전송합니다.</p>
+					</div>
+					<div className="numplate-notice">
+						<h3 className="notice-heading">
+							<button type="button" id="numplateNoticeButton" className="notice-header"
+								onClick={() => setNoticeOpen(prev => !prev)} aria-expanded={noticeOpen}
+								aria-controls="numplateNoticeContent">
+								<span>번호 조회 안내</span>
+								<span className="notice-toggle" aria-hidden="true" />
+							</button>
+						</h3>
+
+					    <div id="numplateNoticeContent" className="notice-content" role="region"
+							aria-labelledby="numplateNoticeButton" hidden={!noticeOpen}>
 						
 					        <p>
 					            번호 조회는 <strong>총 2회</strong> 가능하며, 이후에는 조회된 번호 내에서만 선택할 수 있습니다.
@@ -604,7 +573,7 @@ const WaNumPlateSelectModal = ({
 					        </p>
 
 					        <div className="notice-warning">
-								골드번호 선택 후 신규등록 진행 중 번호를 변경 시, 취소된 골드번호판 비용과 변경된 번호판 비용이 함께 청구됩니다.<br />
+								골드번호 선택 건은 신규등록 접수 후 번호 변경 시, 변경된 번호판 비용이 추가로 청구됩니다.<br />
 								<strong>번호판 청구 비용 : 취소된 골드번호판 비용 + 변경 번호판 비용</strong><br />
 					             사유 : 골드번호판은 취소 시 폐기 처리됨 (재사용 불가)<br /><br />
 								 골드번호 선택 고객님께 해당 내용 반드시 안내해 주시기 바랍니다.
@@ -690,7 +659,8 @@ const WaNumPlateSelectModal = ({
 	                </button>
 	            </div>
 	        </div>
-	    </div>
+	    </div>,
+		document.body
 	);
 };
 

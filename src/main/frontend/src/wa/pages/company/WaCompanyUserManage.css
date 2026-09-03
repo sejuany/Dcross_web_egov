@@ -258,6 +258,12 @@
     min-width: 72px;
 }
 
+.wum-search-role-filter .wum-radio-group > label:nth-child(3) {
+    min-width: 108px;
+    padding: 0 14px;
+    font-size: 13px;
+}
+
 /* =========================================================
    Radio Group
    칸 안에 동그라미가 보이는 버튼형 라디오
@@ -735,14 +741,20 @@
         grid-template-columns: 1fr 1fr;
     }
 
+    .wum-search-grid > label.date,
     .wum-search-use-filter,
-    .wum-search-role-filter {
-        grid-column: span 1;
+    .wum-search-role-filter,
+    .wum-search-actions {
+        grid-column: 1 / -1;
     }
 
     .wum-search-use-filter .wum-radio-group,
     .wum-search-role-filter .wum-radio-group {
         flex-wrap: wrap;
+    }
+
+    .wum-search-actions {
+        justify-content: flex-end;
     }
 
     .wum-detail-grid {
@@ -777,7 +789,12 @@
     .wum-header-card {
         flex-direction: column;
         align-items: stretch;
-        padding: 20px;
+        min-height: auto;
+        padding: 18px;
+    }
+
+    .wum-card {
+        padding: 20px 18px;
     }
 
     .wum-header-actions {
@@ -801,6 +818,7 @@
 
     .wum-search-use-filter,
     .wum-search-role-filter,
+    .wum-search-actions,
     .wum-detail-grid > label:nth-of-type(1),
     .wum-detail-grid > label:nth-of-type(2),
     .wum-detail-grid > label:nth-of-type(3),
@@ -820,6 +838,33 @@
 
     .wum-date-range em {
         display: none;
+    }
+
+    .wum-search-use-filter .wum-radio-group,
+    .wum-search-role-filter .wum-radio-group {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .wum-search-use-filter .wum-radio-group > label,
+    .wum-search-role-filter .wum-radio-group > label,
+    .wum-search-role-filter .wum-radio-group > label:nth-child(3) {
+        width: 100%;
+        min-width: 0;
+        padding: 0 8px;
+    }
+
+    .wum-search-actions {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
+    }
+
+    .wum-search-actions button {
+        width: 100%;
+        min-width: 0;
+        height: 42px;
     }
 
     .wum-ag-grid-wrap {
@@ -844,9 +889,3 @@
 .wum-detail-save-action { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
 .wum-detail-save-action button:disabled { background: #94a3b8; cursor: not-allowed; }
 .wum-password-action .wum-detail-save-button { margin-left: auto; }
-
-.wum-search-role-filter .wum-radio-group > label:nth-child(3) {
-    min-width: 108px;
-    padding: 0 14px;
-    font-size: 13px;
-}

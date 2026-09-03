@@ -79,6 +79,18 @@ const useAddressHandler = ({
 
 		    return;
 		}
+		// 등록증 배송지
+		else if (type === 'CARP_ADDRESS') {
+
+		    setDsNewCar(prev => ({
+				...prev,
+		        CARP_ADDRESS: addr.ADDR,
+		        //CARP_ADDRESS_DT:  addr.ADDRESS_DT ?? addr.ADDR_DT ?? '',
+		        CARP_POST_NO: addr.POST_NO
+		    }));
+
+		    return;
+		}
 
 		const addrInfo = corp ? (addr.ROAD_CD ?? '') + 'þ' +
 	          String(addr.BUBJUNG_CD ?? '').substring(0, 8) + '00þ' +
@@ -181,10 +193,16 @@ const useAddressHandler = ({
 	        item.BASE_NM.includes(company)
 	    );
 
-	    // 사용본거지는 창원 먼저
-	    const useBase =
-	        baseList.find(item => item.BASE_NM.includes('(창원)')) ||
-	        ownerBase;
+		// 사용본거지
+		// 1순위 : 본점을 제외한 다른 지역
+		// 2순위 : 본점
+		const headOffice = baseList.find(item => item.BASE_NM.includes('(본점)'));
+
+		const otherBranch = baseList.find(item =>
+		    !item.BASE_NM.includes('(본점)')
+		);
+
+		const useBase = otherBranch || headOffice || ownerBase;
 
 	    // 공통으로 변경되는 신규등록 정보
 	    const nextNewCar = {
@@ -201,7 +219,13 @@ const useAddressHandler = ({
 	        if (company === '직접입력') {
 
 	            const nextOwnerInfo = {
-	                ...dsOwnerInfo
+	                ...dsOwnerInfo,
+	                DEBTOR_GB: 'B',
+	                DEBTOR_REG_NO: '',
+	                DEBTOR_BIZ_NO: '',
+	                DEBTOR_ADDR: '',
+	                DEBTOR_ADDR_DT: '',
+	                DEBTOR_ROAD_CD: ''
 	            };
 
 	            setDsOwnerInfo(nextOwnerInfo);
@@ -238,6 +262,23 @@ const useAddressHandler = ({
 
 	        // 직접입력
 	        if (company === '직접입력') {
+	            Object.assign(nextNewCar, {
+	                REG_GB: 'B',
+	                REG_NO: '',
+	                BIZ_NO: '',
+	                ADDRESS: '',
+	                ADDRESS_DT: '',
+	                POST_NO: '',
+	                BUBJUNG_CD: '',
+	                RT_ACC_NM: '',
+	                ADDR_INFO: '',
+	                BASE_ADDRESS: '',
+	                BASE_ADDRESS_DT: '',
+	                BASE_POST_NO: '',
+	                BASE_BUBJUNG_CD: '',
+	                RT_ACC_NO: '',
+	                ADDR_INFO2: ''
+	            });
 
 	            setDsNewCar(nextNewCar);
 
@@ -280,6 +321,18 @@ const useAddressHandler = ({
 		console.log("type : " + type);
 	    const corp = isCorp(dsNewCar.REG_GB);
 
+	    if (type === 'DEBTOR_ADDR') {
+	        setDsOwnerInfo(prev => ({
+	            ...prev,
+	            DEBTOR_ADDR: '',
+	            DEBTOR_ADDR_DT: '',
+	            DEBTOR_POST_NO: '',
+	            DEBTOR_BUBJUNG_CD: '',
+	            DEBTOR_ROAD_CD: ''
+	        }));
+	        return;
+	    }
+
 	    // 번호판 배송지
 	    if (type === 'DELIVERY_ADDR') {
 	        setDsCarNoDetach(prev => ({
@@ -292,6 +345,18 @@ const useAddressHandler = ({
 	        }));
 	        return;
 	    }
+		
+		// 등록증 배송지
+	    if (type === 'CARP_ADDRESS') {
+	        setDsNewCar(prev => ({
+	            ...prev,
+	            CARP_ADDRESS: '',
+	            CARP_ADDRESS_DT: '',
+	            CARP_POST_NO: ''
+	        }));
+	        return;
+	    }
+
 
 	    setDsNewCar(prev => {
 

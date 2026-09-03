@@ -39,6 +39,8 @@ export const initialDsNewCar = {
 	GETIN_NO: '',
 	LOW_POLLUTION_YN: '',
 	CAR_NM: '',
+	CAR_PACKAGE: '',
+	ECO_YN: '',
 	FM_NM: '',
 	SPMNNO: '',
 	FUEL_CD: 'e',
@@ -48,8 +50,6 @@ export const initialDsNewCar = {
 	LAST_DT: '',
 	GOVT_TX: '',
 	REGIST_DATE: '',
-	GETIN_NO: '',
-	CAR_CC: '',
 
 	// 번호판
 	NUMPLATE_GB: '7',
@@ -129,7 +129,7 @@ export const initialDsNewCar = {
 	PREREG_AMT: '',
 	RATIO_NO: '100',
 	CONTRACTOR_NM: '',
-	CONTRACTOR_DT: ''
+	CONTRACTOR_DT: '',
 };
 
 export const initialOwnerInfo = {
@@ -184,7 +184,9 @@ export const initialCarNoDetach = {
 	RENT_RECEIVE_YN: '',
 	HOLE_YN: '02',
 	SEAL_YN: '02',
-	TOKEN: ''
+	TOKEN: '',
+	CONFIRM_NO: '',
+	NUMPLATE_MSG_TOKEN: ''
 };
 
 export const initialDsPaymentList = [
@@ -222,7 +224,8 @@ export const initialDsBranchList = [
         HJD_CD: '',
         HJD_NM: '',
         ROAD_CD: '',
-        ROAD_NM: ''
+        ROAD_NM: '',
+		ASSIGN_CD: ''
     }
 ];
 
@@ -250,6 +253,7 @@ export const initialDsBaseList = [
 export const initialDsTaxReceipt = {
     SERVICE_ID: '',
     GUBUN: '',
+    ETC1: 'N',
     REG_NO: '',
     NAME: '',
     COMPANY_NM: '',
@@ -285,7 +289,9 @@ export const initialDsCarNoDetach = {
     NUM_MEMO_TX: '',
     HOLE_YN: '02',
     SEAL_YN: '02',
-	TOKEN: ''
+	TOKEN: '',
+	CONFIRM_NO: '',
+	NUMPLATE_MSG_TOKEN: ''
 };
 
 // ===== 매핑 =====
@@ -333,8 +339,6 @@ export const newCarMap = {
 	LAST_DT: 'LAST_DT',
 	GOVT_TX: 'GOVT_TX',
 	REGIST_DATE: 'REGIST_DATE',
-	GETIN_NO: 'GETIN_NO',
-	CAR_CC: 'CAR_CC',
 	// 번호판
 	NUMPLATE_GB: 'NUMPLATE_GB',
 	IMSINUM_YN: 'IMSINUM_YN',
@@ -422,12 +426,16 @@ export const newCarMap = {
 	CONTRACTOR_DT: 'CONTRACTOR_DT',
 	
 	// 다목적 차량
-	VH_TY_CD: 'VH_TY_CD'
+	VH_TY_CD: 'VH_TY_CD',
+	
+	CAR_PACKAGE: 'CAR_PACKAGE',
+	ECO_YN: 'ECO_YN',
 };
 
 export const taxReceiptMap = {
     SERVICE_ID: 'SERVICE_ID',
     GUBUN: 'GUBUN',
+    ETC1: 'ETC1',
     REG_NO: 'REG_NO',
     NAME: 'NAME',
     COMPANY_NM: 'COMPANY_NM',

@@ -1,8 +1,5 @@
 package com.dacos.attach.pdf;
 
-import lombok.Getter;
-import lombok.Setter;
-
 /**
  * 지방세 감면 신청서 PDF 데이터
  */

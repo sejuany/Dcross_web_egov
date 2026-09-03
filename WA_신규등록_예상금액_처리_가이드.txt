@@ -254,10 +254,13 @@ resolveEcoEligibility()는 친환경 적용 여부를 두 값으로 분리합니
 현재 취득세 친환경 감면 제외 차명:
 
 - 타이칸 크로스 투리스모 터보 (5인승)
-- Polestar 4 Coupe Performance
-- Polestar 4 Long Range Dual Motor
 
-위 예외는 취득세 친환경 감면에만 적용됩니다.
+폴스타 차량은 차명이 아니라 TR_NEWCAR.ECO_YN으로 판정합니다.
+폴스타 4는 엑셀 Package 값에 Performance가 포함되면 ECO_YN='N', 아니면 'Y'로 저장합니다.
+폴스타 3은 Package와 무관하게 Engine 값에 rear가 포함되면 ECO_YN='Y', 아니면 'N'으로 저장합니다.
+ECO_YN='N'은 취득세 친환경 감면에서 제외합니다.
+
+위 예외와 ECO_YN 판정은 취득세 친환경 감면에만 적용됩니다.
 
 Polestar 4 Long Range Single Motor는 형식명 및 원동기형식의 친환경 조건을 충족하면
 전기차 취득세 감면 대상입니다.
@@ -346,8 +349,7 @@ PAY_AMT에 공채 원금을 넣으면 후속 채권 처리에서 금액이 잘�
 - 장애인 중증 등 일반 비과세 대상이고 차량조건을 충족하면
   취득세와 공채 모두 0원이 됩니다.
 
-- Polestar 4 Coupe Performance와 Polestar 4 Long Range Dual Motor는
-  취득세 친환경 감면 예외지만,
+- ECO_YN='N'인 차량은 취득세 친환경 감면 예외지만,
   bondEligible과 지역 규칙을 충족하면 공채 감면은 적용될 수 있습니다.
 
 - 지역별 공채 전액면제 조건은 TM_BOND 조회 전에 적용될 수 있습니다.
@@ -512,7 +514,7 @@ bondEligible은 수정하지 않습니다.
 - 전기 승용차 중증장애의 취득세 및 공채 전액면제
 - 취득세 감면 제외 차량의 공채 별도 처리
 - PROC_CD='C'의 취득세와 등록면허세
-- Polestar 4 Coupe Performance 예외
+- ECO_YN에 따른 폴스타 취득세 감면 예외
 - 서울 및 서울 외 전기차 TM_BOND 조회조건
 
 프런트 단위 테스트:

@@ -38,35 +38,43 @@
     <!-- 감면신청서 정보 조회                                    			  -->
     <!-- ============================================================ -->
     <select id="selectExemptionInfo" parameterType="map" resultType="map">
-        SELECT TS.SERVICE_ID, REQ_CAR_NO AS CAR_NO, OWNER_NM, BIZ_NO,
-			    TO_CHAR(REQUEST_DT, 'YYYY-MM-DD') AS REQUEST_DT,
-			    pkg_common.fn_decrypt(REG_NO) AS REG_NO,
-			    pkg_common.fn_decrypt(BASE_ADDRESS) AS ADDRESS,
-			    pkg_common.fn_decrypt(BASE_ADDRESS_DT) AS ADDRESS_DT,
-			    pkg_common.fn_decrypt(MPHONE_NO) AS MPHONE_NO,
-			    (
-			        SELECT CODE_NM
-			        FROM TM_CODE
-			        WHERE GROUP_ID = 'GOVT'
-			          AND CODE_ID = TS.GOVT_ID
-			    ) AS GOVT_NM,
-			    (
-			        SELECT TO_CHAR(DSIGN_DT, 'YYYY-MM-DD')
-			        FROM TR_DSIGN
-			        WHERE SERVICE_ID = TS.SERVICE_ID
-			          AND DSIGN_ST = 'END'
-			          AND DSIGN_GB = 'WSIGN'
-			          AND DSIGN_SEQ = (
-			              SELECT MAX(DSIGN_SEQ)
-			              FROM TR_DSIGN
-			              WHERE SERVICE_ID = TS.SERVICE_ID
-			                AND DSIGN_ST = 'END'
-			                AND DSIGN_GB = 'WSIGN'
-			          )
-			    ) AS SIGN_DT
-		  FROM TR_SERVICE TS, TR_NEWCAR TN
-		 WHERE TS.SERVICE_ID = TN.SERVICE_ID
+        SELECT TS.SERVICE_ID, REQ_CAR_NO AS CAR_NO, TN.OWNER_NM, TN.BIZ_NO,
+                TO_CHAR(REQUEST_DT, 'YYYY-MM-DD') AS REQUEST_DT,
+                pkg_common.fn_decrypt(TN.REG_NO) AS REG_NO,
+                pkg_common.fn_decrypt(BASE_ADDRESS) AS ADDRESS,
+                pkg_common.fn_decrypt(BASE_ADDRESS_DT) AS ADDRESS_DT,
+                pkg_common.fn_decrypt(MPHONE_NO) AS MPHONE_NO,
+                (
+                    SELECT CODE_NM
+                    FROM TM_CODE
+                    WHERE GROUP_ID = 'GOVT'
+                      AND CODE_ID = TS.GOVT_ID
+                ) AS GOVT_NM,
+                (
+                    SELECT TO_CHAR(DSIGN_DT, 'YYYY-MM-DD')
+                    FROM TR_DSIGN
+                    WHERE SERVICE_ID = TS.SERVICE_ID
+                      AND DSIGN_ST = 'END'
+                      AND DSIGN_GB = 'WSIGN'
+                      AND DSIGN_SEQ = (
+                          SELECT MAX(DSIGN_SEQ)
+                          FROM TR_DSIGN
+                          WHERE SERVICE_ID = TS.SERVICE_ID
+                            AND DSIGN_ST = 'END'
+                            AND DSIGN_GB = 'WSIGN'
+                      )
+                ) AS SIGN_DT,
+                NTAX_WHO,
+                DEBTOR_NM,
+                pkg_common.fn_decrypt(TOI.REG_NO) AS DEBTOR_NO,
+                pkg_common.fn_decrypt(DEBTOR_ADDR) AS DEBTOR_ADDR,
+                pkg_common.fn_decrypt(DEBTOR_ADDR_DT) AS DEBTOR_ADDR_DT,
+                pkg_common.fn_decrypt(DSIGN_HP_NO) AS DEBTOR_TEL 
+          FROM TR_SERVICE TS, TR_NEWCAR TN, TR_OWNERINFO TOI
+         WHERE TS.SERVICE_ID = TN.SERVICE_ID
+           AND TS.SERVICE_ID = TOI.SERVICE_ID
 		   AND TS.SERVICE_ID = #{SERVICE_ID}
+		   AND TOI.SEQ = '0'
     </select>
     
 	<!-- ============================================================ -->

@@ -27,6 +27,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringJoiner;
+import java.util.function.Supplier;
 
 @Component
 @Intercepts({
@@ -57,6 +58,10 @@ public class SearchLogInterceptor implements Interceptor {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchLogInterceptor.class);
     private static final int CONDITION_MAX_LENGTH = 1000;
+    private static final String WA_PRIVACY_EXCEL_QUERY_ID =
+            "com.dacos.newcar.mapper.NewcarMapper.getWaPrivacyExcelInfoList";
+    private static final ThreadLocal<Integer> AUTO_LOG_SUPPRESS_DEPTH =
+            ThreadLocal.withInitial(() -> 0);
 
     private final JdbcTemplate jdbcTemplate;
 
@@ -68,7 +73,7 @@ public class SearchLogInterceptor implements Interceptor {
     public Object intercept(Invocation invocation) throws Throwable {
         MappedStatement statement = (MappedStatement) invocation.getArgs()[0];
 
-        if (isSearchTarget(statement)) {
+        if (!isAutoLogSuppressed() && isSearchTarget(statement)) {
             Object parameter = invocation.getArgs()[1];
             insertSearchLog(statement.getId(), parameter);
         }
@@ -76,10 +81,62 @@ public class SearchLogInterceptor implements Interceptor {
         return invocation.proceed();
     }
 
+    private boolean isAutoLogSuppressed() {
+        return AUTO_LOG_SUPPRESS_DEPTH.get() > 0;
+    }
+
+    /**
+     * Runs MyBatis queries without the automatic SELECT log for the current request thread.
+     * This is used when a single, sanitized business-event log is written instead.
+     */
+    public <T> T withoutAutoLog(Supplier<T> action) {
+        AUTO_LOG_SUPPRESS_DEPTH.set(AUTO_LOG_SUPPRESS_DEPTH.get() + 1);
+
+        try {
+            return action.get();
+        } finally {
+            int nextDepth = AUTO_LOG_SUPPRESS_DEPTH.get() - 1;
+
+            if (nextDepth <= 0) {
+                AUTO_LOG_SUPPRESS_DEPTH.remove();
+            } else {
+                AUTO_LOG_SUPPRESS_DEPTH.set(nextDepth);
+            }
+        }
+    }
+
+    /**
+     * Writes a sanitized business-event search log.
+     * Unlike automatic logging, an insert failure is propagated to the caller.
+     */
+    public void insertManualSearchLog(
+            UserDto user,
+            String queryId,
+            String workCd,
+            Object condition) {
+
+        String conditionText = limit(toConditionText(condition), CONDITION_MAX_LENGTH);
+
+        jdbcTemplate.update(
+                "INSERT INTO TS_SEARCH_LOG ("
+                        + "COMPANY_ID, BRANCH_ID, SANGSA_ID, MEMBER_ID, "
+                        + "CONDITION_TX, QUERY_ID, INS_DATE, WORK_CD"
+                        + ") VALUES (?, ?, ?, ?, ?, ?, SYSDATE, ?)",
+                user == null ? null : user.getCOMPANY_ID(),
+                user == null ? null : user.getBRANCH_ID(),
+                user == null ? null : user.getSANGSA_ID(),
+                user == null ? null : user.getLOGIN_ID(),
+                conditionText,
+                queryId,
+                workCd
+        );
+    }
+
     private boolean isSearchTarget(MappedStatement statement) {
         return statement != null
                 && statement.getSqlCommandType() == SqlCommandType.SELECT
-                && !statement.getId().contains("!selectKey");
+                && !statement.getId().contains("!selectKey")
+                && !WA_PRIVACY_EXCEL_QUERY_ID.equals(statement.getId());
     }
 
     private String limit(String text, int maxBytes) {

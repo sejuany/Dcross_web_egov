@@ -47,8 +47,8 @@ const USE_YN_EDIT_OPTIONS = [
 ];
 
 const LOGIN_GB_OPTIONS = [
-    { code: 'C', name: '법인용' },
-    { code: 'P', name: '개인용' },
+    { code: 'C', name: '법인용', disabled: true },
+    { code: 'P', name: '개인용', disabled: true },
     { code: 'H', name: '휴대폰' },
 ];
 
@@ -815,7 +815,7 @@ function WaCompanyUserManage() {
                             value={option.code}
                             checked={value === option.code}
                             onChange={onChange}
-                            disabled={disabled}
+                            disabled={disabled || option.disabled}
                         />
                         <span>{option.name}</span>
                     </label>

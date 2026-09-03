@@ -11,7 +11,8 @@ import { gf, log } from '../../utils/utils';
 
 import {
 	getAttachPolicy,
-	getNtaxAttachPolicy
+	getNtaxAttachPolicy,
+	ETC_DOCS
 } from '../../policy/attachPolicy';
 
 
@@ -23,7 +24,9 @@ const CustomerUpload = () => {
 	
 	// 신청 정보
 	const [info, setInfo] = useState(null);
-
+	// 공동 소유자 정보
+	const [ownerInfo, setOwnerInfo] = useState({});
+	
 	// 서비스 아이디
 	const [serviceId, setServiceId] = useState('');
 
@@ -33,9 +36,6 @@ const CustomerUpload = () => {
 	// 담당자 연락처
 	const [managerTel, setManagerTel] = useState('');
 
-	// 업로드 대상
-	const [uploadList, setUploadList] = useState([]);
-	
 	// 업로드된 첨부파일 목록
 	const [attachFiles, setAttachFiles] = useState([]);
 	
@@ -55,6 +55,33 @@ const CustomerUpload = () => {
 	    loadData();
 	}, []);
 	
+	const attachPolicy = useMemo(
+	    () => getAttachPolicy(info, ownerInfo),
+	    [info, ownerInfo]
+	);
+
+	const ntaxPolicy = useMemo(
+	    () => getNtaxAttachPolicy(info, ownerInfo),
+	    [info, ownerInfo]
+	);
+
+	// 필수/선택 첨부서류 목록 생성
+	const uploadList = useMemo(() => {
+
+		// 일반 첨부서류와 비과세 첨부서류의 필수/선택 서류를 모두 포함
+	    const docs = [
+	        ...attachPolicy.requiredDocs,
+	        ...ntaxPolicy.requiredDocs,
+			...ntaxPolicy.optionalDocs,
+			ETC_DOCS[0]
+	    ];
+
+		// 동일한 서류는 CODE 기준으로 중복 제거 후 표시 순서대로 정렬
+	    return Array.from(
+	        new Map(docs.map(doc => [doc.code, doc])).values()
+	    ).sort((a, b) => a.seq - b.seq);
+
+	}, [attachPolicy, ntaxPolicy]);
 
 	const getValue = (row, ...keys) => {
 	    if (!row) return '';
@@ -165,6 +192,13 @@ const CustomerUpload = () => {
 		// 한글 파일명을 같이 보냄
 		formData.append('docName', doc.name);
 		
+		// 미성년자 확인서류 PDF 병합을 위해 MINOR로도 저장해야 하는지 여부
+		const duplicateMinor =
+		    attachPolicy.duplicateMinorCodes.has(doc.code) ||
+		    ntaxPolicy.duplicateMinorCodes.has(doc.code);
+
+		formData.append('duplicateMinor', duplicateMinor ? 'Y' : 'N');
+		
 		setLoading(true);
 		
 		try {
@@ -205,6 +239,8 @@ const CustomerUpload = () => {
 	// 양식 다운로드
 	const handleDownloadForm = async (doc) => {
 
+		setLoading(true);
+		
 	    try {
 
 	        const res = await axios.post(
@@ -233,7 +269,11 @@ const CustomerUpload = () => {
 	        gf.alert(
 	            e.response?.data?.message || '양식 다운로드 중 오류가 발생했습니다.'
 	        );
-	    }
+	    } finally {
+
+	       // 다운로드 완료 또는 오류 발생 시 로딩 종료
+	       setLoading(false);
+	   }
 	};
 	
 	/* =========================================================
@@ -255,9 +295,6 @@ const CustomerUpload = () => {
 	        const info = res.data.result.info;
 			const owner = res.data.result.owner;
 
-			console.log(info);
-			console.log(owner);
-
 			console.log('여기 통과');
 
 	        if (!info) {
@@ -275,27 +312,11 @@ const CustomerUpload = () => {
 
 			// 신청 정보 저장
 			setInfo(info);
+			setOwnerInfo(owner ?? {});
+
 			setServiceId(info.SERVICE_ID);
 			setCarNo(info.CAR_NO);
 			setManagerTel(info.MANAGER_TEL ?? '');
-			
-			// 첨부파일 정책 조회
-			const attachPolicy = getAttachPolicy(info, owner);
-			const ntaxPolicy = getNtaxAttachPolicy(info);
-
-			// 일반 첨부 + 감면 첨부 합치기
-			const docs = [
-			    ...attachPolicy.requiredDocs,
-			    ...ntaxPolicy.requiredDocs
-			];
-
-			// CODE 기준 중복 제거 후 순서대로 정렬
-			const uploadList = Array.from(
-			    new Map(docs.map(doc => [doc.code, doc])).values()
-			).sort((a, b) => a.seq - b.seq);
-
-			// 화면에 표시할 첨부 목록 저장
-			setUploadList(uploadList);
 
 			// 첨부파일 목록 조회
 			await loadAttachFiles(info.SERVICE_ID);
@@ -361,9 +382,17 @@ const CustomerUpload = () => {
 
 				            {!file ? (
 				                <>
-				                    <div className="customer-upload-title">
-				                        {doc.name}
-				                    </div>
+									<div className="customer-upload-before">
+									    <div className="customer-upload-title">
+									        <span>{doc.name}</span>
+	
+									        {doc.choice === 'Y' && (
+									            <span className="customer-upload-choice">
+									                [선택]
+									            </span>
+									        )}
+									    </div>
+									</div>
 				                </>
 				            ) : (
 				                <>
@@ -385,28 +414,28 @@ const CustomerUpload = () => {
 				                </>
 				            )}
 
-				            {/* 버튼 영역 */}
-				            <div className="customer-upload-btn-group">
+							{/* 버튼 영역 */}
+							<div className={`customer-upload-btn-group ${!file ? 'before-upload' : ''}`}>
 
-				                {doc.formYn === 'Y' && (
-				                    <button
-				                        type="button"
-				                        className="customer-btn-form"
-				                        onClick={() => handleDownloadForm(doc)}
-				                    >
-				                        양식 다운로드
-				                    </button>
-				                )}
+							    {doc.formYn === 'Y' && (
+							        <button
+							            type="button"
+							            className="customer-btn-form"
+							            onClick={() => handleDownloadForm(doc)}
+							        >
+							            양식 다운로드
+							        </button>
+							    )}
 
-				                <button
-				                    type="button"
-				                    className={`customer-btn-upload ${file ? 'outline' : ''}`}
-				                    onClick={() => fileInputRefs.current[doc.code]?.click()}
-				                >
-				                    {file ? '재업로드' : '업로드'}
-				                </button>
+							    <button
+							        type="button"
+							        className={`customer-btn-upload ${file ? 'outline' : ''}`}
+							        onClick={() => fileInputRefs.current[doc.code]?.click()}
+							    >
+							        {file ? '재업로드' : '업로드'}
+							    </button>
 
-				            </div>
+							</div>
 
 				            <input
 				                type="file"

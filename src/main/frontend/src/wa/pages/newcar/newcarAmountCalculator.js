@@ -406,6 +406,19 @@ const resolveAcqTaxExemption = ({ dsNewCar, codes, grossAcqTax }) => {
         return unchanged();
     }
 
+    // 보훈보상대상자는 감면 차량조건을 충족하면 취득세의 50%만 면제한다.
+    if (code === '14') {
+        const eligibility = resolveSpecialVehicleEligibility(dsNewCar);
+        return eligibility.eligible
+            ? buildExemptionResult({
+                code,
+                grossAcqTax,
+                payableAcqTax: grossAcqTax * 0.5,
+                reason: '보훈보상대상자 취득세 50% 감면'
+            })
+            : unchanged(eligibility.reason, eligibility.missingRequirements);
+    }
+
     // 프로시저의 일반 비과세 대상: 3자녀·침수·이용자명의리스·2자녀를 제외한 코드.
     if (!['06', '07', '10', '15'].includes(code)) {
         const grade = getNumber(dsNewCar.NTAX_TRGET_GR_CD);
@@ -491,11 +504,6 @@ const pipeContains = (pipeValues, value) => {
 };
 const normalizeCarName = (value) => String(value ?? '').trim().replace(/\s+/g, ' ').toUpperCase();
 const ORIGINAL_ECO_EXCLUDED_CAR_NAME = normalizeCarName('타이칸 크로스 투리스모 터보 (5인승)');
-const ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES = new Set([
-    '타이칸 크로스 투리스모 터보 (5인승)',
-    'Polestar 4 Coupe Performance',
-    'Polestar 4 Long Range Dual Motor'
-].map(normalizeCarName));
 
 const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     const taxInfo = getTaxInfo({ dsNewCar, codes });
@@ -514,7 +522,9 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
         : isElectricVehicle(dsNewCar);
 
     return {
-        acquisitionEligible: baseEligible && !ELECTRIC_ACQ_TAX_EXCLUDED_CAR_NAMES.has(carName),
+        acquisitionEligible: baseEligible
+            && !originalNameExcluded
+            && String(dsNewCar.ECO_YN ?? '').trim().toUpperCase() !== 'N',
         bondEligible: baseEligible
     };
 };
@@ -525,7 +535,7 @@ export const isEcoAcquisitionEligible = ({ dsNewCar = {}, codes = {} }) => (
 );
 
 // 일반 감면과 친환경차 감면은 프로시저처럼 중복 적용하지 않음.
-// 2자녀만 기존 감면액보다 전기차 140만원 감면이 크면 전기차 감면으로 교체함.
+// 2자녀 또는 취득세 면제 대상이 아닌 장애등급은 더 큰 전기차 감면으로 교체함.
 const applyEcoAcqTaxExemption = ({
     dsNewCar,
     codes,
@@ -559,7 +569,10 @@ const applyEcoAcqTaxExemption = ({
         return targetExemptionResult;
     }
 
-    if (targetCode && !['00', '15'].includes(targetCode)) {
+    // 장애등급 자체 감면이 적용되지 않은 경우에는 별도 자격인 전기차 감면을 적용한다.
+    const disabilityExemptionNotApplied = ['04', '05'].includes(targetCode)
+        && targetExemptionResult.acqReductionAmt === 0;
+    if (targetCode && !['00', '15'].includes(targetCode) && !disabilityExemptionNotApplied) {
         return targetExemptionResult;
     }
 
@@ -628,7 +641,11 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
     const friendlyFuel = fuelCode === 'e' || (fuelCode >= 'l' && fuelCode <= 'q');
     const exempt = (reason) => ({ exempt: true, area, reason });
 
-    if ((targetCode >= '01' && targetCode <= '05') || ['07', '13'].includes(targetCode)) {
+    // 감면대상 표에서 공채 100% 면제로 명시된 대상만 여기서 계산을 종료한다.
+    // 장애인·시각장애는 취득세 면제 여부와 달리 등급 전체가 공채 전액면제 대상이다.
+    // 다자녀·보훈보상·공동경비구역·비영리사업자는 공채 감면 '해당 없음'이므로
+    // 종료하지 않고 아래의 전기차·지역·차종 공채 규칙을 계속 확인한다.
+    if (['01', '02', '03', '04', '05', '07'].includes(targetCode)) {
         if (targetCode === '01') {
             return exempt('국가유공자 공채 전액면제');
         }
@@ -647,9 +664,6 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
         if (targetCode === '07') {
             return exempt('침수차량 공채 전액면제');
         }
-        if (targetCode === '13') {
-            return exempt('비영리사업자 공채 전액면제');
-        }
         return exempt('비과세 대상 공채 전액면제');
     }
     if (carType === '영업') {
@@ -661,8 +675,10 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
         return exempt(area + ' 차종 조건 공채 전액면제');
     }
     if (carType === '승용' && carCcPresent && carCc < 1600) {
+        // 서울 전기차는 일반 감면코드 선택 여부로 전액면제하지 않고,
+        // 위에서 확정한 감면대상별 전액면제 외에는 지역별 정액감면을 적용한다.
         const seoulElectricNormal = area === '서울특별시'
-            && ['e', 'q'].includes(fuelCode) && targetCode === '00';
+            && ['e', 'q'].includes(fuelCode);
         const seoulUnderOneThousand = area === '서울특별시'
             && carCc < 1000 && ['00', '15'].includes(targetCode);
         if (!seoulElectricNormal && !seoulUnderOneThousand) {
@@ -709,9 +725,6 @@ export const resolveBondPreExemption = (dsNewCar = {}, codes = {}) => {
         && !fixedElectricAreas.includes(area)) {
         return exempt('전기·수소차 공채 전액면제');
     }
-    if (String(dsNewCar.BOND_FULL_EXEMPT_YN ?? '').trim().toUpperCase() === 'Y') {
-        return exempt('공채 전액면제');
-    }
     return { exempt: false, area, reason: '' };
 };
 
@@ -754,7 +767,7 @@ const resolveEcoBondRelief = ({ dsNewCar, bondGrossAmt, ecoEligibility }) => {
         }
         reason = fullExemption
             ? '전기·수소차 공채 전액면제'
-            : (limit > 0 ? '전기·수소차 공채 정액감면' : '해당 지역 전기·수소차 공채 감면 없음');
+            : (limit > 0 ? '전기·수소차 공채 감면' : '해당 지역 전기·수소차 공채 감면 없음');
     } else if (hybrid && ecoEligibility.bondEligible) {
         if (['서울특별시', '부산광역시', '대구광역시'].includes(area)) {
             limit = passengers < 7 ? 1400000 : 0;
@@ -765,7 +778,7 @@ const resolveEcoBondRelief = ({ dsNewCar, bondGrossAmt, ecoEligibility }) => {
         ].includes(area)) {
             limit = 1500000;
         }
-        reason = limit > 0 ? '하이브리드 공채 정액감면' : '해당 지역 하이브리드 공채 감면 없음';
+        reason = limit > 0 ? '하이브리드 공채 감면' : '해당 지역 하이브리드 공채 감면 없음';
     }
 
     const reduction = fullExemption
@@ -868,6 +881,7 @@ export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.NTAX_TRGET_CD ?? '',
     dsNewCar.NTAX_TRGET_GR_CD ?? '',
     dsNewCar.CAR_NM ?? '',
+    dsNewCar.ECO_YN ?? '',
     dsNewCar.MADE_YY ?? '',
     dsNewCar.VHCTY_ASORT_CODE ?? '',
     dsNewCar.CAR_KD ?? '',

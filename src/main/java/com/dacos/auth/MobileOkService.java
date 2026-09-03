@@ -8,6 +8,7 @@ import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -16,6 +17,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import com.dacos.auth.dto.UserDto;
@@ -28,6 +31,7 @@ import jakarta.servlet.http.HttpSession;
 @Service
 public class MobileOkService {
 
+    private static final Logger logger = LoggerFactory.getLogger(MobileOkService.class);
     public static final String SESSION_CLIENT_TX_ID = "MOBILE_OK_CLIENT_TX_ID";
     public static final String SESSION_PUBLIC_KEY = "MOBILE_OK_PUBLIC_KEY";
     public static final String SESSION_AUTH_TOKEN = "MOBILE_OK_AUTH_TOKEN";
@@ -43,7 +47,9 @@ public class MobileOkService {
 
     public MobileOkService(MobileOkProperties properties) {
         this.properties = properties;
-        this.httpClient = HttpClient.newHttpClient();
+        this.httpClient = HttpClient.newBuilder()
+                .connectTimeout(Duration.ofSeconds(10))
+                .build();
     }
 
     public Map<String, Object> requestToken(HttpSession session) throws Exception {
@@ -105,11 +111,14 @@ public class MobileOkService {
         authRequestBody.put("encryptMOKToken", encryptMOKToken);
         authRequestBody.put("encryptMOKAuthInfo", encryptMOKAuthInfo);
 
+        logger.info("[MobileOkService] 인증문자 발송 호출");
         JSONObject authResponseJson = new JSONObject(postJson(
                 properties.getAuthRequestUrl(),
                 authRequestBody.toString()));
 
         String resultCode = getString(authResponseJson, "resultCode");
+        logger.info("[MobileOkService] 인증문자 발송 응답 받음: {}",
+                SUCCESS_CODE.equals(resultCode) ? "성공" : "실패");
         if (authResponseJson.has("encryptMOKToken")) {
             session.setAttribute(SESSION_AUTH_TOKEN, getString(authResponseJson, "encryptMOKToken"));
         }
@@ -196,7 +205,11 @@ public class MobileOkService {
         tokenReqBody.put("encryptReqClientInfo", encryptReqClientInfo);
         tokenReqBody.put("siteUrl", mobileOK.getSiteUrl());
 
-        return new JSONObject(postJson(properties.getTokenUrl(), tokenReqBody.toString()));
+        logger.info("[MobileOkService] 토큰 호출");
+        JSONObject response = new JSONObject(postJson(properties.getTokenUrl(), tokenReqBody.toString()));
+        logger.info("[MobileOkService] 토큰 응답 받음: {}",
+                SUCCESS_CODE.equals(getString(response, "resultCode")) ? "성공" : "실패");
+        return response;
     }
 
     private mobileOKKeyManager createKeyManager() throws Exception {
@@ -261,6 +274,7 @@ public class MobileOkService {
     private String postJson(String url, String jsonData) throws Exception {
         HttpRequest request = HttpRequest.newBuilder()
                 .uri(URI.create(url))
+                .timeout(Duration.ofSeconds(20))
                 .header("Content-Type", "application/json;charset=UTF-8")
                 .POST(HttpRequest.BodyPublishers.ofString(jsonData, StandardCharsets.UTF_8))
                 .build();

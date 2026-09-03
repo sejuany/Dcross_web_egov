@@ -25,12 +25,27 @@ const SplitInput = ({
     maskLast = false,
     deferred = false,
     debounceMs = DEFAULT_DEBOUNCE_MS,
+	type = '', // 입력 형식 구분
     onChange,
     ...props
 }) => {
 
+	// 전화번호 입력 형식에 따른 자리수 반환
+	const getLengths = (currentValue) => {
+
+	    // TEL 타입이면서 02로 시작하는 경우 2-4-4
+	    if (type === 'TEL' && currentValue?.startsWith('02')) {
+	        return [2, 4, 4];
+	    }
+
+	    return lengths;
+	};
+
     // 각 입력칸 Ref (자동 포커스 이동)
     const inputRefs = useRef([]);
+	const valuesRef = useRef([]);
+	// 현재 SplitInput에서 부모로 전달한 값인지 확인
+	const internalValueRef = useRef(null);
 
     // debounce가 이전 렌더의 값을 참조하지 않도록 항상 최신 입력값을 Ref에 보관한다.
     const commitTimerRef = useRef(null);
@@ -49,10 +64,18 @@ const SplitInput = ({
 
     // 분리 입력값
     const [values, setValues] = useState(() => {
-        const initialValues = applyFixedValues(splitValue(value || '', lengths), fixedValues);
+		const initialValues = applyFixedValues(
+		    splitValue(value || '', getLengths(value)),
+		    fixedValues
+		);
+		
+		// 분리 입력값 최신 상태 저장
+		valuesRef.current = initialValues;
         latestMergedValueRef.current = mergeValue(...initialValues);
+		
         return initialValues;
     });
+	
     const [showLastValue, setShowLastValue] = useState(false);
 
     useEffect(() => {
@@ -98,6 +121,7 @@ const SplitInput = ({
     useEffect(() => {
 
         const previous = externalStateRef.current;
+		
         const hasExternalChange = (
             previous.value !== value
             || !isSameArray(previous.lengths, lengths)
@@ -114,11 +138,29 @@ const SplitInput = ({
             fixedValues: [...fixedValues]
         };
 
+		// 내가 입력해서 부모에게 전달한 값이 그대로 돌아온 경우
+		// 다시 splitValue()하면 뒤쪽 값이 앞 칸으로 당겨질 수 있으므로
+		// 현재 분리 상태를 그대로 유지한다.
+		if (internalValueRef.current === value) {
+		    internalValueRef.current = null;
+		    return;
+		}
+		
+		// 실제로 외부에서 변경된 값일 때만 다시 분리
+		internalValueRef.current = null;
+		
         clearCommitTimer();
         hasPendingValueRef.current = false;
 
-        const nextValues = applyFixedValues(splitValue(value || '', lengths), fixedValues);
+		const nextValues = applyFixedValues(
+		    splitValue(value || '', getLengths(value)),
+		    fixedValues
+		);
+		
+		// 분리 입력값 최신 상태 저장
+		valuesRef.current = nextValues;
         latestMergedValueRef.current = mergeValue(...nextValues);
+		
         setValues(current => (isSameArray(current, nextValues) ? current : nextValues));
 
     }, [value, lengths, fixedValues]);
@@ -131,55 +173,80 @@ const SplitInput = ({
         }
     }, []);
 
-    // 입력 처리
-    const handleChange = (index, inputValue) => {
+	// 입력 처리
+	const handleChange = (index, inputValue) => {
 
-        // 고정값이 설정된 칸은 사용자가 변경할 수 없다.
-        if (fixedValues[index] !== undefined) {
-            return;
-        }
+	    // 고정값이 설정된 칸은 사용자가 변경할 수 없다.
+	    if (fixedValues[index] !== undefined) {
+	        return;
+	    }
 
-        let next = inputValue;
+	    let next = inputValue;
 
-        // 숫자만 입력
-        if (onlyNumber) {
-            next = next.replace(/\D/g, '');
-        }
+	    // 숫자만 입력
+	    if (onlyNumber) {
+	        next = next.replace(/\D/g, '');
+	    }
 
-        // 자리수 제한
-        next = next.slice(0, lengths[index]);
+	    // 현재 입력칸의 최대 자리수
+	    let maxLength = lengths[index];
 
-        // 병합할 때도 고정값을 다시 적용해 onChange 결과에 반드시 포함한다.
-        const newValues = applyFixedValues([...values], fixedValues);
-        newValues[index] = next;
+		// TEL 타입의 첫 번째 칸이 02로 시작하면 2자리까지만 입력
+		if (type === 'TEL' && index === 0 && next.length >= 2) {
 
-        // 화면 먼저 갱신
-        setValues(newValues);
+		    const prefix = next.slice(0, 2);
 
-        // 부모에 합친 값 전달
-        const merged = mergeValue(...newValues);
-        latestMergedValueRef.current = merged;
+		    if (prefix === '02') {
+		        maxLength = 2;
+		    }
+		}
 
-        if (deferred) {
-            hasPendingValueRef.current = true;
+	    // 자리수 제한
+	    next = next.slice(0, maxLength);
 
-            // 한글 조합 중에는 중간 문자열을 부모에 반영하지 않는다.
-            if (!isComposingRef.current) {
-                scheduleCommit();
-            }
-        } else {
-            onChangeRef.current?.(merged);
-        }
+	    const newValues = applyFixedValues(
+	        [...valuesRef.current],
+	        fixedValues
+	    );
 
-        // 입력 완료 시 다음 입력칸 이동
-        if (
-            next.length === lengths[index] &&
-            index < lengths.length - 1
-        ) {
-            inputRefs.current[index + 1]?.focus();
-            inputRefs.current[index + 1]?.select();
-        }
-    };
+	    // 현재 수정 중인 입력칸만 변경
+	    newValues[index] = next;
+
+	    // 최신 값 저장
+	    valuesRef.current = newValues;
+
+	    // 화면 반영
+	    setValues(newValues);
+
+	    // 전체 값 병합
+	    const merged = mergeValue(...newValues);
+
+	    latestMergedValueRef.current = merged;
+	    internalValueRef.current = merged;
+
+	    if (deferred) {
+
+	        hasPendingValueRef.current = true;
+
+	        if (!isComposingRef.current) {
+	            scheduleCommit();
+	        }
+
+	    } else {
+
+	        onChangeRef.current?.(merged);
+
+	    }
+
+	    // 입력 완료 시 다음 입력칸 이동
+	    if (
+	        next.length === maxLength &&
+	        index < lengths.length - 1
+	    ) {
+	        inputRefs.current[index + 1]?.focus();
+	        inputRefs.current[index + 1]?.select();
+	    }
+	};
 
     const handleBlur = (event) => {
 
@@ -223,22 +290,37 @@ const SplitInput = ({
     return (
         <>
             {values.map((item, index) => {
+				
                 const isMaskedInput = maskLast && index === values.length - 1;
+				
+				// 현재 입력칸의 최대 자리수
+				let inputMaxLength = lengths[index];
+
+				// 첫 번째 칸이 02로 시작하는 경우 2자리로 제한
+				if (index === 0 && item.length >= 2) {
+
+				    const prefix = item.slice(0, 2);
+
+				    if (prefix === '02') {
+				        inputMaxLength = 2;
+				    }
+				}
+				
                 const input = (
                     <input
                         {...props}
-                        type="text"
-                        autoComplete="off"
-                        ref={el => inputRefs.current[index] = el}
-                        className={`wa-input ${inputClassName} ${isMaskedInput && !showLastValue ? 'wa-text-masked' : ''}`}
-                        value={fixedValues[index] !== undefined ? fixedValues[index] : item}
-                        maxLength={lengths[index]}
-                        readOnly={readOnly || fixedValues[index] !== undefined}
-                        placeholder={placeholders[index] || ''}
-                        onChange={e => handleChange(index, e.target.value)}
-                        onBlur={handleBlur}
-                        onCompositionStart={handleCompositionStart}
-                        onCompositionEnd={handleCompositionEnd}
+						type="text"
+						autoComplete="off"
+						ref={el => inputRefs.current[index] = el}
+						className={`wa-input ${inputClassName} ${isMaskedInput && !showLastValue ? 'wa-text-masked' : ''}`}
+						value={fixedValues[index] !== undefined ? fixedValues[index] : item}
+						maxLength={inputMaxLength}
+						readOnly={readOnly || fixedValues[index] !== undefined}
+						placeholder={placeholders[index] || ''}
+						onChange={e => handleChange(index, e.target.value)}
+						onBlur={handleBlur}
+						onCompositionStart={handleCompositionStart}
+						onCompositionEnd={handleCompositionEnd}
                     />
                 );
 

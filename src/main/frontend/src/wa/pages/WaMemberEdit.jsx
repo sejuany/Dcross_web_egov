@@ -296,6 +296,7 @@ const MemberEdit = () => {
                     name="LOGIN_GB"
                     checked={form.LOGIN_GB === 'C'}
                     onChange={() => handleLoginGbChange('C')}
+                    disabled
                   />
                   <span>법인용</span>
                 </label>
@@ -306,6 +307,7 @@ const MemberEdit = () => {
                     name="LOGIN_GB"
                     checked={form.LOGIN_GB === 'P'}
                     onChange={() => handleLoginGbChange('P')}
+                    disabled
                   />
                   <span>개인용</span>
                 </label>

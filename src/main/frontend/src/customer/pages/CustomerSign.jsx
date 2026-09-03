@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { LoaderCircle } from 'lucide-react';
 
@@ -18,6 +18,7 @@ import { gf, log } from '../../utils/utils';
 import {
 	getAttachPolicy,
 	getNtaxAttachPolicy,
+	getExemptionInfo,
 	SIGN_DOC
 } from '../../policy/attachPolicy';
 
@@ -32,6 +33,7 @@ const CustomerSign = () => {
 	// 토큰
 	let token = searchParams.get('t');
 	const [info, setInfo] = useState({});
+	const [ownerInfo, setOwnerInfo] = useState({});
 	const [codes, setCodes] = useState({});
 	// 로딩 상태
 	const [loading, setLoading] = useState(false);
@@ -47,14 +49,6 @@ const CustomerSign = () => {
 		loadCodes();
 	}, [setCodes]);
 	
-	const nType = (codes.NTTCD || []).find(
-	    item => item.CODE_ID === info.NTAX_TRGET_CD
-	);
-
-	const nGrade = (codes.NTTGR || []).find(
-	    item => item.CODE_ID === info.NTAX_TRGET_GR_CD
-	);
-	
 	/* =========================================================
 	 * 화면 진입 시 데이터 조회
 	 * - 토큰으로 신청 정보를 조회한다.
@@ -64,7 +58,23 @@ const CustomerSign = () => {
 	    loadData();
 
 	}, []);
+	
 
+	// 1. 정책 계산
+	const attachPolicy = useMemo(
+	    () => getAttachPolicy(info, ownerInfo),
+	    [info, ownerInfo]
+	);
+
+	const ntaxPolicy = useMemo(
+	    () => getNtaxAttachPolicy(info, ownerInfo),
+	    [info, ownerInfo]
+	);
+
+	const exemptionInfo = useMemo(
+	    () => getExemptionInfo(info, codes),
+	    [info, codes]
+	);
 	
 	/* =========================================================
 	 * 신청 정보 조회
@@ -80,11 +90,13 @@ const CustomerSign = () => {
 			    TOKEN: token
 			});
 
-			console.log("1");
-	        console.log(res);
-
 			const info = res.data.result.info;
-
+			const owner = res.data.result.owner;
+			
+			// 사인 유무 확인
+			const sign = res.data.result.sign || {};
+			
+			// 조회된 신청 정보가 없는 경우 결과 페이지로 이동
 			if (!info) {
 			    await gf.alert('해당 건이 조회되지 않습니다.');
 
@@ -94,30 +106,31 @@ const CustomerSign = () => {
 
 			    return;
 			}
+			
+			if (sign?.GUBUN === 'SIGN') {
+				await gf.alert(
+				    '이미 서명이 완료된 건입니다.\n첨부파일 업로드 화면으로 이동합니다.'
+				);
 
-			console.log("2");
-			console.log(info);
+				navigate(`/customer/CustomerUpload?t=${token}`);
+				return;
+			}
+			
+			setInfo(info);
+			setOwnerInfo(owner ?? {});
+
+			// state가 아니라 방금 계산한 policy 사용
+			const policy = getNtaxAttachPolicy(info, owner);
 			
 			// 서명이 필요 없는 경우 바로 첨부파일 페이지 이동
-			if (info.SIGN_YN === 'N') {
+			if (!policy.needSign) {
 			    navigate(`/customer/CustomerUpload?t=${token}`);
 			    return;
 			}
 			
-			console.log("3");
-			console.log(info);
-
-			if (!info) {
-			    return;
-			}
-
-			setInfo(info);
-			console.log(info);
 	    }
 
 	    catch (e) {
-
-	        console.error(e);
 
 	        gf.alert('정보 조회 중 오류가 발생했습니다.');
 			
@@ -131,11 +144,6 @@ const CustomerSign = () => {
 
 	};
 	
-	
-	// 일반 첨부 정책	
-	const attachPolicy = getAttachPolicy(info);
-	// 비과세 첨부 정책
-	const ntaxPolicy = getNtaxAttachPolicy(info);
 	
 	/* =========================================================
 	 * 사인 이벤트
@@ -243,8 +251,6 @@ const CustomerSign = () => {
 
 	    } catch (e) {
 
-	        console.error(e);
-
 	        gf.alert("서명 저장 중 오류가 발생했습니다.");
 
 	    }
@@ -346,9 +352,16 @@ const CustomerSign = () => {
 				    안녕하세요. 폴스타코리아 신규등록 대행업체입니다.
 				    <br /><br />
 
-				    감면자명 : <strong>{info.OWNER_NM}</strong><br />
-					감면대상 : <strong>{nType?.CODE_NM}</strong><br />
-					감면등급 : <strong>{nGrade?.CODE_NM || '-'}</strong>
+
+					감면자명 : <strong>
+					    {info.NTAX_WHO === 'REPRE'
+					        ? info?.OWNER_NM 
+							: ownerInfo?.DEBTOR_NM}
+					</strong>
+					<br />
+					
+					감면대상 : <strong>{exemptionInfo.typeName}</strong><br />
+					감면등급 : <strong>{exemptionInfo.gradeName || '-'}</strong>
 				    <br /><br />
 
 				    위 내용으로 <strong>[{info.CAR_NO}]</strong> 차량의 취득세 감면 신청에 동의하시면,
@@ -357,7 +370,16 @@ const CustomerSign = () => {
 				    해당 서명은 취득세 감면 신청서에 포함됩니다.
 				    <br /><br />
 
-				    관련 문의는 담당 스페셜리스트<strong>({gf.formatPhoneNo(info.MANAGER_TEL)})</strong>에게 연락해 주시기 바랍니다.
+				    관련 문의는 담당 스페셜리스트
+					<strong>
+						<a
+							href={`tel:${gf.onlyNumber(String(info.MANAGER_TEL || ''))}`}
+							style={{ color: 'inherit', textDecoration: 'underline' }}
+						>
+							({gf.formatPhoneNo(info.MANAGER_TEL)})
+						</a>
+					</strong>
+					에게 연락해 주시기 바랍니다.
 				</p>
 
 	            {/* 서명 */}

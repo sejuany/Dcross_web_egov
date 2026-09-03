@@ -15,7 +15,16 @@
       "default",
       {
         "ignore": [
-          "min-height: auto"
+          "min-height: auto",
+          "-webkit-overflow-scrolling"
+        ]
+      }
+    ],
+    "compat-api/html": [
+      "default",
+      {
+        "ignore": [
+          "meta[name=theme-color]"
         ]
       }
     ]

@@ -18,6 +18,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.attach.AttachService;
 import com.dacos.common.ApiResponse;
+import com.dacos.newcar.NewcarService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -32,12 +33,30 @@ public class CustomerController {
 
     private final CustomerService customerService;
     private final AttachService attachService;
+    private final NewcarService newcarService;
 
     public CustomerController(CustomerService customerService,
-                              AttachService attachService) {
+                              AttachService attachService,
+                              NewcarService newcarService) {
         this.customerService = customerService;
-        this.attachService = attachService; 
+        this.attachService = attachService;
+        this.newcarService = newcarService;
     }
+
+	/** 로그인 없이 문자 토큰으로 고객용 번호판 선택 화면 데이터를 조회한다. */
+	@GetMapping("/numplate-selection")
+	public ResponseEntity<Map<String, Object>> getNumplateSelection(@RequestParam("token") String token) {
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", newcarService.getCustomerNumplateSelection(token)));
+	}
+
+	/** 로그인 없이 토큰에 배정된 번호 중 하나를 최종 확정한다. */
+	@PostMapping("/numplate-selection/confirm")
+	public ResponseEntity<Map<String, Object>> confirmNumplateSelection(
+			@RequestBody Map<String, Object> param) {
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", newcarService.confirmCustomerNumplateSelection(param)));
+	}
 
     /**
      * 토큰으로 고객 정보 조회
@@ -52,11 +71,15 @@ public class CustomerController {
         Map<String, Object> info = customerService.getTokenInfo(param);
         // 토큰으로 공동소유자 정보 조회
         Map<String, Object> owner = customerService.getTokenOwnerInfo(param);
+        // 서명 유무
+        Map<String, Object> sign = customerService.getSignYn(info);
 		
         Map<String, Object> result = new LinkedHashMap<>();
+        
 		result.put("success", true);
 		result.put("info", info);
 		result.put("owner", owner);
+		result.put("sign", sign);
 
         return ResponseEntity.ok(
         	    ApiResponse.withKey("result", result));
@@ -91,6 +114,7 @@ public class CustomerController {
             @RequestParam("code") String code,
             @RequestParam("docName") String docName,
             @RequestParam("gubun") String gubun,
+            @RequestParam(value = "duplicateMinor", defaultValue = "N") String duplicateMinor,
             @RequestParam("file") MultipartFile file,
             @RequestParam("token") String token,
             HttpSession session) {
@@ -99,10 +123,11 @@ public class CustomerController {
                 serviceId, code, gubun);
 
         List<Map<String, Object>> list =
-        		attachService.uploadAttachFile(
+                attachService.uploadAttachFile(
                         serviceId,
                         code,
                         gubun,
+                        duplicateMinor,
                         docName,
                         file,
                         null,

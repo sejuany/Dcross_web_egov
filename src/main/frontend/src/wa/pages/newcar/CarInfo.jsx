@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { CircleCheck } from 'lucide-react';
 import { gf } from '../../../utils/utils'; // 공통 유틸 함수
 
@@ -20,11 +20,14 @@ const CarInfo = ({
     handleChange,
     saveProcess,
 	dsDLVGB,
-	address
+	address,
+	dsBranchList
 }) => {
 	
 	// 번호선택 모달창
 	const [isNumplateModalOpen, setIsNumplateModalOpen] = useState(false);
+	// 번호판 배송 지점 목록
+	const [deliveryList, setDeliveryList] = useState([]);
 	// 법인 번호판 (등록구분 : 법인, 8,000만원 이상)
 	const isCorpNumplate =
 	    dsNewCar.REG_GB === 'B' && Number(dsNewCar.BUY_AMT) >= 80000000;
@@ -32,17 +35,185 @@ const CarInfo = ({
 	const isHybrid =
 	    ['l', 'm', 'n', 'o', 'p'].includes(dsNewCar.FUEL_CD);
 	// 배송지 직접입력 여부
-	const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
+	//const isDirectDelivery = dsCarNoDetach.DELIVERY_GB === 'INPUT';
+	// 법인 등록번호 선택 시 화면 변경 
+	const isCorporate = dsNewCar.REG_GB === 'B';
+	const assignCdRef = useRef('');
+	const [numplateDisabled, setNumplateDisabled] = useState(false); 
+
+	/*
+	 * 고객 선택 결과 자동 반영:
+	 * - SP 계정이며 활성 문자 토큰이 있고 아직 차량번호가 없는 동안만 동작한다.
+	 * - 보이는 탭에서만 즉시 1회 조회 후 5초 간격으로 폴링하여 불필요한 서버 요청을 줄인다.
+	 * - 고객 선택이 확인되면 REQ_CAR_NO를 반영하고 모달을 닫는다.
+	 * - 만료/정리된 토큰은 화면 state에서도 제거해 폴링을 종료한다.
+	 */
+	useEffect(() => {
+		if (dsUserInfo.MEMBER_GB !== 'SU' || !dsService.SERVICE_ID
+				|| !dsCarNoDetach.NUMPLATE_MSG_TOKEN || dsNewCar.REQ_CAR_NO) return;
+		let stopped = false;
+		const poll = async () => {
+			try {
+				const { data } = await axios.get('/api/newcar/numplate-selection/status', {
+					params: { serviceId: dsService.SERVICE_ID }
+				});
+				if (stopped) return;
+				const result = data.result;
+				if (result.state === 'SELECTED') {
+					setDsNewCar(prev => ({ ...prev, REQ_CAR_NO: result.REQ_CAR_NO }));
+					setIsNumplateModalOpen(false);
+				} else if (result.state === 'EXPIRED' || result.state === 'NONE') {
+					setDsCarNoDetach(prev => ({ ...prev, CONFIRM_NO: '', NUMPLATE_MSG_TOKEN: '' }));
+				}
+			} catch (e) {
+				console.error('번호판 선택 상태 조회 실패', e);
+			}
+		};
+		let timer;
+		// 비활성 탭에서는 interval을 완전히 제거하고, 다시 보일 때 즉시 최신 상태부터 확인한다.
+		const handleVisibilityChange = () => {
+			clearInterval(timer);
+			if (!document.hidden) {
+				poll();
+				timer = setInterval(poll, 5000);
+			}
+		};
+		document.addEventListener('visibilitychange', handleVisibilityChange);
+		handleVisibilityChange();
+		return () => {
+			stopped = true;
+			clearInterval(timer);
+			document.removeEventListener('visibilitychange', handleVisibilityChange);
+		};
+	}, [dsCarNoDetach.NUMPLATE_MSG_TOKEN, dsNewCar.REQ_CAR_NO, dsService.SERVICE_ID,
+		dsUserInfo.MEMBER_GB, setDsCarNoDetach, setDsNewCar]);
+	
+	// ASSIGN_CD 세팅
+	useEffect(() => {
+
+	    // 사용자정보 / 지점목록 조회가 끝나기 전이면 대기
+	    if (!dsUserInfo?.BRANCH_ID || !dsBranchList?.length || dsUserInfo.MEMBER_GB !== 'SU') {
+	        return;
+	    }
+
+	    const initAssignCd = async () => {
+
+	        const isBranchInfo = dsBranchList.find(
+	            e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
+	        );
+
+	        // 현재 사용자의 지점정보가 없는 경우
+	        if (!isBranchInfo) {
+	            return;
+	        }
+
+	        // 배송지 설정이 안 되어 있는 경우
+	        if (!isBranchInfo.ASSIGN_CD) {
+
+	            setNumplateDisabled(true);
+
+	            await gf.alert(
+	                '배송지 설정을 하셔야 번호판 선택을 할 수 있습니다. 다코스에 문의 바랍니다.'
+	            );
+
+	            return;
+	        }
+
+	        assignCdRef.current = isBranchInfo.ASSIGN_CD;
+
+	        setNumplateDisabled(false);
+	    };
+
+	    initAssignCd();
+
+	}, [dsBranchList, dsUserInfo.BRANCH_ID]);
+	
+	// 번호판 매니저 및 배송지 설정
+	const setDeliveryInfo = async () => {
+		console.log("setDeliveryInfo");
+		const isBranchInfo = dsBranchList.find(
+		    e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
+		);
+		
+		// 번호판 매니저 조회
+		// - ASSIGN_CD 기준으로 담당 매니저의 회사/매니저번호 정보 추출
+		// - COMPANY_ID : ASSIGN_CD 앞 5자리
+		// - BRANCH_ID  : ASSIGN_CD 뒤 2자리
+		// ex) DL03101 → COMPANY_ID: DL031, BRANCH_ID: 01
+		const assignCd = isBranchInfo.ASSIGN_CD || '';
+		const dlCompanyId = assignCd.substring(0, 5);
+		const dlBranchId = assignCd.slice(-2);
+
+		console.log("dlCompanyId : " + dlCompanyId + " / dlBranchId : " + dlBranchId);
+
+		const result = await axios.post('/api/common/query', {
+		    GUBUN: 'SELECT',
+		    QUERY_ID: 'getNumplateAssignList',
+			COMPANY_ID: dlCompanyId,
+			BRANCH_ID: dlBranchId
+		});
+
+		const managerInfo = result.data.data;
+		
+		const newDsCarNoDetach = {
+		    ...dsCarNoDetach,
+			// 번호판 택배 발송지
+		    DELIVERY_ADDR: managerInfo.ADDRESS || '',
+		    DELIVERY_ADDR_DT: managerInfo.ADDRESS_DT || '',
+		    DELIVERY_POST_NO: managerInfo.POST_NO || '',
+			// 매니저 정보
+		    INSTALL_NM: managerInfo.TEL_NO || '',
+		    INSTALL_TEL_NO: managerInfo.PHONE_NO || '',
+
+			// 마지막 번호판 배송지
+		    LAST_DELIVERY_ADDR:
+		        (isBranchInfo.ADDRESS || '') +
+		        (isBranchInfo.ADDRESS_DT || ''),
+				
+			// 수령인(딜러사 회원사명)
+		    RECEIVE_NM: isBranchInfo.BRANCH_NM || '',
+			// 수령인 번호(지점 대표번호)
+		    RECEIVE_TEL_NO: isBranchInfo.TEL_NO || ''
+		};
+		
+		setDsCarNoDetach(newDsCarNoDetach);	
+		
+		return newDsCarNoDetach;
+	};
 	
 	// 주소 기능 추가
 	const {
 	    handleAddressSelect,
-	    handleClearAddress
+	    handleClearAddress,
 	} = address;
 
+	// 주소 밑 체크 
+	const handleSameAddress = (e) => {
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        CARP_ADDRESS: e.target.checked ? prev.ADDRESS : '',
+	        CARP_ADDRESS_DT: e.target.checked ? prev.ADDRESS_DT : '',
+	        CARP_POST_NO: e.target.checked ? prev.POST_NO : ''
+	    }));
+	};
+
+	// 사용본거지 밑 체크 
+	const handleBaseAddressChange = (e) => {
+	    setDsNewCar(prev => ({
+	        ...prev,
+	        CARP_ADDRESS: e.target.checked ? prev.BASE_ADDRESS : '',
+	        CARP_ADDRESS_DT: e.target.checked ? prev.BASE_ADDRESS_DT : '',
+	        CARP_POST_NO: e.target.checked ? prev.BASE_POST_NO : ''
+	    }));
+	};
 	
 	// 번호선택 버튼 눌렀을 때 체크
 	const handleOpenModal = async () => {
+		
+		if(dsUserInfo.MEMBER_GB !== 'SU') {
+			gf.alert('번호판은 SP 계정으로 선택 하실 수 있습니다.');
+		    return;
+		}
 		
 		// 차대번호 체크
 		if (!dsNewCar.CARID_NO || dsNewCar.CARID_NO.length !== 17) {
@@ -58,6 +229,12 @@ const CarInfo = ({
 	        }			
 	        return;
 	    }
+		
+		console.log(dsCarNoDetach.DELIVERY_GB);
+		if(!dsCarNoDetach.DELIVERY_GB) {
+			gf.alert('번호판 배송지를 먼저 선택한 후 번호를 선택해주세요.');
+			return;
+		}
 		
 	    // 3. 기존 번호 존재 여부
 	    let reqCarNo = dsNewCar.REQ_CAR_NO;
@@ -81,94 +258,9 @@ const CarInfo = ({
 	    setIsNumplateModalOpen(true);
 	};
 	
-	// 번호판 배송지 변경
-	const handleDeliveryChange = (e) => {
-		
-	    // 기존 공통 처리
-	    handleChange(e);
-		
-	    const deliveryInfo = (codes.DLADD || []).find(
-	        item => item.CODE_ID === e.target.value
-	    );
-
-		// 직접입력은 자동 세팅하지 않음
-		if (e.target.value === 'INPUT') {
-		    return;
-		}
-		
-	    const [
-	        deliveryAddr = '',
-	        deliveryAddrDt = '',
-	        receiveNm = '',
-	        receiveTelNo = ''
-	    ] = (deliveryInfo?.CODE_NM || '').split('/');
-
-		// DETAIL_NM : 우편번호
-		const deliveryPostNo = deliveryInfo?.DETAIL_NM || '';
-		
-	    setDsCarNoDetach(prev => ({
-	        ...prev,
-	        DELIVERY_ADDR: deliveryAddr,
-	        DELIVERY_ADDR_DT: deliveryAddrDt,
-	        DELIVERY_POST_NO: deliveryPostNo,
-	        RECEIVE_NM: receiveNm,
-	        RECEIVE_TEL_NO: receiveTelNo
-	    }));
-		
-	};
-	
-	// 주소 잘 저장 됐는지 확인 하는 용도 
-	useEffect(() => {
-	    console.log({
-	        DELIVERY_ADDR: dsCarNoDetach.DELIVERY_ADDR,
-	        DELIVERY_ADDR_DT: dsCarNoDetach.DELIVERY_ADDR_DT,
-	        RECEIVE_NM: dsCarNoDetach.RECEIVE_NM,
-	        RECEIVE_TEL_NO: dsCarNoDetach.RECEIVE_TEL_NO,
-			DELIVERY_POST_NO: dsCarNoDetach.DELIVERY_POST_NO
-	    });
-	}, [dsCarNoDetach]);
-	
     return (
         <>
 			<div className="simple-content">
-				{/* 대표소유자 */}
-				<div className="wa-form-row">
-				    <div className="wa-form-label-wrap">
-				        <label className="wa-form-label">차량명</label>
-				    </div>
-				    <div className="wa-form-control">
-				        <input
-				            className="wa-input"
-				            autoComplete="off"
-				            name="CAR_NM"
-							data-type="newcar"
-				            value={dsNewCar.CAR_NM ?? ''}
-				            onChange={handleChange}
-				            placeholder="차량명을 입력하세요"
-				        />
-				    </div>
-				</div>
-				
-				{/* 공급가액 */}
-				<div className="wa-form-row">
-				    <div className="wa-form-label-wrap">
-				        <label className="wa-form-label">공급가액</label>
-				    </div>
-				    <div className="wa-form-control">
-				        <input
-				            className="wa-input"
-				            autoComplete="off"
-				            name="BUY_AMT"
-				            data-type="newcar"
-				            value={Number(dsNewCar.BUY_AMT || 0).toLocaleString()}
-				            onChange={handleChange}
-				            placeholder="공급가액을 입력하세요"
-				        />
-				    </div>
-				</div>
-				
-				<hr className="wa-divider" />
-	
 				{/* 법인 번호판 */}
 				{isCorpNumplate &&(
 					<div className="wa-form-row">
@@ -209,6 +301,25 @@ const CarInfo = ({
 						/>
 					</div>
 				)}
+				
+				{/* 번호판 배송지
+				<div className="wa-form-row">
+				    <label className="wa-form-label">
+				        번호판 배송지
+				    </label>
+				    <div className="wa-form-control">
+						<CommonSelect
+							className="wa-select"
+							groupId="DLVGB"
+							name="DELIVERY_GB"
+							value={dsCarNoDetach.DELIVERY_GB ?? ''}
+							data-type="detach"
+							onChange={handleDeliveryChange}
+							options={deliveryList}
+						/>
+				    </div>
+				</div>
+				*/}
 
 				{/* 번호 선택 */}
 				<div className="wa-form-row">
@@ -233,6 +344,7 @@ const CarInfo = ({
 				                type="button"
 				                className="wa-number-btn"
 								onClick={handleOpenModal}
+								disabled={numplateDisabled}
 				            >
 								<CircleCheck size={18} /> 
 				                번호 선택
@@ -241,25 +353,7 @@ const CarInfo = ({
 				    </div>
 				</div>
 				
-				{/* 번호판 배송지 */}
-				<div className="wa-form-row">
-				    <label className="wa-form-label">
-				        번호판 배송지
-				    </label>
-				    <div className="wa-form-control">
-						<CommonSelect
-							className="wa-select"
-							groupId="DLVGB"
-							name="DELIVERY_GB"
-							value={dsCarNoDetach.DELIVERY_GB ?? ''}
-							data-type="detach"
-							onChange={handleDeliveryChange}
-							options={dsDLVGB}
-						/>
-				    </div>
-				</div>
-				
-				{/* 번호판 배송지 직접입력 */}
+				{/* 번호판 배송지 직접입력 
 				{isDirectDelivery && (
 				    <>
 				        <AddressSearch
@@ -276,7 +370,24 @@ const CarInfo = ({
 				        />
 				    </>
 				)}
+				*/}
 				
+				<AddressSearch
+		            label="등록증 수령지"
+					sameLabel={isCorporate ? '본점 소재지' : '소유자 주소'}
+		            placeholder="건물, 지번 또는 도로명 검색"
+		            type="CARP_ADDRESS"
+		            detailName="CARP_ADDRESS_DT"
+		            postName="CARP_POST_NO"
+					dsNewCar={dsNewCar}
+				    handleChange={handleChange}
+				    onSelect={handleAddressSelect}
+				    onClear={handleClearAddress}
+					showSameCheckbox
+					onSameChange={handleSameAddress}
+					showBaseAddressCheckbox={isCorporate}
+					onBaseAddressChange={handleBaseAddressChange}
+		        />
 		    </div>
 			
 
@@ -287,22 +398,32 @@ const CarInfo = ({
 				dsNewCar={dsNewCar}
 				dsCarNoDetach={dsCarNoDetach}
 				dsUserInfo={dsUserInfo}
+				dsBranchList={dsBranchList}
+				setDsCarNoDetach={setDsCarNoDetach}
 				onClose={() => setIsNumplateModalOpen(false)}
-				onSelect={(isSucces, carNo) => {
+				onSelect={async (isSuccess, carNo) => {
 
-					console.log('선택된 번호:', carNo);
-
-
-					if (isSucces) {
-
-						const newDsNewCar = {
-							...dsNewCar,
-							REQ_CAR_NO: carNo
-						};
-
-						setDsNewCar(newDsNewCar);
-						saveProcess(newDsNewCar, "NUM_SAV");
+					if (!isSuccess) {
+					    return;
 					}
+
+					const newDsCarNoDetach = await setDeliveryInfo();
+
+					if (!newDsCarNoDetach) {
+					    return;
+					}
+
+					const newDsNewCar = {
+					    ...dsNewCar,
+					    REQ_CAR_NO: carNo
+					};
+
+					setDsNewCar(newDsNewCar);
+					
+					await saveProcess(newDsNewCar,"SAV",null,null,null,true,
+						newDsCarNoDetach
+					); // 메세지 안 띄울 때 true
+						
 				}}
 
 			/>

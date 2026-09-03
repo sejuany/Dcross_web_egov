@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import axios from 'axios';
-import { ClipboardCheck, Download, RotateCcw, Search, Upload, WalletCards, X, UsersRound } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, Download, Filter, MoreVertical, RotateCcw, Search, Upload, WalletCards, X, UsersRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from './newcar/WaNewcarRequest';
@@ -19,7 +19,8 @@ const processStatusFallbackOptions = [];
 const SEARCH_START_LIMIT_YEARS = 2;
 const DIRECT_REGISTRATION_PROCESS_CODE = 'DIRCT';
 const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
-    'REGIST_DATE',
+	// 26.09.01 자가등록건도 등록예정일자 표시하도록 처리
+	//'REGIST_DATE',
     'ATTACH_YN',
     'CARD_YN',
     'NTAX_YN',
@@ -27,9 +28,10 @@ const DIRECT_REGISTRATION_BLANK_COLUMN_KEYS = new Set([
     'BPAY_DT',
     'PAY_DT',
     'INS_DATE',
-    'JUDGE_DT',
-    'SEND_YN_DT',
-    'DELIVERY_ADDR'
+	// 26.09.01 자가등록건은 등록일자 대신 등록예정일자를 표시하므로 blank 처리하지 않음
+    //'JUDGE_DT',
+    'INSTALL_YN',
+    'LAST_DELIVERY_ADDR'
 ]);
 
 
@@ -120,12 +122,33 @@ const columns = [
     { key: 'PAY_DT', label: '등록비용 납부일자', width: 110, minWidth: 60, sortType: 'date' },
     { key: 'INS_DATE', label: '입력일자', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'JUDGE_DT', label: '등록일자', width: 90, minWidth: 60, sortType: 'date' },
-    { key: 'SEND_YN_DT', label: '배송일자', width: 90, minWidth: 60, sortType: 'date' },
+    { key: 'INSTALL_YN', label: '배송여부', width: 90, minWidth: 60, sortType: 'date' },
     { key: 'SPACE', label: 'SPACE', width: 116, minWidth: 60 },
-    { key: 'DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
+    { key: 'LAST_DELIVERY_ADDR', label: '배송 주소', width: 230, minWidth: 60, className: 'wide-text' },
     { key: 'MEMBER_ID', label: '담당SP명', width: 112, minWidth: 60 },
     { key: 'RETURN_TX', label: '비고', type: 'remark', width: 190, minWidth: 60, className: 'wide-text' }
 ];
+
+const privacyExcelColumns = columns.flatMap(column => {
+    if (column.key !== 'OWNER_NM') {
+        return [column];
+    }
+
+    return [
+        column,
+        { key: 'OWNER_TYPE', label: '소유자 구분', width: 90 },
+        { key: 'OWNER_REG_NO', label: '소유자 등록번호', width: 130 },
+        { key: 'OWNER_BIZ_NO', label: '소유자 사업자번호', width: 130 },
+        { key: 'OWNER_ADDRESS', label: '소유자 주소', width: 220, excelAlign: 'left' },
+        { key: 'OWNER_EMAIL1', label: '소유자 이메일주소1', width: 180, excelAlign: 'left' },
+        { key: 'OWNER_EMAIL2', label: '소유자 이메일주소2', width: 180, excelAlign: 'left' },
+        { key: 'JOINT_OWNER_NM', label: '공동소유자명', width: 120 },
+        { key: 'JOINT_OWNER_TYPE', label: '공동소유자 구분', width: 130 },
+        { key: 'JOINT_OWNER_REG_NO', label: '공동소유자 등록번호', width: 150 },
+        { key: 'JOINT_OWNER_BIZ_NO', label: '공동소유자 사업자번호', width: 160 },
+        { key: 'JOINT_OWNER_ADDRESS', label: '공동소유자 주소', width: 220, excelAlign: 'left' }
+    ];
+});
 
 const formatDateInputValue = (date) => {
     const year = date.getFullYear();
@@ -222,6 +245,7 @@ const getUserBranchId = (user) => String(
 const toYmd = (value) => String(value || '').replace(/-/g, '');
 
 const toStringValue = (value) => String(value ?? '').trim();
+const formatBizNo = (value) => toStringValue(value).replace(/\D/g, '').replace(/^(\d{3})(\d{2})(\d{5})$/, '$1-$2-$3');
 
 const formatAmount = (value) => {
     const digits = String(value ?? '').replace(/[^0-9-]/g, '');
@@ -282,7 +306,6 @@ const buildCodeMap = (codes) => Object.entries(codes || {}).reduce((acc, [groupI
 
 const getStatusClass = (statusLabel, statusCode) => {
     const code = String(statusCode || '').trim().toUpperCase();
-    const label = String(statusLabel || '').trim();
 
     if (/^(RET)$/.test(code)) {
         return 'reject';
@@ -342,13 +365,28 @@ const WaNewcarList = () => {
     const [activeRequest, setActiveRequest] = useState(null);
     const [requestRows, setRequestRows] = useState([]);
     const [showRequestConfirm, setShowRequestConfirm] = useState(false);
+	const [excelPasswordOpen, setExcelPasswordOpen] = useState(false);
+	const [excelPassword, setExcelPassword] = useState('');
+	const [excelPasswordError, setExcelPasswordError] = useState('');
+	const [excelPasswordChecking, setExcelPasswordChecking] = useState(false);
+	const [mobileFilterOpen, setMobileFilterOpen] = useState(false);
+	const [mobileFilterDraft, setMobileFilterDraft] = useState(null);
+	const [isMobileView, setIsMobileView] = useState(() => (
+		typeof window !== 'undefined' && window.matchMedia('(max-width: 760px)').matches
+	));
 	const [showSuChangeModal, setShowSuChangeModal] = useState(false);
 	const [changeUser, setChangeUser] = useState(null);
 	const [userList, setUserList] = useState([]);
     const fileInputRef = useRef(null);
+	const gridPanelRef = useRef(null);
+	const [gridPanelHeight, setGridPanelHeight] = useState(null);
     const searchStartLimitDate = getSearchStartLimitDate();
 	// 더블클릭 했을 때 해당 건으로 들어가기 위해
 	const [clickTimer, setClickTimer] = useState(null);
+	// 엑셀 업로드 / 양식 다운로드 선택 모달
+	const [excelUploadModalOpen, setExcelUploadModalOpen] = useState(false);
+	// 전체 로딩중
+	const [templateDownloading, setTemplateDownloading] = useState(false);
 
 	// SERVICE_ID별 진행단계 기억
 	// - 신규등록현황 화면이 살아있는 동안만 유지되는 휘발성 데이터
@@ -423,6 +461,7 @@ const WaNewcarList = () => {
 	}, [branchList, memberGb, isSpaceFixed, userBranchId]);
 
     const rows = useMemo(() => rawRows.map((row, index) => {
+		
         const processStatus = formatCode('NPRST', row.NPROC_ST || row.PROC_ST);
         const paymentStatus = formatCode('PAYST', row.PAY_ST);
         const rowKey = toStringValue(row.SERVICE_ID) || `${row.LINK_ID || 'row'}-${index}`;
@@ -432,7 +471,7 @@ const WaNewcarList = () => {
             PROC_ST: processStatus,
             LINK_ID: row.LINK_ID || '',
             CARID_NO: row.CARID_NO || '',
-            CAR_NO: row.CAR_NO || '',
+            CAR_NO: toStringValue(row.CAR_NO).trim() || row.REQ_CAR_NO || '',
             CUSTOMER_NM: row.CUSTOMER_NM || '',
             OWNER_NM: row.OWNER_NM || '',
             BUY_AMT: formatAmount(row.BUY_AMT),
@@ -443,12 +482,18 @@ const WaNewcarList = () => {
             BPAY_DT: row.BPAY_DT || '',
             PAY_DT: row.PAY_DT || '',
             INS_DATE: row.INS_DATE || '',
-            JUDGE_DT: row.JUDGE_DT || '',
-            SEND_YN_DT: row.SEND_YN_DT || '',
+			
+			// DIRECT(자가등록)건은 JUDGE_DT 대신 REGIST_DATE(등록예정일) 날짜를 사용
+			JUDGE_DT: isDirectRegistrationRow(row)
+			    ? (row.REGIST_DATE || '')
+			    : (row.JUDGE_DT || ''),
+				
+            INSTALL_YN: row.INSTALL_YN || '',
             SPACE: row.SPACE || '',
-            DELIVERY_ADDR: row.DELIVERY_ADDR || '',
+            LAST_DELIVERY_ADDR: row.LAST_DELIVERY_ADDR || '',
             MEMBER_ID: row.MEMBER_ID || '',
-            RETURN_TX: row.RETURN_TX || ''
+            RETURN_TX: row.RETURN_TX || '',
+            CAR_NM: row.CAR_NM || ''
         };
 
         return {
@@ -474,9 +519,9 @@ const WaNewcarList = () => {
             regPayDate: displayValues.PAY_DT,
             inputDate: displayValues.INS_DATE,
             regDate: displayValues.JUDGE_DT,
-            sendYnDT: displayValues.SEND_YN_DT,
+            installYn: displayValues.INSTALL_YN,
             space: displayValues.SPACE,
-            address: displayValues.DELIVERY_ADDR,
+            address: displayValues.LAST_DELIVERY_ADDR,
             sp: displayValues.MEMBER_ID,
             remark: displayValues.RETURN_TX
         };
@@ -518,6 +563,12 @@ const WaNewcarList = () => {
     const selectedRowKeySet = useMemo(() => new Set(selectedRowKeys), [selectedRowKeys]);
     const allRowsSelected = rows.length > 0 && rows.every(row => selectedRowKeySet.has(row.rowKey));
     const selectedRows = useMemo(() => rows.filter(row => selectedRowKeySet.has(row.rowKey)), [rows, selectedRowKeySet]);
+	const mobileDetailFilterCount = [
+		!isSpaceFixed && searchFilters.spaceType,
+		searchFilters.plateDeliveryStatus,
+		searchFilters.carKeyword
+	].filter(Boolean).length;
+	const activeMobileFilters = mobileFilterDraft || searchFilters;
 
 	const buildSearchPayload = useCallback((filters) => ({
 	    WORK_CD: '010',
@@ -615,6 +666,17 @@ const WaNewcarList = () => {
         }
     }, [dateTypeOptions, searchFilters.dateType]);
 
+	useEffect(() => {
+		const mediaQuery = window.matchMedia('(max-width: 760px)');
+		const syncMobileView = (event) => {
+			setIsMobileView(event.matches);
+			if (!event.matches) setMobileFilterOpen(false);
+		};
+
+		mediaQuery.addEventListener('change', syncMobileView);
+		return () => mediaQuery.removeEventListener('change', syncMobileView);
+	}, []);
+
     const handleFilterChange = (event) => {
         const { name, value } = event.target;
         const nextValue = name === 'startDate' ? clampSearchStartDate(value) : value;
@@ -624,6 +686,42 @@ const WaNewcarList = () => {
             [name]: nextValue
         }));
     };
+
+	const handleMobileFilterChange = (event) => {
+		const { name, value } = event.target;
+
+		setMobileFilterDraft(prev => ({
+			...(prev || searchFilters),
+			[name]: value
+		}));
+	};
+
+	const openMobileFilters = () => {
+		setMobileFilterDraft({ ...searchFilters });
+		setMobileFilterOpen(true);
+	};
+
+	const clearMobileFilters = () => {
+		setMobileFilterDraft(prev => ({
+			...(prev || searchFilters),
+			spaceType: isSpaceFixed ? userBranchId : '',
+			plateDeliveryStatus: '',
+			carKeyword: ''
+		}));
+	};
+
+	const applyMobileFilters = () => {
+		const nextFilters = mobileFilterDraft || searchFilters;
+		setSearchFilters(nextFilters);
+		setMobileFilterOpen(false);
+		fetchNewCarList(nextFilters);
+	};
+
+	const handleMobileProcessStatus = (processStatus) => {
+		const nextFilters = { ...searchFilters, processStatus };
+		setSearchFilters(nextFilters);
+		fetchNewCarList(nextFilters);
+	};
 
     const handleDateQuickRange = (startOffset) => {
         setSearchFilters(prev => ({
@@ -660,6 +758,103 @@ const WaNewcarList = () => {
             getCellValue: (row, column) => row.displayValues[column.key] ?? ''
         });
     };
+
+    const handlePrivacyExport = (privacyRows) => {
+        const privacyByServiceId = new Map((privacyRows || []).map(row => [
+            toStringValue(row.SERVICE_ID),
+            row
+        ]));
+
+        exportRowsToXlsx({
+            columns: privacyExcelColumns,
+            rows: sortedRows.map((row, index) => {
+                const privacy = privacyByServiceId.get(toStringValue(row.SERVICE_ID)) || {};
+
+                return {
+                    ...row,
+                    displayValues: {
+                        ...row.displayValues,
+                        SEQ: index + 1,
+                        OWNER_NM: privacy.OWNER_NM || row.displayValues.OWNER_NM || '',
+                        OWNER_TYPE: privacy.OWNER_TYPE || '',
+                        OWNER_REG_NO: gf.formatRegNo(privacy.OWNER_REG_NO),
+                        OWNER_BIZ_NO: formatBizNo(privacy.OWNER_BIZ_NO),
+                        OWNER_ADDRESS: privacy.OWNER_ADDRESS || '',
+                        OWNER_EMAIL1: privacy.OWNER_EMAIL1 || '',
+                        OWNER_EMAIL2: privacy.OWNER_EMAIL2 || '',
+                        JOINT_OWNER_NM: privacy.JOINT_OWNER_NM || '',
+                        JOINT_OWNER_TYPE: privacy.JOINT_OWNER_TYPE || '',
+                        JOINT_OWNER_REG_NO: gf.formatRegNo(privacy.JOINT_OWNER_REG_NO),
+                        JOINT_OWNER_BIZ_NO: formatBizNo(privacy.JOINT_OWNER_BIZ_NO),
+                        JOINT_OWNER_ADDRESS: privacy.JOINT_OWNER_ADDRESS || ''
+                    }
+                };
+            }),
+            fileName: `신규등록현황_${getFormattedDateOffset(0)}.xlsx`,
+            sheetName: '신규등록현황',
+            getCellValue: (row, column) => row.displayValues[column.key] ?? ''
+        });
+    };
+
+	const closeExcelPasswordModal = () => {
+		if (excelPasswordChecking) return;
+		setExcelPasswordOpen(false);
+		setExcelPassword('');
+		setExcelPasswordError('');
+	};
+
+	const requestExcelExport = () => {
+		if (rows.length === 0) {
+			handleExport();
+			return;
+		}
+
+		if (memberGb !== 'CA') {
+			handleExport();
+			return;
+		}
+
+		setExcelPassword('');
+		setExcelPasswordError('');
+		setExcelPasswordOpen(true);
+	};
+
+	const handleExcelPasswordSubmit = async (event) => {
+		event.preventDefault();
+
+		if (!excelPassword) {
+			setExcelPasswordError('현재 로그인 비밀번호를 입력하세요.');
+			return;
+		}
+
+		try {
+			setExcelPasswordChecking(true);
+			setExcelPasswordError('');
+
+			const response = await axios.post('/api/newcar/wa-excel/privacy', {
+				PASS_WD: excelPassword,
+				SEARCH: buildSearchPayload(searchFilters)
+			}, { withCredentials: true });
+
+			if (!response.data?.success) {
+				setExcelPasswordError(response.data?.message || '비밀번호가 일치하지 않습니다.');
+				return;
+			}
+
+			setExcelPasswordOpen(false);
+			setExcelPassword('');
+			handlePrivacyExport(response.data?.list || []);
+		} catch (error) {
+			setExcelPasswordError(
+				error.response?.data?.error?.message
+				|| error.response?.data?.message
+				|| '비밀번호 확인 중 오류가 발생했습니다.'
+			);
+		} finally {
+			setExcelPasswordChecking(false);
+		}
+	};
+
     const handleHeaderActionClick = (actionKey) => {
         if (actionKey === 'search') {
             fetchNewCarList(searchFilters);
@@ -667,7 +862,7 @@ const WaNewcarList = () => {
         }
 
         if (actionKey === 'export') {
-            handleExport();
+            requestExcelExport();
             return;
         }
 
@@ -688,8 +883,79 @@ const WaNewcarList = () => {
 
         setErrorMessage('');
         setNoticeMessage('');
-        fileInputRef.current?.click();
+        //fileInputRef.current?.click();
+		
+		// 바로 파일 선택창을 열지 않고 엑셀 작업 선택 모달을 연다.
+		setExcelUploadModalOpen(true);
     };
+	
+	// 엑셀 파일 업로드 선택
+	const handleExcelUploadClick = () => {
+
+	    setExcelUploadModalOpen(false);
+
+	    // 기존 파일 선택창 호출
+	    fileInputRef.current?.click();
+	};
+	
+	// 신규등록 엑셀 업로드 양식 다운로드
+	const handleExcelTemplateDownload = async () => {
+
+	    const companyId = getUserCompanyId(user);
+	    let fileNm;
+
+	    if (companyId === 'WA001') {
+	        fileNm = '폴스타_엑셀업로드양식.xlsx';
+	    }
+
+	    if (!fileNm) {
+	        gf.alert('등록된 엑셀 양식이 없습니다.');
+	        return;
+	    }
+
+	    setExcelUploadModalOpen(false);
+
+	    // 전체 화면 로딩 시작
+	    setTemplateDownloading(true);
+
+	    try {
+
+	        // React가 로딩 화면을 먼저 렌더링할 시간 확보
+	        await new Promise(resolve => setTimeout(resolve, 100));
+
+	        // 로컬 테스트용 2초 지연
+	        //await new Promise(resolve => setTimeout(resolve, 1500));
+
+	        const response = await axios.get('/api/newcar/excel-template', {
+	            params: {
+	                fileName: fileNm
+	            },
+	            responseType: 'blob'
+	        });
+
+	        const url = window.URL.createObjectURL(response.data);
+	        const link = document.createElement('a');
+
+	        link.href = url;
+	        link.download = fileNm;
+
+	        document.body.appendChild(link);
+	        link.click();
+	        link.remove();
+
+	        window.URL.revokeObjectURL(url);
+
+	    } catch (error) {
+
+	        console.error('엑셀 양식 다운로드 실패:', error);
+	        gf.alert('엑셀 양식 다운로드 중 오류가 발생했습니다.');
+
+	    } finally {
+
+	        setTemplateDownloading(false);
+
+	    }
+	};
 
     const handleExcelUpload = async (event) => {
         const fileInput = event.target;
@@ -842,7 +1108,7 @@ const WaNewcarList = () => {
                     PROC_ST: nextStatus,
 					CAR_NO: row.REQ_CAR_NO,
 					SU_ID: row.SU_ID,
-					MPHONE_NO: row.MPHONE_NO
+					PAY_HP_NO: row.PAY_HP_NO
                 };
             });
 
@@ -1182,10 +1448,136 @@ const WaNewcarList = () => {
 	        window.removeEventListener('resize', check);
 	    };
 	}, [activeRequest]);
+
+	useEffect(() => {
+		if (!mobileFilterOpen) return undefined;
+
+		const closeOnEscape = (event) => {
+			if (event.key === 'Escape') setMobileFilterOpen(false);
+		};
+
+		window.addEventListener('keydown', closeOnEscape);
+		return () => window.removeEventListener('keydown', closeOnEscape);
+	}, [mobileFilterOpen]);
+
+	const pageHasModal = Boolean(activeRequest || showRequestConfirm || mobileFilterOpen || excelPasswordOpen);
 	
+	useLayoutEffect(() => {
+	    let frameId = null;
+
+	    const updateGridHeight = () => {
+	        if (frameId) cancelAnimationFrame(frameId);
+
+	        frameId = requestAnimationFrame(() => {
+	            if (!gridPanelRef.current) return;
+
+	            const viewportHeight = window.visualViewport?.height || window.innerHeight;
+	            const gridTop = gridPanelRef.current.getBoundingClientRect().top;
+	            const availableHeight = viewportHeight - gridTop - 12;
+
+	            if (availableHeight < 220) {
+	                setGridPanelHeight(420);
+	                return;
+	            }
+
+	            setGridPanelHeight(Math.min(620, availableHeight));
+	        });
+	    };
+
+	    updateGridHeight();
+
+	    window.addEventListener('resize', updateGridHeight);
+	    window.visualViewport?.addEventListener('resize', updateGridHeight);
+
+	    const resizeObserver = new ResizeObserver(updateGridHeight);
+
+	    if (gridPanelRef.current?.parentElement) {
+	        resizeObserver.observe(gridPanelRef.current.parentElement);
+	    }
+
+	    return () => {
+	        if (frameId) cancelAnimationFrame(frameId);
+	        window.removeEventListener('resize', updateGridHeight);
+	        window.visualViewport?.removeEventListener('resize', updateGridHeight);
+	        resizeObserver.disconnect();
+	    };
+	}, [rawRows.length]);
+
     return (
-        <div className={`wa-status-page wa-newcar-list-page${(activeRequest || showRequestConfirm) ? ' has-modal' : ''}`}>
-            <div className="wa-status-page-content" aria-hidden={(activeRequest || showRequestConfirm) ? 'true' : undefined}>
+        <div className={`wa-status-page wa-newcar-list-page${pageHasModal ? ' has-modal' : ''}${selectedRows.length > 0 ? ' has-mobile-selection' : ''}`}>
+            <div className="wa-status-page-content" aria-hidden={pageHasModal ? 'true' : undefined}>
+            <div className="wa-mobile-sticky-controls">
+            <section className="wa-mobile-list-toolbar" aria-label="모바일 신규신청현황 조회 조건">
+                <div className="wa-mobile-period-row">
+                    <select name="dateType" value={searchFilters.dateType} onChange={handleFilterChange} aria-label="기준일자">
+                        {dateTypeOptions.map(option => (
+                            <option key={option.CODE_ID} value={option.CODE_ID}>{option.CODE_NM}</option>
+                        ))}
+                    </select>
+                    <input type="date" name="startDate" value={searchFilters.startDate} min={searchStartLimitDate} onChange={handleFilterChange} aria-label="조회 시작일" />
+                    <input type="date" name="endDate" value={searchFilters.endDate} onChange={handleFilterChange} aria-label="조회 종료일" />
+                </div>
+
+                <div className="wa-mobile-keyword-row">
+                    <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} placeholder="계약자명" aria-label="계약자명" autoComplete="off" />
+                    <input type="text" name="orderNo" value={searchFilters.orderNo} onChange={handleFilterChange} placeholder="주문번호" aria-label="주문번호" autoComplete="off" />
+                </div>
+
+                <div className="wa-mobile-toolbar-actions">
+                    <button type="button" className="wa-mobile-toolbar-button" onClick={openMobileFilters}>
+                        <Filter size={17} />
+                        <span>필터</span>
+                        {mobileDetailFilterCount > 0 && <strong>{mobileDetailFilterCount}</strong>}
+                    </button>
+                    <button type="button" className="wa-mobile-toolbar-button primary" onClick={() => fetchNewCarList(searchFilters)} disabled={loading}>
+                        <Search size={17} />
+                        <span>조회</span>
+                    </button>
+                    <details className="wa-mobile-more-menu">
+                        <summary aria-label="엑셀 및 추가 기능">
+                            <MoreVertical size={19} />
+                        </summary>
+                        <div className="wa-mobile-more-popover">
+                            <button type="button" onClick={event => { requestExcelExport(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                                <Download size={16} /> 엑셀 다운로드
+                            </button>
+                            {canManageNewcarActions && (
+                                <button type="button" onClick={event => { handleExcelClick(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                                    <Upload size={16} /> 엑셀 업로드
+                                </button>
+                            )}
+                            <button type="button" onClick={event => { handleReset(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
+                                <RotateCcw size={16} /> 조회조건 초기화
+                            </button>
+                        </div>
+                    </details>
+                </div>
+            </section>
+
+            <nav className="wa-mobile-status-chips" aria-label="처리상태 필터">
+                {processStatusOptions.map(option => (
+                    <button
+                        key={option.value || 'ALL'}
+                        type="button"
+                        className={searchFilters.processStatus === option.value ? 'active' : ''}
+                        aria-pressed={searchFilters.processStatus === option.value}
+                        onClick={() => handleMobileProcessStatus(option.value)}
+                        disabled={loading}
+                    >
+                        {option.label}
+                    </button>
+                ))}
+            </nav>
+
+            <div className="wa-mobile-result-heading">
+                <strong>검색 결과 총 {rows.length}건</strong>
+                <label>
+                    <input type="checkbox" checked={allRowsSelected} onChange={event => toggleAllRows(event.target.checked)} />
+                    <span>전체 선택</span>
+                </label>
+            </div>
+            </div>
+
             <section className="wa-status-top-toolbar" aria-label="신규신청현황 조회 조건">
                 <section className="wa-status-period-panel" aria-label="조회 기간">
                     <label className="wa-status-field wa-status-date-field" aria-label="기준일자">
@@ -1214,7 +1606,7 @@ const WaNewcarList = () => {
 
                 <div className="wa-status-actions" aria-label="신규신청현황 기능 버튼">
                     {headerActionButtons.map(({ key, label, Icon, variant }) => (
-                        <button key={key} type="button" className={`wa-status-action ${variant}`} onClick={() => handleHeaderActionClick(key)} disabled={loading && key === 'search'}>
+                        <button key={key} type="button" className={`wa-status-action ${variant} wa-status-action-${key}`} onClick={() => handleHeaderActionClick(key)} disabled={loading && key === 'search'}>
                             <Icon size={15} />
                             <span>{label}</span>
                         </button>
@@ -1275,7 +1667,7 @@ const WaNewcarList = () => {
                 </label>
             </section>
 
-            <section className="wa-status-grid-panel" aria-label="신규신청현황 목록">
+			<section ref={gridPanelRef} className="wa-status-grid-panel" aria-label="신규신청현황 목록" style={gridPanelHeight ? { height: `${gridPanelHeight}px`, maxHeight: 'none' } : undefined}>
                 <section className="wa-status-heading">
 					<div className="wa-status-actions" aria-label="목록 처리 버튼">
 					    {gridActionButtons
@@ -1317,7 +1709,77 @@ const WaNewcarList = () => {
                 {errorMessage && <div className="wa-status-error">{errorMessage}</div>}
                 {noticeMessage && <div className="wa-status-notice">{noticeMessage}</div>}
 
-                <div className="wa-status-table-scroll">
+                {isMobileView && (
+                    <>
+                        <div className="wa-mobile-newcar-list">
+                            {loading ? (
+                                <div className="wa-mobile-list-empty">조회 중입니다.</div>
+                            ) : sortedRows.length === 0 ? (
+                                <div className="wa-mobile-list-empty">조회된 데이터가 없습니다.</div>
+                            ) : sortedRows.map(row => {
+                                const directRegistration = isDirectRegistrationRow(row);
+
+                                return (
+                                    <article key={row.rowKey} className={`wa-mobile-newcar-card${selectedRowKeySet.has(row.rowKey) ? ' selected' : ''}`}>
+                                        <header>
+                                            <label className="wa-mobile-card-checkbox">
+                                                <input
+                                                    type="checkbox"
+                                                    aria-label={`${row.displayValues.LINK_ID || row.rowKey} 선택`}
+                                                    checked={selectedRowKeySet.has(row.rowKey)}
+                                                    onChange={event => toggleRow(row.rowKey, event.target.checked)}
+                                                />
+                                            </label>
+                                            <span className={`wa-grid-status ${getStatusClass(row.displayValues.PROC_ST, row.processStatusCode)}`}>
+                                                {row.displayValues.PROC_ST || '-'}
+                                            </span>
+                                            <time>{row.displayValues.REGIST_DATE || '등록예정일 미정'}</time>
+                                        </header>
+
+                                        <button type="button" className="wa-mobile-card-open" onClick={() => handleRowDoubleClick(row)} disabled={directRegistration}>
+                                            <span className="wa-mobile-card-field primary">
+                                                <small>주문번호</small>
+                                                <strong>{row.displayValues.LINK_ID || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>담당SP명</small>
+                                                <strong>{row.displayValues.MEMBER_ID || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>소유자명</small>
+                                                <strong>{row.displayValues.OWNER_NM || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>SPACE</small>
+                                                <strong>{row.displayValues.SPACE || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>계약자명</small>
+                                                <strong>{row.displayValues.CUSTOMER_NM || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field">
+                                                <small>공급가액</small>
+                                                <strong>{row.displayValues.BUY_AMT || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field wide">
+                                                <small>차명</small>
+                                                <strong>{row.displayValues.CAR_NM  || '-'}</strong>
+                                            </span>
+                                            <span className="wa-mobile-card-field wide">
+                                                <small>차대번호</small>
+                                                <strong>{row.displayValues.CARID_NO || '-'}</strong>
+                                            </span>
+
+                                            {!directRegistration && <ChevronRight size={20} aria-hidden="true" />}
+                                        </button>
+                                    </article>
+                                );
+                            })}
+                        </div>
+                    </>
+                )}
+
+                {!isMobileView && <div className="wa-status-table-scroll">
                     <table className="wa-status-table" style={{ width: `${gridWidth}px`, minWidth: `${gridWidth}px` }}>
                         <colgroup>
                             {columns.map(column => (
@@ -1379,9 +1841,75 @@ const WaNewcarList = () => {
                             ))}
                         </tbody>
                     </table>
-                </div>
+                </div>}
             </section>
             </div>
+
+            {selectedRows.length > 0 && (
+                <aside className="wa-mobile-selection-bar" aria-label="선택 항목 작업">
+                    <div className="wa-mobile-selection-summary">
+                        <strong>{selectedRows.length}건 선택</strong>
+                        <button type="button" onClick={() => setSelectedRowKeys([])} aria-label="선택 해제">
+                            <X size={18} />
+                        </button>
+                    </div>
+                    <div className="wa-mobile-selection-actions">
+                        {gridActionButtons
+                            .filter(button => button.roles.includes(memberGb))
+                            .map(({ key, label, Icon }) => (
+                                <button key={key} type="button" className={`wa-mobile-selection-action ${key}`} onClick={() => handleGridActionClick(key)} disabled={loading}>
+                                    <Icon size={17} />
+                                    <span>{label}</span>
+                                </button>
+                            ))}
+                    </div>
+                </aside>
+            )}
+
+            {mobileFilterOpen && (
+                <div className="wa-mobile-filter-backdrop" role="presentation" onMouseDown={() => setMobileFilterOpen(false)}>
+                    <section className="wa-mobile-filter-sheet" role="dialog" aria-modal="true" aria-labelledby="wa-mobile-filter-title" onMouseDown={event => event.stopPropagation()}>
+                        <header>
+                            <strong id="wa-mobile-filter-title">상세 검색</strong>
+                            <button type="button" onClick={() => setMobileFilterOpen(false)} aria-label="상세 검색 닫기">
+                                <X size={21} />
+                            </button>
+                        </header>
+
+                        <div className="wa-mobile-filter-fields">
+                            {!isSpaceFixed && (
+                                <label>
+                                    <span>SPACE 구분</span>
+                                    <select name="spaceType" value={activeMobileFilters.spaceType} onChange={handleMobileFilterChange}>
+                                        {spaceOptions.map(option => (
+                                            <option key={option.value || 'ALL'} value={option.value}>{option.label}</option>
+                                        ))}
+                                    </select>
+                                </label>
+                            )}
+
+                            <label>
+                                <span>번호판 배송상태</span>
+                                <select name="plateDeliveryStatus" value={activeMobileFilters.plateDeliveryStatus} onChange={handleMobileFilterChange}>
+                                    {plateDeliveryOptions.map(option => (
+                                        <option key={option.value || 'ALL'} value={option.value}>{option.label}</option>
+                                    ))}
+                                </select>
+                            </label>
+
+                            <label>
+                                <span>차량/차대번호</span>
+                                <input type="text" name="carKeyword" value={activeMobileFilters.carKeyword} onChange={handleMobileFilterChange} placeholder="차량번호 또는 차대번호 입력" autoComplete="off" />
+                            </label>
+                        </div>
+
+                        <footer>
+                            <button type="button" className="outline" onClick={clearMobileFilters}>초기화</button>
+                            <button type="button" className="primary" onClick={applyMobileFilters} disabled={loading}>필터 적용</button>
+                        </footer>
+                    </section>
+                </div>
+            )}
 
             {showRequestConfirm && (
                 <div className="wa-request-modal-backdrop" role="presentation">
@@ -1423,6 +1951,119 @@ const WaNewcarList = () => {
                     </section>
                 </div>
             )}
+            {excelPasswordOpen && (
+                <div className="wa-request-modal-backdrop" role="presentation" onMouseDown={closeExcelPasswordModal}>
+                    <section
+                        className="wa-action-confirm-frame"
+                        role="dialog"
+                        aria-modal="true"
+                        aria-labelledby="wa-excel-password-title"
+                        onMouseDown={event => event.stopPropagation()}
+                    >
+                        <header className="wa-action-confirm-header">
+                            <strong id="wa-excel-password-title">엑셀 다운로드 비밀번호 확인</strong>
+                            <button
+                                type="button"
+                                className="wa-request-modal-close"
+                                onClick={closeExcelPasswordModal}
+                                aria-label="닫기"
+                                disabled={excelPasswordChecking}
+                            >
+                                <X size={18} />
+                            </button>
+                        </header>
+                        <form onSubmit={handleExcelPasswordSubmit}>
+                            <div className="wa-action-confirm-content wa-excel-password-content">
+                                <label htmlFor="wa-excel-password">현재 로그인 비밀번호</label>
+                                <input
+                                    id="wa-excel-password"
+                                    type="password"
+                                    value={excelPassword}
+                                    onChange={event => {
+                                        setExcelPassword(event.target.value);
+                                        setExcelPasswordError('');
+                                    }}
+                                    autoComplete="current-password"
+                                    autoFocus
+                                    disabled={excelPasswordChecking}
+                                />
+                                {excelPasswordError && <p>{excelPasswordError}</p>}
+                            </div>
+                            <footer className="wa-action-confirm-footer">
+                                <button type="button" className="wa-status-action outline" onClick={closeExcelPasswordModal} disabled={excelPasswordChecking}>
+                                    취소
+                                </button>
+                                <button type="submit" className="wa-status-action primary" disabled={excelPasswordChecking}>
+                                    {excelPasswordChecking ? '확인 중...' : '확인 및 다운로드'}
+                                </button>
+                            </footer>
+                        </form>
+                    </section>
+                </div>
+            )}
+			{excelUploadModalOpen && (
+
+			    <div
+			        className="wa-request-modal-backdrop"
+			        role="presentation"
+			        onMouseDown={() => setExcelUploadModalOpen(false)}
+			    >
+			        <section
+			            className="wa-action-confirm-frame"
+			            role="dialog"
+			            aria-modal="true"
+			            aria-labelledby="wa-excel-upload-title"
+			            onMouseDown={event => event.stopPropagation()}
+			        >
+
+			            <header className="wa-action-confirm-header">
+
+			                <strong id="wa-excel-upload-title">
+			                    엑셀 업로드
+			                </strong>
+
+			                <button
+			                    type="button"
+			                    className="wa-request-modal-close"
+			                    onClick={() => setExcelUploadModalOpen(false)}
+			                    aria-label="닫기"
+			                >
+			                    <X size={18} />
+			                </button>
+
+			            </header>
+
+			            <div className="wa-action-confirm-content">
+			                엑셀 양식을 다운로드하거나 작성한 엑셀 파일을 업로드해주세요.
+			            </div>
+
+			            <footer className="wa-action-confirm-footer">
+
+			                <button
+			                    type="button"
+			                    className="wa-status-action outline"
+			                    onClick={handleExcelTemplateDownload}
+			                >
+			                    <Download size={15} />
+			                    <span>양식 다운로드</span>
+			                </button>
+
+			                <button
+			                    type="button"
+			                    className="wa-status-action primary"
+			                    onClick={handleExcelUploadClick}
+			                >
+			                    <Upload size={15} />
+			                    <span>엑셀 업로드</span>
+			                </button>
+
+			            </footer>
+
+			        </section>
+
+			    </div>
+
+			)}
             {activeRequest && (
 
 				<div className={`wa-request-modal-backdrop ${isOverflow ? 'overflow' : ''}`}>
@@ -1523,6 +2164,35 @@ const WaNewcarList = () => {
 			    </section>
 			</div>
 			)}
+			
+
+			{templateDownloading && (
+			    <div
+			        style={{
+			            position: 'fixed',
+			            top: 0,
+			            left: 0,
+			            width: '100vw',
+			            height: '100vh',
+			            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+			            zIndex: 999999,
+			            display: 'flex',
+			            alignItems: 'center',
+			            justifyContent: 'center'
+			        }}
+			    >
+			        <div
+			            style={{
+			                color: '#fff',
+			                fontSize: '24px',
+			                fontWeight: 'bold'
+			            }}
+			        >
+			            로딩 중...
+			        </div>
+			    </div>
+			)}
+			
         </div>
     );
 };

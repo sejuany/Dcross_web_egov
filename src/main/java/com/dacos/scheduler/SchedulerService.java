@@ -10,8 +10,8 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import com.dacos.common.BusinessException;
 import com.dacos.common.CommonService;
+import com.dacos.newcar.NewcarService;
 import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
 
@@ -25,11 +25,18 @@ public class SchedulerService {
     
     private final SchedulerMapper schedulerMapper;
     private final CommonService commonService;
+    private final NewcarService newcarService;
 
-    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService) {
+    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService, NewcarService newcarService) {
         this.schedulerMapper = schedulerMapper;
         this.commonService = commonService;
+        this.newcarService = newcarService;
     }
+
+	/** 만료 정리의 트랜잭션 경계는 NewcarService에 두고 스케줄러는 해당 흐름만 위임한다. */
+	public int cleanupExpiredNumplateSelections() {
+		return newcarService.cleanupExpiredNumplateSelections();
+	}
     
     @Transactional
     public int processTodayNewcarWaitingServices() {
@@ -49,6 +56,26 @@ public class SchedulerService {
             String serviceId = target.getSERVICE_ID();
 
             try {
+				// 연락처 유무와 관계없이 금일 등록예정 건의 보험 접수를 먼저 처리함.
+				try {
+					newcarService.insertAndSendNewcarInsurance(
+						serviceId,
+						target.getCOMPANY_ID(),
+						"SCHEDULAR"
+					);
+				} catch (Exception e) {
+					// 보험 접수 실패가 기존 SMS 및 S_REQ 전환을 중단시키지 않도록 함.
+					logger.error("[보험접수] 08시 스케줄 처리 실패 - serviceId: {}", serviceId, e);
+				}
+
+                // 고객 연락처 및 SMS 발송 결과와 관계없이 심사요청으로 상태 변경
+                int updated = schedulerMapper.updateServiceToJudgeRequest(serviceId);
+                updateCount += updated;
+
+                if (updated == 0) {
+                    logger.warn("[SchedulerService] 상태 변경 대상 없음 - serviceId: {}, currentProcSt: {}", serviceId, target.getPROC_ST());
+                }
+
                 if (isBlank(target.getMPHONE_NO())) {
                     logger.warn("[SchedulerService] SMS 발송 제외 - 고객 연락처 없음, serviceId: {}", serviceId);
                     continue;
@@ -67,7 +94,7 @@ public class SchedulerService {
                 
                 // WA로 시작하는 회사 문자 처리
                 if (target.getCOMPANY_ID() != null && target.getCOMPANY_ID().substring(0,2).equals("WA")) {
-                     if (target.getCOMPANY_ID().equals("WA001")) {
+                     if (target.getCOMPANY_ID().equals("WA001") || target.getCOMPANY_ID().equals("WA999")) {
                     	 	/*
                             smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
                     		+ "■ 신차 등록 접수 및 세제 혜택 유지 안내\n"
@@ -80,15 +107,16 @@ public class SchedulerService {
                             */
                     	 
                     	 
-                            smsText = "안녕하세요. 폴스타 고객 지원 시스템입니다.\n\n"
+                            smsText = "안녕하세요. 폴스타 차량의 등록 신청이 관청에 접수되었습니다.\n\n"
                             		+ "주문번호 : " + target.getLINK_ID() + "\r\n차대번호 : " + target.getCARID_NO() + "\r\n\r\n" 
-                                    + safeValue(target.getCAR_NO())  + " 차량의 등록 신청이 관청에 정상 접수되었습니다.\r\n\r\n" 
                                     + "[취득세 감면 대상자 유의사항]\n"
                 	 				+ "1. 감면 혜택을 받은 차량은 정해진 법적 요건(의무 보유 기간 등)을 유지해야 합니다. 요건 변동(조기 매각 등) 사유가 발생할 경우, 감면받은 지방세가 환수될 수 있으며 사유 발생일로부터 60일 이내 미신고 시 가산세가 부과될 수 있으니 유의해 주시기 바랍니다.\n"
                                     + "2. 기존 감면과 동일한 감면은 적용할 수 없습니다. 대체 취득의 경우 신규 차량 등록일부터 60일 내에 기존 감면 차량을 말소하거나 소유권을 이전해야 합니다. \r\n\r\n"
                                     + "[저공해 차량 대상자 안내사항]\n"
                                     + "저공해 차량 등록 정보는 신규 등록을 마친 다음 날부터 무공해차 통합누리집에서 확인하실 수 있습니다.\n\n"
-                                    + "※ 본 메시지는 시스템 발신 전용으로 회신이 어렵습니다. 관련 문의 사항은 담당 스페셜리스트에게 문의해 주시면 자세히 안내해 드리겠습니다."
+                                    + "[외부 장치용 번호판 수요자 안내사항]\n"
+                                    + "외부 장치용 번호판은 신규등록 완료 후 가까운 차량등록관청에 방문하여 외부 장치용 번호판을 신청하실 수 있습니다.\n\n"
+                                    + "※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다."
                                     + (isBlank(specialistPhone) ? "" : "\n담당 스페셜리스트 : " + specialistPhone); 
                             sSubject = "등록 접수 안내";
                      }
@@ -121,21 +149,12 @@ public class SchedulerService {
                 
                 // 심사요청 문자 발송
                 Map<String, Object> param = new HashMap<>();
-                param.put("PAY_HP_NO", target.getMPHONE_NO()); // 고객 연락처
+                param.put("PAY_HP_NO", target.getPAY_HP_NO()); // 결제자 연락처
                 param.put("TEXT", smsText);                    // 문자 내용
                 param.put("MSG_TYPE", "3");                   // 문자메세지 유형 1:SMS, 3:LMS
                 param.put("SUBJECT", sSubject);                   // 문자메세지 제목
                 commonService.sendSms(param);
                 logger.info("[SchedulerService] SMS문자 발송완료 - serviceId: {}, 문자내용: {}", serviceId, smsText);
-
-                // 심사요청으로 상태 변경
-                // 한성자동차는 S_WAIT 라서 납부요청 조건 제거
-                int updated = schedulerMapper.updateServiceToJudgeRequest(serviceId);
-                updateCount += updated;
-
-                if (updated == 0) {
-                    logger.warn("[SchedulerService] 상태 변경 대상 없음 - serviceId: {}, currentProcSt: {}", serviceId, target.getPROC_ST());
-                }
             } catch (Exception e) {
                 logger.error("[SchedulerService] 처리 실패 - serviceId: {}, message: {}", serviceId, e.getMessage(), e);
             }
@@ -240,7 +259,7 @@ public class SchedulerService {
     								+ "※ 이미 납부하신 경우, 전산 반영 시차로 인해 본 안내문이 발송된 것이니 양해 부탁드립니다.";
     				
     				Map<String, Object> param = new HashMap<>();
-    				param.put("PAY_HP_NO", target.getMPHONE_NO());
+    				param.put("PAY_HP_NO", target.getPAY_HP_NO());
     				param.put("TEXT", smsText);
     				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
     				param.put("SUBJECT", "취득세 납부 미확인 안내"); // 예: SMS 제목
@@ -261,7 +280,7 @@ public class SchedulerService {
     								+ "2) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
     								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n"
     								+ "4) 납부기한 : 당일 15:00\n\n"
-    								+ "고객 연락처 : " + safeValue(target.getMPHONE_NO());
+    								+ "고객 연락처 : " + safeValue(target.getPAY_HP_NO());
     				
     				param.put("PAY_HP_NO", specialistPhone);
     				param.put("TEXT", smsText);

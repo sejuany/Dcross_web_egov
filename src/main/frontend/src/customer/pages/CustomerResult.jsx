@@ -42,7 +42,15 @@ const CustomerResult = () => {
                         <>
                             요청이 정상적으로 접수되었습니다.<br />
                             담당자가 확인 후 순차적으로 처리해 드릴 예정입니다.<br />
-                            수정 및 문의사항은 담당 스페셜리스트 <span className="text-primary">({managerTel})</span>에게 연락 부탁드립니다. 
+                            수정 및 문의사항은 담당 스페셜리스트 
+							<span className="text-primary">
+								<a
+									href={`tel:${managerTel}`}
+									style={{ color: 'inherit', textDecoration: 'underline' }}
+								>
+									({managerTel})
+								</a>
+							</span>에게 연락 부탁드립니다. 
                         </>
                     ) : (
                         <>

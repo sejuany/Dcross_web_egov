@@ -48,10 +48,10 @@ const ConfirmInfo = ({
 	useEffect(() => {
 
 	    // 일반 첨부 정책
-	    const attachPolicy = getAttachPolicy(dsNewCar);
+	    const attachPolicy = getAttachPolicy(dsNewCar, dsOwnerInfo);
 		
 	    // 비과세 첨부 정책
-	    const ntaxPolicy = getNtaxAttachPolicy(dsNewCar);
+	    const ntaxPolicy = getNtaxAttachPolicy(dsNewCar, dsOwnerInfo);
 		
 	    setShowAttachButton(
 	        attachPolicy.needSign || attachPolicy.needUpload || ntaxPolicy.needUpload
@@ -77,6 +77,17 @@ const ConfirmInfo = ({
 							: dsNewCar.REG_GB === 'B'
 							? 'B'
 			               		 : '';
+	const selectedLeaseBase = dsBaseList?.find(item => (
+		String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
+	));
+	const selectedLeaseName = String(selectedLeaseBase?.BASE_NM ?? '')
+		.replace(/주식회사/g, '')
+		.replace(/\((본점|창원)\)$/, '')
+		.trim();
+	const isDirectLeaseCompany = selectedLeaseName === '직접입력';
+	const leaseCompanyName = isDirectLeaseCompany
+		? (ownerType === 'L' ? dsNewCar.OWNER_NM : dsOwnerInfo.DEBTOR_NM)
+		: selectedLeaseName;
 
     return (
         <>
@@ -171,28 +182,23 @@ const ConfirmInfo = ({
 						        <>
 					            <div className="wa-confirm-item">
 					                <span>리스사명</span>
-									<strong>
-									    {(dsBaseList
-									        ?.find(item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID))
-									        ?.BASE_NM ?? ''
-									    ).replace(/\((본점|창원)\)$/, '')}
-									</strong>
+									<strong>{leaseCompanyName}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
-					                <span>리스 계약자명</span>
-					                <strong>{dsOwnerInfo.DEBTOR_NM}</strong>
+					                <span>법인등록번호</span>
+					                <strong>{dsNewCar.REG_NO}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
-					                <span>리스 계약자 등록번호</span>
-									<strong>
-								        {dsOwnerInfo.DEBTOR_GB === 'C'
-								            ? dsOwnerInfo.DEBTOR_BIZ_NO
-								            : dsOwnerInfo.DEBTOR_REG_NO}
-								    </strong>
+					                <span>사업자등록번호</span>
+					                <strong>{dsNewCar.BIZ_NO}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
-					                <span>리스 계약자 휴대폰번호</span>
-					                <strong>{dsOwnerInfo.DEBTOR_TEL_NO}</strong>
+					                <span>본점 주소</span>
+					                <strong>{dsNewCar.ADDRESS} {dsNewCar.ADDRESS_DT}</strong>
+					            </div>
+					            <div className="wa-confirm-item">
+					                <span>사용본거지</span>
+					                <strong>{dsNewCar.BASE_ADDRESS} {dsNewCar.BASE_ADDRESS_DT}</strong>
 					            </div>
 								</>
 							)}
@@ -200,14 +206,6 @@ const ConfirmInfo = ({
 							{/* 이용자명의리스 */}
 						    {ownerType === 'C' && (
 						        <>
-					            <div className="wa-confirm-item">
-					                <span>리스사명</span>
-									<strong>
-									    {(dsBaseList?.find(
-									        item => String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
-									    )?.BASE_NM ?? '').replace(/\((본점|창원)\)$/, '')}
-									</strong>
-					            </div>
 					            <div className="wa-confirm-item">
 					                <span>리스 종료일</span>
 					                <strong>{dsNewCar.IMSIGV_DT}</strong>
@@ -236,6 +234,54 @@ const ConfirmInfo = ({
 							)}
 				        </div>
 
+						{ownerType === 'L' && (
+							<div className="wa-owner-box">
+								<div className="wa-confirm-item">
+									<span>리스 계약자명</span>
+									<strong>{dsOwnerInfo.DEBTOR_NM}</strong>
+								</div>
+								<div className="wa-confirm-item">
+									<span>리스 계약자 등록번호</span>
+									<strong>
+										{dsOwnerInfo.DEBTOR_GB === 'C'
+											? dsOwnerInfo.DEBTOR_BIZ_NO
+											: dsOwnerInfo.DEBTOR_REG_NO}
+									</strong>
+								</div>
+								<div className="wa-confirm-item">
+									<span>리스 계약자 휴대폰번호</span>
+									<strong>{dsOwnerInfo.DEBTOR_TEL_NO}</strong>
+								</div>
+							</div>
+						)}
+
+						{ownerType === 'C' && (
+							<div className="wa-owner-box">
+								<div className="wa-confirm-item">
+									<span>리스사명</span>
+									<strong>{leaseCompanyName}</strong>
+								</div>
+								<div className="wa-confirm-item">
+									<span>법인등록번호</span>
+									<strong>{dsOwnerInfo.DEBTOR_REG_NO}</strong>
+								</div>
+								<div className="wa-confirm-item">
+									<span>사업자등록번호</span>
+									<strong>{dsOwnerInfo.DEBTOR_BIZ_NO}</strong>
+								</div>
+								<div className="wa-confirm-item">
+									<span>본점 주소</span>
+									<strong>{dsOwnerInfo.DEBTOR_ADDR} {dsOwnerInfo.DEBTOR_ADDR_DT}</strong>
+								</div>
+								{dsOwnerInfo.DEBTOR_TEL_NO && (
+									<div className="wa-confirm-item">
+										<span>리스 담당자 연락처</span>
+										<strong>{dsOwnerInfo.DEBTOR_TEL_NO}</strong>
+									</div>
+								)}
+							</div>
+						)}
+
 				        {/* 공동소유자 */}
 				        {Number(dsNewCar.RATIO_NO) !== 100 && dsOwnerInfo && Number(dsOwnerInfo.DEBTOR_RATIO) !== 0 && (
 				            <div className="wa-owner-box">
@@ -248,11 +294,6 @@ const ConfirmInfo = ({
 				                <div className="wa-confirm-item">
 				                    <span>등록번호</span>
 				                    <strong>{dsOwnerInfo.DEBTOR_REG_NO}</strong>
-				                </div>
-
-				                <div className="wa-confirm-item">
-				                    <span>등본상 주소</span>
-				                    <strong>{dsOwnerInfo.DEBTOR_ADDR} {dsOwnerInfo.DEBTOR_ADDR_DT}</strong>
 				                </div>
 
 				                <div className="wa-confirm-item">
@@ -313,6 +354,11 @@ const ConfirmInfo = ({
 		                <span>SPACE</span>
 		                <strong>{dsDLVGB?.find(item => item.CODE_ID === dsCarNoDetach.DELIVERY_GB)?.CODE_NM ?? ''}</strong>
 		            </div>
+					
+					<div className="wa-confirm-item">
+						<span>등록증 수령지</span>
+						<strong>{dsNewCar.CARP_ADDRESS} {dsNewCar.CARP_ADDRESS_DT}</strong>
+					</div>
 		
 		        </div>
 		

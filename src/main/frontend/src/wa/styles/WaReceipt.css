@@ -1,276 +1,448 @@
 @charset "UTF-8";
 
-/* =========================================================
- * Receipt
- * ========================================================= */
-.receipt-wrapper{
+.wa-payment-receipt-wrapper{
     position:fixed;
     inset:0;
-    overflow-y:scroll;
-    overflow-x:hidden;
+    overflow-y:auto;
+    background:#f4f6f8;
+    color:#18212b;
 }
 
-.receipt-page{
+.wa-payment-receipt-page{
     width:900px;
+    min-height:100vh;
     margin:0 auto;
     padding:32px;
     box-sizing:border-box;
     background:#fff;
 }
 
-.receipt-status{
+.wa-payment-receipt-status{
     min-height:240px;
     padding-top:96px;
     color:#555;
     text-align:center;
 }
 
-.receipt-status-error{
+.wa-payment-receipt-status-error{
     color:#c62828;
 }
 
-.receipt-title-top{
-    margin-bottom:6px;
-    font-size:15px;
-    font-weight:700;
-}
-
-.receipt-title-main{
-    margin-bottom:24px;
-    padding-bottom:12px;
-    border-bottom:2px solid #333;
-    font-size:24px;
-    font-weight:700;
-}
-
-.receipt-blue-box{
-    margin-bottom:32px;
-    padding:24px 28px;
-    border-radius:6px;
-    background:#1a2a40;
-    color:#fff;
-}
-
-.receipt-blue-box-inner{
+.wa-payment-receipt-title-row{
     display:flex;
     justify-content:space-between;
-    align-items:flex-start;
+    align-items:flex-end;
+    margin-bottom:18px;
+    padding-bottom:14px;
+    border-bottom:2px solid #253240;
 }
 
-.receipt-info-text{
-    line-height:2.3;
-    font-size:14px;
+.wa-payment-receipt-title{
+    font-size:25px;
+    font-weight:800;
 }
 
-.receipt-vin-text{
-    margin-left:8px;
-    opacity:.85;
-}
-
-.receipt-total-section{
-    text-align:right;
-}
-
-.receipt-total-label{
-    margin-bottom:6px;
+.wa-payment-receipt-number{
+    margin-top:6px;
+    color:#6b7280;
     font-size:12px;
 }
 
-.receipt-total-value{
-    color:#4da6ff;
-    font-size:28px;
-    font-weight:700;
+.wa-payment-receipt-actions{
+    display:flex;
+    gap:8px;
 }
 
-.receipt-payment-number-grid{
+.wa-payment-receipt-actions button,
+.wa-payment-receipt-action-button{
+    display:inline-flex;
+    align-items:center;
+    padding:8px 15px;
+    border:1px solid #cbd2da;
+    border-radius:3px;
+    background:#fff;
+    color:#374151;
+    cursor:pointer;
+    font:inherit;
+    text-decoration:none;
+}
+
+.wa-payment-receipt-summary{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    padding:20px 24px;
+    border-radius:4px;
+    background:#17293a;
+    color:#fff;
+}
+
+.wa-payment-receipt-customer{
+    font-size:13px;
+    line-height:1.7;
+}
+
+.wa-payment-receipt-total{
+    text-align:right;
+}
+
+.wa-payment-receipt-total span{
+    display:block;
+    margin-bottom:4px;
+    font-size:12px;
+}
+
+.wa-payment-receipt-total strong{
+    font-size:26px;
+}
+
+.wa-payment-receipt-payment-grid,
+.wa-payment-receipt-bond-meta{
     display:grid;
     grid-template-columns:repeat(2, minmax(0, 1fr));
-    gap:16px;
+    gap:14px;
+    margin-top:18px;
 }
 
-.receipt-payment-number-card{
-    min-height:84px;
-    padding:18px 20px;
-    box-sizing:border-box;
-    border:1px solid #d1d8e0;
-    border-radius:6px;
-    background:#f8fafc;
-}
-
-.receipt-payment-number-label{
-    margin-bottom:10px;
-    color:#667085;
-    font-size:13px;
-    font-weight:700;
-}
-
-.receipt-payment-number-value{
-    color:#111827;
-    font-size:17px;
-    font-weight:700;
-    letter-spacing:.02em;
-    overflow-wrap:anywhere;
-}
-
-.receipt-section-title{
+.wa-payment-receipt-payment-grid > div,
+.wa-payment-receipt-bond-meta > div{
     display:flex;
+    justify-content:space-between;
     align-items:center;
-    margin:28px 0 12px;
+    gap:16px;
+    min-height:48px;
+    padding:10px 16px;
+    box-sizing:border-box;
+    border:1px solid #64748b;
+    border-radius:4px;
+    background:#fff;
+}
+
+.wa-payment-receipt-payment-grid span,
+.wa-payment-receipt-bond-meta span{
+    flex:0 0 auto;
+    margin:0;
+    color:#6b7280;
+    font-size:11px;
+}
+
+.wa-payment-receipt-payment-grid strong,
+.wa-payment-receipt-bond-meta strong{
+    min-width:0;
+    font-size:14px;
+    overflow-wrap:anywhere;
+    text-align:right;
+}
+
+.wa-payment-receipt-section-title{
+    margin:22px 0 9px;
+    padding-left:8px;
+    border-left:3px solid #17293a;
+    border-top:0;
+    border-right:0;
+    border-bottom:0;
+    background:transparent;
+    color:#18212b;
     font-size:16px;
+    font-weight:800;
+    line-height:1.35;
+    text-align:left;
+}
+
+.wa-payment-receipt-tax-fee-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    gap:14px;
+}
+
+.wa-payment-receipt-section{
+    min-width:0;
+}
+
+.wa-payment-receipt-issuance-note{
+    margin-top:10px;
+    color:#2563eb;
+    font-size:11px;
     font-weight:700;
 }
 
-.receipt-section-title::before{
-    content:'';
-    width:4px;
-    height:16px;
-    margin-right:8px;
-    background:#333;
-}
-
-.receipt-table{
+.wa-payment-receipt-table{
     width:100%;
-    margin-bottom:28px;
     border-collapse:collapse;
     table-layout:fixed;
+    font-size:12px;
 }
 
-.receipt-table th{
-    padding:12px 15px;
-    border-top:1px solid #d1d8e0;
-    border-bottom:1px solid #d1d8e0;
-    background:#f2f6fa;
-    color:#444;
-    font-weight:700;
-    text-align:left;
-    white-space:nowrap;
+.wa-payment-receipt-table th,
+.wa-payment-receipt-table td{
+    padding:10px 12px;
+    border-bottom:1px solid #dfe4ea;
 }
 
-.receipt-table td{
-    padding:12px 15px;
-    border-bottom:1px solid #eee;
-    vertical-align:middle;
-}
-
-.receipt-table th:nth-child(1),
-.receipt-table td:nth-child(1){
-    width:25%;
+.wa-payment-receipt-table th{
+    background:#f0f3f7;
     text-align:left;
 }
 
-.receipt-table th:nth-child(2),
-.receipt-table td:nth-child(2){
-    width:15%;
+.wa-payment-receipt-table th:nth-child(1),
+.wa-payment-receipt-table td:nth-child(1){width:64%;}
+
+.wa-payment-receipt-table th:nth-child(2),
+.wa-payment-receipt-table td:nth-child(2){
+    width:36%;
     text-align:right;
     white-space:nowrap;
 }
 
-.receipt-table th:nth-child(3),
-.receipt-table td:nth-child(3){
-    width:60%;
-    text-align:left;
-}
-
-.receipt-row-total{
+.wa-payment-receipt-row-total{
     background:#fafafa;
-    font-weight:700;
+    font-weight:800;
 }
 
-.receipt-final-box{
-    padding:20px;
-    border:1px solid #ccc;
+.wa-payment-receipt-bond-grid{
+    display:grid;
+    grid-template-columns:repeat(2, minmax(0, 1fr));
+    margin-top:12px;
+    border-top:1px solid #dfe4ea;
+    border-left:1px solid #dfe4ea;
 }
 
-.receipt-final-row{
+.wa-payment-receipt-bond-cell{
+    display:flex;
+    justify-content:space-between;
+    padding:11px 14px;
+    border-right:1px solid #dfe4ea;
+    border-bottom:1px solid #dfe4ea;
+    font-size:12px;
+}
+
+.wa-payment-receipt-bond-cell span{
+    color:#4b5563;
+}
+
+.wa-payment-receipt-bond-cell-wide{
+    grid-column:1 / -1;
+}
+
+.wa-payment-receipt-bond-total{
+    grid-column:1 / -1;
+    display:flex;
+    justify-content:space-between;
+    padding:13px 14px;
+    border-right:1px solid #dfe4ea;
+    border-bottom:1px solid #dfe4ea;
+    background:#fff;
+    color:#18212b;
+    font-size:14px;
+    font-weight:800;
+}
+
+.wa-payment-receipt-bond-total > span{
+    display:flex;
+    flex-direction:column;
+    gap:3px;
+}
+
+.wa-payment-receipt-bond-total small{
+    color:#7b8490;
+    font-size:10px;
+    font-weight:500;
+}
+
+.wa-payment-receipt-bond-total strong{
+    color:#18212b;
+}
+
+.wa-payment-receipt-final-box{
+    padding:16px 20px;
+    border:1px solid #cfd5dc;
+}
+
+.wa-payment-receipt-final-box > div{
     display:flex;
     justify-content:space-between;
     padding:6px 0;
 }
 
-.receipt-refund-amount{
-    margin-top:10px;
-    padding-top:10px;
-    border-top:1px solid #ddd;
-    font-size:18px;
+.wa-payment-receipt-refund{
+    margin-top:8px;
+    padding-top:12px !important;
+    border-top:1px solid #dfe4ea;
+    font-size:16px;
+}
+
+.wa-payment-receipt-refund strong{
+    color:#ef2b2d;
+}
+
+.wa-payment-receipt-date{
+    margin-top:28px;
+    padding-top:18px;
+    border-top:1px dashed #cfd5dc;
     font-weight:700;
-}
-
-.receipt-refund-date{
-    margin-top:10px;
-    color:#e03e3e;
-    font-size:11px;
-    text-align:right;
-}
-
-.receipt-footer{
-    margin-top:30px;
-    color:#888;
-    font-size:11px;
-    line-height:1.7;
     text-align:center;
 }
-.receipt-header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 24px;
+
+.wa-payment-receipt-footer{
+    margin-top:18px;
+    color:#7b8490;
+    font-size:10px;
+    text-align:center;
 }
 
-/* 영수증 버튼 */
-.receipt-header-buttons {
-    display: flex;
-    justify-content: flex-end;
-    gap: 8px;
-    margin-bottom: 12px;
-}
-
-.receipt-action-btn {
-    padding: 8px 16px;
-    border: 1px solid #cfd6df;
-    border-radius: 6px;
-    background: #fff;
-    cursor: pointer;
-    font-size: 14px;
-    font-weight: 500;
-    transition: .2s;
-}
-
-.receipt-action-btn:hover {
-    background: #f5f7fa;
-}
-
-.receipt-page {
-    width: 900px;
-    margin: 0 auto;
-    padding: 32px;
-    box-sizing: border-box;
-    background: #fff;
-}
-
-/*pdf 저장할 때*/
-.receipt-blue-box.pdf-mode {
-    margin-bottom: 10px;
-}
-
-.receipt-footer.pdf-mode {
-	margin-top: 10px;
-}
-
-
-@media print {
-
-	/* 인쇄 할 때 드래그 생성 방지*/
+@media print{
     html,
-    body {
-        overflow: visible !important;
+    body,
+    #root{
+        width:auto !important;
+        height:auto !important;
+        min-height:0 !important;
+        overflow:visible !important;
     }
-	
-	/* 영수증 인쇄 할 때 드래그 생성 방지*/
-    .receipt-wrapper,
-    .receipt-page,
-    .receipt-pdf {
-        overflow: visible !important;
-        height: auto !important;
-        max-height: none !important;
+
+    .wa-payment-receipt-wrapper,
+    .wa-payment-receipt-page,
+    .wa-payment-receipt-pdf{
+        position:static !important;
+        inset:auto !important;
+        height:auto !important;
+        min-height:0 !important;
+        max-height:none !important;
+        overflow:visible !important;
+    }
+
+    .wa-payment-receipt-wrapper{
+        background:#fff;
+    }
+
+    .wa-payment-receipt-page{
+        width:auto !important;
+        padding:0 !important;
+    }
+
+    .wa-payment-receipt-title-row{
+        margin-bottom:8px;
+        padding-bottom:8px;
+    }
+
+    .wa-payment-receipt-title{
+        font-size:20px;
+    }
+
+    .wa-payment-receipt-number{
+        margin-top:3px;
+        font-size:10px;
+    }
+
+    .wa-payment-receipt-summary{
+        padding:12px 18px;
+    }
+
+    .wa-payment-receipt-customer{
+        font-size:11px;
+        line-height:1.45;
+    }
+
+    .wa-payment-receipt-total span{
+        margin-bottom:2px;
+        font-size:10px;
+    }
+
+    .wa-payment-receipt-total strong{
+        font-size:22px;
+    }
+
+    .wa-payment-receipt-payment-grid,
+    .wa-payment-receipt-bond-meta{
+        gap:10px;
+        margin-top:10px;
+    }
+
+    .wa-payment-receipt-payment-grid > div,
+    .wa-payment-receipt-bond-meta > div{
+        min-height:38px;
+        padding:6px 12px;
+    }
+
+    .wa-payment-receipt-section-title{
+        margin:12px 0 6px;
+        font-size:14px;
+    }
+
+    .wa-payment-receipt-tax-fee-grid{
+        grid-template-columns:repeat(2, minmax(0, 1fr)) !important;
+        gap:10px;
+    }
+
+    .wa-payment-receipt-table{
+        font-size:10px;
+    }
+
+    .wa-payment-receipt-table th,
+    .wa-payment-receipt-table td{
+        padding:6px 8px;
+    }
+
+    .wa-payment-receipt-issuance-note{
+        margin-top:5px;
+        font-size:9px;
+    }
+
+    .wa-payment-receipt-bond-grid{
+        margin-top:6px;
+    }
+
+    .wa-payment-receipt-bond-cell{
+        padding:7px 10px;
+        font-size:10px;
+    }
+
+    .wa-payment-receipt-bond-total{
+        padding:8px 10px;
+        font-size:12px;
+    }
+
+    .wa-payment-receipt-bond-total small{
+        font-size:8px;
+    }
+
+    .wa-payment-receipt-final-box{
+        padding:10px 14px;
+    }
+
+    .wa-payment-receipt-final-box > div{
+        padding:4px 0;
+    }
+
+    .wa-payment-receipt-refund{
+        margin-top:4px;
+        padding-top:6px !important;
+        font-size:14px;
+    }
+
+    .wa-payment-receipt-date{
+        margin-top:10px;
+        padding-top:8px;
+        font-size:12px;
+    }
+
+    .wa-payment-receipt-footer{
+        margin-top:7px;
+        font-size:8px;
+    }
+
+    .wa-payment-receipt-actions{
+        display:none !important;
+    }
+}
+
+@media screen and (max-width:720px){
+    .wa-payment-receipt-page{
+        width:100%;
+        padding:20px;
+    }
+
+    .wa-payment-receipt-tax-fee-grid{
+        grid-template-columns:1fr;
     }
 }

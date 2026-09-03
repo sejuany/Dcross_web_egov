@@ -20,20 +20,20 @@ body,
 html {
     height: 100%;
     width: 100%;
-    overflow: hidden;
-    /* 스크롤 절대 방지 */
+    overflow: auto;
 }
 
 #root {
     height: 100%;
-    min-width: 1280px;
+    min-width: 0;
 }
 
 .login-container {
     display: flex;
-    height: 100vh;
-    width: 100vw;
-    overflow: hidden;
+    width: 100%;
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow: auto;
 }
 
 /* Left Section: Branding */
@@ -45,7 +45,7 @@ html {
     justify-content: center;
     color: var(--text-white);
     padding: 2rem;
-    min-width: 300px;
+    min-width: 0;
 }
 
 .brand-content {
@@ -64,6 +64,23 @@ html {
     height: auto;
     margin-bottom: 1rem;
     object-fit: contain;
+}
+
+.login-logo-switch {
+    display: block;
+    width: 100%;
+    max-width: 350px;
+    border-radius: 10px;
+    line-height: 0;
+}
+
+.login-logo-switch:focus-visible {
+    outline: 3px solid #fff;
+    outline-offset: 6px;
+}
+
+.login-logo-switch .main-logo {
+    max-width: none;
 }
 
 .brand-tagline {
@@ -96,6 +113,7 @@ html {
     align-items: center;
     justify-content: center;
     padding: 2rem;
+    min-width: 0;
 }
 
 .form-wrapper {
@@ -199,6 +217,75 @@ html {
     background-color: var(--btn-gray);
     box-shadow: none;
     transform: none;
+}
+
+.withauth-login-section {
+    margin-top: 18px;
+}
+
+.login-method-divider {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+    color: #94a3b8;
+    font-size: 0.78rem;
+}
+
+.login-method-divider::before,
+.login-method-divider::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background-color: #e2e8f0;
+}
+
+.withauth-login-btn {
+    width: 100%;
+    min-height: 50px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+    border: 1px solid #1c3553;
+    border-radius: 8px;
+    background-color: #8196AE;
+    color: #ffffff;
+    font-size: 0.95rem;
+    font-weight: 700;
+    cursor: pointer;
+    transition: background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.withauth-login-btn:hover {
+    background-color: #8196aeb9;
+    box-shadow: 0 6px 14px rgba(28, 53, 83, 0.12);
+}
+
+.withauth-login-btn:disabled {
+    cursor: wait;
+    opacity: 0.6;
+    box-shadow: none;
+}
+
+.withauth-login-mark {
+    width: 26px;
+    height: 26px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    background-color: #1c3553;
+    color: #ffffff;
+    font-size: 0.82rem;
+    font-weight: 800;
+}
+
+.withauth-login-help {
+    margin: 8px 0 0;
+    color: #718096;
+    font-size: 0.76rem;
+    text-align: center;
 }
 
 .login-progress {
@@ -350,6 +437,8 @@ html {
 }
 
 .checkmark {
+	position: relative;
+	
     height: 18px;
     width: 18px;
     background-color: #edf2f7;
@@ -372,12 +461,14 @@ html {
     content: "";
     position: absolute;
     display: none;
-    left: 6px;
-    top: 2px;
+
+    left: 4px;
+
     width: 5px;
     height: 10px;
+
     border: solid white;
-    border-width: 0 2px 2px 0;
+    border-width: 0 3px 3px 0;
     transform: rotate(45deg);
 }
 
@@ -386,46 +477,119 @@ html {
 }
 
 /* Responsive Design */
-@media (max-width: 900px) {
+@media (max-width: 1024px) {
     .login-left {
+        flex: 0.9;
         padding: 1.5rem;
+    }
+
+    .login-logo-switch {
+        max-width: 280px;
     }
 
     .main-logo {
         max-width: 280px;
     }
+
+    .brand-tagline {
+        margin-bottom: 1.75rem;
+    }
+
+    .login-right {
+        flex: 1.1;
+        padding: 2rem 1.5rem;
+    }
 }
 
-@media (max-width: 700px) {
+@media (max-width: 760px) {
 
     body,
     html {
         overflow: auto;
-        /* 모바일에서는 스크롤 허용 */
     }
 
     .login-container {
         flex-direction: column;
         height: auto;
-        min-height: 100vh;
+        min-height: 100dvh;
         overflow: auto;
     }
 
     .login-left {
         flex: none;
-        height: 40vh;
-        min-height: 300px;
+        min-height: 180px;
+        padding: 28px 20px 24px;
     }
 
     .login-right {
-        flex: none;
-        height: 60vh;
-        min-height: 450px;
-        padding-bottom: 3rem;
+        flex: 1;
+        min-height: 0;
+        align-items: flex-start;
+        padding: 32px 20px calc(32px + env(safe-area-inset-bottom));
+    }
+
+    .brand-content {
+        max-width: 360px;
+    }
+
+    .main-logo {
+        max-width: 220px;
+        margin-bottom: 8px;
+    }
+
+    .login-logo-switch {
+        max-width: 220px;
+    }
+
+    .brand-tagline {
+        margin-bottom: 0;
+        font-size: 0.8rem;
+        letter-spacing: 1px;
+    }
+
+    .notice-box {
+        display: none;
+    }
+
+    .form-wrapper {
+        max-width: 420px;
+        margin: 0 auto;
     }
 
     .welcome-text {
-        margin-bottom: 2rem;
+        margin-bottom: 28px;
+        font-size: 2rem;
+    }
+
+    .input-group {
+        margin-bottom: 22px;
+    }
+
+    .input-group input,
+    .mobile-auth-control {
+        min-height: 48px;
+        font-size: 16px;
+    }
+
+    .login-btn {
+        min-height: 52px;
+        margin-top: 12px;
+    }
+
+    .toast-notification {
+        width: calc(100% - 32px) !important;
+        max-width: 420px;
+        white-space: normal !important;
+    }
+}
+
+@media (max-width: 420px) {
+    .login-left {
+        min-height: 156px;
+    }
+
+    .mobile-auth-actions {
+        flex-direction: column;
     }
 }
 
@@ -523,4 +687,43 @@ html {
 
 .signup-link-btn:disabled::after {
     width: 0;
+}
+
+/* 개인정보 처리방침 위치 잡기 */
+.login-right {
+    flex: 1.2;
+    background-color: var(--bg-light);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem;
+    min-width: 0;
+    position: relative;
+}
+
+.login-policy {
+    position: absolute;
+    bottom: 24px;
+    left: 0;
+    width: 100%;
+    text-align: center;
+}
+
+.login-policy a {
+    border: none;
+    background: transparent;
+    color: #718096;
+    font-size: 0.8rem;
+    cursor: pointer;
+    text-decoration: underline;
+}
+
+@media (max-width: 760px) {
+    .login-policy {
+        position: static;
+        margin-top: auto;
+        padding-top: 40px;
+        text-align: center;
+    }
 }
