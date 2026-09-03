@@ -26,7 +26,7 @@ public class Scheduler {
     private final SchedulerService schedulerService;
     private final CommonService commonService;
 
-	/** 1분마다 5분 유효시간이 지난 고객 번호판 배정을 회수한다. */
+	/** 1분마다 10분 유효시간이 지난 고객 번호판 배정을 회수한다. */
 	@Scheduled(cron = "0 * * * * *", zone = "Asia/Seoul")
 	public void cleanupExpiredNumplateSelections() {
 		schedulerService.cleanupExpiredNumplateSelections();

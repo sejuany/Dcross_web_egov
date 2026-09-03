@@ -201,7 +201,12 @@ const getInitialSearchDateRange = (memberGb) => {
             startDate: clampSearchStartDate(getFormattedDateOffset(-7)),
             endDate: today
         };
-    }
+    } else if (normalizedMemberGb === 'SA') {
+        return {
+	        startDate: clampSearchStartDate(getFormattedDateOffset(-30)),
+	        endDate: today
+	    };
+	}
 
     return {
         startDate: today,

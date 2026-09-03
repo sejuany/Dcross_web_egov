@@ -14,6 +14,7 @@ import './App.css';
 import CommonPopupProvider from './components/common/CommonPopupProvider';
 import Policy from './components/member/Policy';
 import NumPlateAppRoutes from './components/numplateapp/NumPlateAppRoutes';
+import WaNewcarGuide from './guide/WaNewcarGuide';
 
 function App() {
   return (
@@ -25,6 +26,7 @@ function App() {
             <Route path="/login" element={<LoginPage />} />
 			{/* 개인정보 처리방침 */}
 			<Route path="/policy" element={<Policy />} />
+			<Route path="/guide/wa-newcar" element={<WaNewcarGuide />} />
             <Route path="/wa/*" element={<WaRoutes />} />
             <Route path="/signup" element={<SignupTerm />} />
             <Route path="/signup-form" element={<SignForm />} />

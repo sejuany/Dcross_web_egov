@@ -1,4 +1,4 @@
-﻿﻿﻿ /* =========================================================
+﻿﻿﻿﻿ /* =========================================================
  * Import
  * ========================================================= */
 import React, { useEffect, useRef, useState, useMemo, useCallback } from 'react';
@@ -2281,6 +2281,20 @@ const WaNewcarRequest = ({
 			? ''
 			: `${label}는 11자리로 입력해주세요.`;
 	};
+	
+	// 결제자 연락처: 9자리 이상
+	const requirePayPhoneNumber = (value, label) => {
+
+	    const digits = onlyDigits(value);
+
+	    if (!digits) {
+	        return `${label}를(을) 입력해주세요.`;
+	    }
+
+	    return digits.length >= 9
+	        ? ''
+	        : `${label}는 9자리 이상 입력해주세요.`;
+	};
 
 	const requireTextLength = (value, length, label) => {
 		const requiredMessage = requireValue(value, label);
@@ -2451,7 +2465,7 @@ const WaNewcarRequest = ({
 		let message =
 		    requireValue(dsNewCar.PAY_GB, '결제구분')
 		    || requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
-		    || requirePhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
+		    || requirePayPhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
 			|| (checkEstimate && dsUserInfo.MEMBER_GB !== 'SU' && Number(dsNewCar.STANDARD_AMT || 0) <= 0
 			    ? '예상납부금액을 확인해주세요.'
 			    : '');

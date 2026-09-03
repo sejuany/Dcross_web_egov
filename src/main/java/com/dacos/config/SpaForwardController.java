@@ -31,6 +31,7 @@ public class SpaForwardController {
         "/newcar/**",
         "/mortgage/**",
         "/dashboard/**",
+        "/guide/**",
         "/numplate/**",
         // 모바일 앱의 직접 접근·새로고침도 React Router가 처리하도록 index.html로 전달한다.
         "/numplateapp/**"
