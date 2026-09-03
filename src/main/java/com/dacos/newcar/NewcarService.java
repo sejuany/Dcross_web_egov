@@ -77,6 +77,8 @@ public class NewcarService {
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Seoul");
     private static final Set<String> NTAX_NO_UPLOAD_GRADES = Set.of(
             "7", "8", "9", "10", "11", "12", "13", "14");
+    private static final Set<String> SUPPLY_AMOUNT_PAY_KINDS = Set.of(
+            "ACQ", "BFEE", "BOND", "FEE", "INJI", "SPARE", "STAMP", "TNUM", "UNUM", "UREG");
 
     // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
     private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
@@ -827,6 +829,263 @@ public class NewcarService {
 		}
 
 		return Map.of("success", true, "insertCount", insertCount, "errors", List.of());
+	}
+
+	/** 엑셀 행을 신청 건과 매칭만 한다. 계산이 끝나기 전에는 DB를 수정하지 않는다. */
+	@Transactional(readOnly = true)
+	public Map<String, Object> previewSupplyAmounts(MultipartFile file, UserDto user) {
+		validateSupplyAmountAccess(user);
+
+		List<Map<String, Object>> rows = parseSupplyAmountExcel(file);
+		if (rows.isEmpty()) {
+			throw new BusinessException("수정할 데이터가 없습니다.", 400);
+		}
+
+		Set<String> excelKeys = new HashSet<>();
+		List<Map<String, Object>> results = new ArrayList<>();
+		int matchedCount = 0;
+
+		for (Map<String, Object> row : rows) {
+			String linkId = Objects.toString(row.get("LINK_ID"), "").trim();
+			String carIdNo = Objects.toString(row.get("CARID_NO"), "").trim().toUpperCase(Locale.ROOT);
+			Long buyAmt = parseSupplyAmountValue(row.get("BUY_AMT_TEXT"));
+			List<String> errors = new ArrayList<>();
+
+			boolean validLinkId = linkId.length() == 8;
+			if (!validLinkId) errors.add("주문번호가 없습니다.");
+			if (buyAmt == null) errors.add("공급가액이 0원입니다.");
+			if (!linkId.isEmpty() && !carIdNo.isEmpty()
+					&& !excelKeys.add(linkId + "\u0000" + carIdNo)) {
+				errors.add("엑셀 내 중복된 주문번호와 차대번호");
+			}
+
+			Object serviceId = null;
+			if (validLinkId) {
+				List<Map<String, Object>> targets = selectSupplyAmountTargets(user, linkId);
+				if (targets.isEmpty()) {
+					errors.add("주문번호가 없습니다.");
+				} else {
+					List<Map<String, Object>> carTargets = targets.stream()
+							.filter(target -> carIdNo.equals(Objects.toString(target.get("CARID_NO"), "")
+									.trim().toUpperCase(Locale.ROOT)))
+							.toList();
+					if (carTargets.isEmpty()) errors.add("차대번호가 일치하지 않습니다.");
+					else if (carTargets.size() > 1) errors.add("일치하는 신청 건이 여러 건입니다.");
+					else if (!"W_REQ".equals(Objects.toString(carTargets.get(0).get("PROC_ST"), ""))) {
+						errors.add("신청대기 상태가 아닙니다.");
+					} else {
+						serviceId = carTargets.get(0).get("SERVICE_ID");
+					}
+				}
+			}
+
+			boolean matched = errors.isEmpty();
+			if (matched) matchedCount++;
+			Map<String, Object> result = new HashMap<>();
+			result.put("row", row.get("ROW_NO"));
+			result.put("linkId", linkId);
+			result.put("carIdNo", carIdNo);
+			result.put("buyAmt", buyAmt);
+			result.put("serviceId", serviceId);
+			result.put("success", matched);
+			result.put("reason", String.join(", ", errors));
+			results.add(result);
+		}
+
+		return Map.of(
+				"success", matchedCount == rows.size(),
+				"totalCount", rows.size(),
+				"matchedCount", matchedCount,
+				"failureCount", rows.size() - matchedCount,
+				"results", results);
+	}
+
+	/** 모든 행의 계산 결과를 다시 검증한 뒤 한 트랜잭션으로 반영한다. */
+	@Transactional
+	public Map<String, Object> applySupplyAmountCalculations(
+			List<Map<String, Object>> rows, UserDto user) {
+		validateSupplyAmountAccess(user);
+		return saveSupplyAmountCalculations(rows, user);
+	}
+
+	/** 검증된 계산 결과를 저장한다. 호출한 트랜잭션 안에서 실행된다. */
+	private Map<String, Object> saveSupplyAmountCalculations(
+			List<Map<String, Object>> rows, UserDto user) {
+		if (rows == null || rows.isEmpty()) {
+			throw new BusinessException("반영할 계산 결과가 없습니다.", 400);
+		}
+
+		Set<String> serviceIds = new HashSet<>();
+		List<Map<String, Object>> updates = new ArrayList<>();
+
+		// 신뢰 경계인 요청값을 전부 확인한 뒤에만 UPDATE를 시작한다.
+		for (Map<String, Object> row : rows) {
+			String serviceId = Objects.toString(row.get("serviceId"), "").trim();
+			String linkId = Objects.toString(row.get("linkId"), "").trim();
+			String carIdNo = Objects.toString(row.get("carIdNo"), "").trim().toUpperCase(Locale.ROOT);
+			Long buyAmt = parseSupplyAmountValue(row.get("buyAmt"));
+			Long standardAmt = parseNonNegativeAmount(row.get("standardAmt"));
+			Long preregAmt = parseNonNegativeAmount(row.get("preregAmt"));
+			Long totalAmt = parseNonNegativeAmount(row.get("totalAmt"));
+			Long bondAmt = parseNonNegativeAmount(row.get("bondAmt"));
+
+			if (serviceId.isEmpty() || linkId.length() != 8 || carIdNo.length() != 17
+					|| buyAmt == null || standardAmt == null || preregAmt == null
+					|| totalAmt == null || bondAmt == null || !serviceIds.add(serviceId)) {
+				throw new BusinessException("공급가액 계산 결과를 확인해 주세요.", 400);
+			}
+
+			List<Map<String, Object>> targets = selectSupplyAmountTargets(user, linkId).stream()
+					.filter(target -> carIdNo.equals(Objects.toString(target.get("CARID_NO"), "")
+							.trim().toUpperCase(Locale.ROOT)))
+					.toList();
+			if (targets.size() != 1
+					|| !serviceId.equals(Objects.toString(targets.get(0).get("SERVICE_ID"), ""))
+					|| !"W_REQ".equals(Objects.toString(targets.get(0).get("PROC_ST"), ""))) {
+				throw new BusinessException("신청 대상 상태가 변경되었습니다. 목록을 다시 조회해 주세요.", 409);
+			}
+
+			Object paymentValue = row.get("payments");
+			if (!(paymentValue instanceof List<?> paymentRows)) {
+				throw new BusinessException("결제항목 계산 결과를 확인해 주세요.", 400);
+			}
+			Map<String, Map<String, Object>> payments = new HashMap<>();
+			for (Object paymentValueRow : paymentRows) {
+				if (!(paymentValueRow instanceof Map<?, ?> paymentRow)) continue;
+				String payKd = Objects.toString(paymentRow.get("payKd"), "").trim().toUpperCase(Locale.ROOT);
+				Long prePayAmt = parseNonNegativeAmount(paymentRow.get("prePayAmt"));
+				Long payAmt = parseNonNegativeAmount(paymentRow.get("payAmt"));
+				Long realAloan = parseNonNegativeAmount(paymentRow.get("realAloan"));
+				if (!SUPPLY_AMOUNT_PAY_KINDS.contains(payKd) || prePayAmt == null || payAmt == null
+						|| ("BOND".equals(payKd) && realAloan == null) || payments.containsKey(payKd)) {
+					throw new BusinessException("결제항목 계산 결과를 확인해 주세요.", 400);
+				}
+				Map<String, Object> payment = new HashMap<>();
+				payment.put("SERVICE_ID", serviceId);
+				payment.put("PAY_KD", payKd);
+				payment.put("PRE_PAY_AMT", prePayAmt);
+				payment.put("PAY_AMT", payAmt);
+				payment.put("REAL_ALOAN", realAloan == null ? 0L : realAloan);
+				payments.put(payKd, payment);
+			}
+			if (!payments.keySet().equals(SUPPLY_AMOUNT_PAY_KINDS)) {
+				throw new BusinessException("결제항목 계산 결과가 누락되었습니다.", 400);
+			}
+
+			Map<String, Object> update = new HashMap<>();
+			update.put("SERVICE_ID", serviceId);
+			update.put("BUY_AMT", buyAmt);
+			update.put("STANDARD_AMT", standardAmt);
+			update.put("PREREG_AMT", preregAmt);
+			update.put("TOTAL_AMT", totalAmt);
+			update.put("BOND_AMT", bondAmt);
+			update.put("NTAX_APPLC_CD", Objects.toString(row.get("ntaxApplyCode"), ""));
+			update.put("UPD_USER", user.getLOGIN_ID());
+			update.put("PAYMENTS", new ArrayList<>(payments.values()));
+			// 기존 메모는 mapper에서 보존하고 전체 수정 성공 시 계산 이력을 한 줄 추가한다.
+			Long oldBuyAmt = parseNonNegativeAmount(targets.get(0).get("BUY_AMT"));
+			update.put("AMOUNT_MEMO_TX", String.format(Locale.KOREA,
+					" / 공급가액 : %,d원 → %,d원 / 총금액 : %,d원 (취득세 %,d원 / 채권 %,d원 / 등록면허세 %,d원)",
+					oldBuyAmt == null ? 0L : oldBuyAmt, buyAmt, totalAmt,
+					payments.get("ACQ").get("PAY_AMT"), payments.get("BOND").get("PAY_AMT"),
+					payments.get("UREG").get("PAY_AMT")));
+			updates.add(update);
+		}
+
+		for (Map<String, Object> update : updates) {
+			if (common.update(update, "updateTrNewCar") != 1) {
+				throw new BusinessException("공급가액 반영 중 오류가 발생했습니다.", 500);
+			}
+			@SuppressWarnings("unchecked")
+			List<Map<String, Object>> payments = (List<Map<String, Object>>) update.get("PAYMENTS");
+			for (Map<String, Object> payment : payments) {
+				if (common.update(payment, "updateSupplyAmountPayment") != 1) {
+					throw new BusinessException("결제항목 반영 중 오류가 발생했습니다.", 500);
+				}
+			}
+		}
+
+		return Map.of("success", true, "updatedCount", updates.size());
+	}
+
+	private List<Map<String, Object>> parseSupplyAmountExcel(MultipartFile file) {
+		if (file == null || file.isEmpty()) {
+			throw new BusinessException("업로드할 엑셀 파일을 선택해 주세요.", 400);
+		}
+
+		List<Map<String, Object>> rows = new ArrayList<>();
+		try (Workbook workbook = WorkbookFactory.create(file.getInputStream())) {
+			Sheet sheet = workbook.getSheetAt(0);
+			Row header = sheet.getRow(0);
+			DataFormatter formatter = new DataFormatter();
+			var evaluator = workbook.getCreationHelper().createFormulaEvaluator();
+			int linkColumn = findHeaderIndex(header, formatter, "주문 번호", "주문번호");
+			int carIdColumn = findHeaderIndex(header, formatter, "VIN", "차대번호");
+			int amountColumn = findHeaderIndex(
+					header, formatter, "차량 세금 계산서 금액(공급가액)", "공급가액");
+
+			if (linkColumn < 0 || carIdColumn < 0 || amountColumn < 0) {
+				throw new BusinessException("공급가액 수정 양식의 항목을 확인해 주세요.", 400);
+			}
+
+			for (int i = 1; i <= sheet.getLastRowNum(); i++) {
+				Row excelRow = sheet.getRow(i);
+				if (excelRow == null) {
+					continue;
+				}
+
+				String linkId = formatter.formatCellValue(excelRow.getCell(linkColumn), evaluator).trim();
+				String carIdNo = formatter.formatCellValue(excelRow.getCell(carIdColumn), evaluator).trim();
+				String buyAmt = formatter.formatCellValue(excelRow.getCell(amountColumn), evaluator).trim();
+
+				if (linkId.isEmpty() && carIdNo.isEmpty() && buyAmt.isEmpty()) {
+					continue;
+				}
+
+				Map<String, Object> row = new HashMap<>();
+				row.put("ROW_NO", i + 1);
+				row.put("LINK_ID", linkId);
+				row.put("CARID_NO", carIdNo);
+				row.put("BUY_AMT_TEXT", buyAmt);
+				rows.add(row);
+			}
+		} catch (BusinessException e) {
+			throw e;
+		} catch (Exception e) {
+			throw new BusinessException("엑셀 파일을 읽을 수 없습니다.", 400);
+		}
+		return rows;
+	}
+
+	private static Long parseSupplyAmountValue(Object value) {
+		Long amount = parseNonNegativeAmount(value);
+		return amount != null && amount > 0 ? amount : null;
+	}
+
+	private static Long parseNonNegativeAmount(Object value) {
+		String normalized = Objects.toString(value, "").replace(",", "").replaceAll("\\s+", "");
+		if (!normalized.matches("\\d+")) {
+			return null;
+		}
+		try {
+			long amount = Long.parseLong(normalized);
+			return amount >= 0 ? amount : null;
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
+	private void validateSupplyAmountAccess(UserDto user) {
+		if (user == null || !"CA".equalsIgnoreCase(user.getMEMBER_GB())) {
+			throw new BusinessException("공급가액 수정 권한이 없습니다.", 403);
+		}
+	}
+
+	private List<Map<String, Object>> selectSupplyAmountTargets(UserDto user, String linkId) {
+		return common.selectList(Map.of(
+				"LINK_ID", linkId,
+				"COMPANY_ID", Objects.toString(user.getCOMPANY_ID(), "")),
+				"selectSupplyAmountTarget");
 	}
 	
 	/**
@@ -1764,6 +2023,12 @@ public class NewcarService {
         taxReceipt.put("SERVICE_ID", serviceId);
         common.insert(taxReceipt, "insertTrTaxReceipt");
     }
+
+	@Transactional
+	public void requestProcessWithCalculation(List<Map<String, Object>> request, UserDto user) {
+		saveSupplyAmountCalculations(request, user);
+		requestProcess(request, user);
+	}
 
 	@Transactional
 	public void requestProcess(List<Map<String, Object>> request, UserDto user) {

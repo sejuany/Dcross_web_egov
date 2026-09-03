@@ -168,6 +168,26 @@ public class NewcarController {
             ));
         }
     }
+
+    /** 공급가액 수정 엑셀 매칭 */
+    @PostMapping("/supply-amount-upload")
+    public ResponseEntity<Map<String, Object>> previewSupplyAmounts(
+            @RequestParam("file") MultipartFile file,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        Map<String, Object> result = newcarService.previewSupplyAmounts(file, user);
+        return ResponseEntity.ok(ApiResponse.withKey("data", result));
+    }
+
+    /** 공급가액과 계산 결과 일괄 반영 */
+    @PostMapping("/supply-amount-apply")
+    public ResponseEntity<Map<String, Object>> applySupplyAmountCalculations(
+            @RequestBody List<Map<String, Object>> rows,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        Map<String, Object> result = newcarService.applySupplyAmountCalculations(rows, user);
+        return ResponseEntity.ok(ApiResponse.withKey("data", result));
+    }
     
     /**
      * 엑셀 업로드 양식 다운로드
@@ -428,6 +448,16 @@ public class NewcarController {
 
 	    newcarService.requestProcess(request, user);
 
+	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+	}
+
+	/** WA 신규현황 금액 재계산 후 기존 신청 처리 */
+	@PostMapping("/wa-request-process")
+	public ResponseEntity<Map<String, Object>> requestProcessWithCalculation(
+	        @RequestBody List<Map<String, Object>> request,
+	        HttpSession session) {
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    newcarService.requestProcessWithCalculation(request, user);
 	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
 	}
 	

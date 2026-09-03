@@ -656,12 +656,15 @@
 
 	<!-- 공급가액 수정 대상 조회 -->
 	<select id="selectSupplyAmountTarget" parameterType="map" resultType="java.util.Map">
-	    SELECT TS.SERVICE_ID
+	    SELECT TS.SERVICE_ID,
+	           TS.PROC_ST,
+	           TN.CARID_NO,
+	           TN.BUY_AMT
 	    FROM TR_SERVICE TS
 	         JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
 	    WHERE TS.LINK_ID = #{LINK_ID}
-	      AND TN.CARID_NO = #{CARID_NO}
 	      AND TS.COMPANY_ID = #{COMPANY_ID}
+	      AND TS.PROC_ST NOT IN ('DEL', 'RET', 'END')
 	</select>
 
 	<select id="getTrOwnerInfo" parameterType="map" resultType="map">
@@ -1142,6 +1145,9 @@
 			<if test="PREREG_AMT != null">
 	            PREREG_AMT = #{PREREG_AMT},
 			</if>
+			<if test="STANDARD_AMT != null">
+	            STANDARD_AMT = #{STANDARD_AMT},
+			</if>
 			<if test="VBANK_CD != null and VBANK_CD != ''">
 	            VBANK_CD = #{VBANK_CD},
 			</if>
@@ -1190,9 +1196,15 @@
 			<if test="INSURER_EDT != null and INSURER_EDT != ''">
 			    INSURER_EDT = #{INSURER_EDT},
 			</if>
-			<if test="MEMO_TX != null">
-			    MEMO_TX = #{MEMO_TX},
-			</if>
+			<choose>
+				<when test="AMOUNT_MEMO_TX != null">
+				    MEMO_TX = NVL(MEMO_TX || CHR(10), '')
+				        || '[금액계산] ' || TO_CHAR(SYSDATE, 'MM-DD HH24:MI') || #{AMOUNT_MEMO_TX},
+				</when>
+				<when test="MEMO_TX != null">
+				    MEMO_TX = #{MEMO_TX},
+				</when>
+			</choose>
 			<if test="BOND_BANK_CD != null">
 			    BOND_BANK_CD = #{BOND_BANK_CD},
 			</if>

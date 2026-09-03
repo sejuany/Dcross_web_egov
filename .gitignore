@@ -85,3 +85,4 @@ docs/
 config/dcross.env
 .gitignore
 src/main/resources/application-real.yml
+src/main/frontend/src/wa/pages/newcar/WaSupplyAmountModal.test.jsx

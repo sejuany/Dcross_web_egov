@@ -687,4 +687,14 @@
 		DELETE FROM TR_PAYMENT
 		WHERE SERVICE_ID = #{SERVICE_ID}
 	</delete>
+
+	<!-- 공급가액 일괄 계산은 기존 납부정보를 유지하고 계산 금액만 갱신한다. -->
+	<update id="updateSupplyAmountPayment" parameterType="map">
+		UPDATE TR_PAYMENT
+		SET PRE_PAY_AMT = #{PRE_PAY_AMT},
+		    PAY_AMT = #{PAY_AMT},
+		    REAL_ALOAN = CASE WHEN #{PAY_KD} = 'BOND' THEN #{REAL_ALOAN} ELSE REAL_ALOAN END
+		WHERE SERVICE_ID = #{SERVICE_ID}
+		  AND PAY_KD = #{PAY_KD}
+	</update>
 </mapper>

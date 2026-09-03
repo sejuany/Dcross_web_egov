@@ -4,6 +4,7 @@ import { ChevronRight, ClipboardCheck, Download, Filter, MoreVertical, RotateCcw
 import { useAuth } from '../../context/AuthContext';
 import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from './newcar/WaNewcarRequest';
+import WaSupplyAmountModal, { calculateSupplyAmountRow } from './newcar/WaSupplyAmountModal';
 import { gf } from '../../utils/utils'; // 공통 유틸 함수
 import '../styles/wa.css';
 
@@ -61,7 +62,7 @@ const quickDateButtons = [
 ];
 
 const headerActionButtons = [
-    { key: 'search', label: '조회', Icon: Search, variant: 'primary' },
+    { key: 'search', label: '조회[F2]', Icon: Search, variant: 'primary' },
     { key: 'export', label: '엑셀', Icon: Download, variant: 'outline' },
     { key: 'reset', label: '초기화', Icon: RotateCcw, variant: 'outline' }
 ];
@@ -376,7 +377,7 @@ const WaNewcarList = () => {
 	));
 	const [showSuChangeModal, setShowSuChangeModal] = useState(false);
 	const [changeUser, setChangeUser] = useState(null);
-	const [userList, setUserList] = useState([]);
+    const [userList, setUserList] = useState([]);
     const fileInputRef = useRef(null);
 	const gridPanelRef = useRef(null);
 	const [gridPanelHeight, setGridPanelHeight] = useState(null);
@@ -385,6 +386,8 @@ const WaNewcarList = () => {
 	const [clickTimer, setClickTimer] = useState(null);
 	// 엑셀 업로드 / 양식 다운로드 선택 모달
 	const [excelUploadModalOpen, setExcelUploadModalOpen] = useState(false);
+	// 공급가액 수정
+	const [supplyAmountModalOpen, setSupplyAmountModalOpen] = useState(false);
 	// 전체 로딩중
 	const [templateDownloading, setTemplateDownloading] = useState(false);
 
@@ -614,6 +617,27 @@ const WaNewcarList = () => {
             setLoading(false);
         }
     }, [buildSearchPayload, logout]);
+
+    const handleSearch = useCallback(() => {
+        if (!loading) fetchNewCarList(searchFilters);
+    }, [fetchNewCarList, loading, searchFilters]);
+
+    const handleSearchInputKeyDown = (event, search = handleSearch) => {
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        search();
+    };
+
+    useEffect(() => {
+        const handleKeyDown = (event) => {
+            if (event.key !== 'F2' || event.repeat) return;
+            event.preventDefault();
+            handleSearch();
+        };
+
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+    }, [handleSearch]);
 
     useEffect(() => {
         let isMounted = true;
@@ -857,7 +881,7 @@ const WaNewcarList = () => {
 
     const handleHeaderActionClick = (actionKey) => {
         if (actionKey === 'search') {
-            fetchNewCarList(searchFilters);
+            handleSearch();
             return;
         }
 
@@ -899,12 +923,12 @@ const WaNewcarList = () => {
 	};
 	
 	// 신규등록 엑셀 업로드 양식 다운로드
-	const handleExcelTemplateDownload = async () => {
+	const handleExcelTemplateDownload = async (templateFileName) => {
 
 	    const companyId = getUserCompanyId(user);
-	    let fileNm;
+	    let fileNm = templateFileName;
 
-	    if (companyId === 'WA001') {
+	    if (!fileNm && companyId === 'WA001') {
 	        fileNm = '폴스타_엑셀업로드양식.xlsx';
 	    }
 
@@ -1013,6 +1037,7 @@ const WaNewcarList = () => {
             setLoading(false);
         }
     };
+
     const handleRequestClick = () => {
         setErrorMessage('');
         setNoticeMessage('');
@@ -1040,8 +1065,33 @@ const WaNewcarList = () => {
         setNoticeMessage('');
 
         try {
-            const payload = requestRows.map(row => ({ SERVICE_ID: row.SERVICE_ID }));
-            const response = await axios.post('/api/newcar/request-process', payload);
+            const [taxInfoResponse, codeData, detailCodeData] = await Promise.all([
+                axios.get('/api/newcar/tax-info'),
+                gf.getCodes(['NTTCD']),
+                gf.getCodeDetails(['TUSE'])
+            ]);
+            const taxInfo = taxInfoResponse.data?.data;
+            if (!taxInfo) throw new Error('신규등록 NTTCD/TUSE 조회 결과가 없습니다.');
+
+            const codes = { ...codeData, TUSE: detailCodeData?.TUSE || [] };
+            const payload = [];
+            for (const row of requestRows) {
+                try {
+                    const calculated = await calculateSupplyAmountRow({
+                        serviceId: row.SERVICE_ID,
+                        linkId: row.LINK_ID,
+                        carIdNo: row.CARID_NO,
+                        buyAmt: row.BUY_AMT
+                    }, taxInfo, codes);
+                    payload.push({ ...calculated.applyRow, SERVICE_ID: row.SERVICE_ID });
+                } catch (error) {
+                    const reason = error?.response?.data?.message || error?.message || '금액 계산에 실패했습니다.';
+                    throw new Error(`${row.LINK_ID || row.SERVICE_ID}: ${reason}`);
+                }
+            }
+			
+
+            const response = await axios.post('/api/newcar/wa-request-process', payload);
 
             if (response.data?.success) {
                 setNoticeMessage('신청이 완료되었습니다.');
@@ -1060,7 +1110,7 @@ const WaNewcarList = () => {
                 return;
             }
 
-            setErrorMessage('신청 중 오류가 발생했습니다.');
+            setErrorMessage(error.response?.data?.message || error.message || '신청 중 오류가 발생했습니다.');
         } finally {
             setLoading(false);
             setShowRequestConfirm(false);
@@ -1519,8 +1569,8 @@ const WaNewcarList = () => {
                 </div>
 
                 <div className="wa-mobile-keyword-row">
-                    <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} placeholder="계약자명" aria-label="계약자명" autoComplete="off" />
-                    <input type="text" name="orderNo" value={searchFilters.orderNo} onChange={handleFilterChange} placeholder="주문번호" aria-label="주문번호" autoComplete="off" />
+                    <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} onKeyDown={handleSearchInputKeyDown} placeholder="계약자명" aria-label="계약자명" autoComplete="off" />
+                    <input type="text" name="orderNo" value={searchFilters.orderNo} onChange={handleFilterChange} onKeyDown={handleSearchInputKeyDown} placeholder="주문번호" aria-label="주문번호" autoComplete="off" />
                 </div>
 
                 <div className="wa-mobile-toolbar-actions">
@@ -1529,7 +1579,7 @@ const WaNewcarList = () => {
                         <span>필터</span>
                         {mobileDetailFilterCount > 0 && <strong>{mobileDetailFilterCount}</strong>}
                     </button>
-                    <button type="button" className="wa-mobile-toolbar-button primary" onClick={() => fetchNewCarList(searchFilters)} disabled={loading}>
+                    <button type="button" className="wa-mobile-toolbar-button primary" onClick={handleSearch} disabled={loading}>
                         <Search size={17} />
                         <span>조회</span>
                     </button>
@@ -1653,17 +1703,17 @@ const WaNewcarList = () => {
 
                 <label className="wa-status-field">
                     <span>소유자명(계약자명)</span>
-                    <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} placeholder="입력" />
+                    <input type="text" name="ownerName" value={searchFilters.ownerName} onChange={handleFilterChange} onKeyDown={handleSearchInputKeyDown} placeholder="입력" />
                 </label>
 
                 <label className="wa-status-field">
                     <span>차량/차대번호</span>
-                    <input type="text" name="carKeyword" value={searchFilters.carKeyword} onChange={handleFilterChange} placeholder="번호 입력" />
+                    <input type="text" name="carKeyword" value={searchFilters.carKeyword} onChange={handleFilterChange} onKeyDown={handleSearchInputKeyDown} placeholder="번호 입력" />
                 </label>
 
                 <label className="wa-status-field">
                     <span>주문번호</span>
-                    <input type="text" name="orderNo" value={searchFilters.orderNo} onChange={handleFilterChange} placeholder="주문번호 입력" />
+                    <input type="text" name="orderNo" value={searchFilters.orderNo} onChange={handleFilterChange} onKeyDown={handleSearchInputKeyDown} placeholder="주문번호 입력" />
                 </label>
             </section>
 
@@ -1687,6 +1737,16 @@ const WaNewcarList = () => {
 					</div>
 
                     <div className="wa-status-actions" aria-label="목록 부가 기능">
+                        {canManageNewcarActions && (
+                            <button
+                                type="button"
+                                className="wa-status-action primary wa-supply-amount-action"
+                                onClick={() => setSupplyAmountModalOpen(true)}
+                                disabled={loading}
+                            >
+                                <span>공급가액 수정</span>
+                            </button>
+                        )}
                         <strong>검색 결과 총 {rows.length}건</strong>
                         {canManageNewcarActions && (
                             <>
@@ -1899,7 +1959,7 @@ const WaNewcarList = () => {
 
                             <label>
                                 <span>차량/차대번호</span>
-                                <input type="text" name="carKeyword" value={activeMobileFilters.carKeyword} onChange={handleMobileFilterChange} placeholder="차량번호 또는 차대번호 입력" autoComplete="off" />
+                                <input type="text" name="carKeyword" value={activeMobileFilters.carKeyword} onChange={handleMobileFilterChange} onKeyDown={event => handleSearchInputKeyDown(event, applyMobileFilters)} placeholder="차량번호 또는 차대번호 입력" autoComplete="off" />
                             </label>
                         </div>
 
@@ -1945,7 +2005,7 @@ const WaNewcarList = () => {
                                 취소
                             </button>
                             <button type="button" className="wa-status-action primary" onClick={handleRequestConfirm} disabled={loading}>
-                                신청
+                                {loading ? '처리 중...' : '신청'}
                             </button>
                         </footer>
                     </section>
@@ -2042,7 +2102,7 @@ const WaNewcarList = () => {
 			                <button
 			                    type="button"
 			                    className="wa-status-action outline"
-			                    onClick={handleExcelTemplateDownload}
+			                    onClick={() => handleExcelTemplateDownload()}
 			                >
 			                    <Download size={15} />
 			                    <span>양식 다운로드</span>
@@ -2063,8 +2123,14 @@ const WaNewcarList = () => {
 
 			    </div>
 
-			)}
-            {activeRequest && (
+				)}
+				<WaSupplyAmountModal
+				    open={supplyAmountModalOpen}
+				    onClose={() => setSupplyAmountModalOpen(false)}
+				    onTemplateDownload={handleExcelTemplateDownload}
+				    onApplied={() => fetchNewCarList(searchFilters)}
+				/>
+				{activeRequest && (
 
 				<div className={`wa-request-modal-backdrop ${isOverflow ? 'overflow' : ''}`}>
 					<section ref={frameRef}

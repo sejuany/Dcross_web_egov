@@ -988,6 +988,11 @@
     color: #ffffff;
 }
 
+.wa-status-action.wa-supply-amount-action {
+    background: var(--wa-blue-dark);
+    border-color: var(--wa-blue-dark);
+}
+
 .wa-status-action.ghost {
     background: var(--wa-surface-soft);
 }
