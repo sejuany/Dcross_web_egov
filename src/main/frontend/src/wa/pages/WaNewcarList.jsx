@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffect } from 'react';
 import axios from 'axios';
-import { ChevronRight, ClipboardCheck, Download, Filter, MoreVertical, RotateCcw, Search, Upload, WalletCards, X, UsersRound } from 'lucide-react';
+import { ChevronRight, ClipboardCheck, Download, Filter, MoreVertical, RotateCcw, Search, Upload, WalletCards, X, UsersRound, Printer } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from './newcar/WaNewcarRequest';
@@ -88,6 +88,13 @@ const gridActionButtons = [
 		Icon: UsersRound,
 		variant: 'outline',
 		roles: ['BA']
+	},
+	{
+	    key: 'receipt',
+	    label: '영수증 인쇄',
+	    Icon: Printer,
+	    variant: 'outline',
+	    roles: ['SA']
 	}
 ];
 
@@ -1187,6 +1194,44 @@ const WaNewcarList = () => {
         }
     };
 	
+	const handleReceiptPrintClick = () => {
+	    setErrorMessage('');
+	    setNoticeMessage('');
+
+	    if (selectedRows.length === 0) {
+	        setErrorMessage('선택된 건이 없습니다.');
+	        return;
+	    }
+
+	    const serviceIds = selectedRows
+	        .map(row => toStringValue(row.SERVICE_ID))
+	        .filter(Boolean);
+
+	    if (serviceIds.length === 0) {
+	        setErrorMessage('영수증을 출력할 SERVICE_ID가 없습니다.');
+	        return;
+	    }
+		
+		const invalidRows = selectedRows.filter(row => {
+	        const procStatus = toStringValue(row.PROC_ST);
+	        return procStatus !== 'J_REQ' && procStatus !== 'J_ING' && procStatus !== 'J_END' && procStatus !== 'END' && procStatus !== 'J_WTX';
+	    });
+	
+	    if (invalidRows.length > 0) {
+	        setErrorMessage('취득세 부과 및 채권처리 후 영수증 확인이 가능합니다.');
+	        return;
+	    }
+		
+
+	    const query = encodeURIComponent(serviceIds.join(','));
+
+	    window.open(
+			`/wa/newcar/receipt/multi?serviceIds=${query}`,
+	        'paymentReceiptMulti',
+	        'width=1000,height=1200,left=200,top=50,resizable=yes,scrollbars=yes'
+	    );
+	};
+	
 	const currentSuNames = [...new Set(
 	    selectedRows.map(row => row.MEMBER_ID)
 	)];
@@ -1254,7 +1299,7 @@ const WaNewcarList = () => {
 		    return;
 		}
 
-		if (memberGb !== 'CA') return;
+		if (memberGb !== 'CA' && memberGb !== 'SA') return;
 
 		if (actionKey === 'apply') {
 		    handleRequestClick();
@@ -1263,6 +1308,11 @@ const WaNewcarList = () => {
 
 		if (actionKey === 'payment') {
 		    handlePaymentClick();
+		    return;
+		}
+		
+		if (actionKey === 'receipt') {
+		    handleReceiptPrintClick();
 		    return;
 		}
     };
@@ -1719,7 +1769,7 @@ const WaNewcarList = () => {
 
 			<section ref={gridPanelRef} className="wa-status-grid-panel" aria-label="신규신청현황 목록" style={gridPanelHeight ? { height: `${gridPanelHeight}px`, maxHeight: 'none' } : undefined}>
                 <section className="wa-status-heading">
-					<div className="wa-status-actions" aria-label="목록 처리 버튼">
+					<div className="wa-status-actions" aria-label="목록 기능">
 					    {gridActionButtons
 					        .filter(button => button.roles.includes(memberGb))
 					        .map(({ key, label, Icon, variant }) => (
@@ -1734,20 +1784,16 @@ const WaNewcarList = () => {
 					                <span>{label}</span>
 					            </button>
 					        ))}
-					</div>
-
-                    <div className="wa-status-actions" aria-label="목록 부가 기능">
                         {canManageNewcarActions && (
                             <button
                                 type="button"
-                                className="wa-status-action primary wa-supply-amount-action"
+                                className="wa-status-action outline wa-supply-amount-action"
                                 onClick={() => setSupplyAmountModalOpen(true)}
                                 disabled={loading}
                             >
                                 <span>공급가액 수정</span>
                             </button>
                         )}
-                        <strong>검색 결과 총 {rows.length}건</strong>
                         {canManageNewcarActions && (
                             <>
                                 <button type="button" className="wa-status-action primary" onClick={handleExcelClick} disabled={loading}>
@@ -1763,7 +1809,8 @@ const WaNewcarList = () => {
                                 />
                             </>
                         )}
-                    </div>
+					</div>
+					<strong className="wa-newcar-result-count">검색 결과 총 {rows.length}건</strong>
                 </section>
 
                 {errorMessage && <div className="wa-status-error">{errorMessage}</div>}

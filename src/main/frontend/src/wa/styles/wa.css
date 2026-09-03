@@ -989,8 +989,15 @@
 }
 
 .wa-status-action.wa-supply-amount-action {
-    background: var(--wa-blue-dark);
-    border-color: var(--wa-blue-dark);
+    background: #ffffff;
+    border-color: #f04438;
+    color: #b42318;
+}
+
+.wa-status-action.wa-supply-amount-action:hover {
+    background: #fff1f0;
+    border-color: #d92d20;
+    color: #b42318;
 }
 
 .wa-status-action.ghost {
@@ -1130,6 +1137,11 @@
     padding: 12px 16px;
     border-bottom: 1px solid var(--wa-line);
     flex: 0 0 auto;
+}
+
+.wa-newcar-result-count {
+    margin-left: auto;
+    white-space: nowrap;
 }
 
 .wa-status-table-scroll {

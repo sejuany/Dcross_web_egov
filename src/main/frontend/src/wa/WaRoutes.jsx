@@ -7,6 +7,7 @@ import WaLayout from './layout/WaLayout';
 import WaNewcarRequest from './pages/newcar/WaNewcarRequest';
 import WaNewcarList from './pages/WaNewcarList';
 import WaPayInfo from './pages/newcar/WaPayInfo';
+import WaPaymentReceiptMulti from './pages/newcar/WaPaymentReceiptMulti';
 import WaPaymentReceipt from './pages/newcar/WaPaymentReceipt';
 import WaCompanyManage from './pages/company/WaCompanyManage';
 import WaCompanyUserManage from './pages/company/WaCompanyUserManage';
@@ -16,7 +17,15 @@ import WaMemberEdit from './pages/WaMemberEdit';
 const WaRoutes = () => (
     <Routes>
         <Route path="login" element={<LoginPage />} />
-        <Route
+		<Route
+		    path="newcar/receipt/multi"
+		    element={(
+		        <WaProtectedRoute>
+		            <WaPaymentReceiptMulti />
+		        </WaProtectedRoute>
+		    )}
+		/>
+		<Route
             path="newcar/receipt/:serviceId"
             element={(
                 <WaProtectedRoute>

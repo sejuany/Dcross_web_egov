@@ -762,6 +762,7 @@ public class NewcarService {
 		Map<String, Object> carSpec = getCarSpec(user.getCOMPANY_ID(), carName);
 		row.put("CAR_NM", carName);
 		row.put("VH_TY_CD", isYn(carSpec.get("MULTI_PURPOSE_YN")) ? "3" : "");
+		row.put("LOW_POLLUTION_YN", carSpec.get("LOW_POLLUTION_YN"));
 	}
 
 	private boolean isYn(Object value) {
@@ -1368,6 +1369,7 @@ public class NewcarService {
 	    dsNewCar.put("CAR_PACKAGE", row.get("CAR_PACKAGE"));
 	    dsNewCar.put("ECO_YN", row.get("ECO_YN"));
 	    dsNewCar.put("VH_TY_CD", row.get("VH_TY_CD"));
+	    dsNewCar.put("LOW_POLLUTION_YN", row.get("LOW_POLLUTION_YN"));
 	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
 	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 						   // 등록일자
 	    dsNewCar.put("STAMP_GB", "TOTAL"); 			  	 	 					   // 인지세
