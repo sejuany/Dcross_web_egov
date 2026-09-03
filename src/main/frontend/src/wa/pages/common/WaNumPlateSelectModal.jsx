@@ -64,7 +64,7 @@ const WaNumPlateSelectModal = ({
 	const isUserWa001 = dsUserInfo.COMPANY_ID === 'WA001' ? true : false; 
 	
 	/*
-	 * 모달을 다시 열었을 때 아직 10분이 지나지 않은 문자 배정이 있으면 새 번호를 조회하지 않고
+	 * 모달을 다시 열었을 때 아직 5분이 지나지 않은 문자 배정이 있으면 새 번호를 조회하지 않고
 	 * 기존에 고객에게 보낸 번호 목록을 그대로 복원한다. CONFIRM_NO 순서는 서버가 보장한다.
 	 * preCarNoRef에도 넣어 기존 모달의 닫기/재조회 흐름을 유지하되, 서버는 문자 토큰이 있는
 	 * 번호를 일반 numplateRelease 요청으로 해제하지 않아 고객 배정이 보호된다.
@@ -397,7 +397,7 @@ const WaNumPlateSelectModal = ({
 			if (isResend) {
 				gf.alert('[문자 재발송 완료] 기존 선택 링크로 문자가 재발송되었습니다.');
 			} else {
-				gf.alert('[문자 발송 완료] 문자 발송 시점부터 10분 동안 번호 선택이 가능합니다.');
+				gf.alert('[문자 발송 완료] 문자 발송 시점부터 5분 동안 번호 선택이 가능합니다.');
 			}
 		} catch (e) {
 			gf.alert(e.response?.data?.message || '문자 발송 중 오류가 발생했습니다.');

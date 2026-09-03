@@ -2904,7 +2904,7 @@ public class NewcarService {
 
 	/**
 	 * 공개 링크의 토큰으로 고객/차량/배정 번호를 조회한다.
-	 * 아직 선택하지 않은 건만 10분 만료를 적용한다. 이미 선택한 번호는 고객이 같은 링크를
+	 * 아직 선택하지 않은 건만 5분 만료를 적용한다. 이미 선택한 번호는 고객이 같은 링크를
 	 * 다시 열어도 완료 결과를 확인할 수 있도록 만료 후에도 반환한다.
 	 */
 	public Map<String, Object> getCustomerNumplateSelection(String token) {
