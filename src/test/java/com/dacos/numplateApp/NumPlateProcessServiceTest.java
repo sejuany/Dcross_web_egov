@@ -33,22 +33,6 @@ import javax.sql.rowset.serial.SerialBlob;
 /** 번호판 앱의 로그인 범위, 목록 JSON 안전성, 검색 호환과 상태 변경 조건을 실행 가능한 형태로 검증한다. */
 public class NumPlateProcessServiceTest {
 
-    public static void main(String[] args) throws Exception {
-        NumPlateProcessServiceTest test = new NumPlateProcessServiceTest();
-        test.authenticatesNumPlateManagerByPhoneAndPassword();
-        test.ignoresSearchTypeWhenKeywordIsEmpty();
-        test.requestsReviewOnlyAfterConfirmationAndUsesLoginPhone();
-        test.loadsAvailablePlatesWithLegacyProcedureRules();
-        test.savesScheduleAndMemoBeforeReview();
-        test.loadsReturnListAndUploadsDisposedPlate();
-        test.adjustsSubPanelPriceAndRefundTogether();
-        Path imageDirectory = Files.createTempDirectory("numplate-image-test-");
-        test.storesProcessPhotoAsServerFileAndReadsIt(imageDirectory);
-        Files.deleteIfExists(imageDirectory);
-        test.startsPasskeyRegistrationForProductionOrigin();
-        test.parsesNumPlateMapperXml();
-    }
-
     @Test
     void ignoresSearchTypeWhenKeywordIsEmpty() {
         AtomicReference<Map<String, Object>> listParam = new AtomicReference<>();

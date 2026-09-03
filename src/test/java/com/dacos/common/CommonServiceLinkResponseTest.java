@@ -11,10 +11,6 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 /** 관청 연계 성공 JSON과 통신 오류 문자열의 응답 형식을 확인한다. */
 public class CommonServiceLinkResponseTest {
 
-    public static void main(String[] args) {
-        new CommonServiceLinkResponseTest().keepsDecryptedJsonAsObject();
-    }
-
     @Test
     void keepsDecryptedJsonAsObject() {
         CommonService service = new CommonService(null, null, new ObjectMapper());

@@ -1,7 +1,7 @@
 import org.jasypt.encryption.pbe.StandardPBEStringEncryptor;
 
 public class JasyptTest {
-    public static void main(String[] args) {
+    public static void encryptCredentials() {
         StandardPBEStringEncryptor encryptor = new StandardPBEStringEncryptor();
         // [중요] 암호화/복호화에 사용할 '마스터 키'를 정합니다. (절대 외부에 노출되면 안 됨)
         encryptor.setPassword("DacosSecretKey!@#"); 

@@ -7,6 +7,8 @@ import javax.crypto.Cipher;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.junit.jupiter.api.Test;
+
 import com.dacos.config.WithAuthProperties;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -15,7 +17,8 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 /** withAuth AES-256-CBC 검증 응답을 실제 설정 형식으로 복호화하는지 확인한다. */
 public class WithAuthServiceCryptoTest {
 
-    public static void main(String[] args) throws Exception {
+    @Test
+    void decodesWithAuthResponses() throws Exception {
         byte[] key = "0123456789abcdef0123456789abcdef".getBytes(StandardCharsets.UTF_8);
         byte[] iv = "0123456789abcdef".getBytes(StandardCharsets.UTF_8);
         String plain = "{\"resultCode\":\"200\",\"resultData\":{\"name\":\"홍길동\",\"phone\":\"01012345678\"}}";

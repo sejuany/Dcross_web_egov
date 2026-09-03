@@ -20,13 +20,6 @@ import com.dacos.common.BusinessException;
 
 class AttachServiceFileSecurityTest {
 
-    public static void main(String[] args) throws Exception {
-        AttachServiceFileSecurityTest test = new AttachServiceFileSecurityTest();
-        test.rejectsExecutableAndSpoofedUploads();
-        test.acceptsValidPng();
-        test.forcesUnknownFilesToDownload();
-    }
-
     @Test
     void rejectsExecutableAndSpoofedUploads() {
         MockMultipartFile html = new MockMultipartFile(

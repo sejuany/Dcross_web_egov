@@ -15,10 +15,6 @@ class NumPlateSearchRequestTest {
 
     private final Validator validator = Validation.buildDefaultValidatorFactory().getValidator();
 
-    public static void main(String[] args) {
-        new NumPlateSearchRequestTest().validatesLegacyDateAndIdentifierInputs();
-    }
-
     @Test
     void validatesLegacyDateAndIdentifierInputs() {
         NumPlateSearchRequest valid = new NumPlateSearchRequest();

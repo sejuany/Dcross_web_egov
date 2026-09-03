@@ -116,6 +116,26 @@ export const AuthProvider = ({ children }) => {
         window.location.replace(redirectTo);
 	}, []);
 
+    useEffect(() => {
+        if (!user) return undefined;
+
+        let handled = false;
+        const interceptorId = axios.interceptors.response.use(
+            response => response,
+            async error => {
+                if (error.response?.status === 401 && !handled) {
+                    handled = true;
+                    window.alert('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
+                    await logout();
+                }
+
+                return Promise.reject(error);
+            }
+        );
+
+        return () => axios.interceptors.response.eject(interceptorId);
+    }, [user, logout]);
+
     /**
      * login - 로그인 성공 시 호출
      * @param {object} userData - 서버에서 받은 사용자 정보
