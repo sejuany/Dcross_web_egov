@@ -25,9 +25,21 @@ const SplitInput = ({
     maskLast = false,
     deferred = false,
     debounceMs = DEFAULT_DEBOUNCE_MS,
+	type = '', // 입력 형식 구분
     onChange,
     ...props
 }) => {
+
+	// 전화번호 입력 형식에 따른 자리수 반환
+	const getLengths = (currentValue) => {
+
+	    // TEL 타입이면서 02로 시작하는 경우 2-4-4
+	    if (type === 'TEL' && currentValue?.startsWith('02')) {
+	        return [2, 4, 4];
+	    }
+
+	    return lengths;
+	};
 
     // 각 입력칸 Ref (자동 포커스 이동)
     const inputRefs = useRef([]);
@@ -52,9 +64,9 @@ const SplitInput = ({
 
     // 분리 입력값
     const [values, setValues] = useState(() => {
-        const initialValues = applyFixedValues(
-			splitValue(value || '', lengths), 
-			fixedValues
+		const initialValues = applyFixedValues(
+		    splitValue(value || '', getLengths(value)),
+		    fixedValues
 		);
 		
 		// 분리 입력값 최신 상태 저장
@@ -141,7 +153,7 @@ const SplitInput = ({
         hasPendingValueRef.current = false;
 
 		const nextValues = applyFixedValues(
-		    splitValue(value || '', lengths),
+		    splitValue(value || '', getLengths(value)),
 		    fixedValues
 		);
 		
@@ -161,67 +173,80 @@ const SplitInput = ({
         }
     }, []);
 
-    // 입력 처리
-    const handleChange = (index, inputValue) => {
+	// 입력 처리
+	const handleChange = (index, inputValue) => {
 
-        // 고정값이 설정된 칸은 사용자가 변경할 수 없다.
-        if (fixedValues[index] !== undefined) {
-            return;
-        }
+	    // 고정값이 설정된 칸은 사용자가 변경할 수 없다.
+	    if (fixedValues[index] !== undefined) {
+	        return;
+	    }
 
-        let next = inputValue;
+	    let next = inputValue;
 
-        // 숫자만 입력
-        if (onlyNumber) {
-            next = next.replace(/\D/g, '');
-        }
+	    // 숫자만 입력
+	    if (onlyNumber) {
+	        next = next.replace(/\D/g, '');
+	    }
 
-        // 자리수 제한
-        next = next.slice(0, lengths[index]);
+	    // 현재 입력칸의 최대 자리수
+	    let maxLength = lengths[index];
 
-		// React state(values)는 렌더링 시점의 이전 값일 수 있으므로
-		// 항상 최신 입력값을 보관하고 있는 valuesRef를 기준으로 복사한다.
-		const newValues = applyFixedValues(
-		    [...valuesRef.current],
-		    fixedValues
-		);
-		
-		// 현재 수정 중인 입력칸만 변경
-		newValues[index] = next;
-		
-		// 다음 입력 이벤트에서 최신 값을 사용할 수 있도록 즉시 저장
-		valuesRef.current = newValues;
-		
-		// 화면 반영
-		setValues(newValues);
+		// TEL 타입의 첫 번째 칸이 02로 시작하면 2자리까지만 입력
+		if (type === 'TEL' && index === 0 && next.length >= 2) {
 
-        // 전체 값 병합
-        const merged = mergeValue(...newValues);
-		latestMergedValueRef.current = merged;
+		    const prefix = next.slice(0, 2);
 
-		// 현재 SplitInput에서 만든 값 기록
-		internalValueRef.current = merged;
+		    if (prefix === '02') {
+		        maxLength = 2;
+		    }
+		}
 
-        if (deferred) {
-            hasPendingValueRef.current = true;
+	    // 자리수 제한
+	    next = next.slice(0, maxLength);
 
-            // 한글 조합 중에는 중간 문자열을 부모에 반영하지 않는다.
-            if (!isComposingRef.current) {
-                scheduleCommit();
-            }
-        } else {
-            onChangeRef.current?.(merged);
-        }
+	    const newValues = applyFixedValues(
+	        [...valuesRef.current],
+	        fixedValues
+	    );
 
-        // 입력 완료 시 다음 입력칸 이동
-        if (
-            next.length === lengths[index] &&
-            index < lengths.length - 1
-        ) {
-            inputRefs.current[index + 1]?.focus();
-            inputRefs.current[index + 1]?.select();
-        }
-    };
+	    // 현재 수정 중인 입력칸만 변경
+	    newValues[index] = next;
+
+	    // 최신 값 저장
+	    valuesRef.current = newValues;
+
+	    // 화면 반영
+	    setValues(newValues);
+
+	    // 전체 값 병합
+	    const merged = mergeValue(...newValues);
+
+	    latestMergedValueRef.current = merged;
+	    internalValueRef.current = merged;
+
+	    if (deferred) {
+
+	        hasPendingValueRef.current = true;
+
+	        if (!isComposingRef.current) {
+	            scheduleCommit();
+	        }
+
+	    } else {
+
+	        onChangeRef.current?.(merged);
+
+	    }
+
+	    // 입력 완료 시 다음 입력칸 이동
+	    if (
+	        next.length === maxLength &&
+	        index < lengths.length - 1
+	    ) {
+	        inputRefs.current[index + 1]?.focus();
+	        inputRefs.current[index + 1]?.select();
+	    }
+	};
 
     const handleBlur = (event) => {
 
@@ -265,22 +290,37 @@ const SplitInput = ({
     return (
         <>
             {values.map((item, index) => {
+				
                 const isMaskedInput = maskLast && index === values.length - 1;
+				
+				// 현재 입력칸의 최대 자리수
+				let inputMaxLength = lengths[index];
+
+				// 첫 번째 칸이 02로 시작하는 경우 2자리로 제한
+				if (index === 0 && item.length >= 2) {
+
+				    const prefix = item.slice(0, 2);
+
+				    if (prefix === '02') {
+				        inputMaxLength = 2;
+				    }
+				}
+				
                 const input = (
                     <input
                         {...props}
-                        type="text"
-                        autoComplete="off"
-                        ref={el => inputRefs.current[index] = el}
-                        className={`wa-input ${inputClassName} ${isMaskedInput && !showLastValue ? 'wa-text-masked' : ''}`}
-                        value={fixedValues[index] !== undefined ? fixedValues[index] : item}
-                        maxLength={lengths[index]}
-                        readOnly={readOnly || fixedValues[index] !== undefined}
-                        placeholder={placeholders[index] || ''}
-                        onChange={e => handleChange(index, e.target.value)}
-                        onBlur={handleBlur}
-                        onCompositionStart={handleCompositionStart}
-                        onCompositionEnd={handleCompositionEnd}
+						type="text"
+						autoComplete="off"
+						ref={el => inputRefs.current[index] = el}
+						className={`wa-input ${inputClassName} ${isMaskedInput && !showLastValue ? 'wa-text-masked' : ''}`}
+						value={fixedValues[index] !== undefined ? fixedValues[index] : item}
+						maxLength={inputMaxLength}
+						readOnly={readOnly || fixedValues[index] !== undefined}
+						placeholder={placeholders[index] || ''}
+						onChange={e => handleChange(index, e.target.value)}
+						onBlur={handleBlur}
+						onCompositionStart={handleCompositionStart}
+						onCompositionEnd={handleCompositionEnd}
                     />
                 );
 

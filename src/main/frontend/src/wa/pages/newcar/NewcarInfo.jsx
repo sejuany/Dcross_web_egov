@@ -1763,9 +1763,9 @@ const NewcarInfo = ({
                     <div className="wa-form-control">
                         <div className="wa-inline-group">
                             <SplitInput
+								type="TEL"
                                 value={dsNewCar.PAY_HP_NO ?? ''}
                                 lengths={PHONE_PART_LENGTHS}
-                                fixedValues={PHONE_FIXED_VALUES}
                                 placeholders={PHONE_PLACEHOLDERS}
                                 deferred
                                 onChange={value => updateNewCar({ PAY_HP_NO: value })}

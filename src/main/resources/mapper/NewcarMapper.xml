@@ -415,7 +415,7 @@
                         AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
                 </when>
                 <when test="DATE_CD == 'REGDT'">
-                    AND TN.INS_DATE BETWEEN
+                    AND TN.REGIST_DATE BETWEEN
                         TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
                         AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
                 </when>
@@ -652,6 +652,16 @@
 	          'J_REQ', 'J_ING', 'J_END', 'END'
 	      )
 	      AND REQUEST_DT 		<![CDATA[<=]]> SYSDATE
+	</select>
+
+	<!-- 공급가액 수정 대상 조회 -->
+	<select id="selectSupplyAmountTarget" parameterType="map" resultType="java.util.Map">
+	    SELECT TS.SERVICE_ID
+	    FROM TR_SERVICE TS
+	         JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
+	    WHERE TS.LINK_ID = #{LINK_ID}
+	      AND TN.CARID_NO = #{CARID_NO}
+	      AND TS.COMPANY_ID = #{COMPANY_ID}
 	</select>
 
 	<select id="getTrOwnerInfo" parameterType="map" resultType="map">

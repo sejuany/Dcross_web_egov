@@ -2561,9 +2561,6 @@ public class NewcarService {
 		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 		String phone = Objects.toString(param.get("PAY_HP_NO"), "").replaceAll("\\D", "");
 		String baseUrl = Objects.toString(param.get("BASE_URL"), "").replaceAll("/+$", "");
-		boolean isResend = Boolean.parseBoolean(Objects.toString(param.get("IS_RESEND"), "false"))
-				|| "Y".equalsIgnoreCase(Objects.toString(param.get("IS_RESEND"), ""));
-
 		List<String> carNos = normalizeNumplateMessageList(param.get("CAR_NOS"));
 		if (serviceId.isEmpty() || !phone.matches("\\d{10,11}") || !baseUrl.matches("https?://.+")) {
 			throw new BusinessException("서비스, 수신번호 또는 접속 주소를 확인해 주세요.");
@@ -2579,37 +2576,9 @@ public class NewcarService {
 		work.put("SERVICE_ID", serviceId);
 		work.put("NUM_LIST", carNos);
 		// 재발송과 고객 선택이 엇갈려 서로 다른 토큰을 덮어쓰지 않도록 서비스 행을 잠근다.
-		Map<String, Object> detachRow = common.select(work, "lockNumplateMessageDetach");
-		if (detachRow == null) {
+		if (common.select(work, "lockNumplateMessageDetach") == null) {
 			throw new BusinessException("번호판 배정 정보를 찾을 수 없습니다.");
 		}
-
-		String existingToken = Objects.toString(detachRow.get("NUMPLATE_MSG_TOKEN"), "").trim();
-
-		// 재발송 요청인 경우: 기존 토큰과 번호판 상태를 유지한 채 문자만 재발송한다.
-		if (isResend) {
-			if (existingToken.isEmpty()) {
-				throw new BusinessException("기존 발송된 번호판 선택 정보가 없습니다. 새로 발송해 주세요.");
-			}
-			// 이미 고객이 선택을 완료했는지 확인
-			Map<String, Object> currentStatus = common.select(Map.of("SERVICE_ID", serviceId), "selectNumplateMessageStatus");
-			if (currentStatus != null && !Objects.toString(currentStatus.get("REQ_CAR_NO"), "").isEmpty()) {
-				throw new BusinessException("고객이 이미 번호판 선택을 완료했습니다.");
-			}
-
-			String confirmNo = Objects.toString(detachRow.get("CONFIRM_NO"), String.join(",", carNos));
-			String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + existingToken;
-			Map<String, Object> sms = new HashMap<>();
-			sms.put("PAY_HP_NO", phone);
-			sms.put("MSG_TYPE", "3");
-			sms.put("SUBJECT", "차량 번호 선택");
-			sms.put("TEXT", "안녕하세요. 폴스타 차량번호 선택을 위하여 아래 링크에서 5분 이내에 차량 번호를 선택해 주세요.\r\n" + url + "\r\n※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다. \n" + //
-							"담당 스페셜리스트 : " + Objects.toString(user.getMPHONE_NO(), ""));
-			commonService.sendSms(sms);
-
-			return Map.of("token", existingToken, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300, "isResend", true);
-		}
-
 		Integer pendingCount = common.select(work, "countPendingNumplateMessageList");
 		if (pendingCount == null || pendingCount != carNos.size()) {
 			throw new BusinessException("이미 사용되었거나 조회 상태가 아닌 번호판이 포함되어 있습니다.");
@@ -2639,7 +2608,7 @@ public class NewcarService {
 						"담당 스페셜리스트 : " + Objects.toString(user.getMPHONE_NO(), ""));
 		commonService.sendSms(sms);
 
-		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300, "isResend", false);
+		return Map.of("token", token, "confirmNo", confirmNo, "carNos", carNos, "expiresInSeconds", 300);
 	}
 
 	/**
@@ -2692,7 +2661,6 @@ public class NewcarService {
 		result.put("expiresAt", rows.isEmpty() ? "" : Objects.toString(rows.get(0).get("EXPIRES_AT"), ""));
 		result.put("customerName", Objects.toString(assignment.get("CUSTOMER_NM"), ""));
 		result.put("carIdNo", Objects.toString(assignment.get("CARID_NO"), ""));
-		result.put("linkId", Objects.toString(assignment.get("LINK_ID"), ""));
 		result.put("carName", Objects.toString(assignment.get("CAR_NM"), ""));
 		return result;
 	}

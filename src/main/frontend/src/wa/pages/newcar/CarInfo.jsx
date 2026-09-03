@@ -261,44 +261,6 @@ const CarInfo = ({
     return (
         <>
 			<div className="simple-content">
-				{/* 대표소유자 */}
-				<div className="wa-form-row">
-				    <div className="wa-form-label-wrap">
-				        <label className="wa-form-label">차량명</label>
-				    </div>
-				    <div className="wa-form-control">
-				        <input
-				            className="wa-input"
-				            autoComplete="off"
-				            name="CAR_NM"
-							data-type="newcar"
-				            value={dsNewCar.CAR_NM ?? ''}
-				            onChange={handleChange}
-				            placeholder="차량명을 입력하세요"
-				        />
-				    </div>
-				</div>
-				
-				{/* 공급가액 */}
-				<div className="wa-form-row">
-				    <div className="wa-form-label-wrap">
-				        <label className="wa-form-label">공급가액</label>
-				    </div>
-				    <div className="wa-form-control">
-				        <input
-				            className="wa-input"
-				            autoComplete="off"
-				            name="BUY_AMT"
-				            data-type="newcar"
-				            value={Number(dsNewCar.BUY_AMT || 0).toLocaleString()}
-				            onChange={handleChange}
-				            placeholder="공급가액을 입력하세요"
-				        />
-				    </div>
-				</div>
-				
-				<hr className="wa-divider" />
-	
 				{/* 법인 번호판 */}
 				{isCorpNumplate &&(
 					<div className="wa-form-row">

@@ -1136,6 +1136,7 @@ const WaNewcarRequest = ({
 	 * - openNotice()가 안내 대상을 찾으면 실제 이동을 중단하고 모달을 먼저 연다.
 	 * - 앞으로 이동할 때 현재 탭부터 이동 직전 탭까지 단계별 필수값을 검사한다.
 	 * - 3 -> 4 이동은 검증 통과 후 채권은행 파생값을 계산한다.
+	 *   SP 계정은 예상납부금액 확인 여부만 검증에서 제외한다.
 	 * - 파생값을 합친 newCarForSave를 saveProcess()에 직접 넘겨 React state의
 	 *   비동기 갱신 시점과 관계없이 같은 값이 DB에 저장되도록 한다.
 	 * - 상세조회 화면이 아니면 stepMemory에 마지막 작업 단계를 보관한다.
@@ -1237,8 +1238,7 @@ const WaNewcarRequest = ({
 	        console.error(e);
 	    }
 
-		// 다른 탭의 기존 이동 흐름은 유지하되, 예상금액이 확정되는 3 -> 4 이동은
-		// TR_PAYMENT 저장에 성공한 경우에만 허용한다.
+		// 다른 탭의 기존 이동 흐름은 유지하되, 3 -> 4 이동은 저장에 성공한 경우에만 허용한다.
 		if (step === 3 && nextStep === 4 && !saveSucceeded) {
 			return false;
 		}
@@ -2440,7 +2440,7 @@ const WaNewcarRequest = ({
 	};
 
 	// 신규등록 정보(3단계) 필수값 검증
-	// checkEstimate가 true일 때만 예상납부금액 확인 여부를 검사한다.
+	// checkEstimate가 true인 SP 외 계정만 예상납부금액 확인 여부를 검사한다.
 	// - 3단계 → 4단계 이동: true
 	// - 최종 요청: false
 	const validateRegistrationStep = (checkEstimate = true) => {
@@ -2452,7 +2452,7 @@ const WaNewcarRequest = ({
 		    requireValue(dsNewCar.PAY_GB, '결제구분')
 		    || requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
 		    || requirePhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
-			|| (checkEstimate && Number(dsNewCar.STANDARD_AMT || 0) <= 0
+			|| (checkEstimate && dsUserInfo.MEMBER_GB !== 'SU' && Number(dsNewCar.STANDARD_AMT || 0) <= 0
 			    ? '예상납부금액을 확인해주세요.'
 			    : '');
 				

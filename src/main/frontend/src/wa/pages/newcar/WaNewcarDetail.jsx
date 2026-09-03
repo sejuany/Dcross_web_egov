@@ -51,7 +51,6 @@ const WaNewcarDetail = ({
     dsCompanyInfo,
     dsWorkCp,
     dsUserInfo,
-	loading,
 	dsTaxReceipt,
 	saveProcess,
 	setDsCarNoDetach,
@@ -72,6 +71,8 @@ const WaNewcarDetail = ({
 	const navigate = useNavigate();
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const serviceId = searchParams.get('serviceId');
+	// 로딩중
+	const [loading, setLoading] = useState(false);
 
 	const handleClose = () => {
 		if (onClose) {
@@ -224,6 +225,14 @@ const WaNewcarDetail = ({
 		        .replace(/[^0-9]/g, '')   // 숫자만
 		        .slice(2);                // 앞의 20 제거 → 260715
 
+			// 로딩 시작
+			setLoading(true);
+
+			// 로컬에서는 로딩 화면 확인을 위해 1초 지연
+			if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+			    await new Promise(resolve => setTimeout(resolve, 1000));
+			}
+				
 	        const response = await axios.get(
 	            `/api/newcar/carpaper/download?date=${judgeDt}&carNo=${encodeURIComponent(dsNewCar.CAR_NO)}`,
 	            {
@@ -248,6 +257,10 @@ const WaNewcarDetail = ({
 
 	        gf.alert('등록증 다운로드 중 오류가 발생했습니다.');
 	    }
+		finally {
+		   // 로딩 종료
+		   setLoading(false);
+	   }
 	};
 	
 	
