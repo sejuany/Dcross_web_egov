@@ -116,7 +116,7 @@ const WaNewcarGuide = () => {
                     </form>
 
                     <Link className="wa-guide-service-link" to="/wa/newcar-status">
-                        WA 신규등록 바로가기
+                        딜러시스템 바로가기
                         <ChevronRight size={16} />
                     </Link>
                 </div>
@@ -134,7 +134,7 @@ const WaNewcarGuide = () => {
 
                 <aside className={`wa-guide-sidebar${menuOpen ? ' open' : ''}`}>
                     <div className="wa-guide-sidebar-heading">
-                        <strong>WA 신규등록 가이드</strong>
+                        <strong>딜러시스템 신규등록 가이드</strong>
                         <button type="button" onClick={() => setMenuOpen(false)} aria-label="가이드 메뉴 닫기">
                             <X size={19} />
                         </button>
@@ -159,12 +159,12 @@ const WaNewcarGuide = () => {
                 </aside>
 
                 <main className="wa-guide-content">
-                    <div className="wa-guide-breadcrumb">WA 서비스 <span>›</span> 신규등록</div>
+                    <div className="wa-guide-breadcrumb">딜러시스템 <span>›</span> 신규등록</div>
 
                     <article>
                         <section id="overview" className="wa-guide-section wa-guide-hero">
-                            <span className="wa-guide-kicker">WA NEW CAR</span>
-                            <h1>신규등록 사용 가이드</h1>
+                            <span className="wa-guide-kicker">딜러시스템</span>
+                            <h1>딜러시스템 신규등록 사용 가이드</h1>
                             <p>
                                 신규신청현황 조회부터 소유자·자동차·등록정보 입력, 첨부파일 확인과
                                 최종 신청까지의 업무 흐름을 안내합니다.
