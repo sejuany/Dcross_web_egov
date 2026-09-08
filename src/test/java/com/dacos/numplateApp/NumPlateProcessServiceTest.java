@@ -62,6 +62,30 @@ public class NumPlateProcessServiceTest {
     }
 
     @Test
+    void preservesLegacyProcessStatusConditions() {
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(),
+                new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> {
+                    if (!"getProcessList".equals(method.getName())) {
+                        throw new UnsupportedOperationException(method.getName());
+                    }
+                    return List.of(
+                            Map.of("PROC_ST", "N_REQ", "IMAGE1", "Y", "IMAGE3", "Y"),
+                            Map.of("PROC_ST", "S_END", "CARD_YN", "Y", "CARD_PAY_YN", ""));
+                });
+        NumPlateService service = new NumPlateService(mapper, null);
+        UserDto user = new UserDto();
+        user.setMPHONE_NO("010-1234-5678");
+        user.setLOGIN_GB("NUMPLATE_APP");
+
+        List<Map<String, Object>> result = service.getProcessList(Map.of(), user);
+
+        assertEquals("번호판처리요청", result.get(0).get("PROC_ST_NM"));
+        assertEquals("번호판사진등록요청", result.get(1).get("PROC_ST_NM"));
+    }
+
+    @Test
     void authenticatesNumPlateManagerByPhoneAndPassword() {
         AtomicReference<Map<String, Object>> loginParam = new AtomicReference<>();
         NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
@@ -394,5 +418,7 @@ public class NumPlateProcessServiceTest {
         }
         assertFalse(mapperXml.contains("TNI.IMAGE1 AS IMAGE1"));
         assertFalse(mapperXml.contains(", TNI.IMAGE1,"));
+        assertTrue(mapperXml.contains("'회수대상X' AS CAR_NO"));
+        assertFalse(mapperXml.contains("AS BUY_NM, '' AS PROC_ST"));
     }
 }

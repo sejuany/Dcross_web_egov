@@ -1,6 +1,7 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.compile.nullAnalysis.mode": "automatic",
+    "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21.0.10",
     "java.configuration.runtimes": [
         {
             "name": "JavaSE-21",
@@ -9,6 +10,12 @@
         }
     ],
     "maven.terminal.useJavaHome": true,
+    "maven.terminal.customEnv": [
+        {
+            "environmentVariable": "JAVA_HOME",
+            "value": "C:\\Program Files\\Java\\jdk-21.0.10"
+        }
+    ],
     "files.encoding": "utf8",
     "files.autoGuessEncoding": false,
     "terminal.integrated.defaultProfile.windows": "Command Prompt",

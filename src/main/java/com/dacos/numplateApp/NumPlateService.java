@@ -257,7 +257,7 @@ public class NumPlateService {
                 case "J_END", "P_RET", "A_RET", "END" -> "번호판사진등록요청";
                 case "S_END", "D_MAN", "D_ING", "D_PAY", "D_REQ", "D_END", "D_DAC", "D_CON", "J_REQ" ->
                         "Y".equals(Objects.toString(row.get("CARD_YN"), ""))
-                                && !"Y".equals(Objects.toString(row.get("CARD_PAY_YN"), ""))
+                                && "N".equals(Objects.toString(row.get("CARD_PAY_YN"), ""))
                                 ? "취득세카드납부중" : "번호판사진등록요청";
                 case "" -> "지점배송요청"; 
                 default -> "처리상태확인요망";
@@ -269,6 +269,7 @@ public class NumPlateService {
         if (imageMissing(row, "IMAGE4")) {
             if (imageMissing(row, "IMAGE3")) return "번호판사진등록요청";
             if ("RET".equals(status)) return "반려";
+            if (Set.of("N_REQ", "N_INS", "N_DLV").contains(status)) return "번호판처리요청";
             return transfer ? "서명 진행 전 신분증사진등록요청" : "신분증사진등록요청";
         }
 

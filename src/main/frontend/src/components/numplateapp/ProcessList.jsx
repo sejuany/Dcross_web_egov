@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 // 입력 또는 심사요청이 가능한 기존 처리상태. 그 외 상태는 결과조회로 이동한다.
 const requestStates = new Set([
   'N_REQ', 'N_INS', 'N_DLV',
-  '번호판처리요청', '번호판발송요청', '번호판탈부착요청', '배송요청', '사무실배송요청',
+  '번호판처리요청', '번호판발송요청', '번호판탈부착요청', '배송요청', '사무실배송요청', '지점배송요청',
 ]);
 
 export default function ProcessList() {
@@ -37,7 +37,7 @@ export default function ProcessList() {
 
   const open = (row) => {
     // 동일 목록에서 현재 상태에 따라 다음 업무 화면을 자동으로 결정한다.
-    const path = requestStates.has(row.PROC_ST) ? 'request' : 'status';
+    const path = requestStates.has(row.PROC_ST) || requestStates.has(row.PROC_ST_NM) ? 'request' : 'status';
     navigate(`/numplateapp/${path}/${encodeURIComponent(row.SERVICE_ID)}`);
   };
 

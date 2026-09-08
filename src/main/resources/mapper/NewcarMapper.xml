@@ -1139,7 +1139,7 @@
 			<if test="TOTAL_AMT != null">
 	            TOTAL_AMT = #{TOTAL_AMT},
 			</if>
-			<if test="BUY_AMT != null">
+			<if test="BUY_AMT != null and BUY_AMT.toString().trim() != ''">
 	            BUY_AMT = #{BUY_AMT},
 			</if>
 			<if test="PREREG_AMT != null">

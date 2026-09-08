@@ -871,7 +871,7 @@ const NewcarRequest = () => {
 				RETURN_NO: gf.onlyNumber(String(dataSet.dsNewCar.RETURN_NO || '')),
 
 				// 금액
-				BUY_AMT: gf.onlyNumber(String(dataSet.dsNewCar.BUY_AMT || '')),
+				BUY_AMT: gf.onlyNumber(String(dataSet.dsNewCar.BUY_AMT ?? '')),
 				TOTAL_AMT: gf.onlyNumber(String(dataSet.dsNewCar.TOTAL_AMT || '')),
 				RT_AMT: gf.onlyNumber(String(dataSet.dsNewCar.RT_AMT || '')),
 				BOND_AMT: gf.onlyNumber(String(dataSet.dsNewCar.BOND_AMT || '')),
