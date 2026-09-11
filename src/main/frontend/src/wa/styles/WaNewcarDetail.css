@@ -126,6 +126,21 @@
     font-weight:700;
 }
 
+.wa-detail-masked{
+    display:inline-flex;
+    align-items:center;
+    gap:6px;
+}
+
+.wa-detail-masked button{
+    display:flex;
+    padding:0;
+    border:0;
+    background:none;
+    color:#08295a;
+    cursor:pointer;
+}
+
 .wa-detail-info{
     display:flex;
     justify-content:space-between;

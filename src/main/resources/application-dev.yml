@@ -37,3 +37,6 @@ with-auth:
   client-secret: ${WITHAUTH_CLIENT_SECRET:}
   encrypt-key: ${WITHAUTH_ENCRYPT_KEY:}
   encrypt-iv: ${WITHAUTH_ENCRYPT_IV:}
+
+self-newcar:
+  url: http://tnc.dcross.kr

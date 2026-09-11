@@ -360,6 +360,68 @@ const FALLBACK_BANKS = [
     { CODE_ID: '011', CODE_NM: '농협은행' }
 ];
 
+const LEASE_DEFAULTS = {
+    WA001: {
+        우리금융캐피탈: {
+            dsNewCar: {
+                PAY_HP_NO: '0220175051',
+                RETURN_NM: '우리금융캐피탈(주)',
+                RT_BANK_CD: '020',
+                RETURN_NO: '1005604494985'
+            },
+            dsTaxReceipt: {
+                GUBUN: 'TAX',
+                REG_NO: '3068118407',
+                COMPANY_NM: '우리금융캐피탈 주식회사',
+                NAME: '기동호',
+                ADDR: '대전광역시 서구 대덕대로 239(둔산동)',
+                BUSINESS_TYPE: '금융업',
+                INDUSTRY_TYPE: '할부금융',
+                MAIL1: 'woncar@woorifcapital.com'
+            }
+        },
+		산은캐피탈: {
+		    dsTaxReceipt: {
+		        GUBUN: 'TAX',
+		        REG_NO: '2028150051',
+		        COMPANY_NM: '산은캐피탈 주식회사',
+		        NAME: '양승원',
+		        ADDR: '서울특별시 영등포구 은행로 22 (여의도동)',
+		        BUSINESS_TYPE: '금융업',
+		        INDUSTRY_TYPE: '할부금융업'
+		    }
+		}
+    }
+};
+
+const fillEmptyDefaults = (current, defaults) => {
+    const next = { ...current };
+
+    Object.entries(defaults || {}).forEach(([key, value]) => {
+        if (next[key] === '' || next[key] == null) {
+            next[key] = value;
+        }
+    });
+
+    return next;
+};
+
+const getLeaseDefaults = (taskCode, baseBranchId, dsBaseList) => {
+    if (taskCode !== 'LEASE') {
+        return null;
+    }
+
+    const selectedLeaseBase = dsBaseList.find(item => (
+        String(item.BASE_ID) === String(baseBranchId)
+    ));
+    const leaseName = String(selectedLeaseBase?.BASE_NM ?? '')
+        .replace(/주식회사/g, '')
+        .replace(/\(.*?\)/g, '')
+        .trim();
+
+    return LEASE_DEFAULTS[selectedLeaseBase?.COMPANY_ID]?.[leaseName] ?? null;
+};
+
 const PAYMENT_LABELS = {
     ACQ: '취득세',
     UREG: '등록면허세',
@@ -1066,6 +1128,7 @@ const NewcarInfo = ({
     const [receiptType, setReceiptType] = useState('');
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
     const [cashReceiptPhoneSource, setCashReceiptPhoneSource] = useState('');
+    const taxReceiptBackupRef = useRef(null);
     const isPrivateBusinessEligible = (
         (
             (dsNewCar.TASK_CD === 'NORML' && dsNewCar.PROC_CD === 'I')
@@ -1157,6 +1220,40 @@ const NewcarInfo = ({
             setIsExemptionOpen(true);
         }
     }, [hasExemption]);
+
+    useEffect(() => {
+        taxReceiptBackupRef.current = null;
+    }, [dsNewCar.BASE_BRANCH_ID, dsService.SERVICE_ID]);
+
+    useEffect(() => {
+        if (!setDsNewCar || !setDsTaxReceipt) {
+            return;
+        }
+
+        const defaults = getLeaseDefaults(
+            dsNewCar.TASK_CD,
+            dsNewCar.BASE_BRANCH_ID,
+            dsBaseList
+        );
+
+        if (!defaults) {
+            return;
+        }
+
+        setDsNewCar(prev => fillEmptyDefaults(prev, defaults.dsNewCar));
+        setDsTaxReceipt(prev => fillEmptyDefaults(
+            prev,
+            prev.GUBUN === 'CASH'
+                ? { MAIL1: defaults.dsTaxReceipt.MAIL1 }
+                : defaults.dsTaxReceipt
+        ));
+    }, [
+        dsBaseList,
+        dsNewCar.BASE_BRANCH_ID,
+        dsNewCar.TASK_CD,
+        setDsNewCar,
+        setDsTaxReceipt
+    ]);
 
     useEffect(() => {
         if (!setDsNewCar) {
@@ -1590,35 +1687,65 @@ const NewcarInfo = ({
     const handleReceiptSelect = (type) => {
         setReceiptType(type);
 
+        const defaults = getLeaseDefaults(
+            dsNewCar.TASK_CD,
+            dsNewCar.BASE_BRANCH_ID,
+            dsBaseList
+        );
+
         if (type === 'CASH') {
             setCashReceiptPhoneSource('');
-            updateTaxReceipt(prev => ({
-                ...prev,
-                GUBUN: type,
-                PHONE_NO: prev.GUBUN === 'CASH' ? prev.PHONE_NO : '',
-                REG_NO: '',
-                NAME: '',
-                COMPANY_NM: '',
-                ADDR: '',
-                ADDR_DT: '',
-                POST_NO: '',
-                BUSINESS_TYPE: '',
-                INDUSTRY_TYPE: ''
-            }));
+            updateTaxReceipt(prev => {
+                if (defaults && prev.GUBUN === 'TAX') {
+                    taxReceiptBackupRef.current = {
+                        REG_NO: prev.REG_NO,
+                        NAME: prev.NAME,
+                        COMPANY_NM: prev.COMPANY_NM,
+                        ADDR: prev.ADDR,
+                        ADDR_DT: prev.ADDR_DT,
+                        POST_NO: prev.POST_NO,
+                        BUSINESS_TYPE: prev.BUSINESS_TYPE,
+                        INDUSTRY_TYPE: prev.INDUSTRY_TYPE
+                    };
+                }
+
+                return {
+                    ...prev,
+                    GUBUN: type,
+                    PHONE_NO: prev.GUBUN === 'CASH' ? prev.PHONE_NO : '',
+                    REG_NO: '',
+                    NAME: '',
+                    COMPANY_NM: '',
+                    ADDR: '',
+                    ADDR_DT: '',
+                    POST_NO: '',
+                    BUSINESS_TYPE: '',
+                    INDUSTRY_TYPE: ''
+                };
+            });
             return;
         }
 
-        updateTaxReceipt(prev => ({
-            ...prev,
-            GUBUN: type,
-			PHONE_NO: '',
-			REG_NO: '',
-			COMPANY_NM: '',
-			NAME: '',
-			ADDR: '',
-			ADDR_DT: '',
-			POST_NO: ''
-        }));
+        updateTaxReceipt(prev => {
+            const next = {
+                ...prev,
+				PHONE_NO: '',
+				REG_NO: '',
+				COMPANY_NM: '',
+				NAME: '',
+				ADDR: '',
+				ADDR_DT: '',
+				POST_NO: '',
+				BUSINESS_TYPE: '',
+				INDUSTRY_TYPE: '',
+                ...(defaults ? (taxReceiptBackupRef.current || {}) : {}),
+                GUBUN: type
+            };
+
+            return defaults
+                ? fillEmptyDefaults(next, defaults.dsTaxReceipt)
+                : next;
+        });
     };
 
     const handleReceiptClose = () => {

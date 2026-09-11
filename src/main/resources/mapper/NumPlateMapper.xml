@@ -700,6 +700,28 @@
 	       AND APPEAR_DT &gt; SYSDATE - (5 / 1440)
 	</update>
 
+	<!-- 선택 번호의 ASSIGN_CD에 연결된 탈부착자명/연락처만 저장한다. PHONE_NO는 암호문 그대로 복사한다. -->
+	<update id="updateSelectedNumplateInstaller" parameterType="map">
+	    MERGE INTO TR_CARNO_DETACH D
+	    USING (
+	        SELECT C.TEL_NO AS INSTALL_NM, C.PHONE_NO AS INSTALL_TEL_NO
+	          FROM TM_NUMPLATE_LIST P
+	          JOIN TM_CARNO_COMPANY C
+	            ON P.ASSIGN_CD = C.COMPANY_ID || C.BRANCH_ID
+	         WHERE P.CAR_NO = #{CAR_NO}
+	           AND P.SERVICE_ID = #{SELECT_SERVICE_ID}
+	           AND P.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	           AND P.USE_YN = 'S'
+	           AND C.USE_YN = 'Y'
+	           AND C.TEL_NO IS NOT NULL
+	           AND C.PHONE_NO IS NOT NULL
+	    ) I
+	       ON (D.SERVICE_ID = #{SERVICE_ID})
+	     WHEN MATCHED THEN UPDATE
+	      SET D.INSTALL_NM = I.INSTALL_NM,
+	          D.INSTALL_TEL_NO = I.INSTALL_TEL_NO
+	</update>
+
 	<!-- 고객이 고르지 않은 동일 토큰의 나머지 P 번호는 즉시 N으로 풀어 재사용 가능하게 한다. -->
 	<update id="releaseOtherNumplateMessageList" parameterType="map">
 	    UPDATE TM_NUMPLATE_LIST

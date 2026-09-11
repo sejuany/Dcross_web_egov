@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { Users, CheckCircle2 } from 'lucide-react';
+import axios from 'axios';
 import { gf } from '../../../../utils/utils';
 
 // 분리 입력 (주민번호, 사업자번호, 휴대폰 등)
@@ -10,9 +11,10 @@ import AddressSearch from '../../common/AddressSearch'; // 주소 입력
 
 import JointOwner from './JointOwner';
 
-
 const OwnerPersonal = ({
     dsNewCar,
+	dsService,
+	dsCompanyInfo,
 	dsCarNoDetach,
 	setDsNewCar,
 	dsOwnerInfo,
@@ -41,6 +43,9 @@ const OwnerPersonal = ({
 
 	// 공동명의 영역 표시 여부
 	const isJointOwnerOpen = showJointOwner || forceOpen;
+	const [showSelfSms, setShowSelfSms] = useState(false);
+	const [selfPhone, setSelfPhone] = useState('');
+	const [sendingSelfSms, setSendingSelfSms] = useState(false);
 
 /* =========================================================
  * Effect
@@ -130,9 +135,59 @@ const OwnerPersonal = ({
 
 	    }
 	};
+
+	// 대표소유자 휴대폰번호가 있으면 문자 수신번호 기본값으로 사용한다.
+	const openSelfSms = () => {
+		setSelfPhone(String(dsNewCar.MPHONE_NO || '').replace(/\D/g, ''));
+		setShowSelfSms(true);
+	};
+
+	const sendSelfSms = async () => {
+		const phone = selfPhone.replace(/\D/g, '');
+
+		if (!/^010\d{8}$/.test(phone)) {
+			alert('휴대폰번호를 확인해주세요.');
+			return;
+		}
+
+		if (!await gf.confirm('현재 입력정보를 저장한 후 문자를 전송하시겠습니까?')) return;
+
+		setSendingSelfSms(true);
+		try {
+			// 구매 방식(TASK_CD) 등 현재 화면을 먼저 저장하고, 성공한 경우에만 문자를 보낸다.
+			const saved = await saveProcess(null, 'SAV', null, null, null, true);
+			if (!saved) return;
+
+			// 문자 큐 등록 성공 후 백엔드가 같은 트랜잭션에서 SELF_YN을 N으로 저장한다.
+			await axios.post('/api/newcar/self-registration/sms', {
+				SERVICE_ID: dsService.SERVICE_ID,
+				PAY_HP_NO: phone,
+				DEALER_NAME: dsCompanyInfo?.COMPANY_NM || '',
+				CARID_NO: dsNewCar.CARID_NO || ''
+			});
+			setShowSelfSms(false);
+			gf.alert('문자 전송 완료', '셀프등록');
+		} catch (error) {
+			console.error(error);
+			alert('[문자 전송] 처리 중 오류가 발생했습니다.');
+		} finally {
+			setSendingSelfSms(false);
+		}
+	};
 	
     return (
 	    <>
+			<div className="wa-self-registration-row">
+				<button
+					type="button"
+					className="wa-self-registration-btn"
+					onClick={openSelfSms}
+				>
+					셀프입력
+				</button>
+				<p>대표소유자가 직접 정보 입력을 원하는 경우에만 [셀프입력] 버튼을 클릭해 주세요.</p>
+			</div>
+
 			{/* 대표소유자 */}
 			<div className="wa-form-row">
 			    <div className="wa-form-label-wrap">
@@ -322,6 +377,34 @@ const OwnerPersonal = ({
 			            onClear={handleClearAddress}
 			        />
 			    </div>
+			)}
+
+			{showSelfSms && (
+				<div className="wa-sms-modal-backdrop">
+					<div className="wa-sms-modal">
+						<div className="wa-sms-modal-header">
+							<div>
+								<h3>셀프등록 문자 발송</h3>
+								<p>셀프등록 안내를 받을 휴대폰번호를 입력해주세요.</p>
+							</div>
+							<button type="button" className="wa-sms-modal-close" onClick={() => setShowSelfSms(false)}>×</button>
+						</div>
+						<div className="wa-sms-modal-body">
+							<div className="wa-sms-phone-row">
+								<SplitInput
+									value={selfPhone}
+									lengths={[3, 4, 4]}
+									fixedValues={['010']}
+									placeholders={['010', '1234', '5678']}
+									onChange={setSelfPhone}
+								/>
+							</div>
+							<button type="button" className="wa-sms-send-btn" disabled={sendingSelfSms} onClick={sendSelfSms}>
+								{sendingSelfSms ? '발송 중' : '발송'}
+							</button>
+						</div>
+					</div>
+				</div>
 			)}
 		</>
     );

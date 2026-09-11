@@ -1,7 +1,7 @@
 import  React, {useState} from 'react';
 
 import axios from 'axios';
-import { CalendarDays, CarFront, FileText, LoaderCircle, UserRound, Search, X } from 'lucide-react';
+import { CalendarDays, CarFront, Eye, EyeOff, FileText, LoaderCircle, UserRound, Search, X } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -38,6 +38,29 @@ const getPaymentRowClass = (payKd) => {
     }
 
     return '';
+};
+
+const MaskedRegNo = ({ value }) => {
+    const [visible, setVisible] = useState(false);
+    const formatted = gf.formatRegNo(value);
+
+    if (!formatted) return '-';
+
+    return (
+        <span className="wa-detail-masked">
+            <span>{visible ? formatted : `${formatted.slice(0, 8)}${'*'.repeat(Math.max(formatted.length - 8, 0))}`}</span>
+            {formatted.length > 8 && (
+                <button
+                    type="button"
+                    aria-label={visible ? '등록번호 숨기기' : '등록번호 보기'}
+                    aria-pressed={visible}
+                    onClick={() => setVisible(current => !current)}
+                >
+                    {visible ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+            )}
+        </span>
+    );
 };
 
 const WaNewcarDetail = ({
@@ -419,10 +442,10 @@ const WaNewcarDetail = ({
 					                <span>{dsNewCar.OWNER_NM || '-'}</span>
 					            </div>
 	
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">등록번호</span>
-					                <span>{dsNewCar.REG_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">등록번호</span>
+			                <MaskedRegNo value={dsNewCar.REG_NO} />
+			            </div>
 	
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">등본상 주소</span>
@@ -436,10 +459,10 @@ const WaNewcarDetail = ({
 					                <span>{dsNewCar.RATIO_NO || '-'}%</span>
 					            </div>
 	
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">휴대폰번호</span>
-					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">휴대폰번호</span>
+			                <span>{gf.formatPhoneNo(dsNewCar.MPHONE_NO) || '-'}</span>
+			            </div>
 								</>
 							)}
 							
@@ -451,20 +474,20 @@ const WaNewcarDetail = ({
 					                <span>{dsNewCar.OWNER_NM || '-'}</span>
 					            </div>
 
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">법인등록번호</span>
-					                <span>{dsNewCar.REG_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">법인등록번호</span>
+			                <span>{gf.formatRegNo(dsNewCar.REG_NO) || '-'}</span>
+			            </div>
 
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">사업자등록번호</span>
-					                <span>{dsNewCar.BIZ_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">사업자등록번호</span>
+			                <span>{dsNewCar.BIZ_NO ? gf.mask(dsNewCar.BIZ_NO, 'BIZNO') : '-'}</span>
+			            </div>
 
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">휴대폰번호</span>
-					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">휴대폰번호</span>
+			                <span>{gf.formatPhoneNo(dsNewCar.MPHONE_NO) || '-'}</span>
+			            </div>
 
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">본점 소재지</span>
@@ -496,16 +519,16 @@ const WaNewcarDetail = ({
 					                <span className="wa-detail-name">리스 계약자명</span>
 					                <span>{dsOwnerInfo.DEBTOR_NM || '-'}</span>
 					            </div>
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">리스 계약자 등록번호</span>
-					                <span>{dsOwnerInfo.DEBTOR_GB === 'C'
-								            ? dsOwnerInfo.DEBTOR_BIZ_NO
-								            : dsOwnerInfo.DEBTOR_REG_NO || '-'}</span>
-					            </div>
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">리스 계약자 휴대폰번호</span>
-					                <span>{dsOwnerInfo.DEBTOR_TEL_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">리스 계약자 등록번호</span>
+			                <span>{dsOwnerInfo.DEBTOR_GB === 'C'
+						            ? (dsOwnerInfo.DEBTOR_BIZ_NO ? gf.mask(dsOwnerInfo.DEBTOR_BIZ_NO, 'BIZNO') : '-')
+						            : <MaskedRegNo value={dsOwnerInfo.DEBTOR_REG_NO} />}</span>
+			            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">리스 계약자 휴대폰번호</span>
+			                <span>{gf.formatPhoneNo(dsOwnerInfo.DEBTOR_TEL_NO) || '-'}</span>
+			            </div>
 								</>
 							)}
 
@@ -524,14 +547,16 @@ const WaNewcarDetail = ({
 					                <span className="wa-detail-name">대표 소유자명</span>
 					                <span>{dsNewCar.OWNER_NM || '-'}</span>
 					            </div>
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">등록번호</span>
-					                <span>{dsNewCar.REG_NO || '-'}</span>
-					            </div>
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">휴대폰번호</span>
-					                <span>{dsNewCar.MPHONE_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">등록번호</span>
+			                {dsNewCar.REG_GB === 'B'
+								? <span>{gf.formatRegNo(dsNewCar.REG_NO) || '-'}</span>
+								: <MaskedRegNo value={dsNewCar.REG_NO} />}
+			            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">휴대폰번호</span>
+			                <span>{gf.formatPhoneNo(dsNewCar.MPHONE_NO) || '-'}</span>
+			            </div>
 								<div className="wa-detail-row">
 					                <span className="wa-detail-name">등본상 주소/본점소재지</span>
 					                <span>
@@ -558,10 +583,12 @@ const WaNewcarDetail = ({
 					                <span>{dsOwnerInfo.DEBTOR_NM || '-'}</span>
 					            </div>
 	
-					            <div className="wa-detail-row">
-					                <span className="wa-detail-name">등록번호</span>
-					                <span>{dsOwnerInfo.DEBTOR_REG_NO || dsOwnerInfo.DEBTOR_BIZ_NO || '-'}</span>
-					            </div>
+			            <div className="wa-detail-row">
+			                <span className="wa-detail-name">등록번호</span>
+			                {dsOwnerInfo.DEBTOR_GB === 'C'
+								? <span>{dsOwnerInfo.DEBTOR_BIZ_NO ? gf.mask(dsOwnerInfo.DEBTOR_BIZ_NO, 'BIZNO') : '-'}</span>
+								: <MaskedRegNo value={dsOwnerInfo.DEBTOR_REG_NO} />}
+			            </div>
 	
 					            <div className="wa-detail-row">
 					                <span className="wa-detail-name">등본상 주소</span>

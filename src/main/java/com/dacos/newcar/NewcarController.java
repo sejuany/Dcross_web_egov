@@ -401,6 +401,16 @@ public class NewcarController {
 	    return ResponseEntity.ok(ApiResponse.withKey("result", result));
 	}
 
+	/** 셀프등록 문자를 발송하고 신청건을 셀프등록 대상으로 표시한다. */
+	@PostMapping("/self-registration/sms")
+	public ResponseEntity<Map<String, Object>> sendSelfRegistrationSms(
+	        @RequestBody Map<String, Object> param,
+	        HttpSession session) {
+		AuthUtil.getLoginUser(session);
+		int result = newcarService.sendSelfRegistrationSms(param);
+		return ResponseEntity.ok(ApiResponse.withKey("result", result));
+	}
+
 	/** SP 로그인 세션으로 번호판을 배정하고 고객 선택 문자를 발송한다. */
 	@PostMapping("/numplate-selection/send")
 	public ResponseEntity<Map<String, Object>> sendNumplateSelection(

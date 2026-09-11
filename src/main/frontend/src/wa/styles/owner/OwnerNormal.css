@@ -1,5 +1,35 @@
 @charset "UTF-8";
 
+.wa-self-registration-row{
+    display:flex;
+    align-items:center;
+    gap:18px;
+    margin-bottom:16px;
+}
+
+.wa-self-registration-row p{
+    margin:0;
+    color:#3671d8;
+    font-size:14px;
+    font-weight:700;
+}
+
+.wa-self-registration-btn{
+    flex-shrink:0;
+    padding:8px 20px;
+    border:0;
+    border-radius:4px;
+    background:#173b72;
+    color:#fff;
+    font-weight:700;
+    cursor:pointer;
+}
+
+.wa-self-registration-btn:disabled{
+    opacity:.45;
+    cursor:not-allowed;
+}
+
 /* 
 	외국인 등록번호 안내 텍스트 
 */

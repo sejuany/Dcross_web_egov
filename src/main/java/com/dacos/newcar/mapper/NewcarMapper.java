@@ -52,6 +52,9 @@ public interface NewcarMapper {
     
     /** 희망 차량번호 변경 */
     int updateReqCarNo(@Param("SERVICE_ID") String serviceId, @Param("REQ_CAR_NO") String reqCarNo);
+
+    /** 셀프등록 문자 발송 후 진행 중 표시 */
+    int updateSelfYn(@Param("SERVICE_ID") String serviceId);
     
     /**
      *  신규등록 기본정보 초기화

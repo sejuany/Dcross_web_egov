@@ -2438,11 +2438,11 @@ const WaNewcarRequest = ({
 	const validateCarStep = () => {
 		const message = requireTextLength(dsNewCar.CARID_NO, 17, '차대번호')
 			|| requireValue(dsNewCar.CAR_NM, '차량명')
-			|| (Number(dsNewCar.BUY_AMT || 0) > 0 ? '' : '공급가액을 입력해주세요.')
 			|| requireValue(dsNewCar.NUMPLATE_GB, '번호판 종류')
-			|| requireValue(dsNewCar.REQ_CAR_NO, '차량번호')
+			// || requireValue(dsNewCar.REQ_CAR_NO, '차량번호')
 			|| requireValue(dsCarNoDetach.DELIVERY_GB, '번호판 배송지')
 			|| requireValue(dsNewCar.CARP_ADDRESS, '등록증 수령지');
+			// || (isEmptyRequiredValue(dsNewCar.BUY_AMT) ? '공급가액을 입력해주세요.' : '')
 
 		if (message) {
 			return message;
@@ -2864,6 +2864,7 @@ const WaNewcarRequest = ({
 									{purchaseType === 'NORMAL' &&
 										<OwnerNormal
 											dsService={dsService}
+											dsCompanyInfo={dsCompanyInfo}
 											dsNewCar={dsNewCar}
 										    dsCarNoDetach={dsCarNoDetach}
 											setDsNewCar={setDsNewCar}

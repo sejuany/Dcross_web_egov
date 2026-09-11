@@ -1,5 +1,5 @@
 server:
-  port: 8080
+  port: 8081
   forward-headers-strategy: framework
   servlet:
     encoding:
@@ -52,6 +52,10 @@ mybatis:
 
 newcar:
   pdf-upload-dir: ${NEWCAR_PDF_UPLOAD_DIR:./uploads/newcar-production-certificates}
+
+self-newcar:
+  encryption-key: ${SELF_NEWCAR_ENCRYPTION_KEY:18440801}
+
 mobile-ok:
   enabled: true
   key-password: ${MOBILE_OK_KEY_PASSWORD:@dewa1004}

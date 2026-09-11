@@ -343,6 +343,7 @@
             TN.OWNER_NM AS OWNER_NM,
             CD.CUSTOMER_NM,
             TN.BUY_AMT AS BUY_AMT,
+            TN.SELF_YN AS SELF_YN,
             TN.TASK_CD AS ATTACH_TASK_CD,
             TN.REG_GB AS ATTACH_REG_GB,
             TN.RATIO_NO AS ATTACH_RATIO_NO,
@@ -858,7 +859,27 @@
 	               WHEN TN.TASK_CD = 'LEASE' AND NVL(TN.PROC_CD, 'I') != 'C'
 	                   THEN TOI.BIZ_NO
 	               ELSE TN.BIZ_NO
-	           END AS BIZ_NO
+	           END AS BIZ_NO,
+	           CASE
+		          WHEN TN.RATIO_NO NOT IN ('0', '100')
+		          THEN PKG_COMMON.FN_DECRYPT(TOI.REG_NO)
+		       END 
+		          AS DEBTOR_NO,
+		       CASE
+		          WHEN TN.RATIO_NO NOT IN ('0', '100')
+		          THEN TOI.DEBTOR_GB
+		       END 
+		          AS DEBTOR_GB,
+		       CASE
+		          WHEN TN.RATIO_NO NOT IN ('0', '100')
+		          THEN TOI.BIZ_NO
+		       END 
+		         AS DEBTOR_BIZ,
+		       CASE
+		          WHEN TN.RATIO_NO NOT IN ('0', '100')
+		          THEN DEBTOR_NM
+		       END 
+		         AS DEBTOR_NM
 	      FROM TR_SERVICE TS
 	           JOIN TR_NEWCAR TN
 	             ON TN.SERVICE_ID = TS.SERVICE_ID
@@ -1268,6 +1289,12 @@
 	        REQ_CAR_NO = #{REQ_CAR_NO}
 		</set>
 	    WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+
+	<update id="updateSelfYn">
+	    UPDATE TR_NEWCAR
+	       SET SELF_YN = 'N', UPD_DATE = SYSDATE
+	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
 	<select id="getTrTaxReceipt" parameterType="map" resultType="map">

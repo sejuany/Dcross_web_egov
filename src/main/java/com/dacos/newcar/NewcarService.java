@@ -34,9 +34,11 @@ import org.apache.poi.ss.usermodel.Workbook;
 import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
+import org.springframework.transaction.interceptor.TransactionAspectSupport;
 
 import com.dacos.addservice.dto.AddServiceDto;
 import com.dacos.attach.AttachService;
@@ -84,8 +86,8 @@ public class NewcarService {
 
     // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
     private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
-            "WA001", new CarSpecSearchConfig("POLESTAR", "1", "e"),
-            "WA999", new CarSpecSearchConfig("BMW", "1", "h")
+            "WA001", new CarSpecSearchConfig("POLESTAR", "1"),
+            "WA999", new CarSpecSearchConfig("BMW", "1")
     );
     
     // 번호판대 계산 시 사용하는 번호판 구분 코드
@@ -108,6 +110,12 @@ public class NewcarService {
     private final SchedulerMapper schedulerMapper;
     private final AttachService attachService;
     private final SearchLogInterceptor searchLogInterceptor;
+
+    @Value("${self-newcar.url}")
+    private String selfNewcarUrl;
+
+    @Value("${self-newcar.encryption-key}")
+    private long selfNewcarEncryptionKey;
     
 
     /**
@@ -120,6 +128,41 @@ public class NewcarService {
         request.setMEMBER_ID(user.getLOGIN_ID());
         return newcarMapper.getNewCarList(request);
     }
+
+	@Transactional
+	public int sendSelfRegistrationSms(Map<String, Object> param) {
+		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
+		if (serviceId.isBlank()) throw new BusinessException("서비스 ID가 필요합니다.");
+
+		String url = selfNewcarUrl + "/?t=" + encodeSelfServiceId(serviceId);
+		Map<String, Object> sms = new HashMap<>(param);
+		sms.put("MSG_TYPE", "3");
+		sms.put("SUBJECT", "셀프신규등록정보입력");
+		sms.put("TEXT", "셀프신규등록정보입력\r\n"
+				+ "안녕하세요. " + Objects.toString(param.get("DEALER_NAME"), "") + " "
+				+ Objects.toString(param.get("CARID_NO"), "")
+				+ " 차량의 이전등록 진행을 위해 아래의 URL로 접속하시어 정보를 입력 바랍니다.\r\n"
+				+ "문의사항은 1844-0801(내선번호 1)로 연락 바랍니다.\r\n" + url);
+
+		int result = commonService.sendSms(sms);
+		if (result < 1 || newcarMapper.updateSelfYn(serviceId) != 1) {
+			throw new BusinessException("셀프등록 문자 발송 처리에 실패했습니다.");
+		}
+		return result;
+	}
+
+	/**
+	 * N010-YYMMDD-NNNNN 형식에서 고정값과 하이픈을 제외하고 짧은 URL용 값으로 변환한다.
+	 * SELF 서버는 같은 키로 역변환한 뒤 N010- 접두어와 하이픈을 복원한다.
+	 */
+	private String encodeSelfServiceId(String serviceId) {
+		if (!serviceId.matches("N010-\\d{6}-\\d{5}")) {
+			throw new BusinessException("셀프등록 서비스 ID 형식이 올바르지 않습니다.");
+		}
+
+		long number = Long.parseLong(serviceId.substring(5).replace("-", ""));
+		return Long.toString(number ^ selfNewcarEncryptionKey, Character.MAX_RADIX);
+	}
 
     public List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request, UserDto user) {
         clampWaSearchStartDate(request);
@@ -379,10 +422,8 @@ public class NewcarService {
             throw new BusinessException(normalizedCarName + " 차량제원을 찾을 수 없습니다.", 404);
         }
 
-        // 회사별 차종구분과 연료구분을 세금 및 공채 감면 계산에 사용함.
-        // WA001은 폴스타 전기차만 처리하므로 DB 연료값과 무관하게 e로 통일함.
+        // 회사별 차종구분을 세금 및 공채 감면 계산에 사용함.
         carSpec.put("VHCTY_ASORT_CODE", searchConfig.vehicleTypeCode());
-        carSpec.put("FUEL_CD", searchConfig.fuelCode());
         return carSpec;
     }
 
@@ -443,7 +484,7 @@ public class NewcarService {
         }
         return result;
     }
-    private record CarSpecSearchConfig(String maker, String vehicleTypeCode, String fuelCode) {
+    private record CarSpecSearchConfig(String maker, String vehicleTypeCode) {
     }
     private void clampWaSearchStartDate(NewcarSearchRequest request) {
         if (request == null) {
@@ -766,6 +807,7 @@ public class NewcarService {
 		row.put("CAR_NM", carName);
 		row.put("VH_TY_CD", isYn(carSpec.get("MULTI_PURPOSE_YN")) ? "3" : "");
 		row.put("LOW_POLLUTION_YN", carSpec.get("LOW_POLLUTION_YN"));
+		row.put("FUEL_CD", carSpec.get("FUEL_CD"));
 	}
 
 	private boolean isYn(Object value) {
@@ -1342,6 +1384,7 @@ public class NewcarService {
 	private String onlyNumber(Object value) {
 		return Objects.toString(value, "").replaceAll("[^0-9]", "");
 	}
+	
 	private void insertExcelRow(Map<String, Object> row, UserDto user, Map<String, String> dlaMap) {
 
 	    Map<String, Object> request = new HashMap<>();
@@ -1366,16 +1409,16 @@ public class NewcarService {
 	    // =========================
 	    // NEWCAR
 	    // =========================
-	    dsNewCar.put("CARID_NO", row.get("CARID_NO"));
-	    //dsNewCar.put("OWNER_NM", row.get("OWNER_NM"));									  // 대표소유자명 공란
-	    dsNewCar.put("CAR_NM", row.get("CAR_NM"));
-	    dsNewCar.put("CAR_PACKAGE", row.get("CAR_PACKAGE"));
-	    dsNewCar.put("ECO_YN", row.get("ECO_YN"));
-	    dsNewCar.put("VH_TY_CD", row.get("VH_TY_CD"));
-	    dsNewCar.put("LOW_POLLUTION_YN", row.get("LOW_POLLUTION_YN"));
-	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));
-	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 						   // 등록일자
-	    dsNewCar.put("STAMP_GB", "TOTAL"); 			  	 	 					   // 인지세
+	    dsNewCar.put("CARID_NO", row.get("CARID_NO"));								// 차대번호	    
+	    dsNewCar.put("CAR_NM", row.get("CAR_NM"));										 // 차량명
+	    dsNewCar.put("CAR_PACKAGE", row.get("CAR_PACKAGE"));					// 차량패키지
+	    dsNewCar.put("ECO_YN", row.get("ECO_YN"));								// 친환경차 여부
+	    dsNewCar.put("VH_TY_CD", row.get("VH_TY_CD"));							// 차량유형코드
+	    dsNewCar.put("LOW_POLLUTION_YN", row.get("LOW_POLLUTION_YN"));			// 저공해차 여부
+	    dsNewCar.put("BUY_AMT", row.get("BUY_AMT"));							// 공급가액
+	    dsNewCar.put("REGIST_DATE", row.get("REGIST_DATE")); 							 // 등록일자
+	    dsNewCar.put("STAMP_GB", "TOTAL"); 			  	 	 					    	 // 인지세
+		dsNewCar.put("FUEL_CD", row.get("FUEL_CD")); 						   			 // 연료코드
 		String directYnText = Objects.toString(row.get("DIRECT_YN"), "").trim();
 		String directyn = "N";
 		if ("자가등록".equals(directYnText) || "Y".equalsIgnoreCase(directYnText)) {
@@ -1456,7 +1499,15 @@ public class NewcarService {
 	    // =========================
 	    // 실제 저장
 	    // =========================
-	    processNewCar(request, user);
+	    Map<String, Object> response = processNewCar(request, user);
+
+	    Map<String, Object> data = (Map<String, Object>) response.get("data");
+
+	    if (data != null && !Objects.equals("0", Objects.toString(data.get("RESULT_CD"), ""))) {
+	        throw new RuntimeException(
+	            Objects.toString(data.get("MESSAGE"), "처리 중 오류가 발생하였습니다.")
+	        );
+	    }
 	}
 
 	@Transactional
@@ -1700,12 +1751,12 @@ public class NewcarService {
 
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
-			insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
+		    	insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 		    }
 
 		    // update
 		    else {
-			updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
+		    	updateNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 		    }
 
 		    result.put("SERVICE_ID", input.get("SERVICE_ID"));
@@ -1848,17 +1899,24 @@ public class NewcarService {
 				    result.put("MESSAGE", "신청완료");
 				}
 		    }
+		    
 		} catch (RuntimeException e) {
-
+		
 		    logger.error("신규등록 처리 오류", e);
+		
+		    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+		
 		    result.put("RESULT_CD", "-2");
 		    result.put("MESSAGE", "처리 중 오류가 발생하였습니다");
-
+		
 		} catch (Exception e) {
+		
 		    logger.error("신규등록 처리 중 시스템 오류", e);
+		
+		    TransactionAspectSupport.currentTransactionStatus().setRollbackOnly();
+		
 		    result.put("RESULT_CD", "-3");
 		    result.put("MESSAGE", "처리 중 오류가 발생하였습니다.");
-
 		}
 
 		return ApiResponse.withKey("data", result);
@@ -2011,7 +2069,7 @@ public class NewcarService {
                 isEligibleTask && isPersonalOwner && "Y".equals(privateBusinessYn) ? "Y" : "N"
         );
     }
-
+    
     private boolean hasTaxReceipt(Map<String, Object> taxReceipt) {
         return taxReceipt != null && !isEmpty(taxReceipt.get("GUBUN"));
     }
@@ -2323,7 +2381,12 @@ public class NewcarService {
 		String regNo = Objects.toString(target.get("REG_NO"), "").trim();
 		String bizNo = Objects.toString(target.get("BIZ_NO"), "").trim();
 		String buyNm = Objects.toString(target.get("BUY_NM"), "").trim();
-
+		
+		// 공동소유자 정보
+	    String debtorNo = Objects.toString(target.get("DEBTOR_NO"), "").trim();
+	    String debtorBiz = Objects.toString(target.get("DEBTOR_BIZ"), "").trim();
+	    String debtorNm = Objects.toString(target.get("DEBTOR_NM"), "").trim();
+		
 		if (carNo.isBlank() || (regNo.isBlank() && bizNo.isBlank()) || buyNm.isBlank()) {
 			logger.warn(
 				"[보험접수] 필수 정보 부족 - serviceId: {}, carNoExists: {}, identifierExists: {}, buyNmExists: {}",
@@ -2334,24 +2397,61 @@ public class NewcarService {
 			);
 			return false;
 		}
-
-		String insuranceServiceId =
-			commonUtil.toServiceId(Map.of("WORK_CD", "I020"));
-
-		Map<String, Object> insurance = new HashMap<>();
-		insurance.put("SERVICE_ID", insuranceServiceId);
-		insurance.put("LINKED_ID", newcarServiceId);
-		insurance.put("CAR_NO", carNo);
-		insurance.put("BUY_NM", buyNm);
-		insurance.put("REG_NO", regNo);
-		insurance.put("BIZ_NO", bizNo);
-		insurance.put("COMPANY_ID", companyId);
-		insurance.put("GOVT_ID", "HAMYA");
-		insurance.put("MEMBER_ID", isBlank(memberId) ? "SYSTEM" : memberId);
+		
+		// 대표소유자 보험접수
+		Map<String, Object> insurance = createInsurance(
+				newcarServiceId, companyId, memberId, 
+				carNo, buyNm, regNo, bizNo);
 
 		newcarMapper.insertNewcarInsurance(insurance);
 
-		return sendNewcarInsurance(insurance);
+		boolean result = sendNewcarInsurance(insurance);
+		
+		// 공동소유자 보험접수
+		if (!debtorNo.isBlank()) {
+
+		    Map<String, Object> debtorInsurance = createInsurance(
+		        newcarServiceId,
+		        companyId,
+		        memberId,
+		        carNo,
+		        debtorNm,
+		        debtorNo,
+		        debtorBiz
+		    );
+
+		    newcarMapper.insertNewcarInsurance(debtorInsurance);
+
+		    boolean debtorResult = sendNewcarInsurance(debtorInsurance);
+
+		    result = result && debtorResult;
+		}
+		
+		return result;
+	}
+	
+	private Map<String, Object> createInsurance(
+	        String newcarServiceId,
+	        String companyId,
+	        String memberId,
+	        String carNo,
+	        String buyNm,
+	        String regNo,
+	        String bizNo) {
+
+	    Map<String, Object> insurance = new HashMap<>();
+
+	    insurance.put("SERVICE_ID", commonUtil.toServiceId(Map.of("WORK_CD", "I020")));
+	    insurance.put("LINKED_ID", newcarServiceId);
+	    insurance.put("CAR_NO", carNo);
+	    insurance.put("BUY_NM", buyNm);
+	    insurance.put("REG_NO", regNo);
+	    insurance.put("BIZ_NO", bizNo);
+	    insurance.put("COMPANY_ID", companyId);
+	    insurance.put("GOVT_ID", "HAMYA");
+	    insurance.put("MEMBER_ID", isBlank(memberId) ? "SYSTEM" : memberId);
+
+	    return insurance;
 	}
 
 	/** 관청 연계 서버에 보험가입접수 요청을 전달함. */
@@ -3001,6 +3101,9 @@ public class NewcarService {
 		work.put("SELECT_SERVICE_ID", assignment.get("SERVICE_ID") + "_S");
 		if (common.update(work, "selectCustomerNumplate") != 1) {
 			throw new BusinessException("배정되지 않은 번호판입니다.");
+		}
+		if (common.update(work, "updateSelectedNumplateInstaller") != 1) {
+			throw new BusinessException("번호판 탈부착 담당자 정보를 찾을 수 없습니다.");
 		}
 		common.update(work, "releaseOtherNumplateMessageList");
 		work.put("REQ_CAR_NO", carNo);
