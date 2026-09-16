@@ -1,7 +1,7 @@
-import  React, {useState} from 'react';
+import  React, {useRef, useState} from 'react';
 
 import axios from 'axios';
-import { CalendarDays, CarFront, Eye, EyeOff, FileText, LoaderCircle, UserRound, Search, X } from 'lucide-react';
+import { CalendarDays, CarFront, Download, Eye, EyeOff, FileText, LoaderCircle, Printer, UserRound, Search, X } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -93,9 +93,11 @@ const WaNewcarDetail = ({
 	const [searchParams] = useSearchParams();
 	const navigate = useNavigate();
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
+	const [certificatePreviewUrl, setCertificatePreviewUrl] = useState(null);
+	const certificatePreviewFrame = useRef(null);
 	const serviceId = searchParams.get('serviceId');
-	// 로딩중
-	const [loading, setLoading] = useState(false);
+	// 전체 로딩중
+		const [templateDownloading, setTemplateDownloading] = useState(false);
 
 	const handleClose = () => {
 		if (onClose) {
@@ -220,6 +222,34 @@ const WaNewcarDetail = ({
 	    setReceiptModalOpen(true);
 	};
 	
+	const closeCertificatePreview = () => {
+		if (certificatePreviewUrl) {
+			window.URL.revokeObjectURL(certificatePreviewUrl);
+		}
+		setCertificatePreviewUrl(null);
+	};
+
+	const downloadCertificate = () => {
+		if (!certificatePreviewUrl) return;
+
+		const link = document.createElement('a');
+		link.href = certificatePreviewUrl;
+		link.download = `${dsNewCar.CAR_NO}.pdf`;
+		link.click();
+	};
+
+	const printCertificate = () => {
+		const previewWindow = certificatePreviewFrame.current?.contentWindow;
+
+		if (!previewWindow) {
+			gf.alert('등록증 미리보기를 불러오는 중입니다. 잠시 후 다시 시도해 주세요.');
+			return;
+		}
+
+		previewWindow.focus();
+		previewWindow.print();
+	};
+
 	// 등록증
 	const handleRegistCert = async () => {
 	    try {
@@ -249,7 +279,7 @@ const WaNewcarDetail = ({
 		        .slice(2);                // 앞의 20 제거 → 260715
 
 			// 로딩 시작
-			setLoading(true);
+			setTemplateDownloading(true);
 
 			// 로컬에서는 로딩 화면 확인을 위해 1초 지연
 			if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
@@ -263,14 +293,7 @@ const WaNewcarDetail = ({
 	            }
 	        );
 
-	        const url = window.URL.createObjectURL(response.data);
-
-	        const link = document.createElement('a');
-	        link.href = url;
-	        link.download = `${dsNewCar.CAR_NO}.pdf`;
-	        link.click();
-
-	        window.URL.revokeObjectURL(url);
+	        setCertificatePreviewUrl(window.URL.createObjectURL(response.data));
 
 	    } catch (error) {
 	        if (error.response?.status === 404) {
@@ -278,11 +301,11 @@ const WaNewcarDetail = ({
 	            return;
 	        }
 
-	        gf.alert('등록증 다운로드 중 오류가 발생했습니다.');
+	        gf.alert('등록증 미리보기를 불러오는 중 오류가 발생했습니다.');
 	    }
 		finally {
 		   // 로딩 종료
-		   setLoading(false);
+		   setTemplateDownloading(false);
 	   }
 	};
 	
@@ -321,13 +344,6 @@ const WaNewcarDetail = ({
     return (
 		<div className="wa-request-page">
 
-			{loading && (
-			    <div className="wa-loading">
-			        <LoaderCircle size={24} className="wa-spin" />
-			        <span>불러오는 중</span>
-			    </div>
-			)}
-			
 			<div className={`wa-request-card detail${embedded ? ' embedded' : ''}`}>
 				<div className="marginBox-b10">
 					<button
@@ -887,8 +903,70 @@ const WaNewcarDetail = ({
 				    dsTaxReceipt={dsTaxReceipt}
 				    dsNewCar={dsNewCar}
 				/>
+
+				{certificatePreviewUrl && (
+					<div className="wa-certificate-preview-backdrop" role="presentation" onMouseDown={closeCertificatePreview}>
+						<section
+							className="wa-certificate-preview-modal"
+							role="dialog"
+							aria-modal="true"
+							aria-labelledby="certificate-preview-title"
+							onMouseDown={event => event.stopPropagation()}
+						>
+							<header className="wa-certificate-preview-header">
+								<h3 id="certificate-preview-title">자동차등록증</h3>
+								<button type="button" onClick={closeCertificatePreview} aria-label="등록증 미리보기 닫기">
+									<X size={20} aria-hidden="true" />
+								</button>
+							</header>
+							<div className="wa-certificate-preview-actions">
+								<button type="button" onClick={downloadCertificate}>
+									<Download size={17} aria-hidden="true" />
+									PDF 저장
+								</button>
+								<button type="button" onClick={printCertificate}>
+									<Printer size={17} aria-hidden="true" />
+									인쇄
+								</button>
+							</div>
+							<iframe
+								ref={certificatePreviewFrame}
+								className="wa-certificate-preview-frame"
+								title="자동차등록증 PDF 미리보기"
+								src={certificatePreviewUrl}
+							/>
+						</section>
+					</div>
+				)}
 				
 			</div>
+			
+			{templateDownloading && (
+			    <div
+			        style={{
+			            position: 'fixed',
+			            top: 0,
+			            left: 0,
+			            width: '100vw',
+			            height: '100vh',
+			            backgroundColor: 'rgba(0, 0, 0, 0.6)',
+			            zIndex: 999999,
+			            display: 'flex',
+			            alignItems: 'center',
+			            justifyContent: 'center'
+			        }}
+			    >
+			        <div
+			            style={{
+			                color: '#fff',
+			                fontSize: '24px',
+			                fontWeight: 'bold'
+			            }}
+			        >
+			            로딩 중...
+			        </div>
+			    </div>
+			)}
 		</div>
     );
 };

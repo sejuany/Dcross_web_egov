@@ -242,6 +242,96 @@
     background:#dfeeff;
 }
 
+/* 자동차등록증 PDF 미리보기 */
+.wa-certificate-preview-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(15, 23, 42, 0.55);
+}
+
+.wa-certificate-preview-modal {
+    width: min(100%, 1000px);
+    height: min(90vh, 900px);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    border-radius: 12px;
+    background: #fff;
+    box-shadow: 0 24px 60px rgba(15, 23, 42, 0.3);
+}
+
+.wa-certificate-preview-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 20px;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.wa-certificate-preview-header h3 {
+    margin: 0;
+    color: #08295a;
+    font-size: 18px;
+}
+
+.wa-certificate-preview-header button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 34px;
+    height: 34px;
+    padding: 0;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: #475569;
+    cursor: pointer;
+}
+
+.wa-certificate-preview-header button:hover {
+    background: #f1f5f9;
+}
+
+.wa-certificate-preview-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px;
+    border-bottom: 1px solid #e2e8f0;
+    background: #f8fafc;
+}
+
+.wa-certificate-preview-actions button {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    height: 36px;
+    padding: 0 14px;
+    border: 1px solid #b8cdfb;
+    border-radius: 7px;
+    background: #fff;
+    color: #08295a;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wa-certificate-preview-actions button:hover {
+    background: #edf4ff;
+}
+
+.wa-certificate-preview-frame {
+    width: 100%;
+    min-height: 0;
+    flex: 1;
+    border: 0;
+    background: #f1f5f9;
+}
+
 /* ========================
  * 결제정보
  * ========================*/

@@ -417,3 +417,61 @@ Eclipse → Run as Spring Boot App
 
 > [!TIP]
 > 배포할 때는 `npm run build` 후 Spring Boot만 실행하면 됩니다.
+
+## 텔레그램 외부 발송 API
+
+`config/dcross.env`에 `CHAT_ID`, `NEWCAR_CHAT_ID`, `BOT_TOKEN`, `TELEGRAM_API_KEY`(외부 호출 인증용 긴 임의값)를 추가하고 서버를 재시작합니다.
+서버 실행 설정에서 이 파일을 프로세스 환경변수로 로딩해야 합니다. Spring Boot는 `.env` 파일을 자동으로 읽지 않습니다.
+Eclipse 실행 시에는 Run Configurations → Environment에 네 값을 등록합니다.
+VS Code에서는 `.vscode/launch.json`의 Java 실행 설정이 `config/dcross-dev.env`를 읽습니다. 환경변수 변경 후에는 실행 중인 서버를 완전히 종료하고 해당 설정으로 다시 실행합니다.
+
+외부 프로그램에서 HTTPS로 다음 요청을 전송합니다. API 키는 서버에 설정한 `TELEGRAM_API_KEY`와 같아야 합니다.
+
+```http
+POST /api/telegram/send
+Content-Type: application/json
+X-Telegram-Api-Key: 서버에_설정한_TELEGRAM_API_KEY
+
+{"message":"신규차량 접수가 완료되었습니다."}
+```
+
+성공 응답은 `{"success":true,"messageId":42}`입니다. 메시지는 공백만 있는 문자열을 제외하고 1~4096자를 허용합니다.
+`channel`을 생략하면 `CHAT_ID`를 사용하고, `"Newcar"`이면 `NEWCAR_CHAT_ID`를 사용합니다.
+
+```json
+{
+  "channel": "Newcar",
+  "message": "신규차량 접수가 완료되었습니다."
+}
+```
+
+`parse_mode` 옵션으로 `HTML` 또는 `MarkdownV2` 서식을 사용할 수 있습니다. 생략하면 일반 텍스트로 전송합니다.
+
+볼드체 예시:
+
+```json
+{
+  "message": "📢 <b>Dcross 알림</b>\n신규차량 접수가 <b>완료</b>되었습니다.",
+  "parse_mode": "HTML"
+}
+```
+
+이미지와 설명 예시:
+
+```json
+{
+  "photo": "https://example.com/car.jpg",
+  "message": "<b>차량 사진</b>\n접수가 완료되었습니다.",
+  "parse_mode": "HTML"
+}
+```
+
+`photo`가 있으면 텔레그램 `sendPhoto` API를 사용하고 `message`는 이미지 설명(caption)으로 전송합니다.
+이미지만 보낼 때는 `message`를 생략합니다. 이미지 URL은 텔레그램 서버가 접근 가능한 실제 HTTP/HTTPS 이미지 주소여야 하며,
+로컬 파일 경로나 인증이 필요한 주소는 사용할 수 없습니다. 파일 직접 업로드는 지원하지 않습니다.
+이미지 설명은 0~1024자이며, 현재 길이 검증은 서식 태그를 포함한 입력 문자열 기준입니다.
+HTML 모드에서 일반 텍스트의 `<`, `>`, `&`는 `&lt;`, `&gt;`, `&amp;`로 이스케이프합니다.
+서식 태그와 이미지 제한은 [텔레그램 공식 API 문서](https://core.telegram.org/bots/api#sendphoto)를 참고합니다.
+
+API 키 누락·불일치·미설정은 HTTP 401, 입력 오류는 400, 봇 설정 오류는 503, 전송 실패는 502를 반환합니다.
+실제 토큰과 API 키는 커밋하지 않습니다. 테스트는 모의 응답을 사용하며 실제 메시지를 보내지 않습니다.

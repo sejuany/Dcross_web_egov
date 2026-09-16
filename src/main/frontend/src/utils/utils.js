@@ -143,7 +143,7 @@ export const gf = {
 		        return false;
 		    }
 
-		    const codes = await gf.getCodeDetails(['TUSE']);
+		    const codes = await gf.getCodeDetails(['DEAL']);
 		    const list = codes?.TUSE || [];
 
 		    const specialCode = list.find(item =>

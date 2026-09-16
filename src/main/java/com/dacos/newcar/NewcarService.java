@@ -730,13 +730,23 @@ public class NewcarService {
 				row.put("CAR_PACKAGE", carPackage);
 				row.put("ECO_YN", resolveExcelEcoYn(row.get("CAR_NM"), carPackage, engine));
 				row.put("REGIST_DATE", getCellValue(excelRow.getCell(7), formatter)
-						.replace("-", "").replace(".", "")); // H: 차량등록예정일
+														.replaceAll("[^0-9]", "")); // H: 차량등록예정일
 				row.put("DIRECT_YN", getCellValue(excelRow.getCell(8), formatter)); // I: 차량 등록 방법
 				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter)); // J: SPACE 명
 				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter)); // K: 담당 Specialist
 				row.put("OWNER_NM", getCellValue(excelRow.getCell(11), formatter)); // L: 계약자(고객명)
-				row.put("BUY_AMT", formatter.formatCellValue(excelRow.getCell(13), evaluator)
-						.trim().replace(",", "")); // N: 차량 세금 계산서 금액
+				
+				// N: 차량 세금 계산서 금액
+				// 쉼표(,) 제거 후 공백 제거, 비어있거나 -이면 0으로 처리
+				// 숫자만 남기고, 숫자가 없는 경우 0으로 처리
+				String originalBuyAmt = formatter.formatCellValue(excelRow.getCell(13), evaluator);
+
+				String buyAmt = originalBuyAmt.replaceAll("[^0-9]", "");
+
+				String finalBuyAmt = buyAmt.isEmpty() ? "0" : buyAmt;
+
+				row.put("BUY_AMT", finalBuyAmt);
+
 				result.add(row);
 			}
 		} catch (Exception e) {
