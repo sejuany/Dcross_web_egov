@@ -1,8 +1,10 @@
 spring:
+  config:
+    import: optional:file:${DCROSS_DEV_ENV_FILE:./config/dcross-dev.env}[.properties]
   datasource:
-    url: ENC(QENFw9mbKH7jOBm97RCv5zfC8FO4/Hk2YEq9DendCpsW/grR4rOAJVYaDyk7EriRqSct3NblXFo=)
-    username: ENC(14WfeHUldmLYUFEDSfTwkYELrlCcKfEm)
-    password: ENC(uk6pKK+N5Pz3diuWAqZGQgjiVG5gQHcO)
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
 
 jasypt:
   encryptor:
