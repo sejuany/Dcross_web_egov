@@ -178,7 +178,7 @@ const OwnerPersonal = ({
 	
     return (
 	    <>
-			<div className="wa-self-registration-row" style={{ display: 'none' }}>
+			<div className="wa-self-registration-row">
 				<button
 					type="button"
 					className="wa-self-registration-btn"

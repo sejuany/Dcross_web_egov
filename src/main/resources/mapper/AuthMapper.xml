@@ -44,6 +44,9 @@
             MM.LOGIN_ID = #{userId}
             AND MM.USE_YN  = 'Y'
    			AND MD.USE_YN = 'Y'
+            <if test="restrictCompanyLogin">
+                AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos')
+            </if>
     </select>
 
     <!-- withAuth 검증 결과는 저장하지 않고 기존 회원 이름/휴대폰 번호와 대조한다. -->
@@ -55,6 +58,9 @@
             AND MM.LOGIN_ID = MD.MEMBER_ID
          WHERE MM.USE_YN = 'Y'
            AND MD.USE_YN = 'Y'
+           <if test="restrictCompanyLogin">
+               AND (MD.COMPANY_ID LIKE 'W%' OR MD.COMPANY_ID = 'dacos')
+           </if>
            AND TRIM(MD.MEMBER_NM) = TRIM(#{name})
            AND REPLACE(PKG_COMMON.FN_DECRYPT(MD.MPHONE_NO), '-', '') = #{phone}
     </select>

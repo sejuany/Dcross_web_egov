@@ -28,7 +28,9 @@ import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.apache.poi.ss.usermodel.Cell;
+import org.apache.poi.ss.usermodel.CellType;
 import org.apache.poi.ss.usermodel.DataFormatter;
+import org.apache.poi.ss.usermodel.DateUtil;
 import org.apache.poi.ss.usermodel.Row;
 import org.apache.poi.ss.usermodel.Sheet;
 import org.apache.poi.ss.usermodel.Workbook;
@@ -738,8 +740,7 @@ public class NewcarService {
 						headerRow, excelRow, formatter, -1, "Engine", "CAR_ENGINE", "엔진");
 				row.put("CAR_PACKAGE", carPackage);
 				row.put("ECO_YN", resolveExcelEcoYn(row.get("CAR_NM"), carPackage, engine));
-				row.put("REGIST_DATE", getCellValue(excelRow.getCell(7), formatter)
-														.replaceAll("[^0-9]", "")); // H: 차량등록예정일
+				row.put("REGIST_DATE", getDateCellValue(excelRow.getCell(7), formatter)); // H: 차량등록예정일
 				row.put("DIRECT_YN", getCellValue(excelRow.getCell(8), formatter)); // I: 차량 등록 방법
 				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter)); // J: SPACE 명
 				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter)); // K: 담당 Specialist
@@ -916,8 +917,7 @@ public class NewcarService {
 			Long buyAmt = parseSupplyAmountValue(row.get("BUY_AMT_TEXT"));
 			List<String> errors = new ArrayList<>();
 
-			boolean validLinkId = linkId.length() == 8;
-			if (!validLinkId) errors.add("주문번호가 없습니다.");
+			boolean validLinkId = linkId.length() == 8;if (!validLinkId) errors.add("주문번호가 없습니다.");
 			if (buyAmt == null) errors.add("공급가액이 0원입니다.");
 			if (!linkId.isEmpty() && !carIdNo.isEmpty()
 					&& !excelKeys.add(linkId + "\u0000" + carIdNo)) {
@@ -3243,6 +3243,19 @@ public class NewcarService {
         return value == null ? "" : value;
     }
    
+	private String getDateCellValue(Cell cell, DataFormatter formatter) {
+	if (cell == null) {
+		return "";
+	}
+
+	if (cell.getCellType() == CellType.NUMERIC && DateUtil.isCellDateFormatted(cell)) {
+		return cell.getLocalDateTimeCellValue()
+		.toLocalDate()
+		.format(DateTimeFormatter.BASIC_ISO_DATE); // yyyyMMdd
+	}
+
+	return formatter.formatCellValue(cell).trim().replaceAll("[^0-9]", "");
+	}
 }
 
 

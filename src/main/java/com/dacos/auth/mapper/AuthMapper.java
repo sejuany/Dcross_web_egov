@@ -20,11 +20,13 @@ public interface AuthMapper {
      * @param userId 로그인 아이디
      * @return 사용자 정보 DTO (없으면 null)
      */
-    UserDto findByUserId(@Param("userId") String userId);
+    UserDto findByUserId(@Param("userId") String userId,
+            @Param("restrictCompanyLogin") boolean restrictCompanyLogin);
 
     List<String> findLoginIdsByWithAuthIdentity(
             @Param("name") String name,
-            @Param("phone") String phone);
+            @Param("phone") String phone,
+            @Param("restrictCompanyLogin") boolean restrictCompanyLogin);
 
     /**
      * BCrypt로 재해시된 비밀번호를 DB에 업데이트 (단계적 전환 시 사용)

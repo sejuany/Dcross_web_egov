@@ -1,5 +1,7 @@
 package com.dacos.auth;
 
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -38,12 +40,27 @@ public class AuthService {
     private final AuthMapper authMapper;
     private final MortgageMapper mortMapper;
     private final CommonRepository common;
+
+    private final boolean isProd;
     private final BCryptPasswordEncoder bcryptEncoder = new BCryptPasswordEncoder(12);
 
     public AuthService(AuthMapper authMapper, MortgageMapper mortMapper, CommonRepository common) {
         this.authMapper = authMapper;
         this.mortMapper = mortMapper;
         this.common = common;
+        this.isProd = isProductionServer();
+    }
+
+    private boolean isProductionServer() {
+        try {
+            InetAddress ip = InetAddress.getLocalHost();
+            boolean isProd = ip.getHostAddress().startsWith("10.109.111.40");  // 웹이 동작할 서버는 10.109.111.40
+            logger.info("[AuthService] server IP: {}, company login restriction: {}", ip.getHostAddress(), isProd);
+            return isProd;
+        } catch (UnknownHostException e) {
+            logger.warn("[AuthService] failed to resolve server IP; company login restriction disabled", e);
+            return false;
+        }
     }
 
     public UserDto authenticate(LoginRequest request) {
@@ -69,7 +86,7 @@ public class AuthService {
             throw new BusinessException("아이디 또는 비밀번호가 올바르지 않습니다.", 401);
         }
 
-        UserDto user = authMapper.findByUserId(userId);
+        UserDto user = authMapper.findByUserId(userId, isProd);
 
         if (user == null) {
             logger.warn("[AuthService] user not found or disabled - userId: {}", userId);
@@ -187,7 +204,7 @@ public class AuthService {
     @Transactional
     public UserDto completeWithAuthLogin(String name, String phone, String loginIp) {
         String normalizedPhone = onlyDigits(phone);
-        List<String> loginIds = authMapper.findLoginIdsByWithAuthIdentity(name, normalizedPhone);
+        List<String> loginIds = authMapper.findLoginIdsByWithAuthIdentity(name, normalizedPhone, isProd);
 
         if (loginIds == null || loginIds.isEmpty()) {
             insertLoginLog(null, loginIp, "withAuth 회원정보 불일치", null);
@@ -199,7 +216,7 @@ public class AuthService {
         }
 
         String userId = loginIds.get(0);
-        UserDto user = authMapper.findByUserId(userId);
+        UserDto user = authMapper.findByUserId(userId, isProd);
         if (user == null) {
             throw new BusinessException("사용 가능한 계정이 없습니다.", 401);
         }
@@ -317,7 +334,7 @@ public class AuthService {
     public boolean verifyPassword(String loginId, String inputPassword) {
         logger.info("[AuthService] verify password - loginId: {}", loginId);
 
-        UserDto user = authMapper.findByUserId(loginId);
+        UserDto user = authMapper.findByUserId(loginId, isProd);
 
         if (user == null) {
             logger.warn("[AuthService] user not found - loginId: {}", loginId);
@@ -331,7 +348,7 @@ public class AuthService {
     public boolean changePassword(String loginId, String currentPassword, String newPassword) throws Exception {
         logger.info("[AuthService] change password attempt - loginId: {}", loginId);
 
-        UserDto user = authMapper.findByUserId(loginId);
+        UserDto user = authMapper.findByUserId(loginId, isProd);
 
         if (user == null) {
             logger.warn("[AuthService] user not found - loginId: {}", loginId);
