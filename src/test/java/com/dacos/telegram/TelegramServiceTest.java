@@ -23,7 +23,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 class TelegramServiceTest {
 
     private final TelegramService service = new TelegramService(
-            "123456:test_token", "-100123456", "-100999999", "-100888888");
+            "123456:test_token", "-100123456", "-100999999", "-100888888", null, null);
     private final MockRestServiceServer server = MockRestServiceServer.bindTo(
             (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate")).build();
 
@@ -63,7 +63,7 @@ class TelegramServiceTest {
                     () -> service.sendMessage(message, null, null, null)).getStatusCode());
         }
         assertEquals(503, assertThrows(BusinessException.class,
-                () -> new TelegramService("", "", "", "")
+                () -> new TelegramService("", "", "", "", null, null)
                         .sendMessage("테스트", null, null, null)).getStatusCode());
         server.verify();
     }
@@ -162,7 +162,7 @@ class TelegramServiceTest {
         assertEquals(400, assertThrows(BusinessException.class,
                 () -> service.sendMessage("테스트", null, null, "Unknown")).getStatusCode());
         assertEquals(503, assertThrows(BusinessException.class,
-                () -> new TelegramService("123456:test_token", "-100123456", "", "")
+                () -> new TelegramService("123456:test_token", "-100123456", "", "", null, null)
                         .sendMessage("테스트", null, null, "newcar")).getStatusCode());
         server.verify();
     }

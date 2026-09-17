@@ -4,8 +4,9 @@
 
 <mapper namespace="com.dacos.mortgageerase.mapper.MortgageEraseMapper">
 
-    <!-- 저당말소 목록 조회 -->
-    <select id="getMortgageEraseList" parameterType="com.dacos.mortgageerase.dto.MortgageEraseSearchRequest"
+    <!-- 레거시 mortgageDAO.selectMortList / selectCeMortList 이관 -->
+    <select id="getMortgageEraseList"
+            parameterType="com.dacos.mortgageerase.dto.MortgageEraseSearchRequest"
             resultType="java.util.Map">
         SELECT
             TS.SERVICE_ID,
@@ -13,45 +14,373 @@
             TS.CAR_NO,
             TS.COMPANY_ID,
             TC.COMPANY_NM,
+            TM.MORT_NM,
+            TM.PAY_NM,
+            DECODE(TS.GOVT_ID,
+                'HAMYA', '함양',
+                'CHANG', '창원',
+                'HAMAN', '함안',
+                'DAEGU', '대구') AS GOVT_ID2,
             TS.MEMBER_ID,
-            TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
-            TO_CHAR(TS.PROC_DT, 'YYYYMMDD')         AS PROC_DT,
+            TMD.MEMBER_NM,
+            TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+            <choose>
+                <when test="INCLUDE_CAR_INFO == 'Y'">
+                    TO_CHAR(TS.REQUEST_DT, 'MM-DD HH24:MI') AS REQUEST_DT2,
+                </when>
+                <otherwise>
+                    TO_CHAR(
+                        DECODE(TM.PAY_GB,
+                            'A', TS.REQUEST_DT,
+                            'B', DECODE(TS.PROC_ST,
+                                'REQ', TS.REQUEST_DT,
+                                'S_REQ', TM.PAY_DT)),
+                        'MM-DD HH24:MI') AS REQUEST_DT2,
+                </otherwise>
+            </choose>
+            TS.REQUEST_DT AS REQUEST_DT3,
+            TO_CHAR(TS.PROC_DT, 'YYYYMMDD') AS PROC_DT,
             TS.PROC_ST,
+            TS.EMER_YN,
+            TM.PAY_ST,
+            TM.BOND_AMT,
+            TM.TOTAL_AMT,
+            TM.VBANK_NO,
+            TM.DSIGN_GB,
+            TM.DSIGN_ST,
+            TS.JUDGE_ST,
+            TM.IDEN_ST,
+            TM.IDEN_DT,
+            TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') AS JUDGE_DT,
+            TM.PAY_TP,
+            TS.AUTO_YN,
             TS.GOVT_ID,
-            TMD.MEMBER_NM
-        FROM
-            TR_SERVICE     TS,
-            TM_COMPANY     TC,
-            TM_MEMBER_DT   TMD
-        WHERE
-            TS.COMPANY_ID = TC.COMPANY_ID
-            AND TS.MEMBER_ID = TMD.MEMBER_ID
-            AND TS.WORK_CD LIKE 'ERS%'
-            AND TS.REQUEST_DT BETWEEN
-                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
-                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+            TS.IMPO_YN,
+            TC.COMPANY_NO,
+            (SELECT MAX(TCI.CARID_NO)
+               FROM TR_CARINFO TCI
+              WHERE TCI.SERVICE_ID = TS.SERVICE_ID) AS CARID_NO,
+            (SELECT MAX(TCI.EULBU_NO)
+               FROM TR_CARINFO TCI
+              WHERE TCI.SERVICE_ID = TS.SERVICE_ID) AS EULBU_NO,
+            (SELECT TO_CHAR(MAX(TCI.MORTREG_DT), 'YYYYMMDD')
+               FROM TR_CARINFO TCI
+              WHERE TCI.SERVICE_ID = TS.SERVICE_ID) AS MORTREG_DT
+        FROM TR_MORTGAGE TM,
+             TR_SERVICE TS,
+             TM_COMPANY TC,
+             TM_MEMBER_DT TMD
+        WHERE TM.SERVICE_ID = TS.SERVICE_ID
+          AND TS.COMPANY_ID = TC.COMPANY_ID
+          AND TS.MEMBER_ID = TMD.MEMBER_ID
+          AND TC.COMPANY_ID = TMD.COMPANY_ID
+          AND TS.REQUEST_DT BETWEEN
+              TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+              AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+          AND TS.WORK_CD = #{WORK_CD}
 
         <if test="COMPANY_ID != null and COMPANY_ID != ''">
             AND TS.COMPANY_ID = #{COMPANY_ID}
         </if>
-        <if test="PROC_ST != null and PROC_ST != ''">
-            AND TS.PROC_ST = #{PROC_ST}
+        <if test="BRANCH_ID != null and BRANCH_ID != ''">
+            AND TS.BRANCH_ID = #{BRANCH_ID}
+        </if>
+        <if test="SANGSA_ID != null and SANGSA_ID != ''">
+            AND TS.SANGSA_ID = #{SANGSA_ID}
+        </if>
+        <choose>
+            <when test="PROC_ST != null and PROC_ST != ''">
+                AND TS.PROC_ST = #{PROC_ST}
+            </when>
+            <otherwise>
+                AND TS.PROC_ST &lt;&gt; 'DEL'
+                <if test="SANGSA_ID == null or SANGSA_ID == ''">
+                    AND TS.PROC_ST &lt;&gt; 'C_SAV'
+                </if>
+            </otherwise>
+        </choose>
+        <if test="JUDGE_ST != null and JUDGE_ST != ''">
+            <choose>
+                <when test="JUDGE_ST == 'ALL'">
+                    AND TS.JUDGE_ST IS NOT NULL
+                </when>
+                <otherwise>
+                    AND TS.JUDGE_ST = #{JUDGE_ST}
+                </otherwise>
+            </choose>
         </if>
         <if test="CAR_NO != null and CAR_NO != ''">
             AND TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'
         </if>
-        ORDER BY TS.REQUEST_DT DESC
+        <if test="USER_NM != null and USER_NM != ''">
+            AND TMD.MEMBER_NM LIKE '%' || #{USER_NM} || '%'
+        </if>
+        <if test="PAY_NM != null and PAY_NM != ''">
+            AND TM.PAY_NM LIKE '%' || #{PAY_NM} || '%'
+        </if>
+        <if test="MORT_NM != null and MORT_NM != ''">
+            AND TM.MORT_NM LIKE '%' || #{MORT_NM} || '%'
+        </if>
+        <if test="PAY_ST != null and PAY_ST != ''">
+            AND TM.PAY_ST = #{PAY_ST}
+        </if>
+        <if test="GOVT_ID != null and GOVT_ID != ''">
+            AND TS.GOVT_ID = #{GOVT_ID}
+        </if>
+        <if test="AUTO_YN != null and AUTO_YN != ''">
+            AND TS.AUTO_YN = #{AUTO_YN}
+        </if>
+        <if test="MEMBER_IDS == 'ham04'">
+            AND MOD(SUBSTR(TS.SERVICE_ID, -1), 2) = 0
+        </if>
+        <if test="MEMBER_IDS == 'ham05'">
+            AND MOD(SUBSTR(TS.SERVICE_ID, -1), 2) = 1
+        </if>
+        <if test="READ_YN != null and READ_YN != ''">
+            AND TS.READ_YN IS NULL
+        </if>
+        <if test="IMPO_YN != null and IMPO_YN != ''">
+            AND TS.IMPO_YN = #{IMPO_YN}
+        </if>
+
+        <choose>
+            <when test="INCLUDE_CAR_INFO == 'Y'">
+                ORDER BY TS.REQUEST_DT DESC
+            </when>
+            <when test="ORDERBY == 'ASC'">
+                ORDER BY TS.EMER_YN ASC, REQUEST_DT2 ASC
+            </when>
+            <otherwise>
+                ORDER BY TS.EMER_YN ASC, TS.REQUEST_DT DESC
+            </otherwise>
+        </choose>
     </select>
 
-    <!-- 저당말소 상세 조회 -->
     <select id="getMortgageEraseDetail" parameterType="string" resultType="java.util.Map">
-        SELECT *
-        FROM TR_SERVICE
+        SELECT TS.SERVICE_ID, TS.WORK_CD, TS.COMPANY_ID, TS.ASSOCIATION_ID, TS.GOVT_ID, TS.BRANCH_ID, TS.SANGSA_ID,
+               TS.MEMBER_ID,
+               (SELECT MAX(TMD.MEMBER_NM) FROM TM_MEMBER_DT TMD WHERE TMD.MEMBER_ID = TS.MEMBER_ID) MEMBER_NM,
+               TS.CAR_NO, TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') REQUEST_DT,
+               TO_CHAR(TS.PROC_DT, 'YYYYMMDD') PROC_DT, TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD') JUDGE_DT,
+               TS.PROC_ST, TS.JUDGE_ST, TS.RETURN_TX, TS.LINK_ID, TS.IMPO_YN, TS.READ_YN, TS.AUTO_YN
+        FROM TR_SERVICE TS
+        WHERE TS.SERVICE_ID = #{serviceId}
+    </select>
+
+    <select id="getMortgageEraseMortgage" parameterType="string" resultType="java.util.Map">
+        SELECT SERVICE_ID, WORK_CD, CAR_NO, WONBU_ST, COMPANY_ID, MORT_NM,
+               REG_GB, PKG_COMMON.FN_DECRYPT(REG_NO) REG_NO, BIZ_NO, BOND_AMT,
+               PAY_NM, PKG_COMMON.FN_DECRYPT(PAY_HP_NO) PAY_HP_NO, PAY_GB, PAY_ME,
+               PAY_ST, TO_CHAR(PAY_DT, 'YYYY/MM/DD HH24:MI:SS') PAY_DT,
+               VBANK_CD, VBANK_NO, T_VBANK_GB, T_VBANK_ID, TOTAL_AMT, PAY_TP
+        FROM TR_MORTGAGE
         WHERE SERVICE_ID = #{serviceId}
     </select>
 
-    <!-- 다건말소 목록 조회 -->
-    <select id="getMortgageEraseGroupList" parameterType="com.dacos.mortgageerase.dto.MortgageEraseSearchRequest"
+    <select id="getMortgageEraseCarInfo" parameterType="string" resultType="java.util.Map">
+        SELECT SERVICE_ID, WORK_CD, EULBU_NO, CARID_NO, CAR_NM, CAR_KD, CAR_US,
+               CAR_YY, CARREG_DT, MORT_CT, DIST_CT,
+               MORT_NM, TO_CHAR(MORTREG_DT, 'YYYYMMDD') MORTREG_DT
+        FROM TR_CARINFO
+        WHERE SERVICE_ID = #{serviceId}
+          AND ROWNUM = 1
+    </select>
+
+    <select id="getMortgageErasePayments" parameterType="string" resultType="java.util.Map">
+        SELECT SERVICE_ID, PAY_KD, PAY_AMT, PAY_OP, PAY_ST, VBANK_CD, VBANK_NO,
+               TO_CHAR(PAY_DT, 'YYYY/MM/DD HH24:MI:SS') PAY_DT, T_VBANK_GB, T_VBANK_ID
+        FROM TR_PAYMENT
+        WHERE SERVICE_ID = #{serviceId}
+        ORDER BY DECODE(PAY_KD, 'FEE', 1, 'REGIS', 2, 'STAMP', 3, 9)
+    </select>
+
+    <select id="getMortgageEraseCompany" parameterType="string" resultType="java.util.Map">
+        SELECT ASSOCIATION_ID, COMPANY_ID, BIZ_NO, COMPANY_NO, COMPANY_NM, CEO_NM,
+               POST_NO, ADDRESS, ADDRESS_DT, TEL_NO, MPHONE_NO, USE_YN
+        FROM TM_COMPANY
+        WHERE COMPANY_ID = #{companyId}
+          AND USE_YN = 'Y'
+    </select>
+
+    <select id="getMortgageEraseCompanyHistory" resultType="java.util.Map">
+        SELECT COMPANY_ID, BIZ_NO, COMPANY_NO, COMPANY_NM
+        FROM TM_COMPANY
+        WHERE USE_YN = 'Y'
+          AND ASSOCIATION_ID = #{associationId}
+          AND COMPANY_ID = #{companyId}
+        UNION ALL
+        SELECT COMPANY_ID, BIZ_NO, COMPANY_NO, COMPANY_NM
+        FROM TM_COMPANY_HIS
+        WHERE COMPANY_ID = #{companyId}
+    </select>
+
+    <select id="getMortgageEraseWorkCp" parameterType="string" resultType="java.util.Map">
+        SELECT WORK_CD, COMPANY_ID, GOVT_ID, PERM_GB, PAYMENT_GB, PAYMENT_OP,
+               PAYMENT_TP, PAYMENT_ME, FEE, USE_YN
+        FROM TM_WORK_CP
+        WHERE COMPANY_ID = #{companyId}
+          AND WORK_CD = '001'
+          AND USE_YN = 'Y'
+          AND ROWNUM = 1
+    </select>
+
+    <select id="getMortgageEraseTax" resultType="java.util.Map">
+        SELECT WORK_CD, STAMP_PER, STAMP_AMT, REGIST_PER, REGIST_AMT,
+               STAMP_BASE, REGIST_BASE
+        FROM TM_TAX
+        WHERE WORK_CD = '001'
+          AND SYSDATE BETWEEN START_DT AND END_DT
+          AND USE_YN = 'Y'
+          AND ROWNUM = 1
+    </select>
+
+    <select id="nextServiceSequence" resultType="string">
+        SELECT LPAD(SEQ_SERVICE_ID.NEXTVAL, 5, '0') FROM DUAL
+    </select>
+
+    <insert id="insertMortgageEraseService" parameterType="map">
+        INSERT INTO TR_SERVICE (
+            SERVICE_ID, WORK_CD, COMPANY_ID, ASSOCIATION_ID, GOVT_ID, MEMBER_ID,
+            CAR_NO, REQUEST_DT, PROC_ST, BRANCH_ID, SANGSA_ID, JUDGE_ST,
+            RETURN_TX, INS_USER, AUTO_YN, LINK_ID)
+        VALUES (
+            #{SERVICE_ID}, '001', #{COMPANY_ID}, #{ASSOCIATION_ID}, #{GOVT_ID}, #{MEMBER_ID},
+            #{CAR_NO}, SYSDATE, #{PROC_ST}, #{BRANCH_ID}, #{SANGSA_ID}, #{JUDGE_ST},
+            #{RETURN_TX}, #{MEMBER_ID}, #{AUTO_YN}, #{LINK_ID})
+    </insert>
+
+    <insert id="insertMortgageEraseMortgage" parameterType="map">
+        INSERT INTO TR_MORTGAGE (
+            SERVICE_ID, WORK_CD, CAR_NO, WONBU_ST, COMPANY_ID, MORT_NM,
+            REG_GB, REG_NO, BIZ_NO, BOND_AMT, PAY_NM, PAY_HP_NO,
+            PAY_ME, PAY_ST, PAY_DT, PAY_GB, VBANK_CD, VBANK_NO,
+            T_VBANK_GB, T_VBANK_ID, TOTAL_AMT, INS_USER, PAY_TP)
+        VALUES (
+            #{SERVICE_ID}, '001', #{CAR_NO}, #{WONBU_ST}, #{COMPANY_ID}, #{MORT_NM},
+            #{REG_GB}, PKG_COMMON.FN_ENCRYPT(#{REG_NO}), #{BIZ_NO}, NVL(#{BOND_AMT}, 0),
+            #{PAY_NM}, PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}), #{PAY_ME}, #{PAY_ST},
+            TO_DATE(#{PAY_DT}, 'YYYY/MM/DD HH24:MI:SS'), #{PAY_GB}, #{VBANK_CD}, #{VBANK_NO},
+            #{T_VBANK_GB}, #{T_VBANK_ID}, NVL(#{TOTAL_AMT}, 0), #{MEMBER_ID}, #{PAY_TP})
+    </insert>
+
+    <insert id="insertMortgageEraseCarInfo" parameterType="map">
+        INSERT INTO TR_CARINFO (
+            SERVICE_ID, WORK_CD, EULBU_NO, CARID_NO, CAR_NM, CAR_KD, CAR_US,
+            CAR_YY, CARREG_DT, MORT_CT, DIST_CT, MORT_NM, MORTREG_DT, PRE_CAR_NO, INS_USER)
+        VALUES (
+            #{SERVICE_ID}, '001', #{EULBU_NO}, #{CARID_NO}, #{CAR_NM}, #{CAR_KD}, #{CAR_US},
+            #{CAR_YY}, #{CARREG_DT}, #{MORT_CT}, #{DIST_CT}, #{MORT_NM},
+            TO_DATE(REPLACE(REPLACE(#{MORTREG_DT}, '-', ''), '/', ''), 'YYYYMMDD'),
+            DECODE(LENGTH(#{CAR_NO}), 17, #{CAR_NO}, NULL), #{MEMBER_ID})
+    </insert>
+
+    <insert id="insertMortgageErasePayment" parameterType="map">
+        INSERT INTO TR_PAYMENT (
+            SERVICE_ID, PAY_KD, PAY_AMT, PAY_OP, PAY_ST, VBANK_CD, VBANK_NO,
+            PAY_DT, T_VBANK_GB, T_VBANK_ID, INS_USER, PRE_PAY_AMT)
+        VALUES (
+            #{SERVICE_ID}, #{PAY_KD}, NVL(#{PAY_AMT}, 0), #{PAY_OP}, #{PAY_ST},
+            #{VBANK_CD}, #{VBANK_NO}, TO_DATE(#{PAY_DT}, 'YYYY/MM/DD HH24:MI:SS'),
+            #{T_VBANK_GB}, #{T_VBANK_ID}, #{MEMBER_ID}, NVL(#{PAY_AMT}, 0))
+    </insert>
+
+    <update id="updateMortgageEraseService" parameterType="map">
+        UPDATE TR_SERVICE
+        <set>
+            <if test="CAR_NO != null">CAR_NO = #{CAR_NO},</if>
+            <if test="PROC_ST != null and PROC_ST != ''">PROC_ST = #{PROC_ST},</if>
+            <if test="JUDGE_ST != null">JUDGE_ST = #{JUDGE_ST},</if>
+            <if test="RETURN_TX != null">RETURN_TX = #{RETURN_TX},</if>
+            <if test="MEMBER_ID != null and MEMBER_ID != ''">UPD_USER = #{MEMBER_ID},</if>
+            UPD_DATE = SYSDATE
+        </set>
+        WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <update id="updateMortgageEraseMortgage" parameterType="map">
+        UPDATE TR_MORTGAGE
+        SET CAR_NO = #{CAR_NO}, WONBU_ST = #{WONBU_ST}, MORT_NM = #{MORT_NM},
+            REG_GB = #{REG_GB}, REG_NO = PKG_COMMON.FN_ENCRYPT(#{REG_NO}), BIZ_NO = #{BIZ_NO},
+            BOND_AMT = NVL(#{BOND_AMT}, 0), PAY_NM = #{PAY_NM},
+            PAY_HP_NO = PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}), PAY_GB = #{PAY_GB},
+            PAY_ME = #{PAY_ME}, PAY_ST = #{PAY_ST}, VBANK_CD = #{VBANK_CD},
+            VBANK_NO = #{VBANK_NO}, TOTAL_AMT = NVL(#{TOTAL_AMT}, 0),
+            PAY_TP = #{PAY_TP}, UPD_USER = #{MEMBER_ID}, UPD_DATE = SYSDATE
+        WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <update id="updateMortgageEraseSmsInfo" parameterType="map">
+        UPDATE TR_MORTGAGE
+        SET PAY_NM = #{PAY_NM},
+            PAY_HP_NO = PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}),
+            UPD_USER = #{MEMBER_ID},
+            UPD_DATE = SYSDATE
+        WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <update id="updateMortgageEraseCarInfo" parameterType="map">
+        UPDATE TR_CARINFO
+        SET EULBU_NO = #{EULBU_NO}, CARID_NO = #{CARID_NO}, CAR_NM = #{CAR_NM},
+            CAR_KD = #{CAR_KD}, CAR_US = #{CAR_US}, CAR_YY = #{CAR_YY},
+            CARREG_DT = #{CARREG_DT}, MORT_CT = #{MORT_CT}, DIST_CT = #{DIST_CT},
+            MORT_NM = #{MORT_NM},
+            MORTREG_DT = TO_DATE(REPLACE(REPLACE(#{MORTREG_DT}, '-', ''), '/', ''), 'YYYYMMDD'),
+            UPD_USER = #{MEMBER_ID},
+            UPD_DATE = SYSDATE
+        WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <delete id="deleteMortgageErasePayments" parameterType="string">
+        DELETE FROM TR_PAYMENT WHERE SERVICE_ID = #{serviceId}
+    </delete>
+
+    <select id="processMortgageEraseVBank" statementType="CALLABLE" parameterType="map">
+        { call Pkg_VbankNo.sp_Insert_WCMS_GW_TR(
+            #{pInput, mode=IN, jdbcType=VARCHAR},
+            #{pReturn, mode=OUT, jdbcType=VARCHAR}) }
+    </select>
+
+    <select id="getMortgageEraseReceipts" parameterType="map" resultType="java.util.Map">
+        SELECT TS.SERVICE_ID, TS.CAR_NO, TC.CODE_NM PROC_ST, TCM.CODE_NM PAY_ME,
+               TCG.CODE_NM GOVT_NM, TCB.CODE_NM BANK_NM, TM.VBANK_NO, TM.TOTAL_AMT,
+               TO_CHAR(TS.REQUEST_DT, 'YYYY/MM/DD HH24:MI:SS') REQUEST_DT,
+               TO_CHAR(TS.PROC_DT, 'YYYY/MM/DD HH24:MI:SS') PROC_DT,
+               TO_CHAR(TM.PAY_DT, 'YYYY/MM/DD HH24:MI:SS') PAY_DT,
+               TP_REGIS.PAY_AMT REGIS_AMT, TP_REGIS.VBANK_NO REGIS_NO,
+               TP_FEE.PAY_AMT FEE_AMT, TP_STAMP.PAY_AMT STAMP_AMT
+        FROM TR_SERVICE TS
+        JOIN TR_MORTGAGE TM ON TS.SERVICE_ID = TM.SERVICE_ID
+        LEFT JOIN (SELECT DISTINCT CODE_ID, CODE_NM FROM TM_CODE WHERE GROUP_ID = 'PR_ST') TC
+               ON TS.PROC_ST = TC.CODE_ID
+        LEFT JOIN (SELECT DISTINCT CODE_ID, CODE_NM FROM TM_CODE WHERE GROUP_ID = 'PAYME') TCM
+               ON TM.PAY_ME = TCM.CODE_ID
+        LEFT JOIN (SELECT DISTINCT CODE_ID, CODE_NM FROM TM_CODE WHERE GROUP_ID = 'GOVT') TCG
+               ON TS.GOVT_ID = TCG.CODE_ID
+        LEFT JOIN (SELECT DISTINCT CODE_ID, CODE_NM FROM TM_CODE WHERE GROUP_ID = 'BANK') TCB
+               ON TM.VBANK_CD = TCB.CODE_ID
+        LEFT JOIN TR_PAYMENT TP_FEE ON TS.SERVICE_ID = TP_FEE.SERVICE_ID AND TP_FEE.PAY_KD = 'FEE'
+        LEFT JOIN TR_PAYMENT TP_REGIS ON TS.SERVICE_ID = TP_REGIS.SERVICE_ID AND TP_REGIS.PAY_KD = 'REGIS'
+        LEFT JOIN TR_PAYMENT TP_STAMP ON TS.SERVICE_ID = TP_STAMP.SERVICE_ID AND TP_STAMP.PAY_KD = 'STAMP'
+        WHERE TS.WORK_CD = '001'
+          AND TS.CAR_NO IN
+          <foreach collection="carNos" item="carNo" open="(" separator="," close=")">
+              #{carNo}
+          </foreach>
+          AND
+          <choose>
+              <when test="DAY_GB == 'TS.PROC_DT'">TS.PROC_DT</when>
+              <when test="DAY_GB == 'TM.PAY_DT'">TM.PAY_DT</when>
+              <otherwise>TS.REQUEST_DT</otherwise>
+          </choose>
+          BETWEEN TO_DATE(#{START_DT} || '000000', 'YYYYMMDDHH24MISS')
+              AND TO_DATE(#{END_DT} || '235959', 'YYYYMMDDHH24MISS')
+          AND TS.PROC_ST NOT IN ('DEL', 'RET')
+          AND TM.PAY_ST = 'Y'
+        ORDER BY TS.REQUEST_DT DESC
+    </select>
+
+    <select id="getMortgageEraseGroupList"
+            parameterType="com.dacos.mortgageerase.dto.MortgageEraseSearchRequest"
             resultType="java.util.Map">
         SELECT
             TS.SERVICE_ID,
@@ -61,27 +390,40 @@
             TC.COMPANY_NM,
             TO_CHAR(TS.REQUEST_DT, 'MM.DD HH24:MI') AS REQUEST_DT,
             TS.PROC_ST
-        FROM
-            TR_SERVICE  TS,
-            TM_COMPANY  TC
-        WHERE
-            TS.COMPANY_ID = TC.COMPANY_ID
-            AND TS.WORK_CD = 'ERSGRP'
-            AND TS.REQUEST_DT BETWEEN
-                TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
-                AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
+        FROM TR_SERVICE TS,
+             TM_COMPANY TC
+        WHERE TS.COMPANY_ID = TC.COMPANY_ID
+          AND TS.WORK_CD = 'ERSGRP'
+          AND TS.REQUEST_DT BETWEEN
+              TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
+              AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
         ORDER BY TS.REQUEST_DT DESC
     </select>
-	
-		
-	<select id="selectTrService" parameterType="map" resultType="map">
-	    SELECT 
-	        SERVICE_ID, WORK_CD, COMPANY_ID, ASSOCIATION_ID, GOVT_ID, BRANCH_ID, SANGSA_ID,
-	        MEMBER_ID, CAR_NO, TO_CHAR(REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
-	        PROC_DT, TO_CHAR(JUDGE_DT, 'YYYYMMDD') AS JUDGE_DT, PROC_ST,
-	        JUDGE_ST, RETURN_TX, INS_USER,
-	        INS_DATE, UPD_USER, UPD_DATE, LINK_ID, IMPO_YN, READ_YN, AUTO_YN
-	    FROM TR_SERVICE
-	    WHERE SERVICE_ID = #{SERVICE_ID}
-	</select>
+
+    <select id="selectTrService" parameterType="map" resultType="map">
+        SELECT
+            SERVICE_ID, WORK_CD, COMPANY_ID, ASSOCIATION_ID, GOVT_ID, BRANCH_ID, SANGSA_ID,
+            MEMBER_ID, CAR_NO, TO_CHAR(REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT,
+            PROC_DT, TO_CHAR(JUDGE_DT, 'YYYYMMDD') AS JUDGE_DT, PROC_ST,
+            JUDGE_ST, RETURN_TX, INS_USER, INS_DATE, UPD_USER, UPD_DATE,
+            LINK_ID, IMPO_YN, READ_YN, AUTO_YN
+        FROM TR_SERVICE
+        WHERE SERVICE_ID = #{SERVICE_ID}
+    </select>
+
+    <select id="getManualTarget" parameterType="string" resultType="java.util.Map">
+        SELECT SERVICE_ID, GOVT_ID, AUTO_YN
+        FROM TR_SERVICE
+        WHERE SERVICE_ID = #{serviceId}
+    </select>
+
+    <update id="updateManualProcessing" parameterType="map">
+        UPDATE TR_SERVICE
+           SET AUTO_YN = 'N',
+               ERROR_MSG = '관청 강제수동처리',
+               UPD_DATE = SYSDATE,
+               UPD_USER = #{UPD_USER}
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND GOVT_ID = 'HAMYA'
+    </update>
 </mapper>

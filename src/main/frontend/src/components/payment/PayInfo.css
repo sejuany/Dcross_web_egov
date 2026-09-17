@@ -79,6 +79,13 @@
     margin: 0 4px;
 }
 
+.payable-total {
+    margin-left: 16px;
+    font-size: 13px;
+    font-weight: bold;
+    color: #ffe08a;
+}
+
 /* Button variants */
 .btn-status {
     height: 24px;

@@ -2,6 +2,7 @@ package com.dacos.payment;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,9 +26,59 @@ public class PaymentService {
         this.paymentMapper = paymentMapper;
     }
 
-    public List<Map<String, Object>> getPayInfoList(PaymentSearchRequest request) {
+    /** 롯데캐피탈 등 KB 계열 회사 코드 - 일반직원이어도 본인 신청 건 제한(MEMBER_ID)을 걸지 않음 (레거시 PayInfo.js 그리드 포맷 분기 187행) */
+    private static final Set<String> PAYINFO_MEMBER_ID_EXEMPT_COMPANY_IDS =
+            Set.of("CB007", "CB107", "CB907", "CB207");
+
+    public List<Map<String, Object>> getPayInfoList(PaymentSearchRequest request, UserDto user) {
         logger.info("[PaymentService] 납부현황 조회");
+        applyPayInfoAccessScope(request, user);
         return paymentMapper.getPayInfoList(request);
+    }
+
+    /**
+     * 레거시 PayInfo.js(100~172행)의 조회조건 분기를 그대로 이식.
+     * 최고관리자(U*)/관청(GU)는 화면에서 선택한 회사 조건을 그대로 신뢰하고,
+     * 회사관리자(CA/CU/MA)와 오복사(R*)는 자기 회사 전체를, 일반직원은 본인 신청 건(MEMBER_ID)만 보도록 제한한다.
+     * RC001(스타오토)의 업무구분별 동적 회사 필터(IN_xxx_COMPANY_ID)는 별도 후속 작업 필요 - 우선 전체 회사 조건 없이 처리.
+     */
+    private void applyPayInfoAccessScope(PaymentSearchRequest request, UserDto user) {
+        String memberGb = upper(user.getMEMBER_GB());
+        String companyId = trim(user.getCOMPANY_ID());
+        boolean dacosUser = memberGb.startsWith("U") || "GU".equals(memberGb);
+        boolean companyAdmin = "CA".equals(memberGb) || "CU".equals(memberGb) || "MA".equals(memberGb);
+
+        if (dacosUser) {
+            request.setMEMBER_ID("");
+            request.setBRANCH_ID("");
+            request.setSANGSA_ID("");
+        } else if (companyAdmin) {
+            request.setCOMPANY_ID(companyId);
+            request.setMEMBER_ID("");
+        } else if ("RC001".equals(companyId)) {
+            request.setCOMPANY_ID("");
+            request.setMEMBER_ID("");
+        } else if (companyId.startsWith("R")) {
+            request.setCOMPANY_ID(companyId);
+            request.setMEMBER_ID("");
+        } else {
+            request.setCOMPANY_ID(companyId);
+            request.setBRANCH_ID(trim(user.getBRANCH_ID()));
+            request.setSANGSA_ID(trim(user.getSANGSA_ID()));
+            request.setMEMBER_ID(PAYINFO_MEMBER_ID_EXEMPT_COMPANY_IDS.contains(companyId) ? "" : trim(user.getLOGIN_ID()));
+        }
+    }
+
+    private String upper(String value) {
+        return trim(value).toUpperCase();
+    }
+
+    private String trim(String value) {
+        return value == null ? "" : value.trim();
+    }
+
+    public List<Map<String, Object>> getEPayInfoList(PaymentSearchRequest request) {
+        return paymentMapper.getEPayInfoList(request);
     }
 
     public List<Map<String, Object>> getWaPayInfoList(PaymentSearchRequest request, UserDto user) {

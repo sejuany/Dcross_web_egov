@@ -38,13 +38,20 @@ public class PaymentController {
 
     /** 납부현황 조회 - POST /api/payment/list */
     @PostMapping("/payment/list")
-    public ResponseEntity<Map<String, Object>> getPayInfoList(@RequestBody PaymentSearchRequest request) {
+    public ResponseEntity<Map<String, Object>> getPayInfoList(@RequestBody PaymentSearchRequest request, HttpSession session) {
         logger.info("[PaymentController] 납부현황 조회 요청");
-        List<Map<String, Object>> list = paymentService.getPayInfoList(request);
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = paymentService.getPayInfoList(request, user);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
     /** WA 납부현황 조회 - POST /api/payment/wa-list */
+    @PostMapping("/payment/epay/list")
+    public ResponseEntity<Map<String, Object>> getEPayInfoList(@RequestBody PaymentSearchRequest request) {
+        List<Map<String, Object>> list = paymentService.getEPayInfoList(request);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
     @PostMapping("/payment/wa-list")
     public ResponseEntity<Map<String, Object>> getWaPayInfoList(@RequestBody PaymentSearchRequest request, HttpSession session) {
         logger.info("[PaymentController] WA 납부현황 조회 요청");

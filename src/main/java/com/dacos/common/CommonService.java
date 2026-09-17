@@ -558,8 +558,15 @@ public class CommonService {
 					}
                     
 					logger.info("[LINK] 응답 수신 시작");
+
+					int responseCode = httpCon.getResponseCode();
+					logger.info("[LINK] HTTP 응답 코드 : {}", responseCode);
+					InputStream responseStream = getResponseStream(httpCon);
+					if (responseStream == null) {
+						throw new IOException("관청 서버 응답 본문이 없습니다. HTTP " + responseCode);
+					}
 					
-	                try (BufferedReader reader = new BufferedReader(new InputStreamReader(httpCon.getInputStream(), StandardCharsets.UTF_8))) 
+	                try (BufferedReader reader = new BufferedReader(new InputStreamReader(responseStream, StandardCharsets.UTF_8))) 
 	                {
 	                    StringBuilder buffer = new StringBuilder();
 
@@ -601,8 +608,8 @@ public class CommonService {
             logger.debug("타임아웃 에러 : " + e.toString());
             sReturnCode = "-2";
             sReturnMsg = "";
-        } catch(Exception e) {
-            logger.debug("통신 에러 : " + e.toString());
+	        } catch(Exception e) {
+	            logger.error("통신 에러", e);
             sReturnCode = "-1";
             sReturnMsg = "국토부 자동차 원부 연계 시스템 점검중";
         }

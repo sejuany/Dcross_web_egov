@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.OutputStream;
+import java.net.URI;
 import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -130,7 +131,7 @@ public class NewcarService {
     }
 
 	@Transactional
-	public int sendSelfRegistrationSms(Map<String, Object> param) {
+	public Map<String, Object> sendSelfRegistrationSms(Map<String, Object> param) {
 		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 		if (serviceId.isBlank()) throw new BusinessException("서비스 ID가 필요합니다.");
 
@@ -148,7 +149,15 @@ public class NewcarService {
 		if (result < 1 || newcarMapper.updateSelfYn(serviceId) != 1) {
 			throw new BusinessException("셀프등록 문자 발송 처리에 실패했습니다.");
 		}
-		return result;
+		Map<String, Object> response = new HashMap<>();
+		response.put("result", result);
+		if (isDevelopmentLink(url)) response.put("testUrl", url);
+		return response;
+	}
+
+	static boolean isDevelopmentLink(String url) {
+		String host = URI.create(url).getHost();
+		return Set.of("localhost", "127.0.0.1", "tnc.dcross.kr").contains(host);
 	}
 
 	/**

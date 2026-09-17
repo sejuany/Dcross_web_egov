@@ -5,6 +5,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
 import org.apache.ibatis.executor.Executor;
 import org.apache.ibatis.mapping.MappedStatement;
+import org.apache.ibatis.mapping.BoundSql;
 import org.apache.ibatis.mapping.SqlCommandType;
 import org.apache.ibatis.plugin.Interceptor;
 import org.apache.ibatis.plugin.Intercepts;
@@ -23,11 +24,16 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
 import java.util.Collection;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Properties;
 import java.util.StringJoiner;
 import java.util.function.Supplier;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Component
 @Intercepts({
@@ -58,6 +64,11 @@ public class SearchLogInterceptor implements Interceptor {
 
     private static final Logger logger = LoggerFactory.getLogger(SearchLogInterceptor.class);
     private static final int CONDITION_MAX_LENGTH = 1000;
+    // Consume comments and Oracle string literals before looking at SQL identifiers.
+    private static final Pattern SQL_TOKEN = Pattern.compile(
+            "--[^\\r\\n]*|/\\*[\\s\\S]*?\\*/"
+            + "|(?i:q)'(?:\\[[\\s\\S]*?\\]'|\\{[\\s\\S]*?\\}'|\\([\\s\\S]*?\\)'|<[\\s\\S]*?>'|([^\\s])[\\s\\S]*?\\1')"
+            + "|'(?:''|[^'])*'|\"(?:\"\"|[^\"])*\"|[\\p{L}_][\\p{L}\\p{N}_$#]*|[^\\s]");
     private static final String WA_PRIVACY_EXCEL_QUERY_ID =
             "com.dacos.newcar.mapper.NewcarMapper.getWaPrivacyExcelInfoList";
     private static final ThreadLocal<Integer> AUTO_LOG_SUPPRESS_DEPTH =
@@ -75,7 +86,12 @@ public class SearchLogInterceptor implements Interceptor {
 
         if (!isAutoLogSuppressed() && isSearchTarget(statement)) {
             Object parameter = invocation.getArgs()[1];
-            insertSearchLog(statement.getId(), parameter);
+            BoundSql boundSql = invocation.getArgs().length == 6
+                    ? (BoundSql) invocation.getArgs()[5]
+                    : statement.getBoundSql(parameter);
+            if (referencesTrService(boundSql.getSql())) {
+                insertSearchLog(statement.getId(), parameter);
+            }
         }
 
         return invocation.proceed();
@@ -83,6 +99,54 @@ public class SearchLogInterceptor implements Interceptor {
 
     private boolean isAutoLogSuppressed() {
         return AUTO_LOG_SUPPRESS_DEPTH.get() > 0;
+    }
+
+    static boolean referencesTrService(String sql) {
+        if (sql == null || sql.isBlank()) return false;
+        List<String> tokens = new ArrayList<>();
+        Matcher matcher = SQL_TOKEN.matcher(sql);
+        while (matcher.find()) {
+            String token = matcher.group();
+            if (token.startsWith("--") || token.startsWith("/*")
+                    || token.startsWith("'") || token.matches("(?is)q'.*")) continue;
+            tokens.add(token);
+        }
+
+        // Each parenthesis starts its own FROM context (subquery or expression).
+        List<Boolean> fromContexts = new ArrayList<>();
+        fromContexts.add(false);
+        boolean expectTable = false;
+        for (int i = 0; i < tokens.size(); i++) {
+            String token = tokens.get(i);
+            String keyword = token.toUpperCase(Locale.ROOT);
+            int depth = fromContexts.size() - 1;
+            if ("(".equals(token)) {
+                fromContexts.add(false);
+                expectTable = false;
+            } else if (")".equals(token)) {
+                if (depth > 0) fromContexts.remove(depth);
+                expectTable = false;
+            } else if ("FROM".equals(keyword) || "JOIN".equals(keyword)) {
+                fromContexts.set(depth, true);
+                expectTable = true;
+            } else if (List.of("WHERE", "GROUP", "ORDER", "HAVING", "CONNECT", "START",
+                    "UNION", "INTERSECT", "MINUS", "FETCH", "OFFSET", "SELECT").contains(keyword)) {
+                fromContexts.set(depth, false);
+                expectTable = false;
+            } else if (",".equals(token) && fromContexts.get(depth)) {
+                expectTable = true;
+            } else if (expectTable) {
+                // Match the final identifier in SCHEMA.TABLE, including quoted identifiers.
+                while (i + 2 < tokens.size() && ".".equals(tokens.get(i + 1))) {
+                    token = tokens.get(i + 2);
+                    i += 2;
+                }
+                if ("TR_SERVICE".equalsIgnoreCase(token)
+                        || "\"TR_SERVICE\"".equals(token)) return true;
+                expectTable = false;
+            }
+        }
+        return false;
     }
 
     /**

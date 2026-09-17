@@ -41,4 +41,4 @@ with-auth:
   encrypt-iv: ${WITHAUTH_ENCRYPT_IV:}
 
 self-newcar:
-  url: http://tnc.dcross.kr
+  url: http://tnc.dcross.kr:8090

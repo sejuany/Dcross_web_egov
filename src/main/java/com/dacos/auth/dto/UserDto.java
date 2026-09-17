@@ -1,12 +1,16 @@
 package com.dacos.auth.dto;
 
+import java.io.Serializable;
+
 import lombok.Data;
 
 /**
  * 사용자 정보 DTO (DB 조회 결과)
  */
 @Data
-public class UserDto {
+public class UserDto implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private String LOGIN_ID;
     private String PASS_WD;
     private String LOGIN_GB;

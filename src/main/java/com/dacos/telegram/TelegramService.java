@@ -21,18 +21,25 @@ public class TelegramService {
 
     private final String botToken;
     private final String chatId;
-    private final String newcarChatId;
+    private final String newcarSelfChatId;
     private final String newcarDealerServiceChatId;
+    private final String dacosDevChatId;
+    private final String trnsChatId;
     private final RestTemplate restTemplate;
 
     public TelegramService(@Value("${BOT_TOKEN:}") String botToken,
             @Value("${CHAT_ID:}") String chatId,
-            @Value("${NEWCAR_CHAT_ID:}") String newcarChatId,
-            @Value("${NEWCAR_DEALER_SERVICE_CHAT_ID:}") String newcarDealerServiceChatId) {
+            @Value("${NEWCAR_SELF_CHAT_ID:}") String newcarSelfChatId,
+            @Value("${NEWCAR_DEALER_SERVICE_CHAT_ID:}") String newcarDealerServiceChatId,
+            @Value("${DACOS_DEV:}") String dacosDevChatId,
+            @Value("${TRNS_CHAT_ID:}") String trnsChatId
+        ) {
         this.botToken = botToken;
         this.chatId = chatId;
-        this.newcarChatId = newcarChatId;
+        this.newcarSelfChatId = newcarSelfChatId;
         this.newcarDealerServiceChatId = newcarDealerServiceChatId;
+        this.dacosDevChatId = dacosDevChatId;
+        this.trnsChatId = trnsChatId;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10_000);
         factory.setReadTimeout(20_000);
@@ -98,11 +105,21 @@ public class TelegramService {
         if (channel == null || channel.isBlank()) {
             return chatId;
         }
-        if ("newcar".equals(channel)) {
-            return newcarChatId;
+        if ("newcarself".equals(channel)) {
+            // 신규셀프이전방
+            return newcarSelfChatId;
         }
         if ("newcardealerservice".equals(channel)) {
+            // 신규딜러서비스방
             return newcarDealerServiceChatId;
+        }
+        if ("dacosdev".equals(channel)) {
+            // 응암식도락방
+            return dacosDevChatId;
+        }
+        if ("trns".equals(channel)) {
+            // 이전등록방
+            return trnsChatId;
         }
         throw new BusinessException("지원하지 않는 channel입니다.");
     }

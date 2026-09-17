@@ -104,11 +104,15 @@ const buildAuthorizedMenuConfig = (rawMenuList) => {
 		    })
 
 		    .map((child) => {
+		        const isManualMortgageRequest = child.title === '말소수동신청'
+		            || child.fileName.toLowerCase().includes('mortersrequestv22');
 		        return {
 		            id: child.webId || child.id,
 		            menuId: child.id,
 		            title: child.title,
-		            path: child.webPath,
+		            path: isManualMortgageRequest
+		                ? '/mortgageerase/mort-ers-m-request'
+		                : child.webPath,
 		            raw: child,
 		        };
 		    });

@@ -159,14 +159,15 @@ const OwnerPersonal = ({
 			if (!saved) return;
 
 			// 문자 큐 등록 성공 후 백엔드가 같은 트랜잭션에서 SELF_YN을 N으로 저장한다.
-			await axios.post('/api/newcar/self-registration/sms', {
+			const response = await axios.post('/api/newcar/self-registration/sms', {
 				SERVICE_ID: dsService.SERVICE_ID,
 				PAY_HP_NO: phone,
 				DEALER_NAME: dsCompanyInfo?.COMPANY_NM || '',
 				CARID_NO: dsNewCar.CARID_NO || ''
 			});
 			setShowSelfSms(false);
-			gf.alert('문자 전송 완료', '셀프등록');
+			if (response.data?.testUrl) window.prompt('개발용 셀프등록 URL입니다. 복사해서 사용하세요.', response.data.testUrl);
+			else gf.alert('문자 전송 완료', '셀프등록');
 		} catch (error) {
 			console.error(error);
 			alert('[문자 전송] 처리 중 오류가 발생했습니다.');
@@ -378,6 +379,7 @@ const OwnerPersonal = ({
 			        />
 			    </div>
 			)}
+			
 
 			{showSelfSms && (
 				<div className="wa-sms-modal-backdrop">

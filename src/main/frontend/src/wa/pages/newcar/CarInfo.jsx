@@ -41,6 +41,8 @@ const CarInfo = ({
 	const assignCdRef = useRef('');
 	const [numplateDisabled, setNumplateDisabled] = useState(false); 
 
+	const [isPostNumplate, setIsPostNumplate] = useState(false);
+
 	/*
 	 * 고객 선택 결과 자동 반영:
 	 * - SP 계정이며 활성 문자 토큰이 있고 아직 차량번호가 없는 동안만 동작한다.
@@ -49,6 +51,7 @@ const CarInfo = ({
 	 * - 만료/정리된 토큰은 화면 state에서도 제거해 폴링을 종료한다.
 	 */
 	useEffect(() => {
+		
 		if (dsUserInfo.MEMBER_GB !== 'SU' || !dsService.SERVICE_ID
 				|| !dsCarNoDetach.NUMPLATE_MSG_TOKEN || dsNewCar.REQ_CAR_NO) return;
 		let stopped = false;
@@ -88,6 +91,17 @@ const CarInfo = ({
 	}, [dsCarNoDetach.NUMPLATE_MSG_TOKEN, dsNewCar.REQ_CAR_NO, dsService.SERVICE_ID,
 		dsUserInfo.MEMBER_GB, setDsCarNoDetach, setDsNewCar]);
 	
+	useEffect(() => {
+	    const checkPostNumplate = async () => {
+	        const result = await gf.isPostNumplateCompany(dsUserInfo.COMPANY_ID);
+	        setIsPostNumplate(result);
+	    };
+
+	    if (dsUserInfo.COMPANY_ID) {
+	        checkPostNumplate();
+	    }
+	}, [dsUserInfo.COMPANY_ID]);
+
 	// ASSIGN_CD 세팅
 	useEffect(() => {
 
@@ -262,7 +276,7 @@ const CarInfo = ({
         <>
 			<div className="simple-content">
 				{/* 법인 번호판 */}
-				{isCorpNumplate &&(
+				{!isPostNumplate && isCorpNumplate && (
 					<div className="wa-form-row">
 					    <label className="wa-form-label">
 					        번호판 종류
@@ -282,7 +296,7 @@ const CarInfo = ({
 				)}
 				
 				{/* 하이브리드 번호판(폴스타 제외) */}
-				{isHybrid &&(
+				{!isPostNumplate && isHybrid && (
 					<div className="wa-form-row">
 					    <label className="wa-form-label">
 					        번호판 종류
@@ -322,36 +336,38 @@ const CarInfo = ({
 				*/}
 
 				{/* 번호 선택 */}
-				<div className="wa-form-row">
-				    <label className="wa-form-label">
-				        번호 선택
-				    </label>
+				{!isPostNumplate && (
+					<div className="wa-form-row">
+					    <label className="wa-form-label">
+					        번호 선택
+					    </label>
 
-				    <div className="wa-form-control">
-				        <div className="wa-inline-group">
-							<input
-							    className="wa-input"
-							    autoComplete="off"
-							    name="REQ_CAR_NO"
-							    value={dsNewCar.REQ_CAR_NO ?? ''}
-							    data-type="newcar"
-							    onChange={handleChange}
-							    style={{ width: '110px' }}
-							    readOnly
-							/>
+					    <div className="wa-form-control">
+					        <div className="wa-inline-group">
+								<input
+								    className="wa-input"
+								    autoComplete="off"
+								    name="REQ_CAR_NO"
+								    value={dsNewCar.REQ_CAR_NO ?? ''}
+								    data-type="newcar"
+								    onChange={handleChange}
+								    style={{ width: '110px' }}
+								    readOnly
+								/>
 
-				            <button
-				                type="button"
-				                className="wa-number-btn"
-								onClick={handleOpenModal}
-								disabled={numplateDisabled}
-				            >
-								<CircleCheck size={18} /> 
-				                번호 선택
-				            </button>
-				        </div>
-				    </div>
-				</div>
+					            <button
+					                type="button"
+					                className="wa-number-btn"
+									onClick={handleOpenModal}
+									disabled={numplateDisabled}
+					            >
+									<CircleCheck size={18} /> 
+					                번호 선택
+					            </button>
+					        </div>
+					    </div>
+					</div>
+				)}
 				
 				{/* 번호판 배송지 직접입력 
 				{isDirectDelivery && (

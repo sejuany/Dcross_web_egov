@@ -5,6 +5,7 @@ import Layout from '../components/layout/Layout';
 
 // 저당말소 components
 import MortErsRequest from '../components/mortgageerase/MortErsRequest';
+import MortErsMRequest from '../components/mortgageerase/MortErsMRequest';
 import MortErsList from '../components/mortgageerase/MortErsList';
 import MortErsGroupRequest from '../components/mortgageerase/MortErsGroupRequest';
 
@@ -18,6 +19,7 @@ import CeMortErsGroupRequest from '../components/constructequip/CeMortErsGroupRe
 const EraseAndEquipRoutes = [
   // 저당말소
   <Route key="mort-ers-req" path="/mortgageerase/mort-ers-request" element={<ProtectedRoute><Layout><MortErsRequest /></Layout></ProtectedRoute>} />,
+  <Route key="mort-ers-m-req" path="/mortgageerase/mort-ers-m-request" element={<ProtectedRoute><Layout><MortErsMRequest /></Layout></ProtectedRoute>} />,
   <Route key="mort-ers-list" path="/mortgageerase/mort-ers-list" element={<ProtectedRoute><Layout><MortErsList /></Layout></ProtectedRoute>} />,
   <Route key="mort-ers-group" path="/mortgageerase/mort-ers-group-request" element={<ProtectedRoute><Layout><MortErsGroupRequest /></Layout></ProtectedRoute>} />,
 

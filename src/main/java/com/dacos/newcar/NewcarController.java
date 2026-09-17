@@ -407,8 +407,9 @@ public class NewcarController {
 	        @RequestBody Map<String, Object> param,
 	        HttpSession session) {
 		AuthUtil.getLoginUser(session);
-		int result = newcarService.sendSelfRegistrationSms(param);
-		return ResponseEntity.ok(ApiResponse.withKey("result", result));
+		Map<String, Object> result = newcarService.sendSelfRegistrationSms(param);
+		result.put("success", true);
+		return ResponseEntity.ok(result);
 	}
 
 	/** SP 로그인 세션으로 번호판을 배정하고 고객 선택 문자를 발송한다. */

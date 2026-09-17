@@ -1,4 +1,4 @@
-﻿import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { useTabs, useTabPageState } from '../../context/TabContext'; // 전역 탭
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -25,8 +25,6 @@ const getFormattedDateOffset = (offsetDays) => {
 
 // 관청을 보여줄지 말지 선택
 let bGovtVisible = false;
-let bBranchVisible = true;
-let bSangsaVisible = true;
 
 const getInitialSearchFilters = () => ({
     workCD: '',
@@ -50,6 +48,12 @@ const PayInfo = () => {
     const gridRef = useRef(null);	
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기 use_YN	'Y', regist_NO	'UA', member_NM	'다코스관리자', branch_ID	'dacos', login_GB	'UA', sangsa_ID	'dacos', login_ID	'dacos', member_GB	'UA', company_ID	'dacos', pass_WD	null
     const memberGb = user?.member_GB || '';
+	const isCompanyAdmin = ['CA', 'CU', 'MA'].includes(memberGb);
+	const isCb152CompanyAdmin = isCompanyAdmin && user?.company_ID === 'CB152';
+	const isCb407CompanyAdmin = isCompanyAdmin && user?.company_ID === 'CB407';
+	const isCb407HeadOffice = isCb407CompanyAdmin && user?.branch_ID === '1';
+	const branchVisible = !isCompanyAdmin || isCb407CompanyAdmin;
+	const sangsaVisible = !isCompanyAdmin;
 	const { tabs, activeTabId, removeTab } = useTabs(); // 탭 관리	
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
@@ -59,6 +63,7 @@ const PayInfo = () => {
     const [toastMessage, setToastMessage] = useState('');
     const [rowData, setRowData] = useState([]);
     const [totalCount, setTotalCount] = useState(0);
+    const [payableTotal, setPayableTotal] = useState(null); // 오복사/오릭스 '납부하실 총 금액' (null이면 미표시)
 
     const [searchFilters, setSearchFilters] = useTabPageState('searchFilters', getInitialSearchFilters);
 
@@ -93,7 +98,9 @@ const PayInfo = () => {
 		
 	const BASE_GUBUN = [
 	    { CODE_ID: 'PROC_DT', CODE_NM: '처리일' },
-	    { CODE_ID: 'REQUEST_DT', CODE_NM: '신청일' }
+	    { CODE_ID: 'REQUEST_DT', CODE_NM: '신청일' },
+	    { CODE_ID: 'PAY_DT', CODE_NM: '입금일' },
+	    { CODE_ID: 'JUDGE_DT', CODE_NM: '심사완료일' }
 	];
 
 	// codeListMap에 적용 시
@@ -239,19 +246,22 @@ const PayInfo = () => {
 	
 	const handleWorkCdChange = (e) => {
 	    const selectedWorkCd = e.target.value;
+		const fixedBranchId = isCb152CompanyAdmin || (isCb407CompanyAdmin && !isCb407HeadOffice)
+			? (user?.branch_ID || '')
+			: '';
 	    		
 	    // 상태 업데이트 (화면 표시용)
 		
 		setSearchFilters(prev => ({
 		        ...prev,
 				workCD: selectedWorkCd,
-				companyID: '',
-		        branchID: '',
+				companyID: isCompanyAdmin ? (user?.company_ID || '') : '',
+		        branchID: fixedBranchId,
 		        sangsaID: '' 
 		    }));
 			
 	    
-		if (user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
+		if (isCompanyAdmin || user.member_GB.substring(0, 1) === 'C' || user.member_GB.substring(0, 1) === 'R') {
 			// 일반 회사인 경우엔 하면 안되므로.
 			return;	
 		}
@@ -310,6 +320,33 @@ const PayInfo = () => {
 	// 각 업무별 회원사 정보 가져오기. 처음엔 설정 기준
 	const fetchCompanies = async (workCd) => {
 	    try {
+			// 레거시 CA/CU/MA: 회사는 로그인 회사로 고정하고 지점/팀은 조회 조건에서 제외한다.
+			// CB152는 자기 지점으로 제한하고, CB407만 지점 선택을 제공한다.
+			if (isCompanyAdmin) {
+				setCompanyList([{
+					COMPANY_ID: user?.company_ID || '',
+					COMPANY_NM: user?.company_NM || user?.COMPANY_NM || user?.company_ID || ''
+				}]);
+
+				const fixedBranchId = isCb152CompanyAdmin || (isCb407CompanyAdmin && !isCb407HeadOffice)
+					? (user?.branch_ID || '')
+					: '';
+				setSearchFilters(prev => ({
+					...prev,
+					companyID: user?.company_ID || '',
+					branchID: fixedBranchId,
+					sangsaID: ''
+				}));
+				setSangsaList([]);
+
+				if (isCb407CompanyAdmin) {
+					fetchBranch(user.company_ID, isCb407HeadOffice ? undefined : user.branch_ID);
+				} else {
+					setBranchList([]);
+				}
+				return;
+			}
+
 	        // 사용자의 요청에 따라 관청(govtId) 조건 없이 WORK_CD='010'에 해당하는 
 	        // 전체 회사 목록을 한 번만 불러와서 리스트에 넣어줍니다.
 			const requestParams = {
@@ -341,7 +378,7 @@ const PayInfo = () => {
 				
 				// 폴스타의 경우엔 지점도 찾아오고 팀도 찾아오고 해야 함.				
 				if (user.member_GB.substring(1, 2) === 'A') {
-					if (user.member_GB === 'UA' || user.member_GB === 'CA') {
+					if (user.member_GB === 'UA') {
 						fetchBranch(user.company_ID);
 					} else if (user.member_GB === 'BA' || user.member_GB === 'SA') {
 						fetchBranch(user.company_ID, user.branch_ID);
@@ -372,7 +409,7 @@ const PayInfo = () => {
 	        if (response.data.success) {
 	            setBranchList(response.data.list);				
 				// 			
-				if (user.member_GB === 'CA' || user.member_GB === 'BA'  || user.member_GB === 'SA') {				
+				if (user.member_GB === 'BA' || user.member_GB === 'SA') {				
 					fetchSangsa(user.company_ID, user.branch_ID, user.sangsa_ID);
 				}	
 				
@@ -410,6 +447,63 @@ const PayInfo = () => {
 	}	
 	
 	
+	// 조회 결과 클라이언트 후처리 (레거시 PayInfo.js f_CallBack 의 selectPayInfoList 케이스 이식)
+	//  (C) 이전등록('011') 입금총액 재계산 - 모든 사용자, 항상
+	//  (B) 오복사(member_GB RA/RU 또는 회사코드 RC*) '납부하실 총 금액'
+	//  (D) 오릭스캐피탈(CB029) + 신규등록(010) '납부하실 총 금액' (취득세·인지세·증지대 제외)
+	const postProcessPayList = (list) => {
+	    const toNum = (v) => Number(v || 0);
+
+	    // (C) 이전등록 입금총액 재계산 후 새 배열 반환
+	    const processed = list.map((row) => {
+	        if (row.WORK_CD !== '011') return row;
+	        const total =
+	            toNum(row.ACQ_AMT) + toNum(row.REGIS_AMT) + toNum(row.STAMP_AMT) + toNum(row.FEE_AMT) +
+	            toNum(row.INJI_AMT) + toNum(row.BOND_AMT) + toNum(row.BFEE_AMT) + toNum(row.NUMP_AMT) +
+	            toNum(row.NUMP_PROXY_AMT) + toNum(row.TMAN_AMT) + toNum(row.TPROX_AMT);
+	        return { ...row, TOTAL_AMT: total };
+	    });
+
+	    const memberGb = user?.member_GB || '';
+	    const companyId = searchFilters.companyID || '';
+	    const isObs = memberGb === 'RA' || memberGb === 'RU' || companyId.substring(0, 2) === 'RC';
+	    const isOrixNewcar = companyId === 'CB029' && searchFilters.workCD === '010';
+
+	    if (isObs) {
+	        // (B) 오복사: 신청상태 SAV / RET 제외
+	        let sum = 0;
+	        processed.forEach((row) => {
+	            if (row.PROC_ST === 'SAV' || row.PROC_ST === 'RET') return;
+	            if (row.WORK_CD === '010') {
+	                const bond = row.PAY_TP === 'SELL' ? toNum(row.BOND_AMT) + toNum(row.BFEE_AMT) : 0;
+	                sum +=
+	                    toNum(row.STAMP_AMT) + toNum(row.FEE_AMT) + toNum(row.INJI_AMT) + bond +
+	                    toNum(row.NUMP_AMT) + toNum(row.NUMP_PROXY_AMT) + toNum(row.TMAN_AMT) + toNum(row.TPROX_AMT);
+	            } else if (row.WORK_CD === '000') {
+	                sum +=
+	                    toNum(row.REGIS_AMT) + toNum(row.STAMP_AMT) + toNum(row.FEE_AMT) + toNum(row.INJI_AMT) +
+	                    toNum(row.BOND_AMT) + toNum(row.BFEE_AMT) + toNum(row.NUMP_AMT) + toNum(row.NUMP_PROXY_AMT) +
+	                    toNum(row.TMAN_AMT) + toNum(row.TPROX_AMT);
+	            }
+	        });
+	        setPayableTotal(sum);
+	    } else if (isOrixNewcar) {
+	        // (D) 오릭스캐피탈 신규등록
+	        let sum = 0;
+	        processed.forEach((row) => {
+	            if (row.PROC_ST === 'SAV' || row.PROC_ST === 'RET') return;
+	            sum +=
+	                toNum(row.FEE_AMT) + toNum(row.BOND_AMT) + toNum(row.BFEE_AMT) + toNum(row.NUMP_AMT) +
+	                toNum(row.NUMP_PROXY_AMT) + toNum(row.TMAN_AMT) + toNum(row.TPROX_AMT);
+	        });
+	        setPayableTotal(sum);
+	    } else {
+	        setPayableTotal(null);
+	    }
+
+	    return processed;
+	};
+
 	// 조회 버튼 눌렀을때
     const fetchPaymentList = async () => {
         try {
@@ -462,8 +556,9 @@ const PayInfo = () => {
 			//console.table(params);
             const response = await axios.post('/api/payment/list', params);
             if (response.data.success) {
-                setRowData(response.data.list);
-                setTotalCount(response.data.list.length);
+                const processed = postProcessPayList(response.data.list);
+                setRowData(processed);
+                setTotalCount(processed.length);
             }
         } catch (error) {
             console.error('납부현황 조회 실패:', error);
@@ -931,21 +1026,40 @@ const PayInfo = () => {
 	];
 	
 	
-    // user ID에 따라 컬럼 속성 분기
+    // 권한(member_GB)과 회사코드에 따른 그리드 포맷 분기 (레거시 PayInfo.js 174~203행 이식)
     const columnDefs = React.useMemo(() => {
-		if (memberGb.substring(0, 1) === 'U' || memberGb === 'GU') {
-			return UA_ColumnDefs;					
+		if (memberGb === 'GU') {
+			return GU_ColumnDefs;
 		}
-			
-		
-		
-		
-        if (user && user.userId === 'number03') {
-            //return number03ColumnDefs;
-        }
-        // 기본적으로 defaultColumnDefs 반환
-        return UA_ColumnDefs;
-    }, [memberGb, codeMap]);
+		if (memberGb.substring(0, 1) === 'U') {
+			return UA_ColumnDefs;
+		}
+
+		// 그 외에는 CU가 기본이며, 회사코드에 따라 전용 포맷으로 대체된다.
+		const companyId = user?.company_ID || '';
+		if (companyId === 'CB008') {
+			return NH_ColumnDefs; // 농협캐피탈
+		}
+		if (companyId === 'MC001' || companyId === 'MC002') {
+			return AutoPlus_ColumnDefs; // 오토플러스
+		}
+		if (companyId === 'CB007' || companyId === 'CB107' || companyId === 'CB907' || companyId === 'CB207') {
+			return KB_ColumnDefs; // 케이비캐피탈
+		}
+		if (companyId.substring(0, 1) === 'R') {
+			return companyId === 'RC006' ? AutoRego_ColumnDefs : Obs_ColumnDefs; // 오토레고 / 오복사
+		}
+		if (companyId === 'CB025') {
+			return AJ_ColumnDefs; // 아주캐피탈
+		}
+		if (companyId === 'CR007' || companyId === 'CR206') {
+			return SOCARSCAR_ColumnDefs; // 쏘카, 에스카
+		}
+		if (companyId === 'CB059') {
+			return IMS_ColumnDefs; // 아이엠에스모빌리티
+		}
+        return CU_ColumnDefs;
+    }, [memberGb, user, codeMap]);
 
     const handleRowDoubleClicked = (event) => {
         if (event.data && event.data.SERVICE_ID) {
@@ -957,7 +1071,7 @@ const PayInfo = () => {
         fetchPaymentList();
     };
 
-    const handleResetClick = () => {
+	const handleResetClick = () => {
 		// 1. 기본적으로 초기화할 값들을 세팅합니다.
 	    const resetValues = getInitialSearchFilters();
 
@@ -965,6 +1079,13 @@ const PayInfo = () => {
 	    if (companyList && companyList.length === 1) {
 	        resetValues.companyID = companyList[0].COMPANY_ID;
 	    }
+		if (isCompanyAdmin) {
+			resetValues.companyID = user?.company_ID || '';
+			resetValues.branchID = isCb152CompanyAdmin || (isCb407CompanyAdmin && !isCb407HeadOffice)
+				? (user?.branch_ID || '')
+				: '';
+			resetValues.sangsaID = '';
+		}
 
 	    // 3. 관청(GOVT) 목록이 1개뿐이라면 초기화 시에도 해당 값을 유지
 	    const govtList = codeListMap['GOVT'];
@@ -990,7 +1111,12 @@ const PayInfo = () => {
     };
 
     const handleCellClicked = (event) => {
-        const copyAllowedFields = ['CARID_NO', 'CAR_NO'];
+        // 레거시 PayInfo.js OnCellClick(511~533행) 이식: 인지세번호/가상계좌/전자납부번호 클릭 시 클립보드 복사.
+        // 아이엠에스모빌리티(CB059)는 입금총액도 추가로 복사 대상에 포함.
+        const copyAllowedFields = ['INJI_NO', 'VBANK_NO', 'EPAY_NO'];
+        if (user?.company_ID === 'CB059') {
+            copyAllowedFields.push('TOTAL_AMT');
+        }
 
         // 클릭한 셀의 컬럼 필드명이 배열에 포함되어 있고 값이 존재할 때
         if (copyAllowedFields.includes(event.colDef.field) && event.value) {
@@ -1077,6 +1203,11 @@ const PayInfo = () => {
             <div className="status-toolbar">
                 <div className="toolbar-left">
                     <span className="title-count">{totalCount}</span> 건
+                    {payableTotal !== null && (
+                        <span className="payable-total">
+                            납부하실 총 금액 : {Number(payableTotal).toLocaleString()}
+                        </span>
+                    )}
                 </div>
                 <div className="toolbar-right">
                     <button className="btn-status" onClick={handleSearchClick}>조회[F2]</button>
@@ -1097,7 +1228,7 @@ const PayInfo = () => {
 						    ))}
 						</select>
 						{/* 💡 수정된 코드: key에 index를 붙여 절대 중복되지 않게 만듭니다 */}
-						<select className="erp-input" value={searchFilters.companyID} onChange={handleCompanyIdChange}>
+						<select className="erp-input" value={searchFilters.companyID} onChange={handleCompanyIdChange} disabled={isCompanyAdmin}>
 						    {companyList.length !== 1 && <option value="">전체 (회사)</option>}
 						    {companyList.map((comp, index) => (
 						        <option key={`${comp.COMPANY_ID}_${index}`} value={comp.COMPANY_ID}>
@@ -1105,8 +1236,8 @@ const PayInfo = () => {
 						        </option>
 						    ))}
 						</select>
-						{bBranchVisible && (
-						<select className="erp-input" style={{ visibility: bBranchVisible ? 'visible' : 'hidden' }} value={searchFilters.branchID} onChange={handleBranchIdChange}>
+						{branchVisible && (
+						<select className="erp-input" value={searchFilters.branchID} onChange={handleBranchIdChange} disabled={isCb407CompanyAdmin && !isCb407HeadOffice}>
 							{/* 지점 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
 							{branchList.length !== 1 && <option value="">전체(지점)</option>}
 						    {branchList.map(comp => (
@@ -1114,8 +1245,8 @@ const PayInfo = () => {
 						    ))}						
 						</select>
 						)}
-						{bSangsaVisible && (	
-						<select className="erp-input" style={{ visibility: bSangsaVisible ? 'visible' : 'hidden' }} value={searchFilters.sangsaID} onChange={handleSangsaIdChange}>
+						{sangsaVisible && (	
+						<select className="erp-input" value={searchFilters.sangsaID} onChange={handleSangsaIdChange}>
 							{/* 상사 리스트가 2개 이상일 때만 '전체' 문구를 보여줌 */}
 							{sangsaList.length !== 1 && <option value="">전체(팀)</option>}
 							{sangsaList.map(comp => (

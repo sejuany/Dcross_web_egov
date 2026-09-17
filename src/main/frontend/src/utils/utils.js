@@ -137,30 +137,49 @@ export const gf = {
 	// 특수회원사 여부 확인
 	// GROUP_ID='TUSE', CODE_ID='SPCOM'
 	isSpecialCompany: async (companyId) => {
-		    const targetCompanyId = String(companyId || '').trim().toUpperCase();
+	    const targetCompanyId = String(companyId || '').trim().toUpperCase();
 
-		    if (!targetCompanyId) {
-		        return false;
-		    }
+	    if (!targetCompanyId) {
+	        return false;
+	    }
 
-		    const codes = await gf.getCodeDetails(['DEAL']);
-		    const list = codes?.TUSE || [];
+	    const codes = await gf.getCodeDetails(['DEAL']);
+	    const list = codes?.TUSE || [];
 
-		    const specialCode = list.find(item =>
-		        (item.CODE_ID || item.codeId || item.code_ID) === 'SPCOM'
-		    );
+	    const specialCode = list.find(item =>
+	        (item.CODE_ID || item.codeId || item.code_ID) === 'SPCOM'
+	    );
 
-		    const detailNm =
-		        specialCode?.DETAIL_NM ||
-		        specialCode?.detailNm ||
-		        specialCode?.detail_NM ||
-		        '';
+	    const detailNm =
+	        specialCode?.DETAIL_NM ||
+	        specialCode?.detailNm ||
+	        specialCode?.detail_NM ||
+	        '';
 
-		    return String(detailNm || '').toUpperCase().includes(`|${targetCompanyId}|`);
-		},
-		
+	    return String(detailNm || '').toUpperCase().includes(`|${targetCompanyId}|`);
+	},
 	
-		
+	// 신청 후 번호선택 기업 확인
+	async isPostNumplateCompany(companyId) {
+
+	    const res = await fetch('/api/common/query', {
+	        method: 'POST',
+	        headers: {
+	            'Content-Type': 'application/json'
+	        },
+	        body: JSON.stringify({
+	            QUERY_ID: "selectCodeDetail",
+	            GROUP_ID: 'DEAL',
+	            CODE_ID: 'NUMPL'
+	        })
+	    });
+
+	    const result = await res.json();
+	    const companyList = result?.data?.DETAIL_NM || "";
+
+	    return companyList.split("|").includes(companyId);
+	},
+	
 	// 빈값 체크
     isEmpty: (data) => data === '' || data == null,
 

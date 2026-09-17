@@ -13,6 +13,7 @@ import CorrectionInfo from '../components/mortgage/CorrectionInfo';
 import DelayList from '../components/mortgage/DelayList';
 
 import MortErsRequest from '../components/mortgageerase/MortErsRequest';
+import MortErsMRequest from '../components/mortgageerase/MortErsMRequest';
 import MortErsList from '../components/mortgageerase/MortErsList';
 import MortErsGroupRequest from '../components/mortgageerase/MortErsGroupRequest';
 
@@ -93,6 +94,7 @@ export const protectedRouteComponents = {
     '/mortgage/delay-list': DelayList,
 
     '/mortgageerase/mort-ers-request': MortErsRequest,
+    '/mortgageerase/mort-ers-m-request': MortErsMRequest,
     '/mortgageerase/mort-ers-list': MortErsList,
     '/mortgageerase/mort-ers-group-request': MortErsGroupRequest,
 
