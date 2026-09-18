@@ -33,7 +33,7 @@ public class TelegramController {
             @RequestBody Map<String, Object> request,
             @RequestHeader(value = "X-Telegram-Api-Key", required = false) String suppliedKey) {
         if (apiKey.isBlank() || suppliedKey == null || !MessageDigest.isEqual(
-                apiKey.getBytes(StandardCharsets.UTF_8), suppliedKey.getBytes(StandardCharsets.UTF_8))) {
+                apiKey.getBytes(StandardCharsets.UTF_8), suppliedKey.getBytes(StandardCharsets.UTF_8))) {                    
             throw new BusinessException("텔레그램 API 인증에 실패했습니다.", 401);
         }
         for (String field : new String[] { "message", "parse_mode", "photo", "channel" }) {

@@ -97,6 +97,7 @@ public class TelegramService {
             return response.path("result").path("message_id").asLong();
         } catch (RestClientException e) {
             // 통신 예외에는 BOT_TOKEN이 포함된 URL이 들어갈 수 있어 전달하거나 기록하지 않는다.
+            e.printStackTrace();
             throw new BusinessException("텔레그램 메시지 전송에 실패했습니다.", 502);
         }
     }
