@@ -142,7 +142,7 @@ class TelegramServiceTest {
     }
 
     @Test
-    void routesNewcarMessagesToNewcarChat() {
+    void routesNewcarSelfMessagesToNewcarSelfChat() {
         server.expect(request -> assertEquals(Map.of(
                         "chat_id", "-100999999", "text", "신규등록 완료"),
                         new ObjectMapper().readValue(
@@ -152,7 +152,7 @@ class TelegramServiceTest {
 
         TelegramController controller = new TelegramController(service, "test_api_key");
         assertEquals(46L, controller.sendMessage(Map.of(
-                "channel", "newcar", "message", "신규등록 완료"),
+                "channel", "newcarself", "message", "신규등록 완료"),
                 "test_api_key").getBody().get("messageId"));
         server.verify();
     }
@@ -163,7 +163,7 @@ class TelegramServiceTest {
                 () -> service.sendMessage("테스트", null, null, "Unknown")).getStatusCode());
         assertEquals(503, assertThrows(BusinessException.class,
                 () -> new TelegramService("123456:test_token", "-100123456", "", "", null, null)
-                        .sendMessage("테스트", null, null, "newcar")).getStatusCode());
+                        .sendMessage("테스트", null, null, "newcarself")).getStatusCode());
         server.verify();
     }
 }

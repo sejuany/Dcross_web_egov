@@ -31,6 +31,8 @@ public interface NumPlateMapper {
 
     int updateManagerPushToken(Map<String, Object> request);
 
+    int updateManagerPassword(Map<String, Object> request);
+
     int clearInvalidPushToken(String token);
 
     Map<String, Object> getAssignedPushTarget(String serviceId);
@@ -53,6 +55,10 @@ public interface NumPlateMapper {
 
     /** 세션 휴대폰 번호에 배정된 기존 처리목록을 조회한다. */
     List<Map<String, Object>> getProcessList(Map<String, Object> request);
+
+    List<Map<String, Object>> getOfflineList(Map<String, Object> request);
+
+    String getOfflineGovernment(Map<String, Object> request);
 
     /** 기존 RegSendList.jsp에 표시하던 폐번호판 반납 대상을 조회한다. */
     List<Map<String, Object>> getReturnList(Map<String, Object> request);
@@ -98,6 +104,12 @@ public interface NumPlateMapper {
     void insertBoard(Map<String, Object> request);
 
     int updateProcessToken(Map<String, Object> request);
+
+    int updateReadyYn(Map<String, Object> request);
+
+    int updateRunKmAndMemo(Map<String, Object> request);
+
+    Map<String, Object> getIdCardUploadTarget(String token);
 
     int cancelReview(Map<String, Object> request);
 

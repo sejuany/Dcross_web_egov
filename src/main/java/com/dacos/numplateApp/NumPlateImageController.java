@@ -9,6 +9,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.common.BusinessException;
+import com.dacos.auth.dto.UserDto;
+import com.dacos.common.util.AuthUtil;
+
+import jakarta.servlet.http.HttpSession;
 
 /** 기존 번호판 JSP와 React가 함께 사용하는 image.do 호환 엔드포인트다. */
 @RestController
@@ -23,7 +27,10 @@ public class NumPlateImageController {
     @GetMapping("/image.do")
     public ResponseEntity<byte[]> image(
             @RequestParam("key") String serviceId,
-            @RequestParam(value = "img", defaultValue = "1") int slot) {
+            @RequestParam(value = "img", defaultValue = "1") int slot,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.getProcessDetail(serviceId, user);
         try {
             byte[] image = numPlateService.getCompatibleProcessImage(serviceId, slot);
             MediaType type = image.length > 4 && image[0] == (byte) 0x89 && image[1] == 0x50

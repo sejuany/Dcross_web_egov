@@ -89,6 +89,14 @@
            AND USE_YN = 'Y'
     </update>
 
+    <update id="updateManagerPassword" parameterType="map">
+        UPDATE TM_NUM_MANAGER
+           SET ETC6 = #{PWD}, PWD_TIME = SYSDATE
+         WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TEL_NO), '-', ''), -8)
+               = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
+           AND USE_YN = 'Y'
+    </update>
+
     <update id="clearInvalidPushToken" parameterType="string">
         UPDATE TM_NUM_MANAGER SET TOKEN = NULL WHERE TOKEN = #{value}
     </update>
@@ -582,7 +590,7 @@
 	       SET USE_YN = 'N',
 	           APPEAR_DT = NULL
 	     WHERE USE_YN = 'P'
-	       AND NUMPLATE_MSG_TOKEN IS NULL
+	       AND NUMPLATE_MSG_TOKEN IS NOT NULL
 	       AND CAR_NO IN
 	       <foreach collection="NUM_LIST"
 	                item="carNo"
@@ -953,8 +961,8 @@
            AND (TS.CAR_NO LIKE  '%' || #{CONDITION} || '%'  or TC.POST_CAR_NO LIKE  '%' ||  #{CONDITION} || '%')
            </if>
     UNION ALL
-        SELECT TS.SERVICE_ID AS SERVICE_ID, '신규등록배송' AS CAR_NO, TN.REQ_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
-            (SELECT COMPANY_NM FROM TM_COMPANY WHERE COMPANY_ID = TS.COMPANY_ID) AS BUY_NM, '' AS PROC_ST,
+        SELECT TS.SERVICE_ID AS SERVICE_ID, '회수대상X' AS CAR_NO, TN.REQ_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
+            (SELECT COMPANY_NM FROM TM_COMPANY WHERE COMPANY_ID = TS.COMPANY_ID) AS BUY_NM, TS.PROC_ST AS PROC_ST,
             TO_CHAR(TRUNC(SYSDATE), 'YYYY-MM-DD') AS EXPIRE_DT,
             CASE WHEN TNI.IMAGE1 IS NULL THEN '' ELSE 'Y' END AS IMAGE1,
             CASE WHEN TNI.IMAGE2 IS NULL THEN '' ELSE 'Y' END AS IMAGE2,
@@ -987,7 +995,8 @@
             AND (TC.INSTALL_YN IS NULL OR TC.INSTALL_YN != 'Y')
             AND SUBSTR(PKG_COMMON.FN_DECRYPT(NM.TEL_NO), -8)
                 = SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TC.INSTALL_TEL_NO), '-', ''), -8)
-            AND TS.PROC_ST NOT IN ('T_CAN', 'DEL')
+            AND TC.READY_YN != 'C'
+            AND TS.PROC_ST NOT IN ('T_CAN', 'DEL', 'W_REQ', 'SAV', 'C_REQ', 'B_REQ')
 
             AND (
                 TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE)
@@ -1029,6 +1038,40 @@
 
     </select>
 
+    <select id="getOfflineGovernment" parameterType="map" resultType="string">
+        SELECT REGEXP_SUBSTR(
+                   REPLACE((SELECT DETAIL_NM FROM TM_CODE
+                             WHERE GROUP_ID = 'ETC..' AND CODE_ID = 'NUMOFF' AND ROWNUM = 1), '-', ''),
+                   '([A-Z]+)\(([^)]*' || SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TEL_NO), '-', ''), -11) || '[^)]*)\)',
+                   1, 1, NULL, 1)
+          FROM TM_NUM_MANAGER
+         WHERE SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(TEL_NO), '-', ''), -8)
+               = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
+           AND USE_YN = 'Y'
+    </select>
+
+    <select id="getOfflineList" parameterType="map" resultType="map">
+        SELECT TS.CAR_NO, TC.PRE_CAR_NO, TC.CAR_NM, TC.CAR_KD, TC.CARID_NO,
+               TO_CHAR(TC.MORTREG_DT, 'YYYY-MM-DD') AS MORTREG_DT,
+               TO_CHAR(TS.REQUEST_DT, 'YYYYMMDD') AS REQUEST_DT, TS.PROC_ST
+          FROM TR_SERVICE TS
+          JOIN TR_CARINFO TC ON TC.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = '005'
+           AND TS.PROC_ST = 'END'
+           AND TS.GOVT_ID = #{OFF_GOVT}
+        <if test="'CAR_NO'.equals(CONDITION)">
+           AND (TS.CAR_NO LIKE '%' || #{INPUT_DATA} || '%'
+                OR TC.PRE_CAR_NO LIKE '%' || #{INPUT_DATA} || '%')
+        </if>
+        <if test="'CARID_NO'.equals(CONDITION)">
+           AND TC.CARID_NO LIKE '%' || #{INPUT_DATA} || '%'
+        </if>
+        <if test="'MORTREG_DT'.equals(CONDITION)">
+           AND TO_CHAR(TC.MORTREG_DT, 'YYYYMMDD') = #{INPUT_DATA}
+        </if>
+         ORDER BY TC.MORTREG_DT DESC
+    </select>
+
     <!-- 처리 상세 및 결과조회: 접수번호와 로그인한 탈부착 담당자 휴대폰이 모두 일치한 건만 반환 -->
     <select id="getProcessDetail" parameterType="map" resultType="map">
         SELECT TS.SERVICE_ID,
@@ -1041,7 +1084,8 @@
                      WHERE CD.GROUP_ID = 'GOVT' AND CD.CODE_ID = TS.GOVT_ID), TS.GOVT_ID) AS GOVT_ID_K,
                TS.AUTO_YN,
                NVL(TN.CAR_NO, NVL(TM.CAR_NO, NC.CAR_NO)) AS CAR_NO,
-               TC.POST_CAR_NO,
+               CASE WHEN TS.SERVICE_ID LIKE 'N%' THEN NC.REQ_CAR_NO
+                    ELSE TC.POST_CAR_NO END AS POST_CAR_NO,
                NVL(TN.CAR_NM, NVL(TM.CAR_NM, NC.CAR_NM)) AS CAR_NAME,
                NVL(TN.COLOR_GB, TM.COLOR_GB) AS COLOR_GB,
                NVL(TN.MADE_YY, NVL(TM.MADE_YY, NC.MADE_YY)) AS MADE_YY,
@@ -1070,6 +1114,7 @@
                TC.HOLE_YN,
                TC.SEAL_YN,
                TC.INSTALL_YN,
+               TC.READY_YN,
                NVL(TN.BOND_YN, NVL(TM.BOND_YN, NC.BOND_YN)) AS BOND_YN,
                NVL((SELECT MAX(CD.CODE_NM) FROM TM_CODE CD
                      WHERE CD.GROUP_ID = 'NSUBP'
@@ -1079,8 +1124,8 @@
                NVL(TN.CARD_YN, '') AS CARD_YN,
                NVL(TN.CARD_PAY_YN, '') AS CARD_PAY_YN,
                NVL(TN.MEMO_TX, TM.MEMO_TX) AS TN_MEMO_TX,
-               PKG_COMMON.FN_DECRYPT(TB.CARP_ADDRESS) || ' '
-                   || PKG_COMMON.FN_DECRYPT(TB.CARP_ADDRESS_DT) AS CARP_ADDRESS,
+               PKG_COMMON.FN_DECRYPT(NVL(TB.CARP_ADDRESS, TM.CARP_ADDRESS)) || ' '
+                   || PKG_COMMON.FN_DECRYPT(NVL(TB.CARP_ADDRESS_DT, TM.CARP_ADDRESS_DT)) AS CARP_ADDRESS,
                TO_CHAR(TC.INSU_START_DT, 'YYYY-MM-DD') AS INSU_START_DT
                , CASE WHEN TNI.IMAGE1 IS NULL THEN '' ELSE 'Y' END AS IMAGE1
                , CASE WHEN TNI.IMAGE2 IS NULL THEN '' ELSE 'Y' END AS IMAGE2
@@ -1209,6 +1254,7 @@
                JUDGE_ST = 'S_REQ',
                UPD_DATE = SYSDATE
          WHERE SERVICE_ID = #{SERVICE_ID}
+           AND SERVICE_ID NOT LIKE 'N%'
            AND PROC_ST IN ('N_REQ', 'N_INS', 'N_DLV',
                '번호판처리요청', '번호판발송요청', '번호판탈부착요청', '배송요청', '사무실배송요청')
     </update>
@@ -1268,6 +1314,32 @@
            SET TOKEN = #{TOKEN}, UPD_DATE = SYSDATE
          WHERE SERVICE_ID = #{SERVICE_ID}
     </update>
+
+    <update id="updateReadyYn" parameterType="map">
+        UPDATE TR_CARNO_DETACH
+           SET READY_YN = #{READY_YN}, UPD_DATE = SYSDATE
+        <if test="TOKEN != null and TOKEN != ''">
+             , TOKEN = #{TOKEN}
+        </if>
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <update id="updateRunKmAndMemo" parameterType="map">
+        UPDATE TR_TRNSNAME
+           SET RUN_KM = #{RUN_KM},
+               MEMO_TX = NVL(MEMO_TX, '') || CHR(10) || #{MEMO_TX},
+               UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <select id="getIdCardUploadTarget" parameterType="string" resultType="map">
+        SELECT TS.SERVICE_ID, TS.CAR_NO, TC.READY_YN,
+               CASE WHEN TNI.IMAGE4 IS NOT NULL OR TNI.IMAGE4_PATH IS NOT NULL THEN 'Y' ELSE 'N' END AS IMAGE4
+          FROM TR_CARNO_DETACH TC
+          JOIN TR_SERVICE TS ON TS.SERVICE_ID = TC.SERVICE_ID
+          LEFT JOIN TR_NUMPLATE_IMAGES TNI ON TNI.SERVICE_ID = TS.SERVICE_ID
+         WHERE TC.TOKEN = #{value}
+    </select>
 
     <update id="cancelReview" parameterType="map">
         UPDATE TR_SERVICE

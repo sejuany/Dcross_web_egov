@@ -63,6 +63,7 @@ public class NumPlateService {
     private final CommonService commonService;
     private Path imageDirectory = defaultImageDirectory();
     private String legacyImageBaseUrl = "https://no.dcross.kr";
+    private String publicBaseUrl = "https://web.dcross.kr";
 
     public NumPlateService(NumPlateMapper numPlateMapper, CommonService commonService) {
         this.numPlateMapper = numPlateMapper;
@@ -82,6 +83,13 @@ public class NumPlateService {
     void configureLegacyImageBaseUrl(String configuredBaseUrl) {
         if (configuredBaseUrl != null && !configuredBaseUrl.isBlank()) {
             legacyImageBaseUrl = configuredBaseUrl.replaceAll("/+$", "");
+        }
+    }
+
+    @Value("${numplate.public-base-url:${NUMPLATE_PUBLIC_BASE_URL:https://web.dcross.kr}}")
+    void configurePublicBaseUrl(String configuredBaseUrl) {
+        if (configuredBaseUrl != null && !configuredBaseUrl.isBlank()) {
+            publicBaseUrl = configuredBaseUrl.replaceAll("/+$", "");
         }
     }
 
@@ -142,6 +150,27 @@ public class NumPlateService {
                 stored.getBytes(StandardCharsets.UTF_8));
     }
 
+    @Transactional
+    public void changeManagerPassword(Map<String, Object> request, UserDto user) {
+        Map<String, Object> param = managerParam(user);
+        String current = Objects.toString(request.get("currentPassword"), "");
+        String next = Objects.toString(request.get("newPassword"), "");
+        String confirm = Objects.toString(request.get("confirmPassword"), "");
+        if (!next.matches("[0-9]{4}") || !next.equals(confirm)) {
+            throw new BusinessException("신규 비밀번호 4자리를 동일하게 입력해 주세요.");
+        }
+        List<Map<String, Object>> managers = numPlateMapper.loginManager(param);
+        if (managers.size() != 1
+                || !passwordMatches(current, Objects.toString(managers.get(0).get("ETC6"), ""))) {
+            throw new BusinessException("현재 비밀번호가 일치하지 않습니다.", 401);
+        }
+        if (passwordMatches(current, next)) throw new BusinessException("현재 비밀번호와 다른 번호를 입력해 주세요.");
+        param.put("PWD", next);
+        if (numPlateMapper.updateManagerPassword(param) != 1) {
+            throw new BusinessException("비밀번호를 변경하지 못했습니다.", 409);
+        }
+    }
+
     public List<Map<String, Object>> getNumPlateList(NumPlateSearchRequest request) {
         logger.info("[NumPlateService] 번호판 목록 조회");
         return numPlateMapper.getNumPlateList(request);
@@ -177,6 +206,27 @@ public class NumPlateService {
             item.put("PROC_ST_NM", processStatusName(item));
             return item;
         }).toList();
+    }
+
+    public List<Map<String, Object>> getOfflineList(Map<String, Object> request, UserDto user) {
+        Map<String, Object> param = managerParam(user);
+        String government = numPlateMapper.getOfflineGovernment(param);
+        if (government == null || government.isBlank()) {
+            throw new BusinessException("오프라인 조회 권한이 없습니다.", 403);
+        }
+        String type = Objects.toString(request.get("conditionType"), "MORTREG_DT");
+        if (!Set.of("MORTREG_DT", "CAR_NO", "CARID_NO").contains(type)) type = "MORTREG_DT";
+        String keyword = Objects.toString(request.get("keyword"), "").trim();
+        if (keyword.length() > 50) throw new BusinessException("검색어는 50자 이하로 입력해 주세요.");
+        if ("MORTREG_DT".equals(type)) {
+            keyword = keyword.replaceAll("[^0-9]", "");
+            if (keyword.isBlank()) keyword = LocalDate.now().format(DateTimeFormatter.BASIC_ISO_DATE);
+            if (!keyword.matches("[0-9]{8}")) throw new BusinessException("등록일자를 확인해 주세요.");
+        }
+        param.put("OFF_GOVT", government);
+        param.put("CONDITION", type);
+        param.put("INPUT_DATA", keyword);
+        return numPlateMapper.getOfflineList(param);
     }
 
     /** 기존 RegSendList.jsp와 동일한 폐번호판 반납 대상을 조회한다. */
@@ -431,23 +481,53 @@ public class NumPlateService {
 
         // 기존 업무 규칙: N 접수는 배송 완료, 그 외 접수는 방문정보 저장 후 심사요청한다.
         boolean delivery = serviceId.startsWith("N");
+        if (!delivery && Objects.toString(detail.get("TN_MEMO_TX"), "").contains("#보험")) {
+            throw new BusinessException("보험 관련 요청사항을 먼저 확인해 주세요.", 409);
+        }
         if (!delivery && !"CB407".equals(Objects.toString(detail.get("COMPANY_ID"), ""))) {
             String installDate = Objects.toString(request.get("installDate"), "");
             String installTime = Objects.toString(request.get("installTime"), "");
             validateSchedule(installDate, installTime);
             param.put("INSTALL_DT", installDate);
             param.put("INSTALL_TM", installTime.replace(":", ""));
+            LocalDateTime scheduled = LocalDateTime.parse(installDate + "T" + installTime);
+            if (scheduled.isAfter(LocalDateTime.now().plusMinutes(30))) {
+                throw new BusinessException("방문 예정시간 30분 전부터 심사요청이 가능합니다.", 409);
+            }
         }
         if (!delivery && !"Y".equals(Objects.toString(detail.get("ETC5"), ""))
                 && Objects.toString(detail.get("POST_CAR_NO"), "").isBlank()) {
             throw new BusinessException("신규 번호판이 지정되지 않았습니다.");
         }
 
+        syncMileage(detail, param);
         // 입력 저장과 상태 변경은 함께 성공하거나 함께 롤백되어야 한다.
         numPlateMapper.updateProcessInput(param);
         int count = delivery ? numPlateMapper.completeDelivery(param) : numPlateMapper.requestReview(param);
         if (count != 1) throw new BusinessException("현재 처리상태에서는 요청할 수 없습니다.", 409);
         return getProcessDetail(serviceId, user);
+    }
+
+    private void syncMileage(Map<String, Object> detail, Map<String, Object> param) {
+        String government = Objects.toString(detail.get("GOVT_ID"), "");
+        String carNo = Objects.toString(detail.get("CAR_NO"), "");
+        if (commonService == null || government.isBlank() || carNo.isBlank()) return;
+        JsonNode response = commonService.linkServer(Map.of(
+                "SID", "주행거리확인",
+                "GOVT_ID", government,
+                "CAR_NO", carNo,
+                "RUN_KM", Objects.toString(detail.get("RUN_KM"), "0"),
+                "SERVICE_ID", detail.get("SERVICE_ID")));
+        JsonNode result = response.path("returnMSG");
+        if (!"0".equals(response.path("errorCode").asText())
+                || !"UPD".equals(result.path("RESULT_TX").asText())) return;
+        String before = Objects.toString(detail.get("RUN_KM"), "0");
+        param.put("RUN_KM", result.path("KM").asText(before));
+        param.put("MEMO_TX", "주행거리 변경됨 " + before + " → " + param.get("RUN_KM"));
+        numPlateMapper.updateRunKmAndMemo(param);
+        param.put("CONTENT_TX", "원부보다 낮은 주행거리 수정 완료");
+        param.put("GUBUN", "2");
+        numPlateMapper.insertBoard(param);
     }
 
     /** 심사요청과 별개로 방문 예정일과 시간을 먼저 저장한다. */
@@ -565,7 +645,6 @@ public class NumPlateService {
     public Map<String, Object> uploadProcessImage(
             String serviceId, int slot, MultipartFile file, UserDto user) {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
-        String field = imageField(slot);
         String screenStatus = Objects.toString(detail.get("PROC_ST_NM"), "")
                 .replace("(임시판)", "").replace("(임시)", "").replace("(전시장)", "");
         if (!Set.of("번호판사진등록요청", "번호판 사진을 다시 등록해 주세요.",
@@ -573,6 +652,43 @@ public class NumPlateService {
                 "서명 진행 요청", "번호판사진등록완료").contains(screenStatus)) {
             throw new BusinessException("현재 처리상태에서는 사진을 등록할 수 없습니다.", 409);
         }
+        // 번호판 사진(1~3), 신분증(4), 서명(6) 외의 DB 컬럼 접근을 차단한다.
+        if (slot == 6 && !Set.of("UTRNS", "RTRNS").contains(Objects.toString(detail.get("TASK_CD"), ""))) {
+            throw new BusinessException("서명 사진을 등록할 수 없는 처리 건입니다.", 409);
+        }
+        managerParam(user);
+        saveProcessImage(serviceId, slot, file);
+        return getProcessDetail(serviceId, user);
+    }
+
+    public Map<String, Object> getIdCardUpload(String token) {
+        Map<String, Object> target = idCardUploadTarget(token);
+        return Map.of(
+                "CAR_NO", Objects.toString(target.get("CAR_NO"), ""),
+                "UPLOADED", "Y".equals(Objects.toString(target.get("IMAGE4"), "")));
+    }
+
+    @Transactional
+    public void uploadIdCard(String token, MultipartFile file) {
+        Map<String, Object> target = idCardUploadTarget(token);
+        if ("Y".equals(Objects.toString(target.get("IMAGE4"), ""))) {
+            throw new BusinessException("이미 신분증 사진이 등록되었습니다.", 409);
+        }
+        saveProcessImage(Objects.toString(target.get("SERVICE_ID"), ""), 4, file);
+    }
+
+    private Map<String, Object> idCardUploadTarget(String token) {
+        String value = Objects.toString(token, "");
+        if (!value.matches("[A-Za-z0-9]{8}")) throw new BusinessException("유효하지 않은 신분증 등록 주소입니다.", 404);
+        Map<String, Object> target = numPlateMapper.getIdCardUploadTarget(value);
+        if (target == null || !"Y".equals(Objects.toString(target.get("READY_YN"), ""))) {
+            throw new BusinessException("신분증을 등록할 수 없는 요청입니다.", 404);
+        }
+        return target;
+    }
+
+    private void saveProcessImage(String serviceId, int slot, MultipartFile file) {
+        String field = imageField(slot);
         if (file == null || file.isEmpty()) throw new BusinessException("등록할 사진을 선택해 주세요.");
         if (file.getSize() > 10 * 1024 * 1024) throw new BusinessException("사진은 10MB 이하만 등록할 수 있습니다.");
         byte[] image;
@@ -582,11 +698,7 @@ public class NumPlateService {
             throw new BusinessException("JPG 또는 PNG 이미지 파일만 등록할 수 있습니다.");
         }
 
-        // 번호판 사진(1~3), 신분증(4), 서명(6) 외의 DB 컬럼 접근을 차단한다.
-        if (slot == 6 && !Set.of("UTRNS", "RTRNS").contains(Objects.toString(detail.get("TASK_CD"), ""))) {
-            throw new BusinessException("서명 사진을 등록할 수 없는 처리 건입니다.", 409);
-        }
-        Map<String, Object> param = managerParam(user);
+        Map<String, Object> param = new HashMap<>();
         String validatedServiceId = validateServiceId(serviceId);
         String fileName = validatedServiceId.replace('-', '_') + "_" + slot + ".jpg";
         Path target = imageDirectory.resolve(fileName).normalize();
@@ -616,7 +728,6 @@ public class NumPlateService {
                 }
             }
         }
-        return getProcessDetail(serviceId, user);
     }
 
     private Path resolveStoredImage(String dbPath) {
@@ -666,8 +777,38 @@ public class NumPlateService {
 
     private static Path defaultImageDirectory() {
         String path = System.getProperty("os.name", "").startsWith("Windows")
-                ? "D:/webapps/numplate/images" : "/web/numplate/images";
+                ? "D:/webapps/numplate/images" : "/app2/numplate/images";
         return Path.of(path).toAbsolutePath().normalize();
+    }
+
+    @Transactional
+    public Map<String, Object> depart(String serviceId, UserDto user) {
+        Map<String, Object> detail = getProcessDetail(serviceId, user);
+        String date = Objects.toString(detail.get("INSTALL_DT"), "");
+        String time = Objects.toString(detail.get("INSTALL_TIME"), "")
+                + Objects.toString(detail.get("INSTALL_MINUTES"), "");
+        if (date.isBlank() || time.length() != 4) throw new BusinessException("방문 예정일과 시간을 먼저 저장해 주세요.");
+        if (LocalDate.parse(date).isAfter(LocalDate.now())) {
+            throw new BusinessException("방문 예정일 당일부터 출발 처리할 수 있습니다.", 409);
+        }
+        String token = Objects.toString(detail.get("TOKEN"), "");
+        if (token.isBlank()) token = randomToken(8);
+        Map<String, Object> param = managerParam(user);
+        param.put("SERVICE_ID", validateServiceId(serviceId));
+        param.put("READY_YN", "Y");
+        param.put("TOKEN", token);
+        if (numPlateMapper.updateReadyYn(param) != 1) throw new BusinessException("출발 상태를 저장하지 못했습니다.", 409);
+
+        String phone = Objects.toString(detail.get("TEL_NO"), "").replaceAll("[^0-9]", "");
+        if (phone.length() < 9) throw new BusinessException("고객 연락처를 확인해 주세요.");
+        String text = "이전등록 신청하신 " + Objects.toString(detail.get("CAR_NO"), "")
+                + " 차량의 새 번호판 교체를 위해 " + Objects.toString(detail.get("LAST_DELIVERY_ADDR"), "") + "(으)로\n"
+                + "담당매니저 " + Objects.toString(detail.get("INSTALL_NM"), user.getMEMBER_NM()) + "님이 출발하였습니다.\n"
+                + "도착 예정 시간 : " + time.substring(0, 2) + "시 " + time.substring(2) + "분\n"
+                + "아래 링크에서 주민번호 뒷자리를 가린 신분증 사진을 등록해 주세요.\n"
+                + idCardUploadUrl(token);
+        commonService.sendSms(Map.of("PAY_HP_NO", phone, "TEXT", text, "MSG_TYPE", "3", "SUBJECT", "번호판 교체 출발 안내"));
+        return getProcessDetail(serviceId, user);
     }
 
     @Transactional
@@ -708,6 +849,9 @@ public class NumPlateService {
     @Transactional
     public void requestIdCard(String serviceId, UserDto user) {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
+        if (!"Y".equals(Objects.toString(detail.get("READY_YN"), ""))) {
+            throw new BusinessException("출발 처리 후 신분증 등록을 요청해 주세요.", 409);
+        }
         String phone = Objects.toString(detail.get("TEL_NO"), "").replaceAll("[^0-9]", "");
         if (phone.length() < 9) throw new BusinessException("고객 연락처를 확인해 주세요.");
         String token = Objects.toString(detail.get("TOKEN"), "");
@@ -721,8 +865,13 @@ public class NumPlateService {
         String text = "안녕하세요. 이전등록 대행업체 주식회사 다코스입니다.\n"
                 + Objects.toString(detail.get("CAR_NO"), "") + " 고객님의 신분증 사진 등록이 필요합니다.\n"
                 + "주민번호 뒷자리를 가린 후 아래 주소에서 등록해 주세요.\n"
-                + "https://no.dcross.kr/IdCardUpload.do?token=" + token;
+                + idCardUploadUrl(token);
         commonService.sendSms(Map.of("PAY_HP_NO", phone, "TEXT", text, "MSG_TYPE", "3", "SUBJECT", "신분증 등록 요청"));
+    }
+
+    private String idCardUploadUrl(String token) {
+        return publicBaseUrl + "/numplateapp/id-card?token="
+                + URLEncoder.encode(token, StandardCharsets.UTF_8);
     }
 
     @Transactional
@@ -751,12 +900,21 @@ public class NumPlateService {
         return getProcessDetail(serviceId, user);
     }
 
+    @Transactional
     public void completePhotos(String serviceId, UserDto user) {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
         if (imageMissing(detail, "IMAGE1") || imageMissing(detail, "IMAGE2")
                 || imageMissing(detail, "IMAGE3") || imageMissing(detail, "IMAGE4")) {
             throw new BusinessException("필수 사진을 모두 등록해 주세요.");
         }
+        if (Set.of("UTRNS", "RTRNS").contains(Objects.toString(detail.get("TASK_CD"), ""))
+                && imageMissing(detail, "IMAGE6")) {
+            throw new BusinessException("서명을 등록해 주세요.");
+        }
+        Map<String, Object> param = managerParam(user);
+        param.put("SERVICE_ID", validateServiceId(serviceId));
+        param.put("READY_YN", "C");
+        if (numPlateMapper.updateReadyYn(param) != 1) throw new BusinessException("사진등록 완료 상태를 저장하지 못했습니다.", 409);
         String phone = Objects.toString(detail.get("TEL_NO"), "");
         if (!phone.isBlank()) {
             commonService.sendSms(Map.of(

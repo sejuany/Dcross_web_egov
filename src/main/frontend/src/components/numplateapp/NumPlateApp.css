@@ -135,8 +135,8 @@
 .numplate-push-button { display: flex; align-items: center; gap: 5px; }
 .numplate-push-button svg { width: 16px; height: 16px; }
 .numplate-push-button:disabled { opacity: .65; }
-/* 화면 스크롤과 무관하게 유지되며 iOS 하단 안전영역까지 확보하는 4개 주 메뉴 */
-.numplate-app-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; display: grid; grid-template-columns: repeat(4, 1fr); width: min(100%, 760px); margin: 0 auto; padding: 6px 4px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid #dce3ec; background: #fff; box-shadow: 0 -4px 16px rgba(28, 57, 90, .08); }
+/* 화면 스크롤과 무관하게 유지되며 iOS 하단 안전영역까지 확보하는 5개 주 메뉴 */
+.numplate-app-nav { position: fixed; right: 0; bottom: 0; left: 0; z-index: 30; display: grid; grid-template-columns: repeat(5, 1fr); width: min(100%, 760px); margin: 0 auto; padding: 6px 4px max(6px, env(safe-area-inset-bottom)); border-top: 1px solid #dce3ec; background: #fff; box-shadow: 0 -4px 16px rgba(28, 57, 90, .08); }
 .numplate-app-nav a { display: grid; place-items: center; gap: 3px; min-height: 58px; color: #66758a; font-size: 12px; font-weight: 700; text-align: center; text-decoration: none; }
 .numplate-app-nav svg { width: 27px; height: 27px; stroke-width: 1.9; }
 .numplate-app-nav a.active { color: #174f8c; }
@@ -253,6 +253,14 @@
 .numplate-cancel-review button { border-color: #b42318; background: #b42318; color: #fff; font-weight: 800; }
 .numplate-image-modal { position: fixed; inset: 0; z-index: 200; display: grid; width: 100%; height: 100%; padding: 18px; place-items: center; border: 0; background: rgba(0,0,0,.86); }
 .numplate-image-modal img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.numplate-signature-pad { display: grid; gap: 7px; }
+.numplate-signature-canvas { box-sizing: border-box; width: 100%; height: 150px; border: 1px solid #bdc9d8; border-radius: 9px; background: #fff; touch-action: none; }
+.numplate-signature-pad > div { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+.numplate-signature-pad button { min-height: 42px; border: 1px solid #bdc9d8; border-radius: 9px; background: #fff; font-weight: 700; }
+.numplate-signature-pad button:last-child { border-color: #1e66b3; background: #1e66b3; color: #fff; }
+.numplate-id-card-upload { display: grid; gap: 14px; }
+.numplate-id-card-upload p { margin: 0; line-height: 1.55; }
+.numplate-id-card-canvas { width: 100%; max-height: 420px; border-radius: 12px; object-fit: contain; background: #eef2f7; touch-action: none; }
 
 /* 번호판 후보는 서버에서 임시 배정되므로 모달 밖 클릭으로 닫지 않고 취소 버튼으로만 해제한다. */
 .numplate-modal-backdrop { position: fixed; inset: 0; z-index: 100; display: grid; place-items: end center; padding: 16px; background: rgba(15, 31, 50, .55); }

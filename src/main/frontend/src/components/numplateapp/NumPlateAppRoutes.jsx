@@ -9,6 +9,9 @@ import ProcessStatus from './ProcessStatus';
 import ReturnList from './ReturnList';
 import ReturnDetail from './ReturnDetail';
 import NotificationCenter from './NotificationCenter';
+import MyPage from './MyPage';
+import OfflineList from './OfflineList';
+import IdCardUpload from './IdCardUpload';
 
 // 번호판 앱 전용 로그인으로 만든 세션만 하위 업무 화면에 접근할 수 있다.
 function NumPlateAppGuard({ children }) {
@@ -20,19 +23,11 @@ function NumPlateAppGuard({ children }) {
     : <Navigate replace to="/numplateapp/login" state={{ from: location.pathname + location.search }} />;
 }
 
-function PendingPage({ title }) {
-  return (
-    <section className="numplate-process-page">
-      <div className="numplate-page-title"><h1>{title}</h1></div>
-      <p className="numplate-empty">준비 중입니다.</p>
-    </section>
-  );
-}
-
 export default function NumPlateAppRoutes() {
   return (
     <Routes>
       <Route path="login" element={<NumPlateAppLogin />} />
+      <Route path="id-card" element={<IdCardUpload />} />
       <Route element={<NumPlateAppGuard><NumPlateApp /></NumPlateAppGuard>}>
         {/* 기본 프로세스: 처리목록 → 처리건 입력/심사요청 → 처리결과조회 */}
         <Route index element={<ProcessList />} />
@@ -42,7 +37,8 @@ export default function NumPlateAppRoutes() {
         <Route path="returns/:serviceId" element={<ReturnDetail />} />
         {/* 아직 이관하지 않은 하단 메뉴는 안내 화면을 표시한다. */}
         <Route path="notifications" element={<NotificationCenter />} />
-        <Route path="mypage" element={<PendingPage title="마이페이지" />} />
+        <Route path="offline" element={<OfflineList />} />
+        <Route path="mypage" element={<MyPage />} />
         <Route path="plates" element={<NumPlateInventory />} />
       </Route>
       <Route path="*" element={<Navigate replace to="/numplateapp" />} />

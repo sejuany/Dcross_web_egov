@@ -170,6 +170,34 @@ public class NumPlateController {
         return ResponseEntity.ok(ApiResponse.withKey("list", numPlateService.getProcessList(body, user)));
     }
 
+    @PostMapping("/numplateapp/offline/list")
+    public ResponseEntity<Map<String, Object>> getOfflineList(
+            @RequestBody(required = false) Map<String, Object> request, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "list", numPlateService.getOfflineList(request == null ? Map.of() : request, user)));
+    }
+
+    @PostMapping("/numplateapp/password")
+    public ResponseEntity<Map<String, Object>> changeManagerPassword(
+            @RequestBody Map<String, Object> request, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.changeManagerPassword(request, user);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    @GetMapping("/numplateapp/id-card")
+    public ResponseEntity<Map<String, Object>> getIdCardUpload(@RequestParam("token") String token) {
+        return ResponseEntity.ok(ApiResponse.withKey("data", numPlateService.getIdCardUpload(token)));
+    }
+
+    @PostMapping(value = "/numplateapp/id-card", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    public ResponseEntity<Map<String, Object>> uploadIdCard(
+            @RequestParam("token") String token, @RequestParam("file") MultipartFile file) {
+        numPlateService.uploadIdCard(token, file);
+        return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
     /** 기존 RegSendList.jsp의 폐번호판 반납목록을 조회한다. */
     @PostMapping("/numplateapp/returns/list")
     public ResponseEntity<Map<String, Object>> getReturnList(
@@ -270,10 +298,17 @@ public class NumPlateController {
             @PathVariable("slot") int slot,
             HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
-        byte[] image = numPlateService.getProcessImage(serviceId, slot, user);
-        MediaType type = image.length > 4 && image[0] == (byte) 0x89 && image[1] == 0x50
-                ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
-        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(type).body(image);
+        try {
+            byte[] image = numPlateService.getProcessImage(serviceId, slot, user);
+            MediaType type = image.length > 4 && image[0] == (byte) 0x89 && image[1] == 0x50
+                    ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
+            return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(type).body(image);
+        } catch (com.dacos.common.BusinessException exception) {
+            if (exception.getStatusCode() != 404) throw exception;
+            return ResponseEntity.status(org.springframework.http.HttpStatus.FOUND)
+                    .cacheControl(CacheControl.noStore())
+                    .location(numPlateService.legacyImageUri(serviceId, slot)).build();
+        }
     }
 
     /** iPhone/Android 브라우저의 카메라 또는 앨범으로 기존 Android 사진촬영 기능을 대체한다. */
@@ -304,6 +339,13 @@ public class NumPlateController {
         UserDto user = AuthUtil.getLoginUser(session);
         numPlateService.requestIdCard(serviceId, user);
         return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/depart")
+    public ResponseEntity<Map<String, Object>> depart(
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey("data", numPlateService.depart(serviceId, user)));
     }
 
     @PostMapping("/numplateapp/process/{serviceId}/cancel-review")

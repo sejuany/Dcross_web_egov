@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { NavLink, Outlet } from 'react-router-dom';
-import { Bell, BellRing, ClipboardList, PackageCheck, UserRound } from 'lucide-react';
+import { Bell, BellRing, ClipboardList, PackageCheck, UserRound, WifiOff } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NumPlateSimpleList from './NumPlateSimpleList';
 import { enablePushNotifications, pushStatus } from './firebasePush';
@@ -10,6 +10,7 @@ import './NumPlateApp.css';
 const bottomMenus = [
   { to: '/numplateapp', label: '처리목록', icon: ClipboardList, end: true },
   { to: '/numplateapp/returns', label: '반납목록', icon: PackageCheck },
+  { to: '/numplateapp/offline', label: '오프라인', icon: WifiOff },
   { to: '/numplateapp/notifications', label: '알림센터', icon: Bell },
   { to: '/numplateapp/mypage', label: '마이페이지', icon: UserRound },
 ];

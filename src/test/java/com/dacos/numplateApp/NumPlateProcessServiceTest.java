@@ -146,6 +146,30 @@ public class NumPlateProcessServiceTest {
     }
 
     @Test
+    void newcarDeliveryDoesNotRequestReview() {
+        AtomicReference<Map<String, Object>> deliveryParam = new AtomicReference<>();
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(), new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getProcessDetail" -> Map.of("SERVICE_ID", "N010-1", "PROC_ST", "N_DLV");
+                    case "updateProcessInput" -> 1;
+                    case "completeDelivery" -> {
+                        deliveryParam.set((Map<String, Object>) args[0]);
+                        yield 1;
+                    }
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        NumPlateService service = new NumPlateService(mapper, null);
+        UserDto user = new UserDto();
+        user.setMPHONE_NO("010-1234-5678");
+        user.setLOGIN_GB("NUMPLATE_APP");
+
+        service.requestProcess("N010-1", Map.of("confirmed", true), user);
+
+        assertEquals("N010-1", deliveryParam.get().get("SERVICE_ID"));
+    }
+
+    @Test
     void loadsAvailablePlatesWithLegacyProcedureRules() {
         AtomicReference<Map<String, Object>> procedureParam = new AtomicReference<>();
         NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
@@ -293,10 +317,46 @@ public class NumPlateProcessServiceTest {
         assertArrayEquals(png, service.getCompatibleProcessImage("R011-1", 1));
 
         storedImage.set(null);
-        var redirect = new NumPlateImageController(service).image("R011-1", 1);
+        MockHttpSession session = new MockHttpSession();
+        session.setAttribute("user", user);
+        var redirect = new NumPlateImageController(service).image("R011-1", 1, session);
         assertEquals(HttpStatus.FOUND, redirect.getStatusCode());
         assertEquals("https://no.dcross.kr/image.do?key=R011-1&resize=false&img=1",
                 redirect.getHeaders().getLocation().toString());
+    }
+
+    @Test
+    void completesPhotosOnlyAfterRequiredImagesAndChangesReadyState() {
+        AtomicReference<Map<String, Object>> detail = new AtomicReference<>(Map.ofEntries(
+                Map.entry("SERVICE_ID", "R011-1"), Map.entry("PROC_ST", "J_END"),
+                Map.entry("TASK_CD", "NTRNS"), Map.entry("IMAGE1", "Y"),
+                Map.entry("IMAGE2", "Y"), Map.entry("IMAGE3", "Y"),
+                Map.entry("IMAGE4", "Y"), Map.entry("TEL_NO", "")));
+        AtomicReference<Map<String, Object>> changed = new AtomicReference<>();
+        NumPlateMapper mapper = (NumPlateMapper) Proxy.newProxyInstance(
+                NumPlateMapper.class.getClassLoader(), new Class<?>[] { NumPlateMapper.class },
+                (proxy, method, args) -> switch (method.getName()) {
+                    case "getProcessDetail" -> detail.get();
+                    case "updateReadyYn" -> {
+                        changed.set(new HashMap<>((Map<String, Object>) args[0]));
+                        yield 1;
+                    }
+                    default -> throw new UnsupportedOperationException(method.getName());
+                });
+        NumPlateService service = new NumPlateService(mapper, null);
+        UserDto user = new UserDto();
+        user.setMPHONE_NO("010-1234-5678");
+        user.setLOGIN_GB("NUMPLATE_APP");
+
+        service.completePhotos("R011-1", user);
+        assertEquals("C", changed.get().get("READY_YN"));
+
+        detail.set(Map.ofEntries(
+                Map.entry("SERVICE_ID", "R011-1"), Map.entry("PROC_ST", "J_END"),
+                Map.entry("TASK_CD", "UTRNS"), Map.entry("IMAGE1", "Y"),
+                Map.entry("IMAGE2", "Y"), Map.entry("IMAGE3", "Y"),
+                Map.entry("IMAGE4", "Y"), Map.entry("TEL_NO", "")));
+        assertThrows(BusinessException.class, () -> service.completePhotos("R011-1", user));
     }
 
     @Test
@@ -419,6 +479,8 @@ public class NumPlateProcessServiceTest {
         assertFalse(mapperXml.contains("TNI.IMAGE1 AS IMAGE1"));
         assertFalse(mapperXml.contains(", TNI.IMAGE1,"));
         assertTrue(mapperXml.contains("'회수대상X' AS CAR_NO"));
+        assertTrue(mapperXml.contains("WHEN TS.SERVICE_ID LIKE 'N%' THEN NC.REQ_CAR_NO"));
+        assertTrue(mapperXml.contains("AND SERVICE_ID NOT LIKE 'N%'"));
         assertFalse(mapperXml.contains("AS BUY_NM, '' AS PROC_ST"));
     }
 }

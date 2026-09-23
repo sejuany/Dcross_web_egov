@@ -44,8 +44,8 @@ export default function NReqDetail() {
     setMessage('');
     try {
       await axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/request`, form);
-      // 저장과 상태 변경이 완료되면 뒤로가기로 중복 제출되지 않도록 결과 화면으로 교체한다.
-      navigate(`/numplateapp/status/${encodeURIComponent(serviceId)}`, { replace: true });
+      // 신규등록은 배송 완료 후 사진 등록 업무 없이 처리목록으로 돌아간다.
+      navigate(serviceId.startsWith('N') ? '/numplateapp' : `/numplateapp/status/${encodeURIComponent(serviceId)}`, { replace: true });
     } catch (error) {
       setMessage(error.response?.data?.message || '요청을 처리하지 못했습니다.');
     } finally {
@@ -90,6 +90,22 @@ export default function NReqDetail() {
       setMessage('탈부착자 메모가 수정되었습니다.');
     } catch (error) {
       setMessage(error.response?.data?.message || '탈부착자 메모를 수정하지 못했습니다.');
+    } finally {
+      setSaving('');
+    }
+  };
+
+  const depart = async () => {
+    if (!form.installDate || !form.installTime) return setMessage('방문 예정일과 시간을 먼저 저장해 주세요.');
+    if (!window.confirm(detail.READY_YN === 'Y' ? '출발 문자를 다시 보내시겠습니까?' : '고객에게 출발 문자를 보내시겠습니까?')) return;
+    setSaving('depart');
+    setMessage('');
+    try {
+      const { data } = await axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/depart`);
+      setDetail(data.data);
+      setMessage('출발 문자를 전송했습니다.');
+    } catch (error) {
+      setMessage(error.response?.data?.message || '출발 처리를 완료하지 못했습니다.');
     } finally {
       setSaving('');
     }
@@ -166,19 +182,22 @@ export default function NReqDetail() {
   const scheduleRequired = !delivery && detail.COMPANY_ID !== 'CB407';
   const canSelectPlate = !delivery && detail.ETC5 !== 'Y'
     && detail.SUDO === '수도권' && (detail.SONGJANG_NO || '없음') === '없음';
+  const insuranceIssue = !delivery && (detail.TN_MEMO_TX || '').includes('#보험');
+  const tooEarly = scheduleRequired && form.installDate && form.installTime
+    && new Date(`${form.installDate}T${form.installTime}:00`).getTime() > Date.now() + (30 * 60 * 1000);
 
   return (
     <section className="numplate-process-page">
       <div className="numplate-page-title">
-        <div><h1>처리건 세부정보</h1><span>{serviceId}</span></div>
+        <div><h1>배송건 세부정보</h1><span>{serviceId}</span></div>
         <button type="button" onClick={() => navigate(-1)}>목록</button>
       </div>
 
       <div className="numplate-detail-grid">
-        <div><span>기존 차량번호</span><strong>{show(detail.CAR_NO)}</strong></div>
+        {!delivery && <div><span>기존 차량번호</span><strong>{show(detail.CAR_NO)}</strong></div>}
         <div className="numplate-new-number">
           <span>신규 차량번호</span>
-          <strong>{detail.ETC5 === 'Y' ? '번호판재발급' : show(detail.POST_CAR_NO)}</strong>
+          <strong>{!delivery && detail.ETC5 === 'Y' ? '번호판재발급' : show(detail.POST_CAR_NO)}</strong>
           {canSelectPlate && <button type="button" onClick={openPlateModal}>번호판 선택</button>}
         </div>
         <div><span>차명 / 연식</span><strong>{show([detail.CAR_NAME, detail.MADE_YY].filter(Boolean).join(' / '))}</strong></div>
@@ -197,6 +216,7 @@ export default function NReqDetail() {
             <button className="numplate-save-button" type="button" onClick={saveSchedule} disabled={loading || Boolean(saving)}>{saving === 'schedule' ? '저장 중…' : '저장'}</button>
           </div>
         )}
+        {!delivery && <button className="numplate-secondary-button" type="button" onClick={depart} disabled={loading || Boolean(saving)}>{saving === 'depart' ? '출발 처리 중…' : (detail.READY_YN === 'Y' ? '출발 문자 재전송' : '출발')}</button>}
         <label><span>요청사항</span><textarea value={detail.MEMO_TX || ''} readOnly /></label>
         {detail.COMPANY_ID !== 'CB407' && (
           <div className="numplate-memo-row">
@@ -209,7 +229,9 @@ export default function NReqDetail() {
           {delivery ? '배송할 번호판과 수령 정보를 확인했습니다.' : '차량·번호판·방문 정보를 모두 확인했습니다.'}
         </label>
         {message && <p className="numplate-inline-message" role="alert">{message}</p>}
-        <button className="numplate-primary-button" type="submit" disabled={loading || Boolean(saving) || !form.confirmed}>{loading ? '처리 중…' : (delivery ? '배송처리' : '심사요청')}</button>
+        {insuranceIssue && <p className="numplate-status-warning" role="alert">보험 관련 요청사항을 먼저 확인해 주세요.</p>}
+        {tooEarly && <p className="numplate-status-warning" role="alert">방문 예정시간 30분 전부터 심사요청이 가능합니다.</p>}
+        <button className="numplate-primary-button" type="submit" disabled={loading || Boolean(saving) || !form.confirmed || insuranceIssue || tooEarly}>{loading ? '처리 중…' : (delivery ? '배송처리' : '심사요청')}</button>
       </form>
 
       {plateModalOpen && (

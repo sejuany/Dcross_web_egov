@@ -1,6 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
+import SignatureCanvas from 'react-signature-canvas';
 
 const show = (value) => value || '-';
 const requestStates = new Set(['N_REQ', 'N_INS', 'N_DLV']);
@@ -26,6 +27,7 @@ export default function ProcessStatus() {
   const [cancelReason, setCancelReason] = useState('');
   const [subPanelUsed, setSubPanelUsed] = useState('');
   const [subPanelSaved, setSubPanelSaved] = useState(false);
+  const signatureRef = useRef(null);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -33,8 +35,12 @@ export default function ProcessStatus() {
     try {
       const { data } = await axios.get(`/api/numplateapp/process/${encodeURIComponent(serviceId)}`);
       const item = data.data;
+      if (serviceId.startsWith('N')) {
+        navigate(item.INSTALL_YN === 'Y' ? '/numplateapp' : `/numplateapp/request/${encodeURIComponent(serviceId)}`, { replace: true });
+        return;
+      }
       // 기존 컨트롤러처럼 아직 심사요청 전 상태이면 입력 화면으로 돌려보낸다.
-      if (requestStates.has(item.PROC_ST) || (serviceId.startsWith('N') && item.INSTALL_YN !== 'Y')) {
+      if (requestStates.has(item.PROC_ST)) {
         navigate(`/numplateapp/request/${encodeURIComponent(serviceId)}`, { replace: true });
         return;
       }
@@ -121,7 +127,19 @@ export default function ProcessStatus() {
   const finishPhotos = async () => {
     if (!window.confirm('사진 등록을 완료하고 고객에게 완료 문자를 보내시겠습니까?')) return;
     const ok = await run('complete', () => axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/photos-complete`), '사진 등록 완료 문자를 전송했습니다.');
-    if (ok) navigate('/numplateapp/returns');
+    if (ok) navigate('/numplateapp');
+  };
+
+  const saveSignature = () => {
+    if (!signatureRef.current || signatureRef.current.isEmpty()) {
+      setMessage('서명을 입력해 주세요.');
+      return;
+    }
+    signatureRef.current.getCanvas().toBlob(async (blob) => {
+      if (!blob) return setMessage('서명 이미지를 만들지 못했습니다.');
+      await uploadPhoto(6, new File([blob], 'signature.png', { type: 'image/png' }));
+      signatureRef.current?.clear();
+    }, 'image/png');
   };
 
   const saveSubPanel = async () => {
@@ -144,7 +162,7 @@ export default function ProcessStatus() {
   const workflowStatus = statusName.replace(/\((?:전시장|임시판|임시)\)$/, '');
   const visibleSlots = useMemo(() => slots.filter(([slot]) => slot !== 6 || ['UTRNS', 'RTRNS'].includes(detail?.TASK_CD)), [detail?.TASK_CD]);
   const hasImage = (slot) => Boolean(detail?.[`IMAGE${slot}`] || detail?.[`IMAGE${slot}_PATH`]);
-  const imageUrl = (slot) => `/image.do?key=${encodeURIComponent(serviceId)}&resize=false&img=${slot}&v=${imageVersion}`;
+  const imageUrl = (slot) => `/api/numplateapp/process/${encodeURIComponent(serviceId)}/images/${slot}?v=${imageVersion}`;
   const showPhotos = detail && (photoStates.has(workflowStatus) || visibleSlots.some(([slot]) => hasImage(slot)));
   const canEditPhotos = photoStates.has(workflowStatus);
   const needsSubPanelChoice = canEditPhotos && Boolean(detail?.BOND_YN)
@@ -208,7 +226,11 @@ export default function ProcessStatus() {
               <div key={slot}>
                 <strong>{label}</strong>
                 {hasImage(slot) ? <button type="button" className="numplate-image-preview" onClick={() => setPreview(slot)}><img src={imageUrl(slot)} alt={`${label} 등록 사진`} /></button> : <span className="numplate-image-empty">미등록</span>}
-                {canEditPhotos && <label className="numplate-photo-button">{working === `image-${slot}` ? '등록 중' : (hasImage(slot) ? '재촬영' : '사진 촬영')}<input type="file" accept="image/*" capture="environment" disabled={Boolean(working)} onChange={(event) => uploadPhoto(slot, event.target.files?.[0])} /></label>}
+                {canEditPhotos && slot === 6 && <div className="numplate-signature-pad">
+                  <SignatureCanvas ref={signatureRef} canvasProps={{ className: 'numplate-signature-canvas' }} />
+                  <div><button type="button" onClick={() => signatureRef.current?.clear()}>지우기</button><button type="button" onClick={saveSignature} disabled={Boolean(working)}>{working === 'image-6' ? '등록 중' : '서명 등록'}</button></div>
+                </div>}
+                {canEditPhotos && slot !== 6 && <label className="numplate-photo-button">{working === `image-${slot}` ? '등록 중' : (hasImage(slot) ? '재촬영' : '사진 촬영')}<input type="file" accept="image/*" capture="environment" disabled={Boolean(working)} onChange={(event) => uploadPhoto(slot, event.target.files?.[0])} /></label>}
               </div>
             ))}
           </div>
@@ -217,7 +239,7 @@ export default function ProcessStatus() {
       )}
 
       <div className="numplate-status-actions">
-        <button type="button" onClick={requestIdCard} disabled={Boolean(working)}>{working === 'id-card' ? '전송 중' : '신분증 등록 요청'}</button>
+        <button type="button" onClick={requestIdCard} disabled={Boolean(working) || detail.READY_YN !== 'Y'}>{working === 'id-card' ? '전송 중' : '신분증 등록 요청'}</button>
         <button type="button" onClick={() => navigate('/numplateapp')}>처리목록으로</button>
       </div>
 
