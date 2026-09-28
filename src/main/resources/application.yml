@@ -78,3 +78,10 @@ firebase:
     public-base-url: ${FIREBASE_PUBLIC_BASE_URL:https://web.dcross.kr}
     # 이전 Java 7 프로젝트와 동일한 임의의 긴 값을 환경변수로 설정한다.
     internal-api-key: ${NUMPLATE_PUSH_API_KEY:}
+---
+spring:
+  config:
+    activate:
+      on-profile: real
+self-newcar:
+  upload-dir: ${SELF_NEWCAR_UPLOAD_DIR:/web/upload}

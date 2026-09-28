@@ -15,10 +15,20 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.core.io.Resource;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import com.dacos.common.BusinessException;
 
 class AttachServiceFileSecurityTest {
+
+    @Test
+    void usesSharedSelfNewcarUploadDirectory() {
+        AttachService service = new AttachService(null, null, null);
+        ReflectionTestUtils.setField(service, "sharedUploadDir", "D:/webapps/DaCOS/upload");
+
+        assertEquals(Path.of("D:/webapps/DaCOS/upload").resolve("S1_ETC_1.pdf").normalize(),
+                service.getAttachFilePath("S1_ETC_1.pdf"));
+    }
 
     @Test
     void rejectsExecutableAndSpoofedUploads() {

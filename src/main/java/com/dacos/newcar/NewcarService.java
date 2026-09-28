@@ -3142,7 +3142,7 @@ public class NewcarService {
 		int count = common.update(Map.of(), "appendExpiredNumplateMessageMemo");
 		count += common.update(Map.of(), "clearExpiredNumplateMessageDetach");
 		count += common.update(Map.of(), "releaseExpiredNumplateMessageList");
-		count += common.update(Map.of(), "releaseExpiredPendingNumplateList");
+		//count += common.update(Map.of(), "releaseExpiredPendingNumplateList");
 		return count;
 	}
 

@@ -807,7 +807,7 @@
 	    UPDATE TM_NUMPLATE_LIST
 	       SET USE_YN = 'N', APPEAR_DT = NULL
 	     WHERE USE_YN = 'P'
-	       AND NUMPLATE_MSG_TOKEN IS NULL
+	       AND NUMPLATE_MSG_TOKEN IS NOT NULL
 	       AND APPEAR_DT &lt;= SYSDATE - (5 / 1440)
 	</update>
     

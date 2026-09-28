@@ -2864,6 +2864,7 @@ const WaNewcarRequest = ({
 									{purchaseType === 'NORMAL' &&
 										<OwnerNormal
 											dsService={dsService}
+											companyId={dsUserInfo.COMPANY_ID}
 											dsCompanyInfo={dsCompanyInfo}
 											dsNewCar={dsNewCar}
 										    dsCarNoDetach={dsCarNoDetach}

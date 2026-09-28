@@ -14,6 +14,7 @@ import JointOwner from './JointOwner';
 const OwnerPersonal = ({
     dsNewCar,
 	dsService,
+	companyId,
 	dsCompanyInfo,
 	dsCarNoDetach,
 	setDsNewCar,
@@ -178,7 +179,7 @@ const OwnerPersonal = ({
 	
     return (
 	    <>
-			<div className="wa-self-registration-row">
+			{companyId === 'WA999' && <div className="wa-self-registration-row">
 				<button
 					type="button"
 					className="wa-self-registration-btn"
@@ -187,7 +188,7 @@ const OwnerPersonal = ({
 					셀프입력
 				</button>
 				<p>대표소유자가 직접 정보 입력을 원하는 경우에만 [셀프입력] 버튼을 클릭해 주세요.</p>
-			</div>
+			</div>}
 
 			{/* 대표소유자 */}
 			<div className="wa-form-row">

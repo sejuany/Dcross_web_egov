@@ -32,6 +32,7 @@ import org.apache.pdfbox.pdmodel.graphics.image.JPEGFactory;
 import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -62,6 +63,8 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 @Service
 public class AttachService {
+    @Value("${self-newcar.upload-dir:}")
+    private String sharedUploadDir;
 
     private static final Logger logger = LoggerFactory.getLogger(AttachService.class);
     // DB 저장 경로
@@ -141,6 +144,9 @@ public class AttachService {
 	 * 첨부파일 저장 루트 경로 조회
 	 */
 	private String getAttachUploadRoot() {
+	    if (sharedUploadDir != null && !sharedUploadDir.isBlank()) {
+	        return sharedUploadDir;
+	    }
 
 	    String serverIp = getServerAddress("IP");
 

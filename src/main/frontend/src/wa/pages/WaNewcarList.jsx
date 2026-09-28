@@ -366,6 +366,8 @@ const WaNewcarList = () => {
 	const userBranchId = getUserBranchId(user);
 	const isSpaceFixed = ['BA', 'SU'].includes(memberGb);
 	const canManageNewcarActions = memberGb === 'CA';
+	const isWa999 = getUserCompanyId(user) === 'WA999';
+	const canUploadExcel = canManageNewcarActions || isWa999;
     const [codeListMap, setCodeListMap] = useState({});
     const [branchList, setBranchList] = useState([]);
     const [rawRows, setRawRows] = useState([]);
@@ -915,7 +917,7 @@ const WaNewcarList = () => {
     };
 
     const handleExcelClick = () => {
-        if (!canManageNewcarActions) {
+        if (!canUploadExcel) {
             return;
         }
 
@@ -942,7 +944,7 @@ const WaNewcarList = () => {
 	    const companyId = getUserCompanyId(user);
 	    let fileNm = templateFileName;
 
-	    if (!fileNm && companyId === 'WA001') {
+	    if (!fileNm && ['WA001', 'WA999'].includes(companyId)) {
 	        fileNm = '폴스타_엑셀업로드양식.xlsx';
 	    }
 
@@ -1306,7 +1308,7 @@ const WaNewcarList = () => {
 		    return;
 		}
 
-		if (memberGb !== 'CA' && memberGb !== 'SA') return;
+		if (memberGb !== 'CA' && memberGb !== 'SA' && !(isWa999 && actionKey === 'receipt')) return;
 
 		if (actionKey === 'apply') {
 		    handleRequestClick();
@@ -1648,7 +1650,7 @@ const WaNewcarList = () => {
                             <button type="button" onClick={event => { requestExcelExport(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
                                 <Download size={16} /> 엑셀 다운로드
                             </button>
-                            {canManageNewcarActions && (
+                            {canUploadExcel && (
                                 <button type="button" onClick={event => { handleExcelClick(); event.currentTarget.closest('details')?.removeAttribute('open'); }}>
                                     <Upload size={16} /> 엑셀 업로드
                                 </button>
@@ -1778,7 +1780,7 @@ const WaNewcarList = () => {
                 <section className="wa-status-heading">
 					<div className="wa-status-actions" aria-label="목록 기능">
 					    {gridActionButtons
-					        .filter(button => button.roles.includes(memberGb))
+					        .filter(button => button.roles.includes(memberGb) || (isWa999 && button.key === 'receipt'))
 					        .map(({ key, label, Icon, variant }) => (
 					            <button
 					                key={key}
@@ -1801,7 +1803,7 @@ const WaNewcarList = () => {
                                 <span>공급가액 수정</span>
                             </button>
                         )}
-                        {canManageNewcarActions && (
+                        {canUploadExcel && (
                             <>
                                 <button type="button" className="wa-status-action primary" onClick={handleExcelClick} disabled={loading}>
                                     <Upload size={15} />
@@ -1969,7 +1971,7 @@ const WaNewcarList = () => {
                     </div>
                     <div className="wa-mobile-selection-actions">
                         {gridActionButtons
-                            .filter(button => button.roles.includes(memberGb))
+                            .filter(button => button.roles.includes(memberGb) || (isWa999 && button.key === 'receipt'))
                             .map(({ key, label, Icon }) => (
                                 <button key={key} type="button" className={`wa-mobile-selection-action ${key}`} onClick={() => handleGridActionClick(key)} disabled={loading}>
                                     <Icon size={17} />

@@ -41,4 +41,5 @@ with-auth:
   encrypt-iv: ${WITHAUTH_ENCRYPT_IV:}
 
 self-newcar:
+  upload-dir: ${SELF_NEWCAR_UPLOAD_DIR:D:/webapps/DaCOS/upload}
   url: http://tnc.dcross.kr:8090
