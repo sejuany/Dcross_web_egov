@@ -51,14 +51,16 @@ public class NewcarController {
 
     private final NewcarService newcarService;
     private final CommonService commonService;
-    private final NewcarPdfExtractService newcarPdfExtractService;
     private final AttachService attachService;
+    private final NumplateSelectionService numplateService;
+    private final NewcarPdfExtractService newcarPdfExtractService;
 
-    public NewcarController(NewcarService newcarService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService, AttachService attachService) {
+    public NewcarController(NewcarService newcarService, CommonService commonService, NewcarPdfExtractService newcarPdfExtractService, AttachService attachService, NumplateSelectionService numplateService) {
         this.newcarService = newcarService;
         this.commonService = commonService;
         this.newcarPdfExtractService = newcarPdfExtractService;
         this.attachService = attachService;
+        this.numplateService = numplateService;
     }
     
     /**
@@ -83,6 +85,23 @@ public class NewcarController {
         logger.info("[NewcarController] WA 신규신청현황 조회 요청");
         UserDto user = AuthUtil.getLoginUser(session);
         List<Map<String, Object>> list = newcarService.getWaNewCarList(request, user);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    @PostMapping("/dacos-list")
+    public ResponseEntity<Map<String, Object>> getDacosNewCarList(
+            @RequestBody NewcarSearchRequest request,
+            HttpSession session) {
+        logger.info("[NewcarController] DACOS 딜러시스템 신규신청현황 조회 요청");
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = newcarService.getDacosNewCarList(request, user);
+        return ResponseEntity.ok(ApiResponse.withKey("list", list));
+    }
+
+    @GetMapping("/dacos-company-options")
+    public ResponseEntity<Map<String, Object>> getDacosWaCompanyOptions(HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = newcarService.getDacosWaCompanyOptions(user);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
@@ -187,6 +206,16 @@ public class NewcarController {
         UserDto user = AuthUtil.getLoginUser(session);
         Map<String, Object> result = newcarService.applySupplyAmountCalculations(rows, user);
         return ResponseEntity.ok(ApiResponse.withKey("data", result));
+    }
+
+    /** 접수건의 엑셀 데이터 수정 이력 조회 */
+    @GetMapping("/data-change-history/{serviceId}")
+    public ResponseEntity<Map<String, Object>> getDataChangeHistory(
+            @PathVariable("serviceId") String serviceId,
+            HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "list", newcarService.getDataChangeHistory(serviceId, user)));
     }
     
     /**
@@ -335,7 +364,7 @@ public class NewcarController {
 
         UserDto user = AuthUtil.getLoginUser(session);
 
-        return newcarService.getNumplateList(param, user, session);
+        return numplateService.getNumplateList(param, user, session);
     }
 
     
@@ -349,7 +378,7 @@ public class NewcarController {
     	// 세션 체크
     	UserDto user = AuthUtil.getLoginUser(session);
  		// 미사용 번호판 상태복구
- 		return newcarService.getNumPlateRelease(param);
+ 		return numplateService.getNumPlateRelease(param);
     }
     
 	/**
@@ -363,7 +392,7 @@ public class NewcarController {
 		// 세션 체크
  		UserDto user = AuthUtil.getLoginUser(session);
  		
- 		return newcarService.selectNumplate(param, user);
+ 		return numplateService.selectNumplate(param, user);
 	}
 	
     /**
@@ -379,7 +408,7 @@ public class NewcarController {
     	UserDto user = AuthUtil.getLoginUser(session);
 
     	// 번호판 미사용 처리
-    	newcarService.updateNumplateUseYn(param, user);
+    	numplateService.updateNumplateUseYn(param, user);
     	
         return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
     }
@@ -412,13 +441,13 @@ public class NewcarController {
 		return ResponseEntity.ok(result);
 	}
 
-	/** SP 로그인 세션으로 번호판을 배정하고 고객 선택 문자를 발송한다. */
+	/** SP 로그인 권한으로 고객 번호판 조회 토큰을 만들고 선택 문자를 발송한다. */
 	@PostMapping("/numplate-selection/send")
 	public ResponseEntity<Map<String, Object>> sendNumplateSelection(
 			@RequestBody Map<String, Object> param, HttpSession session) {
 		UserDto user = AuthUtil.getLoginUser(session);
 		return ResponseEntity.ok(ApiResponse.withKey(
-				"result", newcarService.sendNumplateSelectionMessage(param, user, session)));
+				"result", numplateService.sendNumplateSelectionMessage(param, user)));
 	}
 
 	/** SP 화면의 5초 폴링 및 모달 재오픈에 사용할 현재 배정 상태를 조회한다. */
@@ -427,7 +456,7 @@ public class NewcarController {
 			@RequestParam("serviceId") String serviceId, HttpSession session) {
 		UserDto user = AuthUtil.getLoginUser(session);
 		return ResponseEntity.ok(ApiResponse.withKey(
-				"result", newcarService.getNumplateSelectionStatus(serviceId, user)));
+				"result", numplateService.getNumplateSelectionStatus(serviceId, user)));
 	}
 
 	/**
@@ -595,17 +624,8 @@ public class NewcarController {
     	
     	String serverIp = attachService.getServerAddress("IP");
     	
-    	String sPath = "D:/pdf/Carpaper";
-    	
-		if ("10.109.111.40".equals(serverIp)) {
-			sPath = "/web/updownfiles/pdf/Carpaper";
-		}
-		
-        Path path = Paths.get(
-        		sPath,
-                date,
-                carNo + ".pdf"
-        );
+        // 자동메일에서도 같은 등록증 경로 규칙을 사용한다.
+        Path path = CarPaperFiles.resolve(serverIp, date, carNo);
         
         if (!Files.exists(path)) {
             return ResponseEntity.notFound().build();

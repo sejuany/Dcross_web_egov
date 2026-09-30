@@ -145,6 +145,16 @@ public class MortgageEraseController {
         return ResponseEntity.ok(ApiResponse.withKey("result", result));
     }
 
+    /** 저당말소 담당자 메모 저장 */
+    @PostMapping("/mortgageerase/request/memo")
+    public ResponseEntity<Map<String, Object>> updateMortgageEraseMemo(
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
+        String memo = mortgageEraseService.updateMortgageEraseMemo(
+                request, AuthUtil.getLoginUser(session));
+        return ResponseEntity.ok(ApiResponse.withKey("memo", memo));
+    }
+
     /** 차량번호 Excel을 읽어 납부완료 영수증 조회 */
     @PostMapping("/mortgageerase/receipt/search")
     public ResponseEntity<Map<String, Object>> searchMortgageEraseReceipts(

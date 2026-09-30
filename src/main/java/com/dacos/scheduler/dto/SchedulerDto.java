@@ -31,4 +31,8 @@ public class SchedulerDto {
     private String REQ_CAR_NO;
     private String LINK_ID;
     private String NTAX_TRGET_CD;
+    private String PAY_ST;
+    private Object TOTAL_AMT;
+    private String VBANK_NO;
+    private String NUMPLATE_MSG_TOKEN;
 }

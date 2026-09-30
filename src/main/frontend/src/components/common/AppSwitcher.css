@@ -1,0 +1,79 @@
+.app-switcher {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.app-switcher-trigger,
+.app-switcher-logo-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+}
+
+.app-switcher-menu {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    z-index: 7000;
+    min-width: 140px;
+    padding: 6px;
+    border: 1px solid #d7dee8;
+    border-radius: 8px;
+    background: #fff;
+    box-shadow: 0 10px 24px rgba(15, 35, 64, 0.2);
+    opacity: 0;
+    visibility: hidden;
+    transform: translateY(-4px);
+    transition: opacity .15s ease, transform .15s ease, visibility .15s ease;
+}
+
+.app-switcher:hover .app-switcher-menu,
+.app-switcher:focus-within .app-switcher-menu {
+    opacity: 1;
+    visibility: visible;
+    transform: translateY(0);
+}
+
+.app-switcher-menu a {
+    display: block;
+    padding: 9px 12px;
+    border-radius: 5px;
+    color: #17395f;
+    font-size: 13px;
+    font-weight: 700;
+    text-decoration: none;
+    white-space: nowrap;
+}
+
+.app-switcher-menu a:hover,
+.app-switcher-menu a:focus-visible {
+    background: #edf4fc;
+}
+
+.app-switcher-menu a.active {
+    background: #17395f;
+    color: #fff;
+}
+
+.dacos-dealer-logo {
+    width: 128px;
+    max-height: 34px;
+    object-fit: contain;
+}
+
+@media (max-width: 760px) {
+    .wa-topbar-inner > .app-switcher {
+        grid-area: brand;
+        justify-content: flex-start;
+    }
+
+    .dacos-dealer-logo {
+        width: 104px;
+    }
+}

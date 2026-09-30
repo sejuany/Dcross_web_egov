@@ -607,6 +607,20 @@
 	    SELECT SERVICE_ID, NUMPLATE_MSG_TOKEN, CONFIRM_NO FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID} FOR UPDATE
 	</select>
 
+	<select id="getNumplateMessageTokenByServiceId" parameterType="map" resultType="string">
+	    SELECT NUMPLATE_MSG_TOKEN FROM TR_CARNO_DETACH WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
+
+	<update id="createNumplateMessageTokenIfMissing" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	       SET NUMPLATE_MSG_TOKEN = #{TOKEN},
+	           CONFIRM_NO = NULL,
+	           NUMPLATE_SELECT_COUNT = 0,
+	           NUMPLATE_SELECT_TIME = NULL
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	       AND NUMPLATE_MSG_TOKEN IS NULL
+	</update>
+
 	<!-- 화면이 전달한 모든 번호가 아직 P(조회되어 임시 점유 중)인지 서버에서 재검증 -->
 	<select id="countPendingNumplateMessageList" parameterType="map" resultType="int">
 	    SELECT COUNT(*)
@@ -636,7 +650,7 @@
 
 	<update id="clearNumplateMessageDetach" parameterType="map">
 	    UPDATE TR_CARNO_DETACH
-	       SET CONFIRM_NO = NULL, NUMPLATE_MSG_TOKEN = NULL
+	       SET CONFIRM_NO = NULL
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
@@ -673,8 +687,11 @@
 	-->
 	<select id="selectNumplateMessageForUpdate" parameterType="map" resultType="map">
 	    SELECT D.SERVICE_ID, D.CONFIRM_NO, D.NUMPLATE_MSG_TOKEN,
+	           NVL(D.NUMPLATE_SELECT_COUNT, 0) AS NUMPLATE_SELECT_COUNT,
+	           D.NUMPLATE_SELECT_TIME,
 	           NVL(D.CUSTOMER_NM, N.OWNER_NM) AS CUSTOMER_NM,
 	           N.CARID_NO, N.CAR_NM, N.REQ_CAR_NO,
+	           NVL(N.NUMPLATE_GB, D.TASK_CD) AS NUMPLATE_GB,
 	           S.LINK_ID,
 	           (SELECT MAX(P.APPEAR_DT) FROM TM_NUMPLATE_LIST P
 	             WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN) AS APPEAR_DT
@@ -687,6 +704,126 @@
 	     </if>
 	</select>
 
+	<!-- 공개 링크의 서비스 정보와 조회 횟수/조회 시각을 가져온다. 화면 조회 자체는 행을 잠그지 않는다. -->
+	<select id="selectCustomerNumplateAccess" parameterType="map" resultType="map">
+	    SELECT D.SERVICE_ID, D.CONFIRM_NO, D.NUMPLATE_MSG_TOKEN,
+	           NVL(D.NUMPLATE_SELECT_COUNT, 0) AS NUMPLATE_SELECT_COUNT,
+	           D.NUMPLATE_SELECT_TIME,
+	           TO_CHAR(D.NUMPLATE_SELECT_TIME + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
+	           NVL(D.CUSTOMER_NM, N.OWNER_NM) AS CUSTOMER_NM,
+	           N.CARID_NO, N.CAR_NM, N.CAR_KD, N.REQ_CAR_NO,
+	           TO_CHAR(N.REGIST_DATE - 3, 'YYYY-MM-DD') AS INSURANCE_DEADLINE,
+	           TO_CHAR(N.REGIST_DATE, 'YYYY-MM-DD') AS INSURANCE_START_DATE,
+	           N.REG_GB, N.BUY_AMT, N.NUMPLATE_GB AS SAVED_NUMPLATE_GB,
+	           CASE
+	               WHEN N.REG_GB = 'B'
+	                AND NVL(N.BUY_AMT, 0) <![CDATA[>=]]> 80000000
+	                AND NVL(SUBSTR(UPPER(N.NUMPLATE_GB), 2, 1), '-') != 'G'
+	               THEN 'Y'
+	               ELSE 'N'
+	           END AS NUMPLATE_TYPE_SELECT_YN,
+	           NVL(N.NUMPLATE_GB, D.TASK_CD) AS NUMPLATE_GB,
+	           D.HOLE_YN, D.SEAL_YN,
+	           S.LINK_ID, S.GOVT_ID, B.ASSIGN_CD
+	      FROM TR_CARNO_DETACH D
+	      JOIN TR_NEWCAR N ON N.SERVICE_ID = D.SERVICE_ID
+	      JOIN TR_SERVICE S ON S.SERVICE_ID = D.SERVICE_ID
+	      LEFT JOIN TM_BRANCH B
+	        ON B.COMPANY_ID = S.COMPANY_ID
+	       AND B.BRANCH_ID = S.BRANCH_ID
+	     WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	</select>
+
+	<!-- 8천만원 이상 법인 차량의 번호판 종류를 실제 번호 조회 전에 저장한다. -->
+	<update id="updateCustomerNumplateType" parameterType="map">
+	    UPDATE TR_NEWCAR N
+	       SET NUMPLATE_GB = #{NUMPLATE_GB},
+	           UPD_USER = 'CUSTOMER',
+	           UPD_DATE = SYSDATE
+	     WHERE N.SERVICE_ID = (
+	               SELECT D.SERVICE_ID
+	                 FROM TR_CARNO_DETACH D
+	                WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	           )
+	       AND N.REG_GB = 'B'
+	       AND NVL(N.BUY_AMT, 0) <![CDATA[>=]]> 80000000
+	       AND N.REQ_CAR_NO IS NULL
+	       AND NVL(SUBSTR(UPPER(N.NUMPLATE_GB), 2, 1), '-') != 'G'
+	       AND EXISTS (
+	               SELECT 1
+	                 FROM TR_CARNO_DETACH D
+	                WHERE D.SERVICE_ID = N.SERVICE_ID
+	                  AND D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	                  AND NVL(D.NUMPLATE_SELECT_COUNT, 0) = 0
+	                  AND D.NUMPLATE_SELECT_TIME IS NULL
+	           )
+	</update>
+
+	<!-- 최초 접근 또는 관리자가 횟수를 0으로 초기화한 뒤의 접근부터 새 5분을 시작한다. -->
+	<update id="startCustomerNumplateAccess" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	       SET NUMPLATE_SELECT_COUNT = 1,
+	           NUMPLATE_SELECT_TIME = SYSDATE
+	     WHERE NUMPLATE_MSG_TOKEN = #{TOKEN}
+	       AND NVL(NUMPLATE_SELECT_COUNT, 0) = 0
+	       AND NUMPLATE_SELECT_TIME IS NULL
+	</update>
+
+	<!-- 고객이 조회 버튼을 누른 시점에 신청 조건과 일치하는 미사용 번호를 완전 무작위로 최대 10개 추출한다. -->
+	<select id="selectRandomCustomerNumplateList" parameterType="map" resultType="string">
+	    SELECT CAR_NO
+	      FROM (
+	            SELECT CAR_NO
+	              FROM TM_NUMPLATE_LIST
+	             WHERE USE_YN = 'N'
+	               AND PROC_ST IN ('M_END', 'S_REQ', 'S_ING', 'S_END')
+	               AND SUBSTR(CAR_NO, 3, 1) NOT IN ('하', '허', '호')
+	               AND SUBSTR(CAR_NO, 4, 1) NOT IN ('하', '허', '호')
+	               AND GOVT_ID = #{GOVT_ID}
+	               AND NUM_KIND = #{NUMPLATE_GB}
+	               AND HOLE_YN = #{HOLE_YN}
+	               AND SEAL_YN = #{SEAL_YN}
+	               AND SPECIAL_YN = 'Y'
+	               AND ASSIGN_CD = #{ASSIGN_CD}
+	               AND SUBSTR(CAR_NO, 1, 2) <![CDATA[>=]]>
+	                   DECODE(NVL(#{CAR_KD}, '70'), '70', '01', '80', '70', '97', '80')
+	               AND SUBSTR(CAR_NO, 1, 2) <![CDATA[<]]>
+	                   DECODE(NVL(#{CAR_KD}, '70'), '97', '98', NVL(#{CAR_KD}, '70'))
+	             ORDER BY DBMS_RANDOM.VALUE
+	      )
+	     WHERE ROWNUM <![CDATA[<=]]> #{LIMIT}
+	</select>
+
+	<!-- 방금 추출한 번호만 P로 점유하고 공개 토큰을 연결한다. -->
+	<update id="assignRandomCustomerNumplateList" parameterType="map">
+	    UPDATE TM_NUMPLATE_LIST
+	       SET USE_YN = 'P',
+	           NUMPLATE_MSG_TOKEN = #{TOKEN},
+	           APPEAR_DT = SYSDATE
+	     WHERE USE_YN = 'N'
+	       AND CAR_NO IN
+	       <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
+	           #{carNo}
+	       </foreach>
+	</update>
+
+	<!-- 고객 화면 표시 순서를 탈부착 행에 저장한다. -->
+	<update id="updateCustomerNumplateCandidates" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	       SET CONFIRM_NO = #{CONFIRM_NO}
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	       AND NUMPLATE_MSG_TOKEN = #{TOKEN}
+	</update>
+
+	<!-- 기존 메모를 보존하고 고객이 실제 조회한 시각과 무작위 번호 목록을 추가한다. -->
+	<update id="appendCustomerNumplateLookupMemo" parameterType="map">
+	    UPDATE TR_NEWCAR
+	       SET MEMO_TX = NVL(MEMO_TX || CHR(10), '')
+	           || TO_CHAR(SYSDATE, 'YY-MM-DD HH24:MI')
+	           || ' [번호판 조회] ' || REPLACE(#{CONFIRM_NO}, ',', ', ')
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+
 	<!-- CONFIRM_NO에 저장한 발송 순서를 그대로 유지해 고객 화면에 번호판을 표시한다. -->
 	<select id="selectNumplateMessageList" parameterType="map" resultType="map">
 	    SELECT CAR_NO, USE_YN,
@@ -697,7 +834,7 @@
 	     ORDER BY INSTR(',' || #{CONFIRM_NO} || ',', ',' || CAR_NO || ',')
 	</select>
 
-	<!-- 토큰·P 상태·5분 유효시간을 모두 만족하는 선택 번호 한 건만 S(사용)로 확정한다. -->
+	<!-- 토큰·P 상태·조회 버튼 클릭 후 5분 유효시간을 만족하는 번호 한 건만 S(사용)로 확정한다. -->
 	<update id="selectCustomerNumplate" parameterType="map">
 	    UPDATE TM_NUMPLATE_LIST
 	       SET USE_YN = 'S', SERVICE_ID = #{SELECT_SERVICE_ID}, CARID_NO = #{CARID_NO},
@@ -705,7 +842,13 @@
 	     WHERE CAR_NO = #{CAR_NO}
 	       AND NUMPLATE_MSG_TOKEN = #{TOKEN}
 	       AND USE_YN = 'P'
-	       AND APPEAR_DT &gt; SYSDATE - (5 / 1440)
+	       AND EXISTS (
+	           SELECT 1
+	             FROM TR_CARNO_DETACH D
+	            WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	              AND NVL(D.NUMPLATE_SELECT_COUNT, 0) &gt;= 1
+	              AND D.NUMPLATE_SELECT_TIME &gt; SYSDATE - (5 / 1440)
+	       )
 	</update>
 
 	<!-- 선택 번호의 ASSIGN_CD에 연결된 탈부착자명/연락처만 저장한다. PHONE_NO는 암호문 그대로 복사한다. -->
@@ -733,7 +876,8 @@
 	<!-- 고객이 고르지 않은 동일 토큰의 나머지 P 번호는 즉시 N으로 풀어 재사용 가능하게 한다. -->
 	<update id="releaseOtherNumplateMessageList" parameterType="map">
 	    UPDATE TM_NUMPLATE_LIST
-	       SET USE_YN = 'N', NUMPLATE_MSG_TOKEN = NULL, APPEAR_DT = NULL
+	       SET USE_YN = 'N', SERVICE_ID = NULL, CARID_NO = NULL,
+	           NUMPLATE_MSG_TOKEN = NULL, APPEAR_DT = NULL
 	     WHERE NUMPLATE_MSG_TOKEN = #{TOKEN}
 	       AND CAR_NO != #{CAR_NO}
 	       AND USE_YN = 'P'
@@ -742,64 +886,99 @@
 	<!-- SP 폴링용 상태: REQ_CAR_NO는 선택 완료 여부, ACTIVE_YN은 5분 유효 여부를 나타낸다. -->
 	<select id="selectNumplateMessageStatus" parameterType="map" resultType="map">
 	    SELECT D.NUMPLATE_MSG_TOKEN, D.CONFIRM_NO, N.REQ_CAR_NO,
-	           TO_CHAR(MAX(P.APPEAR_DT) + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
-	           CASE WHEN MAX(P.APPEAR_DT) &gt; SYSDATE - (5 / 1440) THEN 'Y' ELSE 'N' END AS ACTIVE_YN
+	           NVL(D.NUMPLATE_SELECT_COUNT, 0) AS NUMPLATE_SELECT_COUNT,
+	           D.NUMPLATE_SELECT_TIME,
+	           TO_CHAR(D.NUMPLATE_SELECT_TIME + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
+	           CASE WHEN D.NUMPLATE_SELECT_TIME &gt; SYSDATE - (5 / 1440) THEN 'Y' ELSE 'N' END AS ACTIVE_YN
 	      FROM TR_CARNO_DETACH D
 	      JOIN TR_NEWCAR N ON N.SERVICE_ID = D.SERVICE_ID
-	      LEFT JOIN TM_NUMPLATE_LIST P ON P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
 	     WHERE D.SERVICE_ID = #{SERVICE_ID}
-	     GROUP BY D.NUMPLATE_MSG_TOKEN, D.CONFIRM_NO, N.REQ_CAR_NO
 	</select>
 
 	<!--
-		아직 P 상태인 번호가 있고 토큰의 모든 번호가 5분을 지난 배정만 만료 메모 대상으로 삼는다.
-		다음 정리 쿼리가 CONFIRM_NO를 지우기 전에 반드시 먼저 실행되어야 번호 목록을 기록할 수 있다.
+		P에서 N으로 반환할 번호판의 토큰으로 신청 건을 찾고, 실제 반환 대상 번호 목록을
+		기존 메모 다음 줄에 기록한다. 번호판 토큰을 지우기 전에 반드시 먼저 실행한다.
 	-->
 	<update id="appendExpiredNumplateMessageMemo">
 	    MERGE INTO TR_NEWCAR N
 	    USING (
-	        SELECT D.SERVICE_ID, D.CONFIRM_NO
-	          FROM TR_CARNO_DETACH D
-	         WHERE D.NUMPLATE_MSG_TOKEN IS NOT NULL
-	           AND D.CONFIRM_NO IS NOT NULL
-	           AND EXISTS (
-	               SELECT 1 FROM TM_NUMPLATE_LIST P
-	                WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
-	                  AND P.USE_YN = 'P'
-	                  AND P.APPEAR_DT &lt;= SYSDATE - (5 / 1440)
-	           )
-	           AND NOT EXISTS (
-	               SELECT 1 FROM TM_NUMPLATE_LIST P
-	                WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
-	                  AND P.APPEAR_DT &gt; SYSDATE - (5 / 1440)
-	           )
+	        SELECT D.SERVICE_ID,
+	               LISTAGG(P.CAR_NO, ', ') WITHIN GROUP (
+	                   ORDER BY DECODE(
+	                       INSTR(',' || D.CONFIRM_NO || ',', ',' || P.CAR_NO || ','),
+	                       0, 999999,
+	                       INSTR(',' || D.CONFIRM_NO || ',', ',' || P.CAR_NO || ',')
+	                   ), P.CAR_NO
+	               ) AS CAR_NOS
+	          FROM TM_NUMPLATE_LIST P
+	          JOIN TR_CARNO_DETACH D
+	            ON D.NUMPLATE_MSG_TOKEN = P.NUMPLATE_MSG_TOKEN
+	         WHERE P.USE_YN = 'P'
+	           AND NVL(D.NUMPLATE_SELECT_COUNT, 0) <![CDATA[>=]]> 1
+	           AND D.NUMPLATE_SELECT_TIME IS NOT NULL
+	           AND D.NUMPLATE_SELECT_TIME <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	         GROUP BY D.SERVICE_ID, D.CONFIRM_NO
 	    ) E
 	       ON (N.SERVICE_ID = E.SERVICE_ID)
 	     WHEN MATCHED THEN UPDATE
-	       SET MEMO_TX = NVL(N.MEMO_TX || CHR(10), '')
-	           || '[' || TO_CHAR(SYSDATE, 'YYYY-MM-DD HH24:MI:SS') || '] '
-	           || E.CONFIRM_NO || ' 미사용처리 완료'
+	       SET MEMO_TX = CASE
+	                         WHEN N.MEMO_TX IS NULL THEN ''
+	                         ELSE N.MEMO_TX || CHR(10)
+	                     END
+	           || TO_CHAR(SYSDATE, 'YY-MM-DD HH24:MI')
+	           || ' [번호판 미사용 처리] ' || E.CAR_NOS
 	</update>
 
 	<!-- 만료된 배정의 공개 링크를 무효화하도록 탈부착 건의 목록과 토큰을 초기화한다. -->
 	<update id="clearExpiredNumplateMessageDetach">
+	
 	    UPDATE TR_CARNO_DETACH D
-	       SET CONFIRM_NO = NULL, NUMPLATE_MSG_TOKEN = NULL
+	       SET CONFIRM_NO = NULL
 	     WHERE D.NUMPLATE_MSG_TOKEN IS NOT NULL
-	       AND NOT EXISTS (
-	           SELECT 1 FROM TM_NUMPLATE_LIST P
+	
+	       AND NVL(D.NUMPLATE_SELECT_COUNT, 0) <![CDATA[>=]]> 1
+	       AND D.NUMPLATE_SELECT_TIME IS NOT NULL
+	       AND D.NUMPLATE_SELECT_TIME <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	       AND EXISTS (
+	           SELECT 1
+	             FROM TR_NEWCAR N
+	            WHERE N.SERVICE_ID = D.SERVICE_ID
+	       )
+
+	       -- 메모 기록 대상과 동일하게 아직 P 상태 후보가 남은 건만 처리
+	       AND EXISTS (
+	           SELECT 1
+	             FROM TM_NUMPLATE_LIST P
 	            WHERE P.NUMPLATE_MSG_TOKEN = D.NUMPLATE_MSG_TOKEN
-	              AND P.APPEAR_DT &gt; SYSDATE - (5 / 1440)
+	              AND P.USE_YN = 'P'
 	       )
 	</update>
 
-	<!-- 만료된 P는 N으로 복구하고, 이미 고객이 선택한 S는 유지한 채 만료 관리 필드만 비운다. -->
+	<!-- 고객 조회 건은 NUMPLATE_SELECT_TIME을 기준으로 P를 N으로 복구한다. 기존 건은 APPEAR_DT 기준을 유지한다. -->
 	<update id="releaseExpiredNumplateMessageList">
 	    UPDATE TM_NUMPLATE_LIST
 	       SET USE_YN = CASE WHEN USE_YN = 'P' THEN 'N' ELSE USE_YN END,
 	           NUMPLATE_MSG_TOKEN = NULL, APPEAR_DT = NULL
 	     WHERE NUMPLATE_MSG_TOKEN IS NOT NULL
-	       AND APPEAR_DT &lt;= SYSDATE - (5 / 1440)
+	       AND (
+	           EXISTS (
+	               SELECT 1
+	                 FROM TR_CARNO_DETACH D
+	                WHERE D.NUMPLATE_MSG_TOKEN = TM_NUMPLATE_LIST.NUMPLATE_MSG_TOKEN
+	                  AND NVL(D.NUMPLATE_SELECT_COUNT, 0) <![CDATA[>=]]> 1
+	                  AND D.NUMPLATE_SELECT_TIME IS NOT NULL
+	                  AND D.NUMPLATE_SELECT_TIME <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	           )
+	           OR (
+	               APPEAR_DT <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	               AND NOT EXISTS (
+	                   SELECT 1
+	                     FROM TR_CARNO_DETACH D
+	                    WHERE D.NUMPLATE_MSG_TOKEN = TM_NUMPLATE_LIST.NUMPLATE_MSG_TOKEN
+	                      AND D.NUMPLATE_SELECT_TIME IS NOT NULL
+	               )
+	           )
+	       )
 	</update>
 
 	<!-- 문자 토큰 없이 APPEAR_DT만 남은 오래된 P 번호를 회수하는 안전망이다. -->
@@ -1453,5 +1632,15 @@
            SET MEMO_TX = NVL(MEMO_TX, '') || #{MEMO_TX}, UPD_DATE = SYSDATE
          WHERE SERVICE_ID = #{SERVICE_ID}
     </update>
+    
+    
+    <update id="updateNumplateMessageToken" parameterType="map">
+	    UPDATE TR_CARNO_DETACH
+	       SET NUMPLATE_MSG_TOKEN = #{TOKEN},
+	           CONFIRM_NO = NULL,
+	           NUMPLATE_SELECT_COUNT = 0,
+	           NUMPLATE_SELECT_TIME = NULL
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
 
 </mapper>

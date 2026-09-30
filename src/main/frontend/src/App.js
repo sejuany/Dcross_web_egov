@@ -15,6 +15,7 @@ import CommonPopupProvider from './components/common/CommonPopupProvider';
 import Policy from './components/member/Policy';
 import NumPlateAppRoutes from './components/numplateapp/NumPlateAppRoutes';
 import WaNewcarGuide from './guide/WaNewcarGuide';
+import DacosRoutes from './dacos/DacosRoutes';
 
 function App() {
   return (
@@ -28,6 +29,7 @@ function App() {
 			<Route path="/policy" element={<Policy />} />
 			<Route path="/guide/wa-newcar" element={<WaNewcarGuide />} />
             <Route path="/wa/*" element={<WaRoutes />} />
+            <Route path="/dealer/*" element={<DacosRoutes />} />
             <Route path="/signup" element={<SignupTerm />} />
             <Route path="/signup-form" element={<SignForm />} />
 			{/* 고객용 업로드 페이지 */}

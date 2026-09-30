@@ -21,7 +21,9 @@ const CarInfo = ({
     saveProcess,
 	dsDLVGB,
 	address,
-	dsBranchList
+	dsBranchList,
+	isPostNumplate,
+	carpPostYn
 }) => {
 	
 	// 번호선택 모달창
@@ -40,8 +42,6 @@ const CarInfo = ({
 	const isCorporate = dsNewCar.REG_GB === 'B';
 	const assignCdRef = useRef('');
 	const [numplateDisabled, setNumplateDisabled] = useState(false); 
-
-	const [isPostNumplate, setIsPostNumplate] = useState(false);
 
 	/*
 	 * 고객 선택 결과 자동 반영:
@@ -66,7 +66,10 @@ const CarInfo = ({
 					setDsNewCar(prev => ({ ...prev, REQ_CAR_NO: result.REQ_CAR_NO }));
 					setIsNumplateModalOpen(false);
 				} else if (result.state === 'EXPIRED' || result.state === 'NONE') {
-					setDsCarNoDetach(prev => ({ ...prev, CONFIRM_NO: '', NUMPLATE_MSG_TOKEN: '' }));
+					setDsCarNoDetach(prev => ({ ...prev, 
+						CONFIRM_NO: '' 
+						//, NUMPLATE_MSG_TOKEN: '' 
+					}));
 				}
 			} catch (e) {
 				console.error('번호판 선택 상태 조회 실패', e);
@@ -91,17 +94,6 @@ const CarInfo = ({
 	}, [dsCarNoDetach.NUMPLATE_MSG_TOKEN, dsNewCar.REQ_CAR_NO, dsService.SERVICE_ID,
 		dsUserInfo.MEMBER_GB, setDsCarNoDetach, setDsNewCar]);
 	
-	useEffect(() => {
-	    const checkPostNumplate = async () => {
-	        const result = await gf.isPostNumplateCompany(dsUserInfo.COMPANY_ID);
-	        setIsPostNumplate(result);
-	    };
-
-	    if (dsUserInfo.COMPANY_ID) {
-	        checkPostNumplate();
-	    }
-	}, [dsUserInfo.COMPANY_ID]);
-
 	// ASSIGN_CD 세팅
 	useEffect(() => {
 
@@ -388,7 +380,8 @@ const CarInfo = ({
 				)}
 				*/}
 				
-				<AddressSearch
+				{/* 등기 발송 지점만 등록증 수령지를 입력받는다. */}
+				{carpPostYn === 'Y' && <AddressSearch
 		            label="등록증 수령지"
 					sameLabel={isCorporate ? '본점 소재지' : '소유자 주소'}
 		            placeholder="건물, 지번 또는 도로명 검색"
@@ -403,7 +396,7 @@ const CarInfo = ({
 					onSameChange={handleSameAddress}
 					showBaseAddressCheckbox={isCorporate}
 					onBaseAddressChange={handleBaseAddressChange}
-		        />
+		        />}
 		    </div>
 			
 

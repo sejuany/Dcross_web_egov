@@ -43,6 +43,7 @@ import CarInfo from './CarInfo';
 import ConfirmInfo from './ConfirmInfo';
 import NewcarInfo from './NewcarInfo';
 import { calculateTotalFromRows } from './newcarAmountCalculator';
+import { REQUEST_STEPS, getAdjacentRequestStep, getVisibleRequestSteps, isDealCompany } from './requestSteps';
 import OwnerNormal from './owner/OwnerNormal';
 import OwnerLease from './owner/OwnerLease';
 import OwnerUserLease from './owner/OwnerUserLease';
@@ -50,6 +51,7 @@ import OwnerRent from './owner/OwnerRent';
 // 상세 조회 화면
 import WaNewcarDetail from './WaNewcarDetail';
 import WaNoticeModal from '../common/WaNoticeModal';
+import { registrationMailGuide } from './registrationMail';
 
 // Style
 import '../../styles/wa.css';
@@ -143,6 +145,8 @@ const REQUIRED_FOCUS_LABELS = {
 	'세금계산서 사업장주소': '사업장주소',
 	'세금계산서 업태': '업태',
 	'세금계산서 업종': '업종',
+	'세금계산서 이메일주소': '세금계산서 이메일',
+	'등록증 이메일 주소': '등록증 이메일 주소',
 	'이메일 주소': '이메일 주소',
 	'현금영수증 휴대폰번호 또는 사업자번호': '현금영수증 입력정보',
 	'현금영수증 휴대폰번호': '현금영수증 입력정보',
@@ -241,13 +245,6 @@ const DETAIL_PROC_STATUS = ['REQ', 'S_END', 'S_REQ', 'P_REQ',
 	'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 
 	'D_CON','J_REQ', 'J_ING', 'J_END', 'END', 'W_RET', 'N_INS'];
 
-// 신청 단계
-const REQUEST_STEPS = [
-    { no: 1, title: '소유자 정보', label: '소유자 정보 입력' },
-    { no: 2, title: '자동차 정보', label: '자동차 정보 입력' },
-    { no: 3, title: '신규등록 정보', label: '신규등록 정보 입력' },
-    { no: 4, title: '최종 확인', label: '최종 확인' }
-];
 // 차량 구매 방식
 const OWNER_TYPE_OPTIONS = [
     {
@@ -540,6 +537,16 @@ const WaNewcarRequest = ({
 	const [dsCompanyInfo, setDsCompanyInfo] = useState({});
 	const [dsWorkCp, setDsWorkCp] = useState({});
 	const [dsUserInfo, setDsUserInfo] = useState({});
+	// 등록증 정책은 신청 지점 기준이며, WA001은 메일 발송 여부와 관계없이 이메일을 입력받는다.
+	const branchPolicy = useMemo(() => dsBranchList.find(item =>
+		String(item.BRANCH_ID) === String(dsService.BRANCH_ID || dsUserInfo.BRANCH_ID)
+	) || {}, [dsBranchList, dsService.BRANCH_ID, dsUserInfo.BRANCH_ID]);
+	const carpPostYn = String(branchPolicy.CARP_POST_YN || 'N').toUpperCase();
+	const carpScanYn = String(branchPolicy.CARP_SCAN_YN || 'N').toUpperCase();
+	const companyId = dsService.COMPANY_ID || dsUserInfo.COMPANY_ID;
+	const carpMailYn = String(branchPolicy.CARP_MAIL_YN || 'N').toUpperCase();
+	const carpMailRequired = companyId === 'WA001' || carpMailYn === 'Y';
+	const carpMailGuide = registrationMailGuide(companyId, carpMailYn);
 	// 공통코드 그룹별 목록. CommonSelect와 코드명 표시에서 사용한다.
 	const [codes, setCodes] = useState({});
 	const [noticeOpen, setNoticeOpen] = useState(false); // 서류 안내창
@@ -613,8 +620,17 @@ const WaNewcarRequest = ({
  * State로부터 계산된 값
  * ========================================================= */
 
-	// 표시할 밑줄 위치
+	// DEAL 설정은 신청 회사 기준으로 번호판 후처리와 금액 후처리를 각각 판단한다.
+	const requestCompanyId = dsService.COMPANY_ID || dsUserInfo.COMPANY_ID;
+	const isPostNumplate = isDealCompany(codes.DEAL, 'NUMPL', requestCompanyId);
+	const skipEstimateCheck = isDealCompany(codes.DEAL, 'AMOUNT', requestCompanyId);
+	// 번호판과 등록증 수령지를 모두 입력하지 않는 신청은 빈 자동차 정보 단계를 생략한다.
+	const skipVehicleStep = isPostNumplate && carpPostYn !== 'Y';
+	const visibleSteps = useMemo(() => getVisibleRequestSteps(skipVehicleStep), [skipVehicleStep]);
+	// 화면에는 연속된 단계 번호를 표시하지만 내부 단계 번호(1, 3, 4)는 그대로 유지한다.
 	const current = hoverStep ?? step;
+	const currentVisibleIndex = Math.max(visibleSteps.findIndex(({ no }) => no === current), 0);
+	const stepVisibleIndex = Math.max(visibleSteps.findIndex(({ no }) => no === step), 0);
 	// 처리상태가 '입력'이고, 신규등록 구분이 '렌트'인 경우 특정 화면을 보여줌  
 	const isRentInput = dsService.PROC_ST === 'INPUT' && dsNewCar.TASK_CD === 'ADD';
 	// 반려건은 조회 전용 화면이 아니라 4단계 수정/재요청 화면으로 연다.
@@ -667,18 +683,24 @@ const WaNewcarRequest = ({
 				'PAYKD', 'PAYME', 'PAYOP', 'PAYST', 'PAYTP', 'BANK', 'FUEL', 'CARUS', 'NHOLE', 
 				'NSEAL' 
 			]),
-				gf.getCodeDetails(['TUSE'])
+				gf.getCodeDetails(['TUSE', 'DEAL'])
 			]);
 
 			hasLoadedCodesRef.current = true;
 			setCodes({
 				...codeData,
-				TUSE: detailCodeData?.TUSE || []
+				TUSE: detailCodeData?.TUSE || [],
+				DEAL: detailCodeData?.DEAL || []
 			});
 		};
 
 		loadCodes();
 	}, [setCodes]);
+
+	// 저장된 마지막 단계가 2번이어도 현재 정책상 빈 단계라면 다음 유효 단계로 이동한다.
+	useEffect(() => {
+		if (skipVehicleStep && step === 2) setStep(3);
+	}, [skipVehicleStep, step]);
 	
 	// 부모 목록에서 다른 신청건을 선택하면 전달받은 SERVICE_ID를 상세조회 기준값으로 반영한다.
 	useEffect(() => {
@@ -1008,43 +1030,14 @@ const WaNewcarRequest = ({
 			return;
 	    }
 
-	    switch (step) {
-	        case 1:
-	            changeStep(2); // 자동차 정보 입력
-	            break;
-
-	        case 2:
-	            changeStep(3); // 신규등록 정보 입력
-	            break;
-
-	        case 3:
-	            changeStep(4); // 최종 확인
-	            break;
-
-	        default:
-	            break;
-	    }
+		const nextRequestStep = getAdjacentRequestStep(visibleSteps, step, 1);
+		if (nextRequestStep) changeStep(nextRequestStep);
 	};
 	
 	const handlePrev = async (e) => {
 		e.preventDefault();
-				
-		switch (step) {
-		    case 2:
-		        changeStep(1);
-		        break;
-
-		    case 3:
-		        changeStep(2);
-		        break;
-
-		    case 4:
-		        changeStep(3);
-		        break;
-
-		    default:
-		        break;
-		}
+		const previousRequestStep = getAdjacentRequestStep(visibleSteps, step, -1);
+		if (previousRequestStep) changeStep(previousRequestStep);
 	};
 
 	// 단계 이동이 끝난 뒤 새 단계의 시작 위치를 보여준다.
@@ -1260,8 +1253,8 @@ const WaNewcarRequest = ({
 	// 서류안내 모달창
 	const openNotice = async (currentStep, nextStep) => {
 
-	    // 1 -> 2
-	    if (currentStep === 1 && nextStep === 2) {
+	    // 2번 단계가 생략되어도 소유자 단계의 첨부서류 안내는 그대로 실행한다.
+	    if (currentStep === 1 && nextStep > 1) {
 
 	        if (notice.items.length || notice.checks.length) {
 
@@ -1293,7 +1286,7 @@ const WaNewcarRequest = ({
 	            if (hasMissingDoc) {
 	                setModalNotice(notice);
 	                setNoticeOpen(true);
-	                setNextStep(2);
+	                setNextStep(nextStep);
 	                return true;
 	            }
 	        }
@@ -2441,7 +2434,7 @@ const WaNewcarRequest = ({
 			|| requireValue(dsNewCar.NUMPLATE_GB, '번호판 종류')
 			// || requireValue(dsNewCar.REQ_CAR_NO, '차량번호')
 			|| requireValue(dsCarNoDetach.DELIVERY_GB, '번호판 배송지')
-			|| requireValue(dsNewCar.CARP_ADDRESS, '등록증 수령지');
+			|| (carpPostYn === 'Y' ? requireValue(dsNewCar.CARP_ADDRESS, '등록증 수령지') : '');
 			// || (isEmptyRequiredValue(dsNewCar.BUY_AMT) ? '공급가액을 입력해주세요.' : '')
 
 		if (message) {
@@ -2454,7 +2447,7 @@ const WaNewcarRequest = ({
 	};
 
 	// 신규등록 정보(3단계) 필수값 검증
-	// checkEstimate가 true인 SP 외 계정만 예상납부금액 확인 여부를 검사한다.
+	// DEAL/AMOUNT 대상 회사는 셀프등록에서 금액을 처리하므로 예상납부금액 확인을 생략한다.
 	// - 3단계 → 4단계 이동: true
 	// - 최종 요청: false
 	const validateRegistrationStep = (checkEstimate = true) => {
@@ -2466,7 +2459,7 @@ const WaNewcarRequest = ({
 		    requireValue(dsNewCar.PAY_GB, '결제구분')
 		    || requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
 		    || requirePayPhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
-			|| (checkEstimate && dsUserInfo.MEMBER_GB !== 'SU' && Number(dsNewCar.STANDARD_AMT || 0) <= 0
+			|| (checkEstimate && !skipEstimateCheck && dsUserInfo.MEMBER_GB !== 'SU' && Number(dsNewCar.STANDARD_AMT || 0) <= 0
 			    ? '예상납부금액을 확인해주세요.'
 			    : '');
 				
@@ -2507,14 +2500,14 @@ const WaNewcarRequest = ({
 				|| requireValue(dsTaxReceipt.NAME, '세금계산서 대표자명')
 				|| requireValue(dsTaxReceipt.ADDR, '세금계산서 사업장주소')
 				|| requireValue(dsTaxReceipt.BUSINESS_TYPE, '세금계산서 업태')
-				|| requireValue(dsTaxReceipt.INDUSTRY_TYPE, '세금계산서 업종');
-				//|| requireValue(dsTaxReceipt.MAIL1, '세금계산서 이메일주소');
+				|| requireValue(dsTaxReceipt.INDUSTRY_TYPE, '세금계산서 업종')
+				|| requireValue(dsTaxReceipt.MAIL1, '세금계산서 이메일주소');
 		}
-		
+
 		if (!message) {
-			// 이메일 및 환불정보
+			// 등록증 이메일은 증빙 종류와 무관하게 TR_NEWCAR.CARP_MAIL에 저장한다.
 			message =
-			    requireValue(dsTaxReceipt.MAIL1, '이메일 주소')
+			    (carpMailRequired ? requireValue(dsNewCar.CARP_MAIL, '등록증 이메일 주소') : '')
 			    || requireValue(dsNewCar.RETURN_NM, '환불 예금주')
 			    || requireValue(dsNewCar.RT_BANK_CD, '환불 계좌 은행')
 			    || requireValue(dsNewCar.RETURN_NO, '환불 계좌번호');
@@ -2552,7 +2545,8 @@ const WaNewcarRequest = ({
 	    checkEstimate = true
 	) => {
 
-	    for (let targetStep = fromStep; targetStep <= toStep; targetStep += 1) {
+	    for (const { no: targetStep } of visibleSteps) {
+			if (targetStep < fromStep || targetStep > toStep) continue;
 
 	        const result = validateStepRequiredFields(
 	            targetStep,
@@ -2674,8 +2668,10 @@ const WaNewcarRequest = ({
 			        codes,
 			        COMPANY_DEFAULT,
 			        dsUserInfo.COMPANY_ID,
-			        'NTTGR'
-			    )}
+				    'NTTGR'
+				)}
+				carpScanYn={carpScanYn}
+				carpPostYn={carpPostYn}
 			/>
 	    );
 	}
@@ -2707,13 +2703,13 @@ const WaNewcarRequest = ({
 				<div
 					className="wa-mobile-request-progress"
 					role="progressbar"
-					aria-label={`신규등록 ${step}단계`}
+					aria-label={`신규등록 ${stepVisibleIndex + 1}단계`}
 					aria-valuemin={1}
-					aria-valuemax={REQUEST_STEPS.length}
-					aria-valuenow={step}
+					aria-valuemax={visibleSteps.length}
+					aria-valuenow={stepVisibleIndex + 1}
 				>
 					<div className="wa-mobile-request-progress-heading">
-						<span>{step} / {REQUEST_STEPS.length}</span>
+						<span>{stepVisibleIndex + 1} / {visibleSteps.length}</span>
 						<strong>{REQUEST_STEPS[step - 1].title}</strong>
 						<button
 							type="button"
@@ -2725,13 +2721,13 @@ const WaNewcarRequest = ({
 						</button>
 					</div>
 					<div className="wa-mobile-request-progress-track" aria-hidden="true">
-						<span style={{ width: `${(step / REQUEST_STEPS.length) * 100}%` }} />
+						<span style={{ width: `${((stepVisibleIndex + 1) / visibleSteps.length) * 100}%` }} />
 					</div>
 				</div>
 
 				{/* 진행 단계 */}
 				<div className="simple-step-wrap">
-					{REQUEST_STEPS.map(({ no, label }) => (
+					{visibleSteps.map(({ no, label }, index) => (
 					    <button
 					        key={no}
 							type="button"
@@ -2741,7 +2737,7 @@ const WaNewcarRequest = ({
 					        onMouseLeave={() => setHoverStep(null)}
 					        onClick={() => changeStep(no)}
 					    >
-					        <div className="step-circle">{no}</div>
+					        <div className="step-circle">{index + 1}</div>
 					        <span>{label}</span>
 					    </button>
 					))}
@@ -2749,7 +2745,8 @@ const WaNewcarRequest = ({
 					<div
 						className="step-indicator"
 						style={{
-							transform: `translateX(${(current - 1) * 100}%)`
+							width: `${100 / visibleSteps.length}%`,
+							transform: `translateX(${currentVisibleIndex * 100}%)`
 						}}
 					/>
 				</div>
@@ -2864,8 +2861,8 @@ const WaNewcarRequest = ({
 									{purchaseType === 'NORMAL' &&
 										<OwnerNormal
 											dsService={dsService}
-											companyId={dsUserInfo.COMPANY_ID}
 											dsCompanyInfo={dsCompanyInfo}
+											companyId={companyId}
 											dsNewCar={dsNewCar}
 										    dsCarNoDetach={dsCarNoDetach}
 											setDsNewCar={setDsNewCar}
@@ -2932,6 +2929,8 @@ const WaNewcarRequest = ({
 								codes={codes}
 								dsUserInfo={dsUserInfo}
 								dsBranchList={dsBranchList}
+								isPostNumplate={isPostNumplate}
+								carpPostYn={carpPostYn}
 								handleChange={handleChange}
 								saveProcess={saveProcess}
 								dsDLVGB={gf.getCodeList(
@@ -2961,6 +2960,8 @@ const WaNewcarRequest = ({
 							onTaxReceiptAddressClear={handleClearTaxReceiptAddress}
 							setDsPaymentList={setDsPaymentList}
 							dsBaseList={dsBaseList}
+							carpMailRequired={carpMailRequired}
+							carpMailGuide={carpMailGuide}
 							/>
 						}
 	
@@ -3007,6 +3008,8 @@ const WaNewcarRequest = ({
 								dsTaxReceipt={dsTaxReceipt}
 								dsBaseList={dsBaseList}
 								dsPaymentList={dsPaymentList}
+								carpPostYn={carpPostYn}
+								carStepVisible={!skipVehicleStep}
 								onAttachClose={() => reloadProcess(dsService.SERVICE_ID)}
 								onMoveStep={setStep}
 						    />

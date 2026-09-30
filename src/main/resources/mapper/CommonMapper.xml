@@ -307,6 +307,29 @@
 	
 	</insert>
 	
+	<!-- 알림 추가 -->
+	<insert id="insertTmBoard" parameterType="java.util.HashMap">
+	    INSERT INTO TM_BOARD (
+	        BOARD_ID,
+	        BOARD_GB,
+	        BOARD_VW,
+	        SUBJECT_TX,
+	        CONTENT_TX,
+	        COMPANY_ID,
+	        BOARD_DT, INS_DATE, UPD_DATE
+	    )
+	    SELECT
+	        'P-' || TO_CHAR(SYSDATE, 'YYMMDD') || '-' || LPAD(SEQ_BOARD_ID.NEXTVAL, 5, '0'),
+	        'T',
+	        #{SERVICE_ID},
+	        #{CAR_NO},
+	        #{CONTENT_TX},
+	        #{COMPANY_ID},
+	        SYSDATE, SYSDATE, SYSDATE
+	    FROM DUAL
+	</insert>
+	
+	
 	<select id="procedureAlarmMap"
 	        parameterType="java.util.Map" statementType="CALLABLE">
 	

@@ -1,10 +1,18 @@
 package com.dacos.scheduler;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.UUID;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -12,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 
 import com.dacos.common.CommonService;
 import com.dacos.newcar.NewcarService;
+import com.dacos.newcar.RegistrationMailService;
+import com.dacos.newcar.NumplateSelectionService;
 import com.dacos.scheduler.dto.SchedulerDto;
 import com.dacos.scheduler.mapper.SchedulerMapper;
 
@@ -26,17 +36,37 @@ public class SchedulerService {
     private final SchedulerMapper schedulerMapper;
     private final CommonService commonService;
     private final NewcarService newcarService;
+    private final RegistrationMailService registrationMailService;
+    private final NumplateSelectionService numplateService;
 
-    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService, NewcarService newcarService) {
+    @Value("${firebase.push.public-base-url}")
+    private String publicBaseUrl;
+
+    public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService, NewcarService newcarService,
+            RegistrationMailService registrationMailService, NumplateSelectionService numplateService) {
         this.schedulerMapper = schedulerMapper;
         this.commonService = commonService;
         this.newcarService = newcarService;
+        this.registrationMailService = registrationMailService;
+        this.numplateService = numplateService;
     }
 
 	/** 만료 정리의 트랜잭션 경계는 NewcarService에 두고 스케줄러는 해당 흐름만 위임한다. */
 	public int cleanupExpiredNumplateSelections() {
-		return newcarService.cleanupExpiredNumplateSelections();
+		return numplateService.cleanupExpiredNumplateSelections();
 	}
+
+    /** 한 건의 실패가 다음 대상의 발송을 막지 않도록 건별로 처리한다. */
+    public int processRegistrationMails() {
+        List<String> serviceIds = schedulerMapper.selectRegistrationMailTargets();
+        if (serviceIds == null || serviceIds.isEmpty()) return 0;
+
+        int sentCount = 0;
+        for (String serviceId : serviceIds) {
+            if (registrationMailService.send(serviceId)) sentCount++;
+        }
+        return sentCount;
+    }
     
     @Transactional
     public int processTodayNewcarWaitingServices() {
@@ -213,6 +243,7 @@ public class SchedulerService {
                     String smsText = smsTextBuilder.toString();
                     logger.info("SMS_TEXT: {}", smsText);
 
+                    /* SP 등록비용 미입금 문자 발송 중단
                     // 담당자의 연락처로 문자 발송
                     SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(targets.get(0).getMEMBER_ID());
                     String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
@@ -230,6 +261,7 @@ public class SchedulerService {
                     int result = commonService.sendSms(param);
                     logger.info("[SchedulerService] 문자 발송 완료 - getSPECIALIST_HP_NO: {}, SMS_TEXT: {}", specialistPhone, smsText);
                     updateCount += result;
+                    */
                 } catch (Exception e) {
                     logger.error(
                         "[SchedulerService] 미입금 알림 처리 실패 - memberId: {}, message: {}",
@@ -276,8 +308,9 @@ public class SchedulerService {
     				param.put("TEXT", smsText);
     				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
     				param.put("SUBJECT", "취득세 납부 미확인 안내"); // 예: SMS 제목
-    				commonService.sendSms(param);
+    				updateCount += commonService.sendSms(param);
     				
+    				/* SP 취득세 미납부 문자 발송 중단
     				// 담당자의 연락처로 문자 발송
     				SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
     				String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
@@ -301,6 +334,7 @@ public class SchedulerService {
     				param.put("SUBJECT", "취득세 납부 요청 필요"); // 예: SMS 제목
     				int result = commonService.sendSms(param);
     				updateCount += result;
+    				*/
     			} catch (Exception e) {
     				logger.error(
     						"[SchedulerService] 카드 미입금 알림 처리 실패 - memberId: {}, message: {}",
@@ -320,12 +354,307 @@ public class SchedulerService {
     	
     }
 
+    /**
+     * 등록예정일이 D-3 이상 남았고 아직 번호판을 선택하지 않은 고객에게 안내 문자를 보낸다.
+     * 등록비용 납부 여부에 따라 번호 선택 전용/등록비용 포함 문자를 구분한다.
+     */
+    public int processNewcarNumplateSelectionReminders() {
+        List<SchedulerDto> candidates = schedulerMapper.selectNewcarNumplateReminderTargets();
+
+        if (candidates == null || candidates.isEmpty()) {
+            logger.info("[번호판선택안내] 조회 대상 없음");
+            return 0;
+        }
+
+        logger.info("[번호판선택안내] 조회 대상 건수={}", candidates.size());
+        int sentCount = 0;
+
+        for (SchedulerDto target : candidates) {
+            String serviceId = safeValue(target.getSERVICE_ID()).trim();
+            String companyId = safeValue(target.getCOMPANY_ID()).trim();
+            boolean paid = "Y".equalsIgnoreCase(safeValue(target.getPAY_ST()).trim());
+            Date registDate = target.getREGIST_DATE();
+            LocalDate registrationDay = toLocalDate(registDate);
+            long remainingDays = registrationDay == null
+                    ? -1
+                    : ChronoUnit.DAYS.between(LocalDate.now(ZoneId.of("Asia/Seoul")), registrationDay);
+
+            logger.info(
+                "[번호판선택안내] 조회 결과 - serviceId={}, companyId={}, registDate={}, remainingDays={}, paySt={}, paid={}",
+                serviceId, companyId, registDate, remainingDays, target.getPAY_ST(), paid
+            );
+
+            if (!numplateService.isPostNumplateCompany(companyId)) {
+                logger.info(
+                    "[번호판선택안내] 발송 제외 - 대상 업체 아님. serviceId={}, companyId={}",
+                    serviceId, companyId
+                );
+                continue;
+            }
+
+            // 등록비용 안내를 함께 보내므로 납부자 연락처를 우선 사용한다.
+            String phoneNo = safeValue(target.getPAY_HP_NO()).trim();
+            if (phoneNo.isBlank()) {
+                phoneNo = safeValue(target.getMPHONE_NO()).trim();
+            }
+            if (phoneNo.isBlank()) {
+                logger.warn("[번호판선택안내] 발송 제외 - 고객 연락처 없음. serviceId={}", serviceId);
+                continue;
+            }
+
+            try {
+                String token = getOrCreateNumplateMessageToken(target);
+                if (token.isBlank()) {
+                    logger.error("[번호판선택안내] 발송 제외 - 토큰 확보 실패. serviceId={}", serviceId);
+                    continue;
+                }
+
+                String baseUrl = safeValue(publicBaseUrl).replaceAll("/+$", "");
+                String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + token;
+                LocalDate deadlineDay = registrationDay.minusDays(3);
+                String deadline = deadlineDay.format(DateTimeFormatter.ofPattern("MM/dd"));
+                String insuranceDeadline = deadlineDay.format(DateTimeFormatter.ISO_LOCAL_DATE);
+                String insuranceStartDate = registrationDay.format(DateTimeFormatter.ISO_LOCAL_DATE);
+
+                Map<String, Object> sms = new HashMap<>();
+                sms.put("PAY_HP_NO", phoneNo);
+                sms.put("MSG_TYPE", "3");
+                sms.put("SUBJECT", "번호 선택 재안내");
+                sms.put(
+                    "TEXT",
+                    buildNumplateReminderText(
+                        target,
+                        url,
+                        deadline,
+                        insuranceDeadline,
+                        insuranceStartDate
+                    )
+                );
+
+                int resetCount = schedulerMapper.resetNumplateSelectionForReminder(serviceId);
+                logger.info(
+                    "[번호판선택안내] 조회 기회 초기화 - serviceId={}, tokenKept=true, resetCount={}",
+                    serviceId, resetCount
+                );
+                if (resetCount != 1) {
+                    logger.error(
+                        "[번호판선택안내] 발송 제외 - 조회 기회 초기화 실패. serviceId={}, resetCount={}",
+                        serviceId, resetCount
+                    );
+                    continue;
+                }
+
+                int result = commonService.sendSms(sms);
+                sentCount += result;
+                logger.info(
+                    "[번호판선택안내] 문자 발송 결과 - serviceId={}, paid={}, result={}",
+                    serviceId, paid, result
+                );
+            } catch (Exception e) {
+                logger.error(
+                    "[번호판선택안내] 처리 실패 - serviceId={}, paid={}, message={}",
+                    serviceId, paid, e.getMessage(), e
+                );
+            }
+        }
+
+        return sentCount;
+    }
+
+    /** 번호판 선택을 마친 등록비용 미납 고객에게 D-3까지 납부 안내를 보낸다. */
+    public int processNewcarPaymentReminders() {
+        List<Map<String, Object>> targets = schedulerMapper.selectNewcarPaymentReminderTargets();
+        int sentCount = 0;
+
+        for (Map<String, Object> target : targets) {
+            String serviceId = Objects.toString(target.get("SERVICE_ID"), "");
+            String phoneNo = Objects.toString(target.get("PAY_HP_NO"), "").trim();
+            if (phoneNo.isEmpty()) {
+                logger.warn("[등록비용재안내] 납부자 연락처 없음 - serviceId={}", serviceId);
+                continue;
+            }
+
+            try {
+                // 재안내는 납부자에게만 보낸다.
+                Map<String, Object> sms = new HashMap<>();
+                sms.put("PAY_HP_NO", phoneNo);
+                sms.put("MSG_TYPE", "3");
+                sms.put("SUBJECT", "Y".equals(target.get("CARD_YN"))
+                        ? "등록비용 납부 안내(취득세 카드납부)" : "등록비용 납부 안내");
+                sms.put("TEXT", buildNewcarPaymentReminderText(target));
+                sentCount += commonService.sendSms(sms);
+            } catch (Exception e) {
+                logger.error("[등록비용재안내] 문자 발송 실패 - serviceId={}", serviceId, e);
+            }
+        }
+        return sentCount;
+    }
+
+    String buildNewcarPaymentReminderText(Map<String, Object> target) {
+        String companyName = Objects.toString(target.get("COMPANY_NM"), "")
+                .split("_", 2)[0].replace("오토모티브코리아", "").trim();
+        String carNo = Objects.toString(target.get("REQ_CAR_NO"), "").trim();
+        String specialistPhone = Objects.toString(target.get("SPECIALIST_HP_NO"), "").trim();
+        if (!specialistPhone.contains("-")) {
+            if (specialistPhone.length() == 11) {
+                specialistPhone = specialistPhone.replaceFirst("(\\d{3})(\\d{4})(\\d{4})", "$1-$2-$3");
+            } else if (specialistPhone.length() == 10) {
+                specialistPhone = specialistPhone.replaceFirst("(\\d{3})(\\d{3})(\\d{4})", "$1-$2-$3");
+            }
+        }
+
+        // 납부요청 패키지의 고객 문자 문구와 금액 항목을 그대로 사용한다.
+        String text = "안녕하세요. " + companyName + " 등록비용 납부 안내드립니다.\r\n\r\n"
+                + "주문번호 : " + Objects.toString(target.get("LINK_ID"), "") + "\r\n"
+                + "차대번호 : " + Objects.toString(target.get("CARID_NO"), "") + "\r\n\r\n"
+                + "- 입금기한 : " + Objects.toString(target.get("PAY_DEADLINE"), "") + "\r\n"
+                + "- 납부비용 : " + safeAmount(target.get("TOTAL_AMT")) + "원\r\n"
+                + "- 납부계좌 : 우리은행 " + Objects.toString(target.get("VBANK_NO"), "") + "\r\n"
+                + "- 예금주명 : " + carNo.substring(Math.max(0, carNo.length() - 4)) + "주식회사다코\r\n"
+                + "등록 예정일에 맞춰 차량이 등록될수 있도록, 안내해 드린 기한 내에 등록 비용을 입금해주세요.\r\n\r\n"
+                + "■ 등록비용 안내\r\n"
+                + "(차액 발생 시 등록하신 환불정보로 환불예정. 등록완료 후 영업일 기준 1일 소요)\r\n";
+
+        boolean cardPayment = "Y".equals(target.get("CARD_YN"));
+        text += "취득세 : " + (cardPayment ? "등록 후 안내 (카드납부)" : safeAmount(target.get("ACQ_AMT"))) + "\r\n"
+                + "채권취급수수료 : " + safeAmount(target.get("BFEE_AMT")) + "\r\n"
+                + "채권 : " + safeAmount(target.get("BOND_AMT")) + "\r\n"
+                + "등록수수료 : " + safeAmount(target.get("FEE_AMT")) + "\r\n"
+                + "인지세 : " + safeAmount(target.get("INJI_AMT")) + "\r\n"
+                + "예비비 : " + safeAmount(target.get("SPARE_AMT")) + "\r\n"
+                + "증지대 : " + safeAmount(target.get("STAMP_AMT")) + "\r\n"
+                + "번호판대 : " + safeAmount(target.get("TNUM_AMT"));
+        if (cardPayment) {
+            text += "\r\n\r\n■ 취득세 카드납부 안내\r\n"
+                    + "- 납부시한 : 등록 당일 15시까지\r\n"
+                    + "미납 시 차량 인도가 지연될 수 있습니다.";
+        }
+        return text + "\r\n\r\n■ 자동차보험 가입 안내\r\n"
+                + "- 가입 필수 기한 : " + Objects.toString(target.get("INSURANCE_DEADLINE"), "") + " 까지\r\n"
+                + "- 보험 시작일 : " + Objects.toString(target.get("INSURANCE_START_DATE"), "") + " 부터 ~\r\n"
+                + "- 반드시 차대번호로 가입 (차량번호 가입 불가)\r\n"
+                + "- 숫자 0과 알파벳 O 를 구분해서 가입해주세요."
+                + "\r\n\r\n※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다. "
+                + "\r\n담당 스페셜리스트 : " + specialistPhone;
+    }
+
+    /** 등록예정일 D-2 건의 번호 미선택/등록비 미납 상태를 신차사업부 알림으로 등록한다. */
+    @Transactional
+    public int processNewcarNumplateD2Alerts() {
+        List<SchedulerDto> targets = schedulerMapper.selectNewcarNumplateD2AlertTargets();
+        if (targets == null || targets.isEmpty()) {
+            logger.info("[번호판D-2알림] 대상 없음");
+            return 0;
+        }
+
+        String newcarTeam = safeValue(schedulerMapper.selectNewcarTeamCompanyId()).trim();
+        if (newcarTeam.isBlank()) {
+            logger.error("[번호판D-2알림] 신차사업부 공통코드 없음 - GROUP_ID=TEAMS, CODE_ID=NEWC");
+            return 0;
+        }
+
+        int alertCount = 0;
+        for (SchedulerDto target : targets) {
+            String serviceId = safeValue(target.getSERVICE_ID()).trim();
+            String companyId = safeValue(target.getCOMPANY_ID()).trim();
+            boolean numplateMissing = safeValue(target.getREQ_CAR_NO()).trim().isEmpty();
+            boolean unpaid = !"Y".equalsIgnoreCase(safeValue(target.getPAY_ST()).trim());
+
+            logger.info(
+                "[번호판D-2알림] 상태 확인 - serviceId={}, registDate={}, reqCarNo={}, paySt={}, numplateMissing={}, unpaid={}",
+                serviceId, target.getREGIST_DATE(), target.getREQ_CAR_NO(), target.getPAY_ST(),
+                numplateMissing, unpaid
+            );
+
+            if (!numplateService.isPostNumplateCompany(companyId)) {
+                logger.info(
+                    "[번호판D-2알림] 제외 - 대상 업체 아님. serviceId={}, companyId={}",
+                    serviceId, companyId
+                );
+                continue;
+            }
+
+            if (numplateMissing) {
+                alertCount += schedulerMapper.insertNewcarD2Alert(
+                    serviceId,
+                    target.getCARID_NO(),
+                    "[신차사업] 등록예정일 임박 건 번호판 선택 필요",
+                    newcarTeam
+                );
+            }
+            if (unpaid) {
+                alertCount += schedulerMapper.insertNewcarD2Alert(
+                    serviceId,
+                    target.getCARID_NO(),
+                    "[신차사업] 등록예정일 임박 건 등록비 납부 필요",
+                    newcarTeam
+                );
+            }
+        }
+
+        logger.info("[번호판D-2알림] 완료 - 조회건수={}, 등록건수={}", targets.size(), alertCount);
+        return alertCount;
+    }
+
+    private String getOrCreateNumplateMessageToken(SchedulerDto target) {
+        String serviceId = target.getSERVICE_ID();
+        String token = safeValue(schedulerMapper.selectNumplateMessageToken(serviceId)).trim();
+        if (!token.isBlank()) {
+            logger.info("[번호판선택안내] 기존 토큰 재사용 - serviceId={}", serviceId);
+            return token;
+        }
+
+        String newToken = UUID.randomUUID().toString().replace("-", "");
+        int updated = schedulerMapper.updateNumplateMessageTokenIfMissing(serviceId, newToken);
+        if (updated == 1) {
+            logger.info("[번호판선택안내] 신규 토큰 생성 - serviceId={}", serviceId);
+        }
+
+        // 다른 실행이 먼저 저장했을 수도 있으므로, 문자에는 DB에 확정된 토큰만 사용한다.
+        return safeValue(schedulerMapper.selectNumplateMessageToken(serviceId)).trim();
+    }
+
+    private String buildNumplateReminderText(
+            SchedulerDto target,
+            String url,
+            String deadline,
+            String insuranceDeadline,
+            String insuranceStartDate) {
+        return "안녕하세요. 폴스타 차량번호 선택을 위한 링크를 재안내해 드립니다.\r\n\r\n"
+                + "주문번호 : " + safeValue(target.getLINK_ID()) + "\r\n"
+                + "차대번호 : " + safeValue(target.getCARID_NO()) + "\r\n\r\n"
+                + url + "\r\n\r\n"
+                + "오늘 중으로 위 링크에 접속하셔서 번호를 선택해 주세요.\r\n\r\n"
+                + "※ 번호 조회 후 5분 내로 선택을 완료해 주세요. (시간 초과 시 재선택 불가)\r\n\r\n"
+                + "■ 아래 항목이 " + deadline + "까지 완료되어야 원활한 등록이 가능합니다.\r\n"
+                + "- 차량대금 납부\r\n"
+                + "- 등록비용 납부\r\n"
+                + "- 번호 선택\r\n"
+                + "- 보험가입\r\n\r\n"
+                + "■ 자동차보험 가입 안내\r\n"
+                + "- 가입 필수 기한 : " + insuranceDeadline + " 까지\r\n"
+                + "- 보험 시작일 : " + insuranceStartDate + " 부터 ~\r\n"
+                + "- 반드시 차대번호로 가입 (차량번호 가입 불가)\r\n"
+                + "- 숫자 0과 알파벳 O 를 구분해서 가입해주세요.\r\n\r\n"
+                + "문의사항은 1844-0801(내선 1)로 연락해 주세요.";
+    }
+
     private boolean isBlank(String value) {
         return value == null || value.isBlank();
     }
 
     private String safeValue(String value) {
         return value == null ? "" : value;
+    }
+
+    private LocalDate toLocalDate(Date date) {
+        if (date == null) {
+            return null;
+        }
+        if (date instanceof java.sql.Date) {
+            return ((java.sql.Date) date).toLocalDate();
+        }
+        return date.toInstant().atZone(ZoneId.of("Asia/Seoul")).toLocalDate();
     }
     
     private String safeAmount(Object amount) {

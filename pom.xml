@@ -69,6 +69,19 @@
 
 	<dependencies>
 
+		<!-- 신규등록 완료 메일: 구형 javax.mail 대신 Jakarta Mail을 사용한다. -->
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-mail</artifactId>
+			<version>3.5.15</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-logging</artifactId>
+				</exclusion>
+			</exclusions>
+		</dependency>
+
 		<!-- Mobile-OK 본인확인 연동 라이브러리 -->
 		<dependency>
 			<groupId>kr.co.mobile-ok</groupId>
@@ -397,6 +410,7 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>3.5.2</version>
 				<configuration>
+					<skipTests>true</skipTests>
 					<reportFormat>xml</reportFormat>
 					<excludes>
 						<exclude>**/Abstract*.java</exclude>

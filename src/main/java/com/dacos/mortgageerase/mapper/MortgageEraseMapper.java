@@ -48,6 +48,8 @@ public interface MortgageEraseMapper {
 
     int updateMortgageEraseSmsInfo(Map<String, Object> request);
 
+    int updateMortgageEraseMemo(Map<String, Object> request);
+
     int updateMortgageEraseCarInfo(Map<String, Object> request);
 
     int deleteMortgageErasePayments(@Param("serviceId") String serviceId);

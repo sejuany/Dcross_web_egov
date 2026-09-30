@@ -1000,6 +1000,57 @@
     color: #b42318;
 }
 
+/* 공급가액 업로드 비교 화면에서 실제 변경된 엑셀 값을 강조한다. */
+.wa-supply-amount-changed {
+    color: #d92d20 !important;
+    font-weight: 800;
+}
+
+.wa-supply-amount-comparison-table td.wa-supply-amount-changed {
+    color: #d92d20 !important;
+}
+
+.wa-supply-amount-result-error {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+}
+
+.wa-supply-amount-result-error small {
+    color: #b42318;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.35;
+    word-break: keep-all;
+}
+
+/* 엑셀 비교표는 값을 생략하거나 줄바꿈하지 않고 가로 스크롤로 확인한다. */
+.wa-supply-amount-comparison-table {
+    width: max-content !important;
+    min-width: 1650px !important;
+    table-layout: auto !important;
+}
+
+.wa-supply-amount-comparison-table th,
+.wa-supply-amount-comparison-table td {
+    height: auto !important;
+    min-height: 42px !important;
+    padding: 7px 10px !important;
+    white-space: nowrap !important;
+    overflow: visible !important;
+    text-overflow: clip !important;
+    overflow-wrap: normal !important;
+    word-break: normal !important;
+}
+
+.wa-supply-amount-comparison-table .wa-supply-amount-result-error small {
+    display: inline;
+    max-width: 100%;
+    overflow-wrap: normal;
+    word-break: normal;
+}
+
 .wa-status-action.ghost {
     background: var(--wa-surface-soft);
 }
@@ -1931,6 +1982,85 @@
     gap: 8px;
     padding: 14px 18px 18px;
     border-top: 1px solid var(--wa-line);
+}
+
+/* 공급가액 수정 비교표: 결과 열은 가로 스크롤 중에도 우측에 유지한다. */
+.wa-supply-amount-comparison-table th.wa-supply-amount-result-column,
+.wa-supply-amount-comparison-table td.wa-supply-amount-result-column {
+    position: sticky;
+    right: 0;
+}
+
+.wa-supply-amount-comparison-table th.wa-supply-amount-result-column {
+    z-index: 5;
+    background: #f8fafc;
+    box-shadow: -8px 0 10px -10px rgba(15, 23, 42, 0.45);
+}
+
+.wa-supply-amount-comparison-table td.wa-supply-amount-result-column {
+    z-index: 2;
+    background: #ffffff;
+    box-shadow: -8px 0 10px -10px rgba(15, 23, 42, 0.45);
+}
+
+.wa-supply-amount-comparison-table tbody tr:hover td.wa-supply-amount-result-column {
+    background: #f9fbff;
+}
+
+.wa-supply-amount-apply-message {
+    color: #475467;
+    font-size: 13px;
+}
+
+.wa-data-change-history-button {
+    border: 1px solid #bfd1fb;
+    border-radius: 999px;
+    padding: 3px 8px;
+    color: #2459c4;
+    background: #f5f8ff;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 700;
+    line-height: 1.2;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.wa-data-change-history-button:hover {
+    border-color: #2f6df6;
+    color: #17479f;
+    background: #eaf1ff;
+}
+
+.wa-data-change-history-modal {
+    max-width: calc(100vw - 32px);
+}
+
+.wa-data-change-history-content {
+    padding: 18px;
+    min-height: 140px;
+}
+
+.wa-data-change-history-table th,
+.wa-data-change-history-table td {
+    min-width: 220px;
+}
+
+.wa-data-change-history-table th:first-child,
+.wa-data-change-history-table td:first-child {
+    min-width: 120px;
+    font-weight: 700;
+}
+
+.wa-supply-amount-result-footer {
+    flex-direction: column;
+    align-items: center;
+    gap: 10px;
+}
+
+.wa-supply-amount-result-actions {
+    display: flex;
+    gap: 8px;
 }
 .wa-request-modal-body {
     min-height: 0;

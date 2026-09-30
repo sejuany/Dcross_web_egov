@@ -1,7 +1,7 @@
 import  React, {useRef, useState} from 'react';
 
 import axios from 'axios';
-import { CalendarDays, CarFront, Download, Eye, EyeOff, FileText, LoaderCircle, Printer, UserRound, Search, X } from 'lucide-react';
+import { CalendarDays, CarFront, Download, Eye, EyeOff, FileText, LoaderCircle, Mail, Printer, UserRound, Search, X } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -9,6 +9,7 @@ import '../../styles/WaNewcarDetail.css';
 // 첨부서류 모달
 import WaNewcarAttachModal from './WaNewcarAttachModal';
 import WaTaxReceiptModal from './WaTaxReceiptModal';
+import { registrationPaperUrl } from './registrationMail';
 
 // 결제관리 코드명 변환
 const paymentInfo = {
@@ -85,7 +86,9 @@ const WaNewcarDetail = ({
 	dsDLVGB,
 	dsBANK,
 	dsNTTCD,
-	dsNTTGR
+	dsNTTGR,
+	carpScanYn,
+	carpPostYn
 }) => {
 	// 첨부서류 모달
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
@@ -94,6 +97,8 @@ const WaNewcarDetail = ({
 	const navigate = useNavigate();
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const [certificatePreviewUrl, setCertificatePreviewUrl] = useState(null);
+	const [mailSending, setMailSending] = useState(false);
+	const [mailRequested, setMailRequested] = useState(false);
 	const certificatePreviewFrame = useRef(null);
 	const serviceId = searchParams.get('serviceId');
 	// 전체 로딩중
@@ -229,6 +234,34 @@ const WaNewcarDetail = ({
 		setCertificatePreviewUrl(null);
 	};
 
+	const handleRegistrationMail = async () => {
+		if (mailSending) return;
+
+		if (!dsService.JUDGE_DT || !dsNewCar.CAR_NO) {
+			gf.alert('등록증이 아직 올라오지 않았습니다.');
+			return;
+		}
+
+		setMailSending(true);
+		try {
+			// 파일을 내려받지 않고 등록증 존재 여부만 먼저 확인한다.
+			await axios.head(registrationPaperUrl(dsService.JUDGE_DT, dsNewCar.CAR_NO));
+			if ((mailRequested || String(dsNewCar.CARP_SEND_YN || '').toUpperCase() === 'Y')
+					&& !await gf.confirm('이미 보냈던 건입니다. 추가 발송하시겠습니까?')) return;
+			await axios.post(`/api/internal/registration-mail/${encodeURIComponent(dsService.SERVICE_ID)}`);
+			setMailRequested(true);
+			gf.alert('등록증 메일 발송을 요청했습니다.');
+		} catch (error) {
+			if (error.response?.status === 404) {
+				gf.alert('등록증이 아직 올라오지 않았습니다.');
+				return;
+			}
+			gf.alert('메일 발송 요청 중 오류가 발생했습니다.');
+		} finally {
+			setMailSending(false);
+		}
+	};
+
 	const downloadCertificate = () => {
 		if (!certificatePreviewUrl) return;
 
@@ -274,10 +307,6 @@ const WaNewcarDetail = ({
 			    return;
 			}
 			
-		    const judgeDt = dsService.JUDGE_DT
-		        .replace(/[^0-9]/g, '')   // 숫자만
-		        .slice(2);                // 앞의 20 제거 → 260715
-
 			// 로딩 시작
 			setTemplateDownloading(true);
 
@@ -287,7 +316,7 @@ const WaNewcarDetail = ({
 			}
 				
 	        const response = await axios.get(
-	            `/api/newcar/carpaper/download?date=${judgeDt}&carNo=${encodeURIComponent(dsNewCar.CAR_NO)}`,
+	            registrationPaperUrl(dsService.JUDGE_DT, dsNewCar.CAR_NO),
 	            {
 	                responseType: 'blob'
 	            }
@@ -340,6 +369,12 @@ const WaNewcarDetail = ({
 	        gf.alert("등록 취소 중 오류가 발생했습니다.");
 	    }
 	};
+	
+	const carName = String(dsNewCar.CAR_NM ?? '').trim();
+	const carPackage = String(dsNewCar.CAR_PACKAGE ?? '').trim();
+
+	const displayCarName = carName && carPackage.toUpperCase().includes('PERFORMANCE') && !carName.toUpperCase().includes('PERFORMANCE')
+	        ? `${carName} Performance` : carName;
 					
     return (
 		<div className="wa-request-page">
@@ -639,7 +674,7 @@ const WaNewcarDetail = ({
 
 				            <div className="wa-detail-row">
 				                <span className="wa-detail-name">차량명</span>
-				                <span>{dsNewCar.CAR_NM || '-'} </span>
+				                <span>{displayCarName || '-'} </span>
 				            </div>
 
 				            <div className="wa-detail-row">
@@ -798,6 +833,21 @@ const WaNewcarDetail = ({
 				        <span className="wa-detail-name">수수료 증빙</span>
 				        <span>{taxReciptNm}</span>
 				    </div>
+				    {carpPostYn === 'Y' && (
+				        <div className="wa-detail-row wa-detail-mail-row">
+				            <span className="wa-detail-name">등록증 이메일</span>
+				            <span>{dsNewCar.CARP_MAIL?.trim() || '-'}</span>
+				            <button
+				                type="button"
+				                className="wa-detail-delivery-btn wa-detail-mail-btn"
+				                onClick={handleRegistrationMail}
+				                disabled={mailSending}
+				            >
+				                <Mail size={20} strokeWidth={2.5} />
+				                <span>{mailSending ? '요청 중' : '메일 발송'}</span>
+				            </button>
+				        </div>
+				    )}
 
 				    <div className="wa-detail-row">
 				        <span className="wa-detail-name">환불정보</span>
@@ -834,13 +884,13 @@ const WaNewcarDetail = ({
 				        영수증
 				    </button>
 
-				    <button
+				    {carpScanYn === 'Y' && <button
 				        type="button"
 				        className="wa-detail-file-btn"
 				        onClick={handleRegistCert}
 				    >
 				        등록증
-				    </button>
+				    </button>}
 
 				</div>
 				

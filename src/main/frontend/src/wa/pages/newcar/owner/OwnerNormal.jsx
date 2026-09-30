@@ -11,6 +11,9 @@ import AddressSearch from '../../common/AddressSearch'; // 주소 입력
 
 import JointOwner from './JointOwner';
 
+// 셀프등록 버튼을 숨길 회사는 여기에서 추가/제거한다.
+const SELF_REGISTRATION_HIDDEN_COMPANY_IDS = new Set(['']);
+
 const OwnerPersonal = ({
     dsNewCar,
 	dsService,
@@ -47,6 +50,8 @@ const OwnerPersonal = ({
 	const [showSelfSms, setShowSelfSms] = useState(false);
 	const [selfPhone, setSelfPhone] = useState('');
 	const [sendingSelfSms, setSendingSelfSms] = useState(false);
+	const showSelfRegistration = Boolean(companyId)
+		&& !SELF_REGISTRATION_HIDDEN_COMPANY_IDS.has(String(companyId).trim().toUpperCase());
 
 /* =========================================================
  * Effect
@@ -179,7 +184,7 @@ const OwnerPersonal = ({
 	
     return (
 	    <>
-			{companyId === 'WA999' && <div className="wa-self-registration-row">
+			{showSelfRegistration && <div className="wa-self-registration-row">
 				<button
 					type="button"
 					className="wa-self-registration-btn"

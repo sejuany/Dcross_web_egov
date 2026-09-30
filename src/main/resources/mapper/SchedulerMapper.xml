@@ -88,6 +88,192 @@
           AND TOI.SEQ = 0
     </select>
 
+    <!-- 오늘 처리완료된 WA 신규등록 중 등기 발송 지점의 미발송 건 -->
+    <select id="selectRegistrationMailTargets" resultType="string">
+        SELECT TS.SERVICE_ID
+          FROM TR_SERVICE TS
+               JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = '010'
+           AND TS.COMPANY_ID LIKE 'WA%'
+           AND TS.PROC_ST = 'END'
+           AND TS.PROC_DT &gt;= TRUNC(SYSDATE)
+           AND TS.PROC_DT &lt; TRUNC(SYSDATE) + 1
+           AND NVL(TN.CARP_SEND_YN, 'N') = 'N'
+           AND EXISTS (
+               SELECT 1
+                 FROM TM_BRANCH TB
+                WHERE TB.COMPANY_ID = TS.COMPANY_ID
+                  AND TB.BRANCH_ID = TS.BRANCH_ID
+                  AND TB.CARP_POST_YN = 'Y'
+           )
+         ORDER BY TS.PROC_DT, TS.SERVICE_ID
+    </select>
+
+    <!-- 등록예정일 D-3 이상 남았고 아직 번호판을 선택하지 않은 신규등록 건 -->
+    <select id="selectNewcarNumplateReminderTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT TS.SERVICE_ID,
+               TS.WORK_CD,
+               TS.COMPANY_ID,
+               TS.PROC_ST,
+               TS.JUDGE_ST,
+               TS.LINK_ID,
+               TN.CARID_NO,
+               TN.REQ_CAR_NO,
+               TN.REGIST_DATE,
+               TN.PAY_ST,
+               TN.TOTAL_AMT,
+               TN.VBANK_NO,
+               PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
+               PKG_COMMON.FN_DECRYPT(TN.PAY_HP_NO) AS PAY_HP_NO,
+               TCD.NUMPLATE_MSG_TOKEN
+          FROM TR_SERVICE TS
+          JOIN TR_NEWCAR TN
+            ON TN.SERVICE_ID = TS.SERVICE_ID
+          JOIN TR_CARNO_DETACH TCD
+            ON TCD.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = '010'
+           AND TN.REQ_CAR_NO IS NULL
+           AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'DEL', 'RET')
+           AND TS.JUDGE_ST IS NULL
+           AND TN.REGIST_DATE IS NOT NULL
+           AND TRUNC(TS.REQUEST_DT) <![CDATA[<]]> TRUNC(SYSDATE)
+           AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 3
+         ORDER BY TN.REGIST_DATE, TS.SERVICE_ID
+    </select>
+
+    <!-- 번호판을 선택했지만 등록비용을 내지 않은 W 계열 선납 신규등록 건 -->
+    <select id="selectNewcarPaymentReminderTargets" resultType="map">
+        SELECT TS.SERVICE_ID,
+               TS.LINK_ID,
+               TN.CARID_NO,
+               TN.REQ_CAR_NO,
+               TN.CARD_YN,
+               TO_CHAR(TN.TOTAL_AMT, 'FM999,999,999,999') AS TOTAL_AMT,
+               TN.VBANK_NO,
+               TO_CHAR(TN.REGIST_DATE - 3, 'YY/MM/DD') AS PAY_DEADLINE,
+               TO_CHAR(TN.REGIST_DATE - 3, 'YYYY-MM-DD') AS INSURANCE_DEADLINE,
+               TO_CHAR(TN.REGIST_DATE, 'YYYY-MM-DD') AS INSURANCE_START_DATE,
+               PKG_COMMON.FN_DECRYPT(TN.PAY_HP_NO) AS PAY_HP_NO,
+               TC.COMPANY_NM,
+               PKG_COMMON.FN_DECRYPT(TMD.MPHONE_NO) AS SPECIALIST_HP_NO,
+               TO_CHAR(PM.ACQ_AMT, 'FM999,999,999,999') AS ACQ_AMT,
+               TO_CHAR(PM.BFEE_AMT, 'FM999,999,999,999') AS BFEE_AMT,
+               TO_CHAR(PM.BOND_AMT, 'FM999,999,999,999') AS BOND_AMT,
+               TO_CHAR(PM.FEE_AMT, 'FM999,999,999,999') AS FEE_AMT,
+               TO_CHAR(PM.INJI_AMT, 'FM999,999,999,999') AS INJI_AMT,
+               TO_CHAR(PM.SPARE_AMT, 'FM999,999,999,999') AS SPARE_AMT,
+               TO_CHAR(PM.STAMP_AMT, 'FM999,999,999,999') AS STAMP_AMT,
+               TO_CHAR(PM.TNUM_AMT, 'FM999,999,999,999') AS TNUM_AMT
+          FROM TR_SERVICE TS
+          JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+          JOIN TM_COMPANY TC ON TC.COMPANY_ID = TS.COMPANY_ID
+          LEFT JOIN TM_MEMBER_DT TMD ON TMD.MEMBER_ID = TS.MEMBER_ID
+          LEFT JOIN (
+              SELECT SERVICE_ID,
+                     MAX(CASE WHEN PAY_KD = 'ACQ' THEN PAY_AMT END) AS ACQ_AMT,
+                     MAX(CASE WHEN PAY_KD = 'BFEE' THEN PAY_AMT END) AS BFEE_AMT,
+                     MAX(CASE WHEN PAY_KD = 'BOND' THEN PAY_AMT END) AS BOND_AMT,
+                     MAX(CASE WHEN PAY_KD = 'FEE' THEN PAY_AMT END) AS FEE_AMT,
+                     MAX(CASE WHEN PAY_KD = 'INJI' THEN PAY_AMT END) AS INJI_AMT,
+                     MAX(CASE WHEN PAY_KD = 'SPARE' THEN PAY_AMT END) AS SPARE_AMT,
+                     MAX(CASE WHEN PAY_KD = 'STAMP' THEN PAY_AMT END) AS STAMP_AMT,
+                     MAX(CASE WHEN PAY_KD = 'TNUM' THEN PAY_AMT END) AS TNUM_AMT
+                FROM TR_PAYMENT
+               GROUP BY SERVICE_ID
+          ) PM ON PM.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = '010'
+           AND TS.COMPANY_ID LIKE 'W%'
+           AND TN.PAY_GB = 'B'
+           <!-- PBEND는 차량대금 납부 완료이므로 등록비용 미납은 PAY_ST로 확인한다. -->
+           AND TS.PROC_ST IN ('P_REQ', 'PBEND')
+           AND NVL(TN.PAY_ST, 'N') != 'Y'
+           AND TRIM(TN.REQ_CAR_NO) IS NOT NULL
+           AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 3
+           AND TN.VBANK_NO IS NOT NULL
+           AND TN.PAY_HP_NO IS NOT NULL
+         ORDER BY TN.REGIST_DATE, TS.SERVICE_ID
+    </select>
+
+    <!-- 등록예정일이 정확히 D-2이고 번호 미선택 또는 등록비 미납인 신규등록 건 -->
+    <select id="selectNewcarNumplateD2AlertTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT TS.SERVICE_ID,
+               TS.COMPANY_ID,
+               TS.LINK_ID,
+               TN.CARID_NO,
+               TN.REQ_CAR_NO,
+               TN.REGIST_DATE,
+               TN.PAY_ST
+          FROM TR_SERVICE TS
+          JOIN TR_NEWCAR TN
+            ON TN.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = '010'
+           AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'DEL', 'RET')
+           AND TS.JUDGE_ST IS NULL
+           AND TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE) + 2
+           AND (TN.REQ_CAR_NO IS NULL OR NVL(TN.PAY_ST, 'N') != 'Y')
+         ORDER BY TS.SERVICE_ID
+    </select>
+
+    <select id="selectNewcarTeamCompanyId" resultType="string">
+        SELECT CODE_NM
+          FROM (
+                SELECT CODE_NM
+                  FROM TM_CODE
+                 WHERE GROUP_ID = 'TEAMS'
+                   AND CODE_ID = 'NEWC'
+                   AND USE_YN = 'Y'
+                   AND TO_CHAR(SYSDATE, 'YYYYMMDD') BETWEEN START_DT AND END_DT
+                 ORDER BY TO_NUMBER(ORDER_NO)
+          )
+         WHERE ROWNUM = 1
+    </select>
+
+    <!-- 수동 재실행 시에도 같은 날 동일한 알림이 중복 등록되지 않도록 한다. -->
+    <insert id="insertNewcarD2Alert">
+        INSERT INTO TM_BOARD (
+            BOARD_ID, BOARD_GB, BOARD_VW, SUBJECT_TX, CONTENT_TX,
+            COMPANY_ID, BOARD_DT, INS_DATE, UPD_DATE
+        )
+        SELECT 'P-' || TO_CHAR(SYSDATE, 'YYMMDD') || '-'
+                   || LPAD(SEQ_BOARD_ID.NEXTVAL, 5, '0'),
+               'T', #{SERVICE_ID}, #{CARID_NO}, #{CONTENT_TX},
+               #{COMPANY_ID}, SYSDATE, SYSDATE, SYSDATE
+          FROM DUAL
+         WHERE NOT EXISTS (
+               SELECT 1
+                 FROM TM_BOARD
+                WHERE BOARD_VW = #{SERVICE_ID}
+                  AND CONTENT_TX = #{CONTENT_TX}
+                  AND TRUNC(INS_DATE) = TRUNC(SYSDATE)
+         )
+    </insert>
+
+    <!-- 수동 실행과 스케줄 실행이 겹치더라도 기존 토큰은 덮어쓰지 않는다. -->
+    <update id="updateNumplateMessageTokenIfMissing">
+        UPDATE TR_CARNO_DETACH
+           SET NUMPLATE_MSG_TOKEN = #{TOKEN},
+               CONFIRM_NO = NULL,
+               NUMPLATE_SELECT_COUNT = 0,
+               NUMPLATE_SELECT_TIME = NULL
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND NUMPLATE_MSG_TOKEN IS NULL
+    </update>
+
+    <select id="selectNumplateMessageToken" resultType="string">
+        SELECT NUMPLATE_MSG_TOKEN
+          FROM TR_CARNO_DETACH
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </select>
+
+    <!-- 재안내 문자를 발송할 때 기존 토큰은 유지하고 번호판 조회 기회만 초기화한다. -->
+    <update id="resetNumplateSelectionForReminder">
+        UPDATE TR_CARNO_DETACH
+           SET NUMPLATE_SELECT_COUNT = 0,
+               NUMPLATE_SELECT_TIME = NULL
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND NUMPLATE_MSG_TOKEN IS NOT NULL
+    </update>
+
     <select id="selectMemberInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT MEMBER_NM, COMPANY_ID, BRACNH_ID, MEMBER_GB, TEL_NO, MPHONE_NO FROM TM_MEMBER_DT WHERE MEMBER_ID = #{MEMBER_ID}    
     </select>

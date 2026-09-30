@@ -486,6 +486,30 @@ public class MortgageEraseService {
         mortgageEraseMapper.updateMortgageEraseService(update);
     }
 
+    @Transactional
+    public String updateMortgageEraseMemo(Map<String, Object> request, UserDto user) {
+        if (!upper(user.getMEMBER_GB()).startsWith("U")) {
+            throw new BusinessException("메모를 수정할 권한이 없습니다.", 403);
+        }
+        String serviceId = trim(Objects.toString(request.get("SERVICE_ID"), ""));
+        if (serviceId.isEmpty()) {
+            throw new BusinessException("저장된 접수 건에서만 메모를 작성할 수 있습니다.");
+        }
+        Map<String, Object> existing = mortgageEraseMapper.getMortgageEraseDetail(serviceId);
+        if (existing == null) {
+            throw new BusinessException("신청 정보를 찾을 수 없습니다.", 404);
+        }
+        assertCanAccess(existing, user);
+
+        String memo = Objects.toString(request.get("MEMO_TX"), "");
+        Map<String, Object> update = new HashMap<>();
+        update.put("SERVICE_ID", serviceId);
+        update.put("MEMO_TX", memo);
+        update.put("MEMBER_ID", user.getLOGIN_ID());
+        mortgageEraseMapper.updateMortgageEraseMemo(update);
+        return memo;
+    }
+
     public int sendMortgageEraseSms(Map<String, Object> request, UserDto user) {
         String serviceId = trim(Objects.toString(request.get("SERVICE_ID"), ""));
         Map<String, Object> existing = mortgageEraseMapper.getMortgageEraseDetail(serviceId);

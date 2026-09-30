@@ -3,7 +3,8 @@
 .numplate-customer-card { margin: 0 auto; overflow: hidden; }
 .numplate-page-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 20px; }
 .numplate-page-heading h3 { margin: 0; font-size: 22px; font-weight: 700; color: #102c57; }
-.numplate-page-heading p { margin: 4px 0 0; color: #64748b; font-size: 14px; }
+.numplate-heading-type { display: inline-flex; align-items: center; margin-left: 9px; padding: 4px 9px; color: #2368c4; border: 1px solid #bfdbfe; border-radius: 999px; background: #eff6ff; font-size: 12px; font-weight: 800; vertical-align: middle; }
+.numplate-page-heading p { margin: 2px 0 0; color: #64748b; font-size: 14px; }
 .numplate-heading-icon { display: grid; place-items: center; width: 48px; height: 48px; color: #fff; background: #102c57; border-radius: 12px; flex-shrink: 0; }
 .numplate-car-summary { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px; margin: 0 -28px; padding: 14px 28px; background: #f4f7fb; }
 .numplate-car-summary > div { display: flex; align-items: flex-start; gap: 8px; min-width: 0; color: #64748b; }
@@ -13,26 +14,57 @@
 .numplate-timer strong { margin-left: 6px; color: #0369a1; font-size: 18px; }
 .numplate-timer.expired { color: #b91c1c; background: #fef2f2; border-color: #fecaca; }
 .numplate-customer-list { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 14px 0 18px; }
-.numplate-customer-list label { display: flex; align-items: center; gap: 8px; min-height: 50px; padding: 10px 14px; color: #1e293b; border: 1px solid #d5d9e2; border-radius: 10px; cursor: pointer; transition: .15s ease; box-sizing: border-box; }
-.numplate-customer-list label:hover { border-color: #7dd3fc; transform: translateY(-1px); }
-.numplate-customer-list label.selected { color: #075985; border-color: #009bfa; background: #f0f9ff; box-shadow: 0 0 0 2px rgba(0, 155, 250, .15); }
+.numplate-customer-list label { display: flex; align-items: center; gap: 10px; min-height: 50px; padding: 10px 14px; color: #1e293b; border: 1px solid #dfe5ec; border-radius: 10px; background: #fff; box-shadow: 0 5px 16px rgba(17, 25, 39, .04); cursor: pointer; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .12s ease; box-sizing: border-box; }
+.numplate-customer-list label:hover { border-color: var(--numplate-theme); transform: translateY(-1px); }
+.numplate-customer-list label.selected { color: var(--numplate-theme); border-color: var(--numplate-theme); background: var(--numplate-theme-soft); box-shadow: 0 8px 24px color-mix(in srgb, var(--numplate-theme) 18%, transparent); transform: translateY(-2px) scale(1.01); }
+.numplate-customer-list label.pick-me:not(.selected) { animation: numplate-shake-horizontal .8s cubic-bezier(.455, .03, .515, .955) both; }
 .numplate-customer-list label:has(input:disabled) { cursor: not-allowed; opacity: .55; transform: none; }
-.numplate-customer-list input { accent-color: #009bfa; width: 16px; height: 16px; flex-shrink: 0; margin: 0; }
+.numplate-customer-list input { width: 20px; height: 20px; flex-shrink: 0; margin: 0; accent-color: var(--numplate-theme); }
 .numplate-customer-list span { flex: 1; font-size: 16px; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; }
-.numplate-check-icon { flex-shrink: 0; color: #009bfa; }
-.numplate-customer-message { margin: 0 0 14px; padding: 10px 14px; color: #b91c1c; background: #fef2f2; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.numplate-check-icon { width: 22px; height: 22px; display: grid; place-items: center; flex-shrink: 0; color: #fff; border-radius: 50%; background: var(--numplate-theme); font-size: 13px; line-height: 1; }
+.numplate-type-list { display: grid; gap: 16px; margin: 24px 0 18px; }
+.numplate-type-list label { position: relative; display: grid; justify-items: center; gap: 12px; padding: 22px 24px 18px; overflow: hidden; border: 2px solid #e2e8f0; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(16, 44, 87, .07); cursor: pointer; transition: border-color .18s ease, background .18s ease, box-shadow .18s ease, transform .18s ease; }
+.numplate-type-list label:hover { border-color: #8ab5ed; transform: translateY(-2px); }
+.numplate-type-list label.selected { border-color: var(--numplate-theme); background: var(--numplate-theme-bg); box-shadow: 0 12px 30px color-mix(in srgb, var(--numplate-theme) 18%, transparent); }
+.numplate-type-list input { position: absolute; top: 17px; left: 17px; width: 22px; height: 22px; margin: 0; accent-color: var(--numplate-theme); }
+.numplate-type-image-wrap { width: min(560px, 100%); padding: 10px 24px 2px; box-sizing: border-box; }
+.numplate-type-image-wrap img { display: block; width: 100%; max-height: 175px; object-fit: contain; }
+.numplate-type-name { color: #102c57; font-size: 18px; font-weight: 800; letter-spacing: -.02em; }
+.numplate-type-check { position: absolute; top: 16px; right: 17px; color: var(--numplate-theme); fill: var(--numplate-theme-soft); }
+.numplate-type-submit { margin-top: 8px; }
+.numplate-type-confirm-image { display: grid; place-items: center; margin: 4px 0 18px; padding: 12px; border: 1px solid #e2e8f0; border-radius: 12px; background: #f8fafc; }
+.numplate-type-confirm-image img { display: block; width: 100%; max-height: 112px; object-fit: contain; }
+.numplate-customer-message { margin: 10px 0 0 0; padding: 10px 14px; color: #b91c1c; background: #fef2f2; border-radius: 8px; font-size: 14px; font-weight: 600; }
+.numplate-expired-message { margin: 28px 0 14px; color: #64748b; font-size: 14px; text-align: center; }
 .numplate-complete { padding: 38px 0 16px; text-align: center; }
 .numplate-complete > svg { color: #16a34a; }
-.numplate-complete h4 { margin: 14px 0 18px; color: #102c57; font-size: 21px; }
+.numplate-complete h4 { margin: 14px 0 18px; color: #102c57; font-size: 22px; }
 .numplate-result-number { width: fit-content; margin: 0 auto 18px; padding: 15px 28px; color: #fff; background: #102c57; border-radius: 12px; box-shadow: 0 8px 20px rgba(16, 44, 87, .18); font-size: 28px; font-weight: 800; letter-spacing: 1px; }
-.numplate-complete p, .numplate-empty-state { color: #64748b; font-size: 14px; line-height: 1.7; }
+.numplate-complete p, .numplate-empty-state { color: #64748b; font-size: 15px; line-height: 1.7; }
+.numplate-not-selected > svg { color: #dc2626; }
+.numplate-lookup-error > svg { color: #dc2626; }
+.numplate-not-selected-description { margin: 0 auto; word-break: keep-all; }
+.numplate-registration-guide { display: grid; gap: 22px; margin-top: 34px; padding-top: 28px; border-top: 1px solid #e2e8f0; color: #334155; text-align: left; }
+.numplate-registration-guide section { display: grid; gap: 10px; }
+.numplate-registration-guide h5 { margin: 0; color: #1d4ed8; font-size: 15px; font-weight: 850; line-height: 1.5; }
+.numplate-registration-guide ul { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+.numplate-registration-guide li { position: relative; padding-left: 13px; font-size: 14px; line-height: 1.55; word-break: keep-all; }
+.numplate-registration-guide li::before { position: absolute; left: 0; content: '-'; }
+.numplate-registration-guide strong { color: #1d4ed8; }
 .numplate-empty-state { padding: 48px 0 32px; text-align: center; }
-.numplate-customer-card .customer-btn:disabled { cursor: not-allowed; opacity: .55; }
+.numplate-customer-card .customer-btn:disabled {
+    color: #fff;
+    background: #9ca3af;
+    border-color: #9ca3af;
+    cursor: not-allowed;
+    opacity: 1;
+}
 
 @media (max-width: 560px) {
     .numplate-customer-card { padding: 18px 16px; }
     .numplate-page-heading { gap: 10px; margin-bottom: 14px; }
     .numplate-page-heading h3 { font-size: 18px; }
+	.numplate-heading-type { margin-left: 6px; padding: 3px 7px; font-size: 10px; }
     .numplate-page-heading p { font-size: 12px; }
     .numplate-heading-icon { width: 38px; height: 38px; border-radius: 10px; }
     .numplate-car-summary { margin: 0 -16px; padding: 10px 16px; gap: 8px; }
@@ -43,6 +75,16 @@
     .numplate-customer-list { grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0 14px; }
     .numplate-customer-list label { min-height: 44px; padding: 8px 10px; gap: 6px; border-radius: 8px; }
     .numplate-customer-list span { font-size: 15px; font-weight: 700; }
+	.numplate-type-list { gap: 12px; margin: 18px 0 14px; }
+	.numplate-type-list label { gap: 8px; padding: 16px 14px 13px; border-radius: 13px; }
+	.numplate-type-list input { top: 12px; left: 12px; width: 20px; height: 20px; }
+	.numplate-type-image-wrap { padding: 12px 18px 0; }
+	.numplate-type-image-wrap img { max-height: 112px; }
+	.numplate-type-name { font-size: 16px; }
+	.numplate-type-check { top: 11px; right: 12px; }
+	.numplate-registration-guide { gap: 18px; margin-top: 26px; padding-top: 22px; }
+	.numplate-registration-guide h5 { font-size: 14px; }
+	.numplate-registration-guide li { font-size: 13px; }
     .numplate-customer-card .customer-btn-group { margin-top: 10px; }
     .numplate-customer-card .customer-btn { height: 44px; min-height: 44px; font-size: 15px; }
 }
@@ -749,4 +791,228 @@
         width: 100%;
     }
 
+}
+
+/* =========================================================
+ * 번호판 선택 페이지
+========================================================= */
+.numplate-customer-page {
+    --numplate-theme: #2368c4;
+    --numplate-theme-soft: #eaf3ff;
+    --numplate-theme-bg: #f7fbff;
+    background: linear-gradient(180deg, var(--numplate-theme-soft) 0, var(--numplate-theme-bg) 290px, transparent 620px);
+    transition: background .35s ease;
+}
+
+.numplate-customer-page.numplate-warning {
+    --numplate-theme: #d97706;
+    --numplate-theme-soft: #fff1d6;
+    --numplate-theme-bg: #fffaf0;
+}
+
+.numplate-customer-page.numplate-critical {
+    --numplate-theme: #d92d20;
+    --numplate-theme-soft: #ffe4e1;
+    --numplate-theme-bg: #fff5f4;
+}
+
+/* 번호판 선택 남은 시간 */
+.wa-numplate-timer {
+	margin-top: 16px;
+    padding: 18px;
+    margin-bottom: 32px;
+    color: var(--numplate-theme);
+    border: 1px solid color-mix(in srgb, var(--numplate-theme) 26%, white);
+    border-radius: 20px;
+    background: #ffffffd9;
+    box-shadow: 0 12px 32px color-mix(in srgb, var(--numplate-theme) 13%, transparent);
+    transition: color .35s ease, border-color .35s ease, box-shadow .35s ease;
+}
+
+/* 상단 - 번호 선택 중 / 남은 시간 */
+.wa-numplate-timer-head {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 16px;
+}
+
+.wa-numplate-timer-head span {
+    font-size: 13px;
+    font-weight: 850;
+    letter-spacing: .04em;
+}
+
+.wa-numplate-timer-head strong {
+    font-size: 36px;
+    font-weight: 900;
+    line-height: 1;
+    letter-spacing: -.04em;
+    font-variant-numeric: tabular-nums;
+}
+
+/* 남은 시간 진행바 */
+.wa-numplate-timer progress {
+    width: 100%;
+    height: 9px;
+    display: block;
+    margin: 15px 0 11px;
+    overflow: hidden;
+    border: 0;
+    border-radius: 999px;
+    appearance: none;
+    background: #e9edf2;
+}
+
+.wa-numplate-timer progress::-webkit-progress-bar {
+    background: #e9edf2;
+}
+
+.wa-numplate-timer progress::-webkit-progress-value {
+    border-radius: 999px;
+    background: var(--numplate-theme);
+    transition: width .25s linear, background .3s ease;
+}
+
+.wa-numplate-timer progress::-moz-progress-bar {
+    border-radius: 999px;
+    background: var(--numplate-theme);
+}
+
+.wa-numplate-timer p {
+    margin: 0;
+    color: #4e5968;
+    font-size: 13px;
+    font-weight: 700;
+    line-height: 1.5;
+}
+
+.numplate-critical .wa-numplate-timer-head strong {
+    animation: numplate-timer-pulse 1s ease-in-out infinite;
+}
+
+.numplate-customer-page .numplate-customer-card .customer-btn-primary:not(:disabled) {
+    background: var(--numplate-theme);
+    border-color: var(--numplate-theme);
+}
+
+.numplate-customer-page .numplate-customer-card .customer-btn-primary:not(:disabled):hover {
+    background: color-mix(in srgb, var(--numplate-theme) 88%, #000);
+    border-color: color-mix(in srgb, var(--numplate-theme) 88%, #000);
+}
+
+.numplate-consent-backdrop {
+    position: fixed;
+    z-index: 1000;
+    inset: 0;
+    display: grid;
+    place-items: center;
+    padding: 20px;
+    background: rgba(15, 23, 42, .58);
+}
+
+.numplate-consent-modal {
+    width: min(430px, 100%);
+    padding: 26px;
+    color: #1e293b;
+    border-radius: 18px;
+    background: #fff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, .28);
+    box-sizing: border-box;
+}
+
+.numplate-consent-modal h4 {
+    margin: 0 0 12px;
+    color: #102c57;
+    font-size: 20px;
+}
+
+.numplate-consent-modal > p {
+    margin: 0;
+    color: #475569;
+    font-size: 15px;
+    line-height: 1.7;
+    word-break: keep-all;
+}
+
+.numplate-consent-check {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 20px;
+    padding: 13px 14px;
+    border-radius: 10px;
+    background: #f4f7fb;
+    cursor: pointer;
+}
+
+.numplate-consent-check input {
+    width: 20px;
+    height: 20px;
+    margin: 0;
+    accent-color: #2368c4;
+}
+
+.numplate-consent-check span {
+    font-size: 14px;
+    font-weight: 700;
+}
+
+.numplate-consent-actions {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 9px;
+    margin-top: 18px;
+}
+
+.numplate-consent-actions button {
+    min-height: 46px;
+    border-radius: 10px;
+    font-size: 15px;
+    font-weight: 750;
+    cursor: pointer;
+}
+
+.numplate-consent-actions .no {
+    color: #334155;
+    border: 1px solid #cbd5e1;
+    background: #fff;
+}
+
+.numplate-consent-actions .yes {
+    color: #fff;
+    border: 1px solid #102c57;
+    background: #102c57;
+}
+
+.numplate-consent-actions .yes:disabled {
+    border-color: #cbd5e1;
+    background: #cbd5e1;
+    cursor: not-allowed;
+}
+
+@keyframes numplate-timer-pulse {
+    50% { transform: scale(1.055); }
+}
+
+@keyframes numplate-shake-horizontal {
+    0%, 100% { transform: translateX(0); }
+    10%, 30%, 50%, 70% { transform: translateX(-10px); }
+    20%, 40%, 60% { transform: translateX(10px); }
+    80% { transform: translateX(8px); }
+    90% { transform: translateX(-8px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .numplate-customer-list label.pick-me:not(.selected),
+    .numplate-critical .wa-numplate-timer-head strong {
+        animation: none;
+    }
+}
+
+.numplate-heading-text h3 {
+	margin: 0;
+    color: #102c57;
+    font-size: 28px;
+    font-weight: 700;
 }

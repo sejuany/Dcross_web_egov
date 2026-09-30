@@ -177,6 +177,20 @@
     gap: 6px;                /* 아이콘과 글자 간격 */
 }
 
+.wa-detail-mail-row{
+    align-items:center;
+}
+
+.wa-detail-mail-btn{
+    flex-shrink:0;
+    margin-left:auto;
+}
+
+.wa-detail-mail-btn:disabled{
+    opacity:.6;
+    cursor:default;
+}
+
 .wa-detail-desc{
     margin-left:8px;
     color:#9aa3b2;

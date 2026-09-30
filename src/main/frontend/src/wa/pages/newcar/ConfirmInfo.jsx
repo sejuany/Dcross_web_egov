@@ -28,7 +28,9 @@ const ConfirmInfo = ({
 	dsBaseList,
 	dsPaymentList,
 	onAttachClose,
-	onMoveStep
+	onMoveStep,
+	carpPostYn,
+	carStepVisible = true
 }) => {
 	// 첨부서류 모달
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
@@ -88,6 +90,11 @@ const ConfirmInfo = ({
 	const leaseCompanyName = isDirectLeaseCompany
 		? (ownerType === 'L' ? dsNewCar.OWNER_NM : dsOwnerInfo.DEBTOR_NM)
 		: selectedLeaseName;
+	const carName = String(dsNewCar.CAR_NM ?? '').trim();
+	const carPackage = String(dsNewCar.CAR_PACKAGE ?? '').trim();
+
+	const displayCarName = carName && carPackage.toUpperCase().includes('PERFORMANCE') && !carName.toUpperCase().includes('PERFORMANCE')
+	        ? `${carName} Performance` : carName;
 
     return (
         <>
@@ -311,15 +318,15 @@ const ConfirmInfo = ({
 		        <div className="wa-confirm-card">
 		
 		            <div className="wa-confirm-title"
-						 onClick={() => onMoveStep?.(2)}
+						 onClick={carStepVisible ? () => onMoveStep?.(2) : undefined}
 					>
 		                자동차 정보
-		                <ChevronRight size={18} />
+		                {carStepVisible && <ChevronRight size={18} />}
 		            </div>
 		
 		            <div className="wa-confirm-item">
 		                <span>차량명</span>
-		                <strong>{dsNewCar.CAR_NM}</strong>
+		                <strong>{displayCarName}</strong>
 		            </div>
 
 		            <div className="wa-confirm-item">
@@ -355,10 +362,10 @@ const ConfirmInfo = ({
 		                <strong>{dsDLVGB?.find(item => item.CODE_ID === dsCarNoDetach.DELIVERY_GB)?.CODE_NM ?? ''}</strong>
 		            </div>
 					
-					<div className="wa-confirm-item">
+					{carpPostYn === 'Y' && <div className="wa-confirm-item">
 						<span>등록증 수령지</span>
 						<strong>{dsNewCar.CARP_ADDRESS} {dsNewCar.CARP_ADDRESS_DT}</strong>
-					</div>
+					</div>}
 		
 		        </div>
 		

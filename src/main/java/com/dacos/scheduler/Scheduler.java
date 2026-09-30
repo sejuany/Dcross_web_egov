@@ -10,6 +10,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestMethod;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.common.CommonService;
@@ -48,9 +49,33 @@ public class Scheduler {
     	
     	// 운영, 개발 서버에서만 실행되도록 조건 추가
 	    if ("10.109.111.40".equals(serverIp) || "210.109.111.140".equals(serverIp) || "172.10.10.2".equals(serverIp)) {
-	    	runTodayNewcarNonPayed("scheduled");
+	    	// SP 등록비용 미입금 자동 문자는 다코스 아웃바운드로 대체.
+	    	// runTodayNewcarNonPayed("scheduled");
 	    	runTodayNewcarCardNonPayed("scheduled");
 	    }
+    }
+
+    /** 매일 오전 9시에 D-3 이전은 문자를 발송하고 D-2 건은 DCROSS 알림을 등록한다. */
+    @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
+    public void processNewcarNumplateSelectionReminders() {
+        String serverIp = commonService.getServerAddress("IP");
+
+        if ("10.109.111.40".equals(serverIp)
+                || "210.109.111.140".equals(serverIp)
+                || "172.10.10.2".equals(serverIp)) {
+            runNewcarNumplateSelectionReminders("scheduled");
+        }
+    }
+
+    /** 등록증이 준비된 처리완료 신규등록 건의 메일을 영업시간에 발송한다. */
+    @Scheduled(cron = "0 0,30 9-17 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 18 * * *", zone = "Asia/Seoul")
+    public void processRegistrationMails() {
+        String serverIp = commonService.getServerAddress("IP");
+        // 등록메일 스케줄은 운영 서버에서만 실행한다.
+        if ("10.109.111.40".equals(serverIp)) {
+            runRegistrationMails("scheduled");
+        }
     }
 
     @GetMapping("/newcar/waiting-services/run")
@@ -65,6 +90,15 @@ public class Scheduler {
     public Map<String, Object> runTodayNewcarNonPayedManually() {
         int updateCount = runTodayNewcarNonPayed("manual");
         return createResult("processTodayNewcarNonPayed", updateCount);
+    }
+
+    @RequestMapping(
+        value = "/newcar/numplate-selection-reminders/run",
+        method = {RequestMethod.GET, RequestMethod.POST}
+    )
+    public Map<String, Object> runNewcarNumplateSelectionRemindersManually() {
+        int sentCount = runNewcarNumplateSelectionReminders("manual");
+        return createResult("processNewcarNumplateSelectionReminders", sentCount);
     }
 
     @GetMapping("/newcar/run-all")
@@ -113,6 +147,27 @@ public class Scheduler {
     			updateCount
     			);
     	return updateCount;
+    }
+
+    private int runNewcarNumplateSelectionReminders(String triggerType) {
+        logger.info("[Scheduler] 번호판 선택 안내 start - triggerType: {}", triggerType);
+        int sentCount = schedulerService.processNewcarNumplateSelectionReminders();
+		int alertCount = schedulerService.processNewcarNumplateD2Alerts();
+        logger.info(
+            "[Scheduler] 번호판 선택 안내 완료 - triggerType: {}, sentCount: {}, alertCount: {}",
+            triggerType, sentCount, alertCount
+        );
+        int paymentCount = schedulerService.processNewcarPaymentReminders();
+        logger.info("[Scheduler] 등록비용 재안내 완료 - triggerType: {}, sentCount: {}", triggerType, paymentCount);
+        return sentCount + alertCount + paymentCount;
+    }
+
+    private int runRegistrationMails(String triggerType) {
+        logger.info("[Scheduler] 등록완료 메일 발송 start - triggerType: {}", triggerType);
+        int sentCount = schedulerService.processRegistrationMails();
+        logger.info("[Scheduler] 등록완료 메일 발송 완료 - triggerType: {}, sentCount: {}",
+                triggerType, sentCount);
+        return sentCount;
     }
 
     private Map<String, Object> createResult(String jobName, int updateCount) {

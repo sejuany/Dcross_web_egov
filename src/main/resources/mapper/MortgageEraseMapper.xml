@@ -318,6 +318,14 @@
         WHERE SERVICE_ID = #{SERVICE_ID}
     </update>
 
+    <update id="updateMortgageEraseMemo" parameterType="map">
+        UPDATE TR_MORTGAGE
+        SET MEMO_TX = #{MEMO_TX},
+            UPD_USER = #{MEMBER_ID},
+            UPD_DATE = SYSDATE
+        WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
     <update id="updateMortgageEraseCarInfo" parameterType="map">
         UPDATE TR_CARINFO
         SET EULBU_NO = #{EULBU_NO}, CARID_NO = #{CARID_NO}, CAR_NM = #{CAR_NM},

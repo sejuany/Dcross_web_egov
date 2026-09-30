@@ -19,6 +19,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.dacos.attach.AttachService;
 import com.dacos.common.ApiResponse;
 import com.dacos.newcar.NewcarService;
+import com.dacos.newcar.NumplateSelectionService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -34,20 +35,40 @@ public class CustomerController {
     private final CustomerService customerService;
     private final AttachService attachService;
     private final NewcarService newcarService;
+    private final NumplateSelectionService numplateService;
 
     public CustomerController(CustomerService customerService,
                               AttachService attachService,
-                              NewcarService newcarService) {
+                              NewcarService newcarService,
+                              NumplateSelectionService numplateService) {
         this.customerService = customerService;
         this.attachService = attachService;
         this.newcarService = newcarService;
+        this.numplateService = numplateService;
     }
 
 	/** 로그인 없이 문자 토큰으로 고객용 번호판 선택 화면 데이터를 조회한다. */
 	@GetMapping("/numplate-selection")
 	public ResponseEntity<Map<String, Object>> getNumplateSelection(@RequestParam("token") String token) {
 		return ResponseEntity.ok(ApiResponse.withKey(
-				"result", newcarService.getCustomerNumplateSelection(token)));
+				"result", numplateService.getCustomerNumplateSelection(token)));
+	}
+
+	/** 고객이 번호판 조회 버튼을 누른 시점부터 5분 조회 시간을 시작한다. */
+	@PostMapping("/numplate-selection/start")
+	public ResponseEntity<Map<String, Object>> startNumplateSelection(
+			@RequestBody Map<String, Object> param) {
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", numplateService.startCustomerNumplateSelection(
+						String.valueOf(param.getOrDefault("TOKEN", "")))));
+	}
+
+	/** 고가 법인 차량의 번호판 종류를 번호 조회 전에 저장한다. */
+	@PostMapping("/numplate-selection/type")
+	public ResponseEntity<Map<String, Object>> selectNumplateType(
+			@RequestBody Map<String, Object> param) {
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"result", numplateService.selectCustomerNumplateType(param)));
 	}
 
 	/** 로그인 없이 토큰에 배정된 번호 중 하나를 최종 확정한다. */
@@ -55,7 +76,7 @@ public class CustomerController {
 	public ResponseEntity<Map<String, Object>> confirmNumplateSelection(
 			@RequestBody Map<String, Object> param) {
 		return ResponseEntity.ok(ApiResponse.withKey(
-				"result", newcarService.confirmCustomerNumplateSelection(param)));
+				"result", numplateService.confirmCustomerNumplateSelection(param)));
 	}
 
     /**

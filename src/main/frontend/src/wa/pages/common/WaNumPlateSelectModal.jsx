@@ -360,13 +360,8 @@ const WaNumPlateSelectModal = ({
 		const middleEnd = digits.length === 10 ? 6 : 7;
 		return `${digits.slice(0, 3)}-${digits.slice(3, middleEnd)}-${digits.slice(middleEnd)}`;
 	};
-	/*
-	 * 현재 화면의 1~10개 번호를 서버에 전달한다. 실제 권한, 세션 조회 이력, P 상태 검증과
-	 * 토큰 생성은 신뢰 경계인 서버에서 수행하며, 성공 후 받은 토큰을 부모 state에 저장해
-	 * CarInfo의 상태 폴링을 시작한다.
-	 */
+	/* 토큰만 생성해 고객에게 발송한다. 번호판 10개 추출은 고객이 링크에서 조회 버튼을 누를 때 수행한다. */
 	const handleSendSelectionSms = async () => {
-		if (list.length === 0) return gf.alert('먼저 번호판을 조회해 주세요.');
 		if (!/^\d{10,11}$/.test(tel)) return gf.alert('수신 휴대폰 번호를 확인해 주세요.');
 
 		const isAlreadySent = Boolean(dsCarNoDetach?.NUMPLATE_MSG_TOKEN);
@@ -376,7 +371,7 @@ const WaNumPlateSelectModal = ({
 			if (!confirmResend) return;
 			isResend = true;
 		} else {
-			if (!await gf.confirm(`조회된 번호 ${list.length}개를 문자로 발송하시겠습니까?`)) return;
+			if (!await gf.confirm('고객에게 번호판 선택 문자를 발송하시겠습니까?')) return;
 		}
 
 		setSending(true);
@@ -384,7 +379,6 @@ const WaNumPlateSelectModal = ({
 			const { data } = await axios.post('/api/newcar/numplate-selection/send', {
 				SERVICE_ID: dsService.SERVICE_ID,
 				PAY_HP_NO: tel,
-				CAR_NOS: list,
 				BASE_URL: window.location.origin,
 				IS_RESEND: isResend
 			});
@@ -397,7 +391,7 @@ const WaNumPlateSelectModal = ({
 			if (isResend) {
 				gf.alert('[문자 재발송 완료] 기존 선택 링크로 문자가 재발송되었습니다.');
 			} else {
-				gf.alert('[문자 발송 완료] 문자 발송 시점부터 5분 동안 번호 선택이 가능합니다.');
+				gf.alert('[문자 발송 완료] 고객이 번호판 조회 버튼을 누른 시점부터 5분 동안 번호 선택이 가능합니다.');
 			}
 		} catch (e) {
 			gf.alert(e.response?.data?.message || '문자 발송 중 오류가 발생했습니다.');
@@ -543,13 +537,13 @@ const WaNumPlateSelectModal = ({
 									onChange={e => setTel(e.target.value.replace(/\D/g, '').slice(0, 11))}
 									placeholder="010-0000-0000"
 								/>
-								<button type="button" className="btn-send" disabled={sending || list.length === 0}
+								<button type="button" className="btn-send" disabled={sending}
 									onClick={handleSendSelectionSms}>
 									{sending ? '발송 중' : (dsCarNoDetach?.NUMPLATE_MSG_TOKEN ? '문자 재발송' : '문자 발송')}
 								</button>
 							</div>
 						</div>
-						<p>조회된 번호판 목록과 고객 선택 링크를 전송합니다.</p>
+						<p>고객 선택 링크를 전송하며, 번호판은 고객이 조회 버튼을 누를 때 무작위로 추출됩니다.</p>
 					</div>
 					<div className="numplate-notice">
 						<h3 className="notice-heading">

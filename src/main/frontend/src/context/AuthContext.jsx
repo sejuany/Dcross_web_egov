@@ -35,7 +35,7 @@ import axios from 'axios';
 
 // Context 생성 (초기값: undefined)
 const AuthContext = createContext();
-const SESSION_TIMEOUT_MS = 30 * 60 * 1000;
+const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
 
 const getDefaultLogoutRedirect = () => {
     const pathname = window.location.pathname || '';

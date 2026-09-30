@@ -9,8 +9,10 @@
 		FROM (
 			SELECT CS.*
 			FROM TR_CAR_SPEC CS
-			WHERE REPLACE(UPPER(TRIM(CS.MAKER)), ' ', '') = REPLACE(UPPER(TRIM(#{maker})), ' ', '')
-			AND REPLACE(UPPER(TRIM(CS.CAR_NM)), ' ', '') = REPLACE(UPPER(TRIM(#{carName})), ' ', '')
+			WHERE REPLACE(UPPER(TRIM(CS.CAR_NM)), ' ', '') = REPLACE(UPPER(TRIM(#{carName})), ' ', '')
+			<if test="maker != null and maker != ''">
+				AND REPLACE(UPPER(TRIM(CS.MAKER)), ' ', '') = REPLACE(UPPER(TRIM(#{maker})), ' ', '')
+			</if>
 		)
 		WHERE ROWNUM = 1
 	</select>
@@ -370,6 +372,7 @@
                 WHEN NVL(TN.NTAX_TRGET_CD, '00') &lt;&gt; '00' THEN 'Y'
                 ELSE ''
             END AS NTAX_YN,
+            TN.INSURER_YN AS INSURER_YN,
             TN.PAY_ST AS PAY_ST,
             TN.PAY_GB AS PAY_GB,
 			TN.CAR_NM AS CAR_NM,
@@ -389,7 +392,8 @@
 			TS.BRANCH_ID AS BRANCH_ID,
 			PKG_COMMON.FN_DECRYPT(TN.TEL_NO) AS TEL_NO,
             PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
-            PKG_COMMON.FN_DECRYPT(TN.PAY_HP_NO) AS PAY_HP_NO
+            PKG_COMMON.FN_DECRYPT(TN.PAY_HP_NO) AS PAY_HP_NO,
+            CASE WHEN EXISTS (SELECT 1 FROM TR_DATA_CHANGE_HIS DCH WHERE DCH.SERVICE_ID = TS.SERVICE_ID) THEN '수정' ELSE '' END AS DATA_CHANGE_YN
         FROM TR_SERVICE TS
              JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
              LEFT JOIN TR_CARNO_DETACH CD ON CD.SERVICE_ID = TS.SERVICE_ID
@@ -398,7 +402,14 @@
         WHERE TS.WORK_CD = '010'
           AND TS.PROC_ST &lt;&gt; 'DEL'
 		  AND TOI.SEQ = 0
-          AND TS.COMPANY_ID = #{COMPANY_ID}
+        <choose>
+            <when test="COMPANY_ID != null and COMPANY_ID != ''">
+                AND TS.COMPANY_ID = #{COMPANY_ID}
+            </when>
+            <otherwise>
+                AND TS.COMPANY_ID LIKE 'WA%'
+            </otherwise>
+        </choose>
         <if test="COMPANY_ID != null and COMPANY_ID.startsWith('WA') and MEMBER_GB == 'BA'">
             AND TS.BRANCH_ID = #{BRANCH_ID}
         </if>
@@ -547,6 +558,7 @@
                     ELSE ''
                 END
             ) AS OWNER_ADDRESS,
+            NVL(TRIM(TN.CARP_MAIL), '') AS CARP_MAIL,
             NVL(TRIM(TTR.MAIL1), '') AS OWNER_EMAIL1,
             NVL(TRIM(TTR.MAIL2), '') AS OWNER_EMAIL2,
             NVL(TOI.DEBTOR_NM, '') AS JOINT_OWNER_NM,
@@ -610,7 +622,7 @@
             STANDARD_AMT, MEMO_TX, RT_BANK_CD, RT_ACC_NO, RT_ACC_NM, RT_AMT,
             PKG_COMMON.FN_DECRYPT(CARP_ADDRESS)         AS CARP_ADDRESS,
             PKG_COMMON.FN_DECRYPT(CARP_ADDRESS_DT)      AS CARP_ADDRESS_DT,
-            CARP_POST_NO, GOVT_TX, CAR_US, SPMNNO, LAST_DT, VH_TY_CD, INSURER_CD,
+            CARP_POST_NO, CARP_MAIL, CARP_SEND_YN, GOVT_TX, CAR_US, SPMNNO, LAST_DT, VH_TY_CD, INSURER_CD,
             TO_CHAR(INSURER_SDT, 'YYYYMMDD')            AS INSURER_SDT,
             TO_CHAR(INSURER_EDT, 'YYYYMMDD')            AS INSURER_EDT,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO)            AS ADDR_INFO,
@@ -655,18 +667,70 @@
 	      AND REQUEST_DT 		<![CDATA[<=]]> SYSDATE
 	</select>
 
-	<!-- 공급가액 수정 대상 조회 -->
+	<!-- 수정 대상 조회 -->
 	<select id="selectSupplyAmountTarget" parameterType="map" resultType="java.util.Map">
 	    SELECT TS.SERVICE_ID,
 	           TS.PROC_ST,
+	           TS.MEMBER_ID,
 	           TN.CARID_NO,
-	           TN.BUY_AMT
+	           TN.CAR_NM,
+	           TN.MADE_YY,
+	           TN.CAR_PACKAGE,
+	           TO_CHAR(TN.REGIST_DATE, 'YYYY-MM-DD') AS REGIST_DATE,
+	           TN.DIRECT_YN,
+	           TN.OWNER_NM,
+	           TN.BUY_AMT,
+	           TN.STANDARD_AMT,
+	           TN.PREREG_AMT,
+	           TN.TOTAL_AMT,
+	           TN.BOND_AMT,
+	           (SELECT CODE_NM FROM TM_CODE WHERE GROUP_ID = 'DLVGB' AND CODE_ID = CD.DELIVERY_GB) AS SPACE_GB,
+	           (SELECT MEMBER_NM FROM TM_MEMBER_DT WHERE LOGIN_ID = TS.MEMBER_ID) AS SPACE_NM
 	    FROM TR_SERVICE TS
 	         JOIN TR_NEWCAR TN ON TS.SERVICE_ID = TN.SERVICE_ID
+	         LEFT JOIN TR_CARNO_DETACH CD ON CD.SERVICE_ID = TS.SERVICE_ID
 	    WHERE TS.LINK_ID = #{LINK_ID}
 	      AND TS.COMPANY_ID = #{COMPANY_ID}
 	      AND TS.PROC_ST NOT IN ('DEL', 'RET', 'END')
 	</select>
+
+	<!-- 수정 이력: 동일 접수건의 다음 변경 차수 -->
+	<select id="selectNextDataChangeSequence" parameterType="map" resultType="java.util.Map">
+		SELECT NVL(MAX(SEQ), 0) + 1 AS NEXT_SEQ
+		  FROM TR_DATA_CHANGE_HIS
+		 WHERE SERVICE_ID = #{SERVICE_ID}
+		   AND LINK_ID = #{LINK_ID}
+	</select>
+
+	<!-- 목록 팝업용 수정 이력: 회사 범위를 확인해 타사 접수건 조회를 막는다. -->
+	<select id="selectDataChangeHistory" parameterType="map" resultType="java.util.Map">
+		SELECT H.SEQ,
+		       D.CHANGE_ITEM_SEQ,
+		       D.COLUMN_ID,
+		       D.COLUMN_NM,
+		       D.BEFORE_DATA,
+		       D.AFTER_DATA,
+		       TO_CHAR(H.INS_DATE, 'YYYY-MM-DD HH24:MI:SS') AS INS_DATE,
+		       H.INS_USER
+		  FROM TR_DATA_CHANGE_HIS H
+		       JOIN TR_DATA_CHANGE_DT D
+		         ON D.SERVICE_ID = H.SERVICE_ID
+		        AND D.LINK_ID = H.LINK_ID
+		        AND D.SEQ = H.SEQ
+		       JOIN TR_SERVICE S
+		         ON S.SERVICE_ID = H.SERVICE_ID
+		 WHERE H.SERVICE_ID = #{SERVICE_ID}
+		   AND S.COMPANY_ID = #{COMPANY_ID}
+		 ORDER BY H.SEQ, D.CHANGE_ITEM_SEQ
+	</select>
+
+    <select id="getWaCompanyOptions" resultType="java.util.Map">
+        SELECT COMPANY_ID, COMPANY_NM
+          FROM TM_COMPANY
+         WHERE COMPANY_ID LIKE 'WA%'
+           AND USE_YN = 'Y'
+         ORDER BY COMPANY_NM
+    </select>
 
 	<select id="getTrOwnerInfo" parameterType="map" resultType="map">
 	    SELECT  SERVICE_ID, SEQ, GUBUN,
@@ -700,7 +764,8 @@
 	           ADDRESS, ADDRESS_DT, BASE_ID, PAYMENT_ME,
 	           REPLACE(PKG_COMMON.FN_DECRYPT(TEL_NO), '-', '') AS TEL_NO,
 			   REPLACE(PKG_COMMON.FN_DECRYPT(MPHONE_NO), '-', '') AS MPHONE_NO, 
-	           NEWCAR_YN, MORTREG_YN, MORTERS_YN, TRNSNAME_YN, 
+	           NEWCAR_YN, MORTREG_YN, MORTERS_YN, TRNSNAME_YN,
+	           CARP_POST_YN, CARP_SCAN_YN, CARP_MAIL_YN,
 	           USE_YN, BUBJUNG_CD, BUBJUNG_NM, HJD_CD, HJD_NM,  
 	           ROAD_CD, ROAD_NM, ASSIGN_CD
 	    FROM TM_BRANCH
@@ -939,7 +1004,7 @@
 		    RT_BANK_CD, RT_ACC_NO, RT_ACC_NM, RT_AMT, CARP_ADDRESS, GOVT_TX,
 		    CARP_ADDRESS_DT, CARP_POST_NO, VH_TY_CD, INSURER_CD, INSURER_SDT, INSURER_EDT,
 		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT, CARD_YN, REGIST_DATE,
-			RETURN_NO, RETURN_NM, DIRECT_YN
+			RETURN_NO, RETURN_NM, DIRECT_YN, CARP_MAIL
 		)
 		VALUES (
 		    #{SERVICE_ID}, #{WORK_CD}, #{PROC_CD}, #{TASK_CD}, #{BOND_YN},
@@ -960,7 +1025,7 @@
 		    #{RT_BANK_CD}, #{RT_ACC_NO}, #{RT_ACC_NM}, #{RT_AMT}, PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}), #{GOVT_TX},
 		    PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}), #{CARP_POST_NO}, #{VH_TY_CD}, #{INSURER_CD}, #{INSURER_SDT}, #{INSURER_EDT},
 		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}, #{CARD_YN}, #{REGIST_DATE},
-			#{RETURN_NO}, #{RETURN_NM}, #{DIRECT_YN}
+			#{RETURN_NO}, #{RETURN_NM}, #{DIRECT_YN}, #{CARP_MAIL}
 		)
 	</insert>
 
@@ -1003,6 +1068,25 @@
 	        SYSDATE, #{MEMBER_ID}, SYSDATE, #{BUY_NM},
 	        #{COMPANY_ID}, 'SAV', PKG_COMMON.FN_ENCRYPT(#{REG_NO}), #{BIZ_NO}
 	    )
+	</insert>
+	
+	<insert id="insertDataChangeHistory" parameterType="map">
+		INSERT INTO TR_DATA_CHANGE_HIS (
+			SERVICE_ID, LINK_ID, SEQ, INS_USER, INS_DATE
+		) VALUES (
+			#{SERVICE_ID}, #{LINK_ID}, #{SEQ}, #{INS_USER}, SYSDATE
+		)
+	</insert>
+
+	<!-- 상세 테이블명은 TR_DATA_CHANGE_DT 기준 -->
+	<insert id="insertDataChangeHistoryDetail" parameterType="map">
+		INSERT INTO TR_DATA_CHANGE_DT (
+			SERVICE_ID, LINK_ID, SEQ, CHANGE_ITEM_SEQ,
+			COLUMN_ID, COLUMN_NM, BEFORE_DATA, AFTER_DATA
+		) VALUES (
+			#{SERVICE_ID}, #{LINK_ID}, #{SEQ}, #{CHANGE_ITEM_SEQ},
+			#{COLUMN_ID}, #{COLUMN_NM}, #{BEFORE_DATA}, #{AFTER_DATA}
+		)
 	</insert>
 
 	<update id="updateTrNewCar" parameterType="map">
@@ -1250,6 +1334,10 @@
 			<if test="CARP_POST_NO != null">
 			    CARP_POST_NO = #{CARP_POST_NO},
 			</if>
+			<!-- 등록증 이메일은 세금계산서 수신 메일과 별도 컬럼에 저장한다. -->
+			<if test="CARP_MAIL != null">
+			    CARP_MAIL = #{CARP_MAIL},
+			</if>
 	        UPD_DATE = SYSDATE
 		</set>
 	
@@ -1286,7 +1374,10 @@
 	<update id="updateReqCarNo">
 	    UPDATE TR_NEWCAR
 		<set>
-	        REQ_CAR_NO = #{REQ_CAR_NO}
+	        REQ_CAR_NO = #{REQ_CAR_NO},
+			<if test="NUMPLATE_GB != null and NUMPLATE_GB != ''">
+				NUMPLATE_GB = #{NUMPLATE_GB},
+			</if>
 		</set>
 	    WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
@@ -1294,6 +1385,12 @@
 	<update id="updateSelfYn">
 	    UPDATE TR_NEWCAR
 	       SET SELF_YN = 'N', UPD_DATE = SYSDATE
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
+
+	<update id="updateRegistrationMailSent">
+	    UPDATE TR_NEWCAR
+	       SET CARP_SEND_YN = 'Y', UPD_DATE = SYSDATE
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 

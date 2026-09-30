@@ -12,6 +12,7 @@ export const initialDsService = {
 	JUDGE_ST: '',
 	RETURN_TX: '',
 	COMPANY_ID: '',
+	BRANCH_ID: '', // 등록증 발송 정책을 판정할 신청 지점
 	LINK_ID: '',
 	GOVT_ID: '',
 	UPD_USER: ''
@@ -73,6 +74,7 @@ export const initialDsNewCar = {
 	CARP_ADDRESS: '',
 	CARP_ADDRESS_DT: '',
 	CARP_POST_NO: '',
+	CARP_MAIL: '',
 
 	// 연락처
 	TEL_NO: '',
@@ -305,6 +307,7 @@ export const serviceMap = {
 	JUDGE_ST: 'JUDGE_ST',
 	RETURN_TX: 'RETURN_TX',
 	COMPANY_ID: 'COMPANY_ID',
+	BRANCH_ID: 'BRANCH_ID',
 	GOVT_ID: 'GOVT_ID',
 	LINK_ID: 'LINK_ID',
 };
@@ -408,6 +411,7 @@ export const newCarMap = {
 	CARP_ADDRESS: 'CARP_ADDRESS',
 	CARP_ADDRESS_DT: 'CARP_ADDRESS_DT',
 	CARP_POST_NO: 'CARP_POST_NO',
+	CARP_MAIL: 'CARP_MAIL',
 
 	// 세금
 	NTAX_TRGET_CD: 'NTAX_TRGET_CD',

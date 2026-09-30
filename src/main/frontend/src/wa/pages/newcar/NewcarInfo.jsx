@@ -1007,52 +1007,36 @@ const RefundAccountFields = memo(({
     bankOptions,
     onFieldChange,
     onFieldCommit,
-	dsTaxReceipt,
+	carpMail,
 	receiptType,
-	onTaxReceiptCommit
+	taxEmail1,
+	carpMailRequired,
+	carpMailGuide
 }) => (
     <>
-		<div className="wa-form-row" style={{ marginBottom: '0px'}} >
-            <label className="wa-form-label" style={{ alignSelf: 'flex-start', marginTop: '13px' }}>이메일 주소</label>
+		{/* 메일 발송 대상 지점과 WA001만 등록증 이메일을 입력받는다. */}
+		{carpMailRequired && <div className="wa-form-row">
+			<label className="wa-form-label">등록증 이메일 주소</label>
 				
 		    <div className="wa-form-control">
 		        <DeferredInput
+					key={`${recordKey}:CARP_MAIL`}
 		            className="wa-input"
 		            maxLength={50}
-		            name="MAIL1"
-		            data-type="taxReceipt"
-					onCommit={onTaxReceiptCommit}
-					value={dsTaxReceipt.MAIL1 ?? ''}
+		            name="CARP_MAIL"
+		            data-type="newcar"
+					onCommit={onFieldCommit}
+					value={carpMail}
 		            sanitizeValue={removeHangul}
 		            placeholder="example@company.com"
 		        />
-				<p className="mailInfoBox">
-				{receiptType === 'CASH'
-				    ? '*차량대금 세금계산서 발행용입니다. (등록수수료는 현금영수증 발행)'
-				    : receiptType === 'TAX'
-				        ? '*차량대금 및 등록수수료 세금계산서 발행용입니다.'
-				        : '*차량대금 세금계산서 발행용입니다.'
-				}
-				</p>
+				{/* 세금계산서 선택 시에만 MAIL1을 등록증 이메일로 복사할 수 있다. */}
+				{receiptType === 'TAX' && <label className="wa-form-sub-label"><input type="checkbox"
+					checked={Boolean(taxEmail1) && carpMail === taxEmail1} disabled={!taxEmail1}
+					onChange={event => onFieldCommit('CARP_MAIL', event.target.checked ? taxEmail1 : '')} /> 세금계산서 메일과 동일</label>}
+				<p className="wa-mail-guide">{carpMailGuide}</p>
 		    </div>
-		</div>
-
-		<div className="wa-form-row">
-		    <label className="wa-form-label">이메일 주소2</label>
-				
-		    <div className="wa-form-control">
-		        <DeferredInput
-		            className="wa-input"
-		            maxLength={50}
-		            name="MAIL2"
-		            data-type="taxReceipt"
-					onCommit={onTaxReceiptCommit}
-					value={dsTaxReceipt.MAIL2 ?? ''}
-		            sanitizeValue={removeHangul}
-		            placeholder="추가 수신 이메일"
-		        />
-		    </div>
-		</div>
+		</div>}
 		
         <div className="wa-form-row">
             <label className="wa-form-label">환불 예금주</label>
@@ -1118,7 +1102,9 @@ const NewcarInfo = ({
     onTaxReceiptAddressSelect,
     onTaxReceiptAddressClear,
     setDsPaymentList,
-    dsBaseList = []
+    dsBaseList = [],
+	carpMailRequired = false,
+	carpMailGuide = ''
 }) => {
     const hasExemption = Boolean(dsNewCar.NTAX_TRGET_CD && dsNewCar.NTAX_TRGET_CD !== '00');
     const [isExemptionOpen, setIsExemptionOpen] = useState(hasExemption);
@@ -1241,12 +1227,9 @@ const NewcarInfo = ({
         }
 
         setDsNewCar(prev => fillEmptyDefaults(prev, defaults.dsNewCar));
-        setDsTaxReceipt(prev => fillEmptyDefaults(
-            prev,
-            prev.GUBUN === 'CASH'
-                ? { MAIL1: defaults.dsTaxReceipt.MAIL1 }
-                : defaults.dsTaxReceipt
-        ));
+        // 현금영수증에는 세금계산서 MAIL1/2 기본값을 섞지 않는다.
+        setDsTaxReceipt(prev => prev.GUBUN === 'CASH'
+            ? prev : fillEmptyDefaults(prev, defaults.dsTaxReceipt));
     }, [
         dsBaseList,
         dsNewCar.BASE_BRANCH_ID,
@@ -1720,7 +1703,9 @@ const NewcarInfo = ({
                     ADDR_DT: '',
                     POST_NO: '',
                     BUSINESS_TYPE: '',
-                    INDUSTRY_TYPE: ''
+                    INDUSTRY_TYPE: '',
+					MAIL1: '',
+					MAIL2: ''
                 };
             });
             return;
@@ -2179,9 +2164,9 @@ const NewcarInfo = ({
                                             </div>
                                         )}
 											
-											{/*
+											{/* MAIL1/2는 세금계산서 선택 시에만 입력한다. */}
                                             <div className="wa-form-row compact">
-                                                <label className="wa-form-label">이메일주소</label>
+												<label className="wa-form-label">계산서 이메일</label>
                                                 <div className="wa-form-control">
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:MAIL1`}
@@ -2198,7 +2183,7 @@ const NewcarInfo = ({
                                             </div>
 
                                             <div className="wa-form-row compact">
-                                                <label className="wa-form-label">이메일주소2</label>
+												<label className="wa-form-label">계산서 추가 이메일</label>
                                                 <div className="wa-form-control">
                                                     <DeferredInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:MAIL2`}
@@ -2212,7 +2197,7 @@ const NewcarInfo = ({
                                                         placeholder="추가 수신 이메일"
                                                     />
                                                 </div>
-                                            </div>*/}
+                                            </div>
                                     </>
                                 )}
                             </div>
@@ -2229,9 +2214,11 @@ const NewcarInfo = ({
                     bankOptions={bankOptions}
                     onFieldChange={handleNewCarFieldChange}
                     onFieldCommit={commitNewCarField}
-					dsTaxReceipt={dsTaxReceipt}
+					carpMail={dsNewCar.CARP_MAIL ?? ''}
 					receiptType={receiptType}
-					onTaxReceiptCommit={commitTaxReceiptField}
+					taxEmail1={dsTaxReceipt.MAIL1 ?? ''}
+					carpMailRequired={carpMailRequired}
+					carpMailGuide={carpMailGuide}
                 />
 
             </div>

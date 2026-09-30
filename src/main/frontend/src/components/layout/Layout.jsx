@@ -1,11 +1,12 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import axios from 'axios';
 import { LogOut, Settings, Bell, ChevronRight, X, ClipboardList } from 'lucide-react';
 
 import { useTabs } from '../../context/TabContext';
 import { useAuth } from '../../context/AuthContext';
 import { protectedRouteComponents } from '../../routes/AppRouteRegistry';
+import AppSwitcher from '../common/AppSwitcher';
 import './Layout.css';
 const getValue = (row, key) => {
     if (!row) return '';
@@ -216,13 +217,12 @@ const Sidebar = ({ activeCategory, menuConfig }) => {
     return (
         <aside className="main-sidebar">
             <div className="sidebar-logo-area">
-                <Link to="/home" onClick={() => addTab('home', '홈', '/home')}>
-                    <img
-                        src="/logo_navy_horizontal.png"
-                        alt="DACOS"
-                        className="sidebar-logo"
-                    />
-                </Link>
+                <AppSwitcher
+                    currentApp="web"
+                    logoSrc="/logo_navy_horizontal.png"
+                    logoClassName="sidebar-logo"
+                    onWebDacosClick={() => addTab('home', '홈', '/home')}
+                />
             </div>
 
             <div className="sidebar-group" style={{ flex: 1, overflowY: 'auto' }}>

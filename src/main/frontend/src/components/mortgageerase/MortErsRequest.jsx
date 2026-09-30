@@ -13,7 +13,7 @@ const userValue = (user, ...keys) => {
     return '';
 };
 const emptyService = { SERVICE_ID: '', WORK_CD: '001', PROC_ST: 'INPUT', JUDGE_ST: '', REQUEST_DT: '', JUDGE_DT: '', RETURN_TX: '', GOVT_ID: '' };
-const emptyMortgage = { CAR_NO: '', MORT_NM: '', REG_GB: '', REG_NO: '', BIZ_NO: '', BOND_AMT: 0, PAY_NM: '', PAY_HP_NO: '', PAY_GB: 'A', PAY_ME: 'B', PAY_ST: 'N', VBANK_CD: '', VBANK_NO: '', TOTAL_AMT: 0, PAY_TP: 'GUN' };
+const emptyMortgage = { CAR_NO: '', MORT_NM: '', REG_GB: '', REG_NO: '', BIZ_NO: '', BOND_AMT: 0, PAY_NM: '', PAY_HP_NO: '', PAY_GB: 'A', PAY_ME: 'B', PAY_ST: 'N', VBANK_CD: '', VBANK_NO: '', TOTAL_AMT: 0, PAY_TP: 'GUN', MEMO_TX: '' };
 const emptyCarInfo = { EULBU_NO: '', CARID_NO: '', CAR_NM: '', CAR_KD: '', CAR_US: '', CAR_YY: '', CARREG_DT: '', MORTREG_DT: '', MORT_CT: '', DIST_CT: '' };
 const vehicleNumberPattern = /^(?:(?:서울|부산|대구|인천|광주|대전|울산|세종|경기|강원|충북|충남|전북|전남|경북|경남|제주)\d{1,2}[가-힣]\d{4}|\d{2,3}[가-힣]\d{4})$/;
 const vehicleIdentificationNumberPattern = /^[A-HJ-NPR-Z0-9]{17}$/;
@@ -32,6 +32,24 @@ const formatMobilePhone = value => {
     const middleLength = digits.startsWith('010') || digits.length === 11 ? 4 : 3;
     if (digits.length <= 3 + middleLength) return `${digits.slice(0, 3)}-${digits.slice(3)}`;
     return `${digits.slice(0, 3)}-${digits.slice(3, 3 + middleLength)}-${digits.slice(3 + middleLength)}`;
+};
+const formatAmount = value => {
+    const amount = Number(String(value ?? '').replace(/,/g, ''));
+    return Number.isFinite(amount) ? amount.toLocaleString('ko-KR') : '';
+};
+const normalizeAmount = value => {
+    const digits = String(value ?? '').replace(/\D/g, '');
+    return digits ? Number(digits) : 0;
+};
+const maskCarId = value => {
+    const carId = String(value || '').trim();
+    if (!carId || carId.includes('*') || carId.length <= 9) return carId;
+    return `${carId.slice(0, 3)}${'*'.repeat(carId.length - 9)}${carId.slice(-6)}`;
+};
+const formatCompactDate = value => {
+    const text = String(value || '').trim();
+    const digits = text.replace(/\D/g, '');
+    return digits.length === 8 ? `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}` : text;
 };
 const getPayerNameError = value => String(value || '').trim().length > 50 ? '결제자명은 50자 이내로 입력해 주세요.' : '';
 const getMobilePhoneError = value => {
@@ -57,6 +75,7 @@ function MortErsRequest({ manualMode = false }) {
     const receiptNo = location.state?.receiptNo || '';
     const memberGb = userValue(user, 'member_GB', 'MEMBER_GB').toUpperCase();
     const isGovt = memberGb === 'GU';
+    const isDacos = memberGb.startsWith('U');
     const routePath = manualMode ? '/mortgageerase/mort-ers-m-request' : '/mortgageerase/mort-ers-request';
 
     const [service, setService] = useState(emptyService);
@@ -71,6 +90,9 @@ function MortErsRequest({ manualMode = false }) {
     const [toast, setToast] = useState('');
     const [receiptOpen, setReceiptOpen] = useState(false);
     const [manualCompanyId, setManualCompanyId] = useState('CC005');
+    const [memoOpen, setMemoOpen] = useState(false);
+    const [memoText, setMemoText] = useState('');
+    const [memoSaving, setMemoSaving] = useState(false);
 
     const notify = useCallback(message => {
         if (toastTimer.current) clearTimeout(toastTimer.current);
@@ -268,6 +290,41 @@ function MortErsRequest({ manualMode = false }) {
         catch (error) { notify(error.response?.data?.message || '문자 발송에 실패했습니다.'); }
     };
 
+    const openMemo = () => {
+        if (!service.SERVICE_ID) { notify('저장된 접수 건에서만 메모를 작성할 수 있습니다.'); return; }
+        setMemoText(String(mortgage.MEMO_TX || ''));
+        setMemoOpen(true);
+    };
+
+    const appendMemoAuthor = event => {
+        event.preventDefault();
+        const now = new Date();
+        const twoDigits = value => String(value).padStart(2, '0');
+        const author = service.MEMBER_NM || userValue(user, 'member_NM', 'MEMBER_NM', 'login_NM', 'LOGIN_NM');
+        const prefix = `${author} ${twoDigits(now.getMonth() + 1)}-${twoDigits(now.getDate())} ${twoDigits(now.getHours())}:${twoDigits(now.getMinutes())} > `;
+        setMemoText(previous => previous ? `${previous}\n${prefix}` : prefix);
+    };
+
+    const saveMemo = async () => {
+        if (!service.SERVICE_ID || memoSaving) return;
+        setMemoSaving(true);
+        try {
+            const response = await axios.post('/api/mortgageerase/request/memo', {
+                SERVICE_ID: service.SERVICE_ID,
+                MEMO_TX: memoText
+            });
+            const savedMemo = response.data?.memo ?? memoText;
+            setMortgage(previous => ({ ...previous, MEMO_TX: savedMemo }));
+            setMemoText(savedMemo);
+            setMemoOpen(false);
+            notify('메모를 저장했습니다.');
+        } catch (error) {
+            notify(error.response?.data?.message || '메모를 저장하지 못했습니다.');
+        } finally {
+            setMemoSaving(false);
+        }
+    };
+
     const close = useCallback(() => { if (activeTabId) removeTab(activeTabId); else navigate('/mortgageerase/mort-ers-list'); }, [activeTabId, navigate, removeTab]);
     useEffect(() => {
         const key = event => {
@@ -309,7 +366,7 @@ function MortErsRequest({ manualMode = false }) {
                 {manualMode && <ErpField label="회사" span={2}><select className="erp-input" value={manualCompanyId} disabled={!!service.SERVICE_ID || loading} onChange={changeManualCompany}>{manualMortgageCompanies.map(item => <option key={item.COMPANY_ID} value={item.COMPANY_ID}>{item.COMPANY_NM}</option>)}</select></ErpField>}
             </div><div className="erp-row">
                 <ErpField label="신청상태" span={2}><input className="erp-input" value={codeName('PR_ST', service.PROC_ST)} readOnly /></ErpField><ErpField label="심사일자" span={2}><input className="erp-input" value={service.JUDGE_DT || ''} readOnly /></ErpField>
-                <ErpField label="심사상태" span={2}><select className="erp-input" value={service.JUDGE_ST || ''} disabled={!judgeEditable} onChange={e => setService(p => ({ ...p, JUDGE_ST: e.target.value }))}><option value="">선택</option>{(codes.JG_ST || []).map(c => <option key={c.CODE_ID} value={c.CODE_ID}>{c.CODE_NM}</option>)}</select></ErpField>
+                <ErpField label="심사상태" span={2}><select className="erp-input" value={service.JUDGE_ST || ''} disabled={!judgeEditable} onChange={e => setService(p => ({ ...p, JUDGE_ST: e.target.value }))}><option value=""></option>{(codes.JG_ST || []).map(c => <option key={c.CODE_ID} value={c.CODE_ID}>{c.CODE_NM}</option>)}</select></ErpField>
                 <ErpField label="반려사유" span={4}><input className="erp-input" value={service.RETURN_TX || ''} disabled={!judgeEditable} onChange={e => setService(p => ({ ...p, RETURN_TX: e.target.value }))} /></ErpField>
             </div></ErpSection>
             <div className="mort-request-section"><h3>저당권자 정보</h3><div className="mort-form-grid">
@@ -318,15 +375,23 @@ function MortErsRequest({ manualMode = false }) {
             </div></div>
             <div className="mort-request-section"><h3>저당정보</h3><div className="mort-form-grid">
                 <label>차량번호/차대번호<div className="inline"><input value={mortgage.CAR_NO || ''} disabled={!formEditable} maxLength={17} onChange={e => changeCarIdentifier(e.target.value)} onKeyDown={e => e.key === 'Enter' && linkCar()} /><button onClick={linkCar} disabled={!formEditable}>연계</button></div></label>
-                <label>채권가액(채권최고액)<input type="number" value={mortgage.BOND_AMT || 0} disabled={!formEditable || mortOptions.length > 0} onChange={e => updateMortgage('BOND_AMT', e.target.value)} /></label>
+                <label>채권가액(채권최고액)<input type="text" inputMode="numeric" value={formatAmount(mortgage.BOND_AMT)} disabled={!formEditable || mortOptions.length > 0} onChange={e => updateMortgage('BOND_AMT', normalizeAmount(e.target.value))} /></label>
                 <label>을부번호{mortOptions.length > 1 ? <select value={carInfo.EULBU_NO || ''} onChange={e => applyMortOption(mortOptions.find(o => o.EULBU_NO === e.target.value) || {})}>{mortOptions.map(o => <option key={o.EULBU_NO} value={o.EULBU_NO}>{o.EULBU_NO}</option>)}</select> : <input value={carInfo.EULBU_NO || ''} readOnly />}</label>
-            </div><table className="mort-info-table"><thead><tr><th>차대번호</th><th>차명</th><th>차종</th><th>용도</th><th>저당건수</th><th>압류건수</th><th>모델연도</th><th>최초등록일</th></tr></thead><tbody><tr><td>{carInfo.CARID_NO}</td><td>{carInfo.CAR_NM}</td><td>{carInfo.CAR_KD}</td><td>{codeName('CARUS', carInfo.CAR_US)}</td><td>{carInfo.MORT_CT}</td><td>{carInfo.DIST_CT}</td><td>{carInfo.CAR_YY}</td><td>{carInfo.CARREG_DT}</td></tr></tbody></table></div>
+            </div><table className="mort-info-table"><thead><tr><th>차대번호</th><th>차명</th><th>차종</th><th>용도</th><th>저당건수</th><th>압류건수</th><th>모델연도</th><th>최초등록일</th></tr></thead><tbody><tr><td>{maskCarId(carInfo.CARID_NO)}</td><td>{carInfo.CAR_NM}</td><td>{carInfo.CAR_KD}</td><td>{codeName('CARUS', carInfo.CAR_US)}</td><td>{carInfo.MORT_CT}</td><td>{carInfo.DIST_CT}</td><td>{carInfo.CAR_YY}</td><td>{formatCompactDate(carInfo.CARREG_DT)}</td></tr></tbody></table></div>
             <div className="mort-request-section"><h3>결제 정보</h3><div className="mort-form-grid payment">
                 <label>결제자명<input value={mortgage.PAY_NM || ''} disabled={!formEditable} maxLength={50} onChange={e => updateMortgage('PAY_NM', e.target.value)} /></label><label>휴대폰번호<div className="inline"><input type="tel" inputMode="numeric" value={mortgage.PAY_HP_NO || ''} disabled={!formEditable} maxLength={13} onChange={e => updateMortgage('PAY_HP_NO', formatMobilePhone(e.target.value))} /><button onClick={sendSms} disabled={!service.SERVICE_ID || !mortgage.VBANK_NO}>SMS발송</button></div></label>
                 <label>총 금액<input value={`${totalAmount.toLocaleString()} 원`} readOnly /></label><label>가상계좌<div className="inline"><select value={mortgage.VBANK_CD || ''} disabled><option value="">은행</option>{(codes.BANK || []).map(c => <option key={c.CODE_ID} value={c.CODE_ID}>{c.CODE_NM}</option>)}</select><input value={mortgage.VBANK_NO || ''} readOnly /></div></label>
                 <label>납부방법<div className="payment-method-control"><select value={mortgage.PAY_ME || ''} disabled={!formEditable} onChange={e => updateMortgage('PAY_ME', e.target.value)}>{(codes.PAYME || []).map(c => <option key={c.CODE_ID} value={c.CODE_ID}>{c.CODE_NM}</option>)}</select><span className="fee-month-check"><input type="checkbox" checked={mortgage.PAY_TP === 'MON'} disabled={!feeMonthEditable} onChange={e => updateMortgage('PAY_TP', e.target.checked ? 'MON' : 'GUN')} />수수료 월납</span></div></label><label>납부상태<input value={codeName('PAYST', mortgage.PAY_ST)} readOnly /></label>
-            </div><div className="receipt-button-row"><button onClick={() => setReceiptOpen(true)} disabled={mortgage.PAY_ST !== 'Y'}>납부영수증</button></div>
+            </div><div className="receipt-button-row">{isDacos && <button onClick={openMemo} disabled={!service.SERVICE_ID}>메모</button>}<button onClick={() => setReceiptOpen(true)} disabled={mortgage.PAY_ST !== 'Y'}>납부영수증</button></div>
             <table className="mort-info-table"><thead><tr><th>결제종류</th><th>전자납부번호(가상계좌번호)</th><th>결제금액</th><th>입금여부</th><th>결제일시</th></tr></thead><tbody>{payments.map((row, index) => <tr key={`${row.PAY_KD}-${index}`}><td>{codeName('PAYKD', row.PAY_KD)}</td><td>{row.VBANK_NO}</td><td className="amount">{Number(row.PAY_AMT || 0).toLocaleString()}</td><td>{codeName('PAYST', row.PAY_ST)}</td><td>{row.PAY_DT}</td></tr>)}</tbody></table></div>
+            {memoOpen && <div className="mort-memo-overlay" onMouseDown={() => !memoSaving && setMemoOpen(false)}>
+                <div className="mort-memo-dialog" role="dialog" aria-modal="true" aria-label="저당말소 메모" onMouseDown={event => event.stopPropagation()}>
+                    <div className="mort-memo-title"><strong>메모</strong><button type="button" onClick={() => setMemoOpen(false)} disabled={memoSaving} aria-label="닫기">×</button></div>
+                    <textarea autoFocus value={memoText} onChange={event => setMemoText(event.target.value)} onContextMenu={appendMemoAuthor} />
+                    <div className="mort-memo-hint">입력란에서 마우스 오른쪽 버튼을 누르면 작성자와 현재 시간이 추가됩니다.</div>
+                    <div className="mort-memo-actions"><button type="button" onClick={saveMemo} disabled={memoSaving}>{memoSaving ? '저장 중...' : '확인'}</button><button type="button" onClick={() => setMemoOpen(false)} disabled={memoSaving}>취소</button></div>
+                </div>
+            </div>}
             {receiptOpen && <MortErsReceiptViewer rows={receiptRows} onClose={() => setReceiptOpen(false)} />}
         </div>
     );

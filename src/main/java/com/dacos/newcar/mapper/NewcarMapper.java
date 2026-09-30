@@ -24,6 +24,9 @@ public interface NewcarMapper {
     /** WA 전용 신규신청현황 목록 조회 */
     List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request);
 
+    /** DACOS 딜러시스템 기업 조회조건 */
+    List<Map<String, Object>> getWaCompanyOptions();
+
     /** WA CA 전용 개인정보 엑셀 항목 조회 */
     List<Map<String, Object>> getWaPrivacyExcelInfoList(
             @Param("SERVICE_IDS") List<String> serviceIds,
@@ -55,6 +58,9 @@ public interface NewcarMapper {
 
     /** 셀프등록 문자 발송 후 진행 중 표시 */
     int updateSelfYn(@Param("SERVICE_ID") String serviceId);
+
+    /** 등록완료 메일 발송 성공 표시 */
+    int updateRegistrationMailSent(@Param("SERVICE_ID") String serviceId);
     
     /**
      *  신규등록 기본정보 초기화
