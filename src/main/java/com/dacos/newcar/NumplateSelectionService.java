@@ -32,6 +32,8 @@ import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
+import com.dacos.common.ServiceAccessGuard;
+import com.dacos.common.ServiceAccessGuard.ServiceAction;
 import com.dacos.newcar.mapper.NewcarMapper;
 
 import jakarta.servlet.http.HttpSession;
@@ -49,6 +51,7 @@ public class NumplateSelectionService {
     private final CommonService commonService;
     private final PlatformTransactionManager transactionManager;
 	private final NewcarMapper newcarMapper;
+	private final ServiceAccessGuard serviceAccessGuard;
  	
 	@Value("${firebase.push.public-base-url}")
 	private String publicBaseUrl;
@@ -342,8 +345,8 @@ public class NumplateSelectionService {
 	        UserDto user,
 	        HttpSession session) {
 
-	    String serviceId =
-	        Objects.toString(param.get("SERVICE_ID"), "");
+	    String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
+	    serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
 
 	    List<String> sessionList =
 	        getNumplateSession(session, serviceId);
@@ -352,8 +355,12 @@ public class NumplateSelectionService {
 	        sessionList = new ArrayList<>();
 	    }
 
-	    String condition =
-	        Objects.toString(param.get("CONDITION"), "NOT");
+	    String condition = Objects.toString(param.get("CONDITION"), "NOT")
+	            .trim().toUpperCase();
+	    if (!"NOT".equals(condition) && !condition.matches(".*[0-9]$")) {
+	        throw new BusinessException("번호판 조회 조건이 올바르지 않습니다.", 400);
+	    }
+	    param.put("CONDITION", condition);
 
 	    int sessionCount = sessionList.size();
 
@@ -593,8 +600,21 @@ public class NumplateSelectionService {
 
 	// 번호판 선택
 	@Transactional
-	public ApiResponse<Object> selectNumplate(Map<String, Object> param, UserDto user) {
-		String serviceId = Objects.toString(param.get("SERVICE_ID"), "");
+	public ApiResponse<Object> selectNumplate(
+			Map<String, Object> param, UserDto user, HttpSession session) {
+		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
+		String carNo = Objects.toString(param.get("CAR_NO"), "").trim();
+		List<String> queried = getNumplateSession(session, serviceId);
+		if (carNo.isEmpty() || queried == null || !queried.contains(carNo)) {
+			throw new BusinessException("현재 세션에서 조회하지 않은 번호판입니다.", 409);
+		}
+		Map<String, Object> detail = newcarMapper.getNewCarDetail(serviceId);
+		if (detail == null || detail.isEmpty()) {
+			throw new BusinessException("신청 정보를 찾을 수 없습니다.", 404);
+		}
+		param.put("CAR_NO", carNo);
+		param.put("CARID_NO", detail.get("CARID_NO"));
 		// 선택한 번호판 변경
 		param.put("SERVICE_ID", serviceId + "_S");
 		param.put("LOGIN_ID", user.getLOGIN_ID());
@@ -642,10 +662,11 @@ public class NumplateSelectionService {
 		}
 
 		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
 		String phone = Objects.toString(param.get("PAY_HP_NO"), "").replaceAll("\\D", "");
-		String baseUrl = Objects.toString(param.get("BASE_URL"), "").replaceAll("/+$", "");
-		if (serviceId.isEmpty() || !phone.matches("\\d{10,11}") || !baseUrl.matches("https?://.+")) {
-			throw new BusinessException("서비스, 수신번호 또는 접속 주소를 확인해 주세요.");
+		String baseUrl = Objects.toString(publicBaseUrl, "").trim().replaceAll("/+$", "");
+		if (!phone.matches("\\d{10,11}") || !baseUrl.matches("https?://.+")) {
+			throw new BusinessException("수신번호 또는 서버 접속 주소를 확인해 주세요.");
 		}
 
 		Map<String, Object> work = new HashMap<>();
@@ -709,6 +730,7 @@ public class NumplateSelectionService {
 		if (!"SU".equals(user.getMEMBER_GB())) {
 			throw new BusinessException("SP 계정만 조회할 수 있습니다.");
 		}
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.READ_DETAIL);
 		Map<String, Object> row = common.select(Map.of("SERVICE_ID", serviceId), "selectNumplateMessageStatus");
 		if (row == null || row.get("NUMPLATE_MSG_TOKEN") == null) {
 			return Map.of("state", "NONE");
@@ -946,7 +968,7 @@ public class NumplateSelectionService {
 		if (nestedTokenIndex >= 0) {
 			normalizedToken = normalizedToken.substring(nestedTokenIndex + 3).trim();
 		}
-		if (normalizedToken.isEmpty()) {
+		if (!normalizedToken.matches("[A-Za-z0-9_-]{20,128}")) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
 		return normalizedToken;
@@ -960,8 +982,12 @@ public class NumplateSelectionService {
 	 */
 	@Transactional
 	public Map<String, Object> confirmCustomerNumplateSelection(Map<String, Object> param) {
-		String token = Objects.toString(param.get("TOKEN"), "").trim();
+		String token = normalizeCustomerNumplateToken(
+				Objects.toString(param.get("TOKEN"), ""));
 		String carNo = Objects.toString(param.get("CAR_NO"), "").trim();
+		if (carNo.isEmpty() || carNo.length() > 20) {
+			throw new BusinessException("선택한 번호판이 올바르지 않습니다.", 400);
+		}
 		// 더블 클릭이나 여러 브라우저의 동시 확정 요청이 한 번호만 선택하도록 배정 행을 잠근다.
 		Map<String, Object> assignment = common.select(Map.of("TOKEN", token, "LOCK_YN", "Y"), "selectNumplateMessageForUpdate");
 		if (assignment == null) {
@@ -1050,15 +1076,20 @@ public class NumplateSelectionService {
 
 	// 번호판 상태 변경
 	public void updateNumplateUseYn(Map<String, Object> param, UserDto user) {
-
+		String serviceId = Objects.toString(param.get("serviceId"), "").trim();
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
+		String carNo = Objects.toString(param.get("carNo"), "").trim();
+		Map<String, Object> detail = newcarMapper.getNewCarDetail(serviceId);
+		if (detail == null || !carNo.equals(Objects.toString(detail.get("REQ_CAR_NO"), "").trim())) {
+			throw new BusinessException("신청건에 배정된 번호판이 아닙니다.", 409);
+		}
 		param.put("USE_YN", "N");
-		param.put("CAR_NO", param.get("carNo"));
+		param.put("CAR_NO", carNo);
 		param.put("LOGIN_ID", user.getLOGIN_ID());
-	
-		System.out.println(param);
+
 		int result = common.update(param, "updateNumplateUseYn");
 
-		param.put("SERVICE_ID", param.get("serviceId"));
+		param.put("SERVICE_ID", serviceId);
 		param.put("REQ_CAR_NO", "");
 		result += common.update(param, "updateReqCarNo");
 	
@@ -1072,9 +1103,12 @@ public class NumplateSelectionService {
 	}
 
 	// 미사용 번호판 상태복구
-	public boolean getNumPlateRelease(Map<String, Object> param) {
+	public boolean getNumPlateRelease(
+			Map<String, Object> param, UserDto user, HttpSession session) {
 
 	    try {
+	        String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
+	        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
 	        String preCarNo = Objects.toString(param.get("PRE_CAR_NO"), "");
 
 	        if (preCarNo.isBlank()) {
@@ -1088,6 +1122,10 @@ public class NumplateSelectionService {
 	        if (numList.isEmpty()) {
 	            return true;
 	        }
+	        List<String> queried = getNumplateSession(session, serviceId);
+	        if (queried == null || !queried.containsAll(numList)) {
+	            throw new BusinessException("현재 세션에서 조회하지 않은 번호판이 포함되어 있습니다.", 409);
+	        }
 
 	        param.put("NUM_LIST", numList);
 
@@ -1095,6 +1133,8 @@ public class NumplateSelectionService {
 
 	        return true;
 
+	    } catch (BusinessException e) {
+	        throw e;
 	    } catch (Exception e) {
 	        logger.error("getNumPlateRelease fail", e, " param: ", param);
 	        return false;

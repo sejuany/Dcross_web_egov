@@ -141,22 +141,10 @@ const CarInfo = ({
 		    e => String(dsUserInfo.BRANCH_ID) === String(e.BRANCH_ID)
 		);
 		
-		// 번호판 매니저 조회
-		// - ASSIGN_CD 기준으로 담당 매니저의 회사/매니저번호 정보 추출
-		// - COMPANY_ID : ASSIGN_CD 앞 5자리
-		// - BRANCH_ID  : ASSIGN_CD 뒤 2자리
-		// ex) DL03101 → COMPANY_ID: DL031, BRANCH_ID: 01
+		// 서버가 로그인 회사·지점의 ASSIGN_CD인지 검증한 뒤 필요한 담당자 정보만 반환한다.
 		const assignCd = isBranchInfo.ASSIGN_CD || '';
-		const dlCompanyId = assignCd.substring(0, 5);
-		const dlBranchId = assignCd.slice(-2);
-
-		console.log("dlCompanyId : " + dlCompanyId + " / dlBranchId : " + dlBranchId);
-
-		const result = await axios.post('/api/common/query', {
-		    GUBUN: 'SELECT',
-		    QUERY_ID: 'getNumplateAssignList',
-			COMPANY_ID: dlCompanyId,
-			BRANCH_ID: dlBranchId
+		const result = await axios.get('/api/newcar/wa/numplate-assignee', {
+			params: { assignCd }
 		});
 
 		const managerInfo = result.data.data;

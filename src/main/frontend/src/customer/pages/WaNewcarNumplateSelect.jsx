@@ -11,6 +11,13 @@ const numplateTypeOptions = [
 	{ value: 'FG', label: '법인 필름', image: corporateFilmPlate }
 ];
 
+const normalizePublicToken = (value) => {
+	let token = String(value || '').trim();
+	const nestedIndex = token.lastIndexOf('?t=');
+	if (nestedIndex >= 0) token = token.substring(nestedIndex + 3).trim();
+	return /^[A-Za-z0-9_-]{20,128}$/.test(token) ? token : '';
+};
+
 const RegistrationChecklist = ({ data }) => (
 	<div className="numplate-registration-guide">
 		<section>
@@ -35,11 +42,8 @@ const RegistrationChecklist = ({ data }) => (
 
 const WaNewcarNumplateSelect = () => {
     const [searchParams] = useSearchParams();
-    const tokenParam = searchParams.get('t') || '';
-    // 예: ?t=CustomerSign?t=TEST123 형식에서는 마지막 ?t= 뒤의 TEST123만 토큰으로 사용한다.
-    const token = tokenParam.includes('?t=')
-        ? tokenParam.substring(tokenParam.lastIndexOf('?t=') + 3)
-        : tokenParam;
+    // 과거 중첩 링크는 마지막 ?t= 값을 사용하되, 서버와 같은 토큰 문자·길이만 허용한다.
+    const token = normalizePublicToken(searchParams.get('t'));
     const [data, setData] = useState(null);
     const [selected, setSelected] = useState('');
     const [message, setMessage] = useState('');

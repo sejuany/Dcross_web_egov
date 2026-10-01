@@ -411,7 +411,10 @@ public class SearchLogInterceptor implements Interceptor {
         String upperKey = key == null ? "" : key.toUpperCase();
         return upperKey.contains("PASS")
                 || upperKey.contains("PWD")
-                || upperKey.contains("PASSWORD");
+                || upperKey.contains("PASSWORD")
+                || upperKey.contains("TOKEN")
+                || upperKey.contains("SECRET")
+                || upperKey.endsWith("_KEY");
     }
 
 

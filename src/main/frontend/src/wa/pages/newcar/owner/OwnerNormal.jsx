@@ -12,7 +12,7 @@ import AddressSearch from '../../common/AddressSearch'; // 주소 입력
 import JointOwner from './JointOwner';
 
 // 셀프등록 버튼을 숨길 회사는 여기에서 추가/제거한다.
-const SELF_REGISTRATION_HIDDEN_COMPANY_IDS = new Set(['']);
+const SELF_REGISTRATION_HIDDEN_COMPANY_IDS = new Set(['WA001']);
 
 const OwnerPersonal = ({
     dsNewCar,

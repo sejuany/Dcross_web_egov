@@ -6,6 +6,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
 import org.springframework.lang.NonNull;
 import org.springframework.web.servlet.config.annotation.CorsRegistry;
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry;
 import org.springframework.web.servlet.config.annotation.ResourceHandlerRegistry;
 import org.springframework.web.servlet.config.annotation.WebMvcConfigurer;
 
@@ -15,6 +16,16 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 @Configuration
 @ComponentScan(basePackages = "com.dacos")
 public class WebConfig implements WebMvcConfigurer {
+
+    private final SessionAuthInterceptor sessionAuthInterceptor;
+    private final CsrfProtectionInterceptor csrfProtectionInterceptor;
+
+    public WebConfig(
+            SessionAuthInterceptor sessionAuthInterceptor,
+            CsrfProtectionInterceptor csrfProtectionInterceptor) {
+        this.sessionAuthInterceptor = sessionAuthInterceptor;
+        this.csrfProtectionInterceptor = csrfProtectionInterceptor;
+    }
 
     /**
      * Jackson 대소문자 무시 설정
@@ -26,12 +37,41 @@ public class WebConfig implements WebMvcConfigurer {
                 .featuresToEnable(MapperFeature.ACCEPT_CASE_INSENSITIVE_PROPERTIES)
                 .build();
     }
+    @Override
+    public void addInterceptors(@NonNull InterceptorRegistry registry) {
+        registry.addInterceptor(sessionAuthInterceptor)
+                .addPathPatterns("/api/**")
+                .excludePathPatterns(
+                        "/api/login",
+                        "/api/logout",
+                        "/api/auth/withauth/token",
+                        "/api/auth/withauth/verify",
+                        "/api/auth/mobile/request",
+                        "/api/auth/mobile/verify",
+                        "/api/company/search",
+                        "/api/company/association-list",
+                        "/api/company/branch-list",
+                        "/api/member/check-id",
+                        "/api/member/signup",
+                        "/api/customer/**",
+                        "/api/status",
+                        "/api/log/login-enter",
+                        "/api/telegram/send",
+                        // Existing server-to-server caller must be migrated to internal authentication.
+                        "/api/internal/registration-mail/**");
+
+        // 로그인 확인 다음에 세션 기반 변경 요청의 CSRF 토큰을 검증한다.
+        registry.addInterceptor(csrfProtectionInterceptor)
+                .addPathPatterns("/api/**");
+    }
 
 	@Override
 	public void addCorsMappings(@NonNull CorsRegistry registry) {
 	    registry.addMapping("/**")
 	            .allowedOrigins("http://localhost:3000", "http://localhost:8080", "https://web.dcross.kr", "http://w.dcross.kr")
 	            .allowedMethods("*")
+	            .allowedHeaders("*")
+	            .exposedHeaders("X-CSRF-REQUIRED")
 	            .allowCredentials(true);
 	}
 

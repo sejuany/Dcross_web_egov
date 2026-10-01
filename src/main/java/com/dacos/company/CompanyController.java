@@ -15,6 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
+import com.dacos.common.util.AuthUtil;
 import com.dacos.company.dto.CompanySearchRequest;
 
 import jakarta.servlet.http.HttpSession;
@@ -184,17 +185,23 @@ public class CompanyController {
 
     /** 탈부착업체 목록 조회 - POST /api/company/numplate/list */
     @PostMapping("/company/numplate/list")
-    public ResponseEntity<Map<String, Object>> getNumplateDeliveryList(@RequestBody CompanySearchRequest request) {
+    public ResponseEntity<Map<String, Object>> getNumplateDeliveryList(
+            @RequestBody CompanySearchRequest request,
+            HttpSession session) {
         logger.info("[CompanyController] 탈부착업체 목록 조회 요청");
-        List<Map<String, Object>> list = companyService.getNumplateDeliveryList(request);
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = companyService.getNumplateDeliveryList(request, user);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
     /** 배송자 목록 조회 - POST /api/company/assign/list */
     @PostMapping("/company/assign/list")
-    public ResponseEntity<Map<String, Object>> getNumplateAssignList(@RequestBody CompanySearchRequest request) {
+    public ResponseEntity<Map<String, Object>> getNumplateAssignList(
+            @RequestBody CompanySearchRequest request,
+            HttpSession session) {
         logger.info("[CompanyController] 배송자 목록 조회 요청");
-        List<Map<String, Object>> list = companyService.getNumplateAssignList(request);
+        UserDto user = AuthUtil.getLoginUser(session);
+        List<Map<String, Object>> list = companyService.getNumplateAssignList(request, user);
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 

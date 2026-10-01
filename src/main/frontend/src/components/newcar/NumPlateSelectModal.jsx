@@ -146,11 +146,10 @@ const NumberPlateModal = ({
 		try {
 			
 			// 선택한 번호판 중복 체크
-			const numFind = await axios.post('/api/common/query', {
-				    QUERY_ID: 'checkDuplicateCarNo',
-				    SERVICE_ID: dsService.SERVICE_ID,
-					REQ_CAR_NO: selected
-				});
+			const numFind = await axios.post('/api/newcar/wa/numplate/check-duplicate', {
+				SERVICE_ID: dsService.SERVICE_ID,
+				REQ_CAR_NO: selected
+			});
 				
 			
 			if (!numFind.data.success) {
@@ -166,7 +165,7 @@ const NumberPlateModal = ({
 			}
 			
 			// 반려, 삭제건에 들어가 있는 번호판인 경우
-			else if(['DEL', 'RET'].includes(procSt)) {
+			else if (duplicateInfo.RELEASABLE === 'Y') {
 				// 차량번호가 원래 들어가 있던 건의 서비스아이디 
 				const beforeServiceId = duplicateInfo.SERVICE_ID;
 				const procNm = procSt === 'DEL' ? '삭제' : '반려';
@@ -182,11 +181,9 @@ const NumberPlateModal = ({
 				}
 				
 				// TR_NEWCAR의 REQ_CAR_NO를 빈값 처리
-				await axios.post('/api/common/query', {
-				    GUBUN: 'UPDATE',
-				    QUERY_ID: 'updateTrNewCar',
-				    SERVICE_ID: beforeServiceId,
-				    REQ_CAR_NO: ''
+				await axios.post('/api/newcar/wa/numplate/release', {
+					SERVICE_ID: beforeServiceId,
+					REQ_CAR_NO: selectedCarNo
 				});
 			}
 			else {
@@ -241,6 +238,7 @@ const NumberPlateModal = ({
 		try {
 
 			await axios.post('/api/newcar/numplateSms', {
+				SERVICE_ID: dsService.SERVICE_ID,
 			    PAY_HP_NO: tel.replaceAll('-', ''),
 				MSG_TYPE: '3',
 			    TEXT: `선택 가능한 차량번호 : ${preCarNoRef.current}`

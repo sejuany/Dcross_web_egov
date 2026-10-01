@@ -26,10 +26,9 @@ const BondReceiptModal = ({
 	    try {
 			
 			// TODO : 채권처리기업은 나중에 추가함
-			const bondRes = await axios.post('/api/common/query', {
-			    QUERY_ID: 'selectBondInfo',
-			    SERVICE_ID: dsService.SERVICE_ID
-			});
+			const bondRes = await axios.get(
+				`/api/newcar/bond-info/${encodeURIComponent(dsService.SERVICE_ID)}`
+			);
 
 			setDsBondInfo(bondRes.data.data || {});
 

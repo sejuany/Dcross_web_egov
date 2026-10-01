@@ -117,6 +117,7 @@ const WaSendSmsModal = ({
 			
 			// 1. 문자 발송
 			await axios.post('/api/newcar/numplateSms', {
+				SERVICE_ID: dsService.SERVICE_ID,
 			    PAY_HP_NO: fullPhone,
 				MSG_TYPE: '3',
 			    TEXT: sText,

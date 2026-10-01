@@ -233,12 +233,8 @@ const CustomerSign = () => {
 			});
 
 			// 2. 전자서명 이력 생성
-			await axios.post('/api/common/insertDsign', {
-			    SERVICE_ID: info.SERVICE_ID,
-				CAR_NO: info.CAR_NO,
-				DSIGN_GB: 'WSIGN',
-				DSIGN_ST: 'END',
-				INS_USER: info.LOGIN_ID
+			await axios.post('/api/customer/dsign', {
+				TOKEN: token
 			});
 			
 				

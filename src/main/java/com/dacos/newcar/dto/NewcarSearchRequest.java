@@ -1,5 +1,9 @@
 package com.dacos.newcar.dto;
 
+import java.util.List;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import lombok.Data;
 
 /**
@@ -63,4 +67,20 @@ public class NewcarSearchRequest {
     private String MEMBER_GB;
     /** 회원 아이디 */
     private String MEMBER_ID;
+
+    /** 아래 필드는 로그인 세션으로만 생성하며 요청 JSON에서는 받지 않는다. */
+    @JsonIgnore
+    private String AUTH_SCOPE;
+    @JsonIgnore
+    private String AUTH_COMPANY_ID;
+    @JsonIgnore
+    private String AUTH_BRANCH_ID;
+    @JsonIgnore
+    private String AUTH_SANGSA_ID;
+    @JsonIgnore
+    private String AUTH_MEMBER_ID;
+    @JsonIgnore
+    private String AUTH_GOVT_ID;
+    @JsonIgnore
+    private List<String> AUTH_COMPANY_IDS;
 }

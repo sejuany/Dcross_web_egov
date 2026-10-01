@@ -12,6 +12,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.dacos.auth.dto.UserDto;
 import com.dacos.common.BusinessException;
 import com.dacos.company.dto.CompanySearchRequest;
 import com.dacos.company.mapper.CompanyMapper;
@@ -572,14 +573,25 @@ public class CompanyService {
         return resetCompanyUserPassword(request);
     }
 
-    public List<Map<String, Object>> getNumplateDeliveryList(CompanySearchRequest request) {
+    public List<Map<String, Object>> getNumplateDeliveryList(
+            CompanySearchRequest request, UserDto user) {
+        validateNumplateManagementAccess(user);
         logger.info("[CompanyService] 탈부착업체 목록 조회");
         return companyMapper.getNumplateDeliveryList(request);
     }
 
-    public List<Map<String, Object>> getNumplateAssignList(CompanySearchRequest request) {
+    public List<Map<String, Object>> getNumplateAssignList(
+            CompanySearchRequest request, UserDto user) {
+        validateNumplateManagementAccess(user);
         logger.info("[CompanyService] 탈부착업체 목록 조회");
         return companyMapper.getNumplateAssignList(request);
+    }
+
+    private void validateNumplateManagementAccess(UserDto user) {
+        String companyId = user == null ? "" : toStr(user.getCOMPANY_ID());
+        if (!"dacos".equalsIgnoreCase(companyId)) {
+            throw new BusinessException("번호판 업체 조회 권한이 없습니다.", 403);
+        }
     }
 
     public List<Map<String, Object>> getSangsaList(CompanySearchRequest request) {

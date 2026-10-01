@@ -436,6 +436,11 @@ const ConfirmInfo = ({
 		                <strong>{dsNewCar.PAY_HP_NO}</strong>
 		            </div>
 		
+		            {carpPostYn === 'Y' && <div className="wa-confirm-item">
+		                <span>등록증 이메일 주소</span>
+		                <strong>{dsNewCar.CARP_MAIL?.trim() || '-'}</strong>
+		            </div>}
+		
 		            <div className="wa-confirm-item">
 		                <span>수수료 증빙</span>
 		                <strong>{taxReciptNm}</strong>

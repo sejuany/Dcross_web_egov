@@ -7,6 +7,7 @@ import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -50,8 +51,10 @@ public class CustomerController {
 	/** 로그인 없이 문자 토큰으로 고객용 번호판 선택 화면 데이터를 조회한다. */
 	@GetMapping("/numplate-selection")
 	public ResponseEntity<Map<String, Object>> getNumplateSelection(@RequestParam("token") String token) {
-		return ResponseEntity.ok(ApiResponse.withKey(
-				"result", numplateService.getCustomerNumplateSelection(token)));
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CACHE_CONTROL, "no-store")
+				.body(ApiResponse.withKey(
+						"result", numplateService.getCustomerNumplateSelection(token)));
 	}
 
 	/** 고객이 번호판 조회 버튼을 누른 시점부터 5분 조회 시간을 시작한다. */
@@ -78,6 +81,15 @@ public class CustomerController {
 		return ResponseEntity.ok(ApiResponse.withKey(
 				"result", numplateService.confirmCustomerNumplateSelection(param)));
 	}
+
+    /** 로그인 없이 고객 토큰에 연결된 접수건의 전자서명 완료 이력을 생성한다. */
+    @PostMapping("/dsign")
+    public ResponseEntity<Map<String, Object>> insertDsign(
+            @RequestBody Map<String, Object> param) {
+        int result = customerService.insertDsignWithToken(
+                String.valueOf(param.getOrDefault("TOKEN", "")));
+        return ResponseEntity.ok(ApiResponse.withKey("result", result));
+    }
 
     /**
      * 토큰으로 고객 정보 조회

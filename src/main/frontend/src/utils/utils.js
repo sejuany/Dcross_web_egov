@@ -159,25 +159,10 @@ export const gf = {
 	    return String(detailNm || '').toUpperCase().includes(`|${targetCompanyId}|`);
 	},
 	
-	// 신청 후 번호선택 기업 확인
-	async isPostNumplateCompany(companyId) {
-
-	    const res = await fetch('/api/common/query', {
-	        method: 'POST',
-	        headers: {
-	            'Content-Type': 'application/json'
-	        },
-	        body: JSON.stringify({
-	            QUERY_ID: "selectCodeDetail",
-	            GROUP_ID: 'DEAL',
-	            CODE_ID: 'NUMPL'
-	        })
-	    });
-
-	    const result = await res.json();
-	    const companyList = result?.data?.DETAIL_NM || "";
-
-	    return companyList.split("|").includes(companyId);
+	// 로그인 회사가 신청 후 번호선택 대상인지 확인
+	async isPostNumplateCompany() {
+	    const response = await axios.get('/api/newcar/wa/post-numplate-company');
+	    return response.data?.data === true;
 	},
 	
 	// 빈값 체크

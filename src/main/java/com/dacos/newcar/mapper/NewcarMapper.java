@@ -75,6 +75,19 @@ public interface NewcarMapper {
 	
 	/** 본거지 목록 (COMPANY_ID 필요) */
 	List<Map<String, Object>> getBaseList(Map<String, Object> param);
+
+	/** 로그인 회사 지점에 연결된 번호판 담당자 조회 */
+	Map<String, Object> getNumplateAssignee(
+			@Param("COMPANY_ID") String companyId,
+			@Param("BRANCH_ID") String branchId);
+
+	/** 선택 번호판을 사용 중인 다른 신청건 조회 */
+	Map<String, Object> checkDuplicateCarNo(
+			@Param("SERVICE_ID") String serviceId,
+			@Param("REQ_CAR_NO") String requestedCarNo);
+
+	/** 삭제·반려 신청건에 남은 희망번호 해제 */
+	int releaseRequestedCarNo(Map<String, Object> param);
 	
 	/** 번호판 정보 (SERVICE_ID 기반) */
 	Map<String, Object> getTrCarNoDetach(Map<String, Object> param);

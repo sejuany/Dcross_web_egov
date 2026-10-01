@@ -51,6 +51,8 @@ import com.dacos.attach.pdf.PdfExemptionDto;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
+import com.dacos.common.ServiceAccessGuard;
+import com.dacos.common.ServiceAccessGuard.ServiceAction;
 import com.dacos.customer.CustomerService;
 
 import lombok.RequiredArgsConstructor;
@@ -76,6 +78,7 @@ public class AttachService {
     private final AttachMapper attachMapper;
     private final CustomerService customerService;
     private final CommonRepository common; // DB 접근 역할
+    private final ServiceAccessGuard serviceAccessGuard;
     
     /**
 	 * 첨부파일 목록 조회
@@ -89,6 +92,9 @@ public class AttachService {
 	    if (cleanServiceId.isBlank()) {
 	        throw new BusinessException("접수번호가 없습니다.", 400);
 	    }
+        if (user != null) {
+            serviceAccessGuard.requireAccess(user, cleanServiceId, ServiceAction.READ_ATTACHMENT);
+        }
 
 	    Map<String, Object> param = new HashMap<>();
 	    param.put("SERVICE_ID", cleanServiceId);
@@ -101,7 +107,7 @@ public class AttachService {
 	    for (Map<String, Object> file : list) {
 
 	        // 파일 URL
-	    	file.put("FILE_URL", buildAttachFileUrl(file, token));
+	    	file.put("FILE_URL", buildAttachFileUrl(file, token, cleanServiceId));
 
 	        // 서버 저장 파일명
 	        // {서비스아이디}_{파일코드}.{확장자}
@@ -246,6 +252,9 @@ public class AttachService {
 	    if (cleanServiceId.isBlank()) {
 	        throw new BusinessException("접수번호가 없습니다.", 400);
 	    }
+        if (user != null) {
+            serviceAccessGuard.requireAccess(user, cleanServiceId, ServiceAction.WRITE_ATTACHMENT);
+        }
 
 	    if (cleanCode.isBlank()) {
 	        throw new BusinessException("첨부파일 코드가 없습니다.", 400);
@@ -529,6 +538,9 @@ public class AttachService {
 	        UserDto user) {
 
 	    serviceId = resolveServiceId(serviceId, token, user);
+        if (user != null) {
+            serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.READ_ATTACHMENT);
+        }
 
 	    Map<String, Object> param = new HashMap<>();
 	    param.put("SERVICE_ID", serviceId);
@@ -563,6 +575,9 @@ public class AttachService {
 	    if (cleanServiceId.isBlank()) {
 	        throw new BusinessException("접수번호가 없습니다.", 400);
 	    }
+        if (user != null) {
+            serviceAccessGuard.requireAccess(user, cleanServiceId, ServiceAction.READ_ATTACHMENT);
+        }
 
 	    // SERVICE_ID + 서버 파일명으로 첨부파일 조회
 	    Map<String, Object> param = new HashMap<>();
@@ -719,7 +734,8 @@ public class AttachService {
      */
     private String buildAttachFileUrl(
             Map<String, Object> file,
-            String token) {
+            String token,
+            String serviceId) {
 
         String savedFileName = Objects.toString(file.get("ATCHSVRFILE_NM"), "").trim();
 
@@ -739,8 +755,11 @@ public class AttachService {
                     + encodedFileName;
         }
 
-        // 관리자(WA)
-        return "/api/newcar/wa-attach-view?fileName=" + encodedFileName;
+        // 관리자(WA): 접수번호와 파일명을 함께 검증한다.
+        return "/api/newcar/wa-attach-view?serviceId="
+                + URLEncoder.encode(serviceId, StandardCharsets.UTF_8)
+                + "&fileName="
+                + encodedFileName;
     }
 
 	/**

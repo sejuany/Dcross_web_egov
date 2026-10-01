@@ -8,7 +8,6 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -19,7 +18,6 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
-import java.util.LinkedHashSet;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Objects;
@@ -55,6 +53,9 @@ import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
 import com.dacos.common.CommonService;
 import com.dacos.common.SearchLogInterceptor;
+import com.dacos.common.ServiceAccessGuard;
+import com.dacos.common.ServiceAccessGuard.ListAccessScope;
+import com.dacos.common.ServiceAccessGuard.ServiceAction;
 import com.dacos.common.util.CommonUtil;
 import com.dacos.common.util.FieldMapper;
 import com.dacos.common.util.FieldMaps;
@@ -101,6 +102,7 @@ public class NewcarService {
     private final AttachService attachService;
     private final SearchLogInterceptor searchLogInterceptor;
     private final NumplateSelectionService numplateService;
+    private final ServiceAccessGuard serviceAccessGuard;
     
     private final NewcarMapper newcarMapper;
     private final MortgageMapper mortgageMapper;
@@ -122,15 +124,53 @@ public class NewcarService {
      */
     public List<Map<String, Object>> getNewCarList(NewcarSearchRequest request, UserDto user) {
         logger.info("[NewcarService] 신차 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());
+        applyListAccessScope(request, user);
         request.setMEMBER_GB(user.getMEMBER_GB());
         request.setMEMBER_ID(user.getLOGIN_ID());
         return newcarMapper.getNewCarList(request);
     }
 
+    /**
+     * 신규등록 업무 화면의 문자 발송.
+     * 수신 번호와 문구는 화면 용도상 변경할 수 있지만, 발송 대상 업무에 대한 수정 권한을 먼저 확인한다.
+     */
+    public int sendNumplateSms(Map<String, Object> param, UserDto user) {
+        String serviceId = requestValue(param, "SERVICE_ID", "서비스 ID가 필요합니다.");
+        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
+
+        String phone = Objects.toString(param.get("PAY_HP_NO"), "").replaceAll("[^0-9]", "");
+        if (!phone.matches("01[0-9]{8,9}")) {
+            throw new BusinessException("휴대폰 번호를 확인해 주세요.", 400);
+        }
+
+        String text = Objects.toString(param.get("TEXT"), "").trim();
+        if (text.isEmpty() || text.length() > 2000) {
+            throw new BusinessException("문자 내용을 확인해 주세요.", 400);
+        }
+
+        String msgType = Objects.toString(param.get("MSG_TYPE"), "3").trim();
+        if (!Set.of("1", "3").contains(msgType)) {
+            throw new BusinessException("문자 유형을 확인해 주세요.", 400);
+        }
+
+        String subject = Objects.toString(param.get("SUBJECT"), "").trim();
+        if (subject.length() > 100) {
+            throw new BusinessException("문자 제목을 확인해 주세요.", 400);
+        }
+
+        Map<String, Object> sms = new HashMap<>();
+        sms.put("PAY_HP_NO", phone);
+        sms.put("TEXT", text);
+        sms.put("MSG_TYPE", msgType);
+        if (!subject.isEmpty()) sms.put("SUBJECT", subject);
+        return commonService.sendSms(sms);
+    }
+
 	@Transactional
-	public Map<String, Object> sendSelfRegistrationSms(Map<String, Object> param) {
+	public Map<String, Object> sendSelfRegistrationSms(Map<String, Object> param, UserDto user) {
 		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 		if (serviceId.isBlank()) throw new BusinessException("서비스 ID가 필요합니다.");
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
 
 		String url = selfNewcarUrl + "/?t=" + encodeSelfServiceId(serviceId);
 		Map<String, Object> sms = new HashMap<>(param);
@@ -139,7 +179,7 @@ public class NewcarService {
 		sms.put("TEXT", "셀프신규등록정보입력\r\n"
 				+ "안녕하세요. " + Objects.toString(param.get("DEALER_NAME"), "") + " "
 				+ Objects.toString(param.get("CARID_NO"), "")
-				+ " 차량의 이전등록 진행을 위해 아래의 URL로 접속하시어 정보를 입력 바랍니다.\r\n"
+				+ " 차량의 신규등록 진행을 위해 아래의 URL로 접속하시어 정보를 입력 바랍니다.\r\n"
 				+ "문의사항은 1844-0801(내선번호 1)로 연락 바랍니다.\r\n" + url);
 
 		int result = commonService.sendSms(sms);
@@ -173,6 +213,7 @@ public class NewcarService {
     public List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request, UserDto user) {
         clampWaSearchStartDate(request);
         logger.info("[NewcarService] WA 신규신청현황 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());
+        applyListAccessScope(request, user);
         request.setCOMPANY_ID(user.getCOMPANY_ID());
         request.setBRANCH_ID(user.getBRANCH_ID());
         request.setMEMBER_GB(user.getMEMBER_GB());
@@ -195,10 +236,23 @@ public class NewcarService {
         request.setBRANCH_ID(null);
         request.setMEMBER_GB("DACOS");
         request.setMEMBER_ID(user.getLOGIN_ID());
+        applyListAccessScope(request, user);
 
         List<Map<String, Object>> rows = newcarMapper.getWaNewCarList(request);
         rows.forEach(this::applyWaAttachStatus);
         return rows;
+    }
+
+    /** 목록 조회 권한 범위는 요청값이 아니라 로그인 세션으로만 생성한다. */
+    private void applyListAccessScope(NewcarSearchRequest request, UserDto user) {
+        ListAccessScope scope = serviceAccessGuard.resolveListAccessScope(user);
+        request.setAUTH_SCOPE(scope.scope());
+        request.setAUTH_COMPANY_ID(scope.companyId());
+        request.setAUTH_BRANCH_ID(scope.branchId());
+        request.setAUTH_SANGSA_ID(scope.sangsaId());
+        request.setAUTH_MEMBER_ID(scope.memberId());
+        request.setAUTH_GOVT_ID(scope.govtId());
+        request.setAUTH_COMPANY_IDS(scope.companyIds());
     }
 
     public List<Map<String, Object>> getDacosWaCompanyOptions(UserDto user) {
@@ -316,16 +370,17 @@ public class NewcarService {
         String taskCd = attachValue(row, "ATTACH_TASK_CD");
         String procCd = attachValue(row, "PROC_CD");
         String regGb = attachValue(row, "ATTACH_REG_GB");
-        String ratioNo = attachValue(row, "ATTACH_RATIO_NO");
+        // String ratioNo = attachValue(row, "ATTACH_RATIO_NO");
 
         if (("NORML".equals(taskCd) || ("LEASE".equals(taskCd) && "C".equals(procCd)))
                 && "F".equals(regGb)) {
             requiredCodes.add("FOREIGN_ID");
         }
 
-        if (isJointOwnershipRatio(ratioNo)) {
-            addCodes(requiredCodes, "OWNER_ID", "JOINT_OWNER_ID", "JOINT_OWNER_AGREEMENT");
-        }
+        // 공동명의만으로는 첨부서류를 요구하지 않는다.
+        // if (isJointOwnershipRatio(ratioNo)) {
+        //     addCodes(requiredCodes, "OWNER_ID", "JOINT_OWNER_ID", "JOINT_OWNER_AGREEMENT");
+        // }
 
         if ("LEASE".equals(taskCd) && "C".equals(procCd)) {
             requiredCodes.add("LEASE_AGREEMENT");
@@ -549,19 +604,145 @@ public class NewcarService {
         return value == null ? "" : value.replaceAll("[^0-9]", "");
     }
 
+    public boolean isPostNumplateCompany(UserDto user) {
+        String companyId = requireLoginCompanyId(user);
+        String configuredCompanies = Objects.toString(
+                commonService.getCodeDetail("DEAL", "NUMPL"), "");
+
+        return Arrays.stream(configuredCompanies.split("\\|"))
+                .map(String::trim)
+                .anyMatch(companyId::equalsIgnoreCase);
+    }
+
+    /** 로그인 회사의 지점에 설정된 ASSIGN_CD만 담당자 정보 조회를 허용한다. */
+    public Map<String, Object> getWaNumplateAssignee(String assignCd, UserDto user) {
+        String companyId = requireLoginCompanyId(user);
+        String normalizedAssignCd = Objects.toString(assignCd, "").trim().toUpperCase(Locale.ROOT);
+
+        if (!normalizedAssignCd.matches("[A-Z0-9]{7}")) {
+            throw new BusinessException("번호판 담당자 코드가 올바르지 않습니다.", 400);
+        }
+
+        Map<String, Object> branchParam = new HashMap<>();
+        branchParam.put("COMPANY_ID", companyId);
+        List<Map<String, Object>> branches = newcarMapper.getBranchList(branchParam);
+        String memberGb = Objects.toString(user.getMEMBER_GB(), "").trim().toUpperCase(Locale.ROOT);
+        String loginBranchId = Objects.toString(user.getBRANCH_ID(), "").trim();
+
+        boolean allowed = branches.stream().anyMatch(branch -> {
+            String branchAssignCd = Objects.toString(branch.get("ASSIGN_CD"), "")
+                    .trim().toUpperCase(Locale.ROOT);
+            String branchId = Objects.toString(branch.get("BRANCH_ID"), "").trim();
+            boolean branchInScope = "CA".equals(memberGb) || loginBranchId.equals(branchId);
+            return branchInScope && normalizedAssignCd.equals(branchAssignCd);
+        });
+
+        if (!allowed) {
+            throw new BusinessException("번호판 담당자 조회 권한이 없습니다.", 403);
+        }
+
+        Map<String, Object> assignee = newcarMapper.getNumplateAssignee(
+                normalizedAssignCd.substring(0, 5),
+                normalizedAssignCd.substring(5));
+
+        if (assignee == null || assignee.isEmpty()) {
+            throw new BusinessException("번호판 담당자 정보를 찾을 수 없습니다.", 404);
+        }
+        return assignee;
+    }
+
+    public Map<String, Object> checkWaDuplicateCarNo(Map<String, Object> request, UserDto user) {
+        String serviceId = requestValue(request, "SERVICE_ID", "신청번호가 없습니다.");
+        String requestedCarNo = requestValue(request, "REQ_CAR_NO", "선택한 번호판이 없습니다.");
+        requireAccessibleService(user, serviceId);
+
+        Map<String, Object> duplicate = newcarMapper.checkDuplicateCarNo(serviceId, requestedCarNo);
+        if (duplicate == null || duplicate.isEmpty()) {
+            return null;
+        }
+
+        String loginCompanyId = requireLoginCompanyId(user);
+        String duplicateCompanyId = Objects.toString(duplicate.get("COMPANY_ID"), "").trim();
+        String procSt = Objects.toString(duplicate.get("PROC_ST"), "").trim().toUpperCase(Locale.ROOT);
+        boolean sameCompany = "dacos".equalsIgnoreCase(loginCompanyId)
+                || loginCompanyId.equalsIgnoreCase(duplicateCompanyId);
+        boolean releasable = sameCompany && Set.of("DEL", "RET").contains(procSt);
+
+        Map<String, Object> response = new HashMap<>();
+        response.put("PROC_ST", procSt);
+        response.put("RELEASABLE", releasable ? "Y" : "N");
+        if (sameCompany) {
+            response.put("SERVICE_ID", duplicate.get("SERVICE_ID"));
+        }
+        return response;
+    }
+
+    @Transactional
+    public int releaseWaRequestedCarNo(Map<String, Object> request, UserDto user) {
+        String serviceId = requestValue(request, "SERVICE_ID", "해제할 신청번호가 없습니다.");
+        String requestedCarNo = requestValue(request, "REQ_CAR_NO", "해제할 번호판이 없습니다.");
+        Map<String, Object> service = serviceAccessGuard.requireAccess(
+                user, serviceId, ServiceAction.CHANGE_STATUS);
+        String procSt = Objects.toString(service.get("PROC_ST"), "").trim().toUpperCase(Locale.ROOT);
+
+        if (!Set.of("DEL", "RET").contains(procSt)) {
+            throw new BusinessException("삭제 또는 반려 신청건의 번호판만 해제할 수 있습니다.", 409);
+        }
+
+        Map<String, Object> param = new HashMap<>();
+        param.put("SERVICE_ID", serviceId);
+        param.put("REQ_CAR_NO", requestedCarNo);
+        param.put("COMPANY_ID", Objects.toString(service.get("COMPANY_ID"), "").trim());
+        param.put("UPD_USER", user.getLOGIN_ID());
+
+        int updatedCount = newcarMapper.releaseRequestedCarNo(param);
+        if (updatedCount != 1) {
+            throw new BusinessException("번호판 정보가 변경되어 해제하지 못했습니다. 다시 조회해 주세요.", 409);
+        }
+        return updatedCount;
+    }
+
+    private Map<String, Object> requireAccessibleService(UserDto user, String serviceId) {
+        return serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.READ_DETAIL);
+    }
+
+    private String requireLoginCompanyId(UserDto user) {
+        String companyId = user == null ? "" : Objects.toString(user.getCOMPANY_ID(), "").trim();
+        if (companyId.isEmpty()) {
+            throw new BusinessException("로그인 회사 정보가 없습니다.", 401);
+        }
+        return companyId;
+    }
+
+    private String requestValue(Map<String, Object> request, String key, String message) {
+        String value = request == null ? "" : Objects.toString(request.get(key), "").trim();
+        if (value.isEmpty()) {
+            throw new BusinessException(message, 400);
+        }
+        return value;
+    }
+
+    private void requireAllServiceAccess(
+            List<Map<String, Object>> rows,
+            UserDto user,
+            ServiceAction action) {
+        if (rows == null || rows.isEmpty()) {
+            throw new BusinessException("처리할 신청건이 없습니다.", 400);
+        }
+        for (Map<String, Object> row : rows) {
+            String serviceId = requestValue(row, "SERVICE_ID", "신청번호가 없습니다.");
+            serviceAccessGuard.requireAccess(user, serviceId, action);
+        }
+    }
+
     public Map<String, Object> getNewCarDetail(UserDto user, String serviceId) {
 
         logger.info("[NewcarService] 신차 상세 조회 - serviceId: {}", serviceId);
 
         Map<String, Object> result = new HashMap<>();
 
-        // 서비스 정보
-        Map<String, Object> service =
-		mortgageMapper.getTrService(serviceId);
-
-        if (service == null || service.isEmpty()) {
-            throw new BusinessException("서비스 정보 없음: " + serviceId, 404);
-        }
+        Map<String, Object> service = serviceAccessGuard.requireAccess(
+                user, serviceId, ServiceAction.READ_DETAIL);
 
         // 신차 정보
         Map<String, Object> detail =
@@ -619,8 +800,13 @@ public class NewcarService {
     /**
      * 다건 상태 변경
      */
-    public int changeProcSt(List<String> serviceIds, String procSt) {
-        return newcarMapper.updateProcSt(serviceIds, procSt);
+    @Transactional
+    public int changeProcSt(List<String> serviceIds, String procSt, UserDto user) {
+        List<String> distinctIds = serviceIds.stream().distinct().toList();
+        for (String serviceId : distinctIds) {
+            serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
+        }
+        return newcarMapper.updateProcSt(distinctIds, procSt);
     }
 
     /**
@@ -933,6 +1119,10 @@ public class NewcarService {
 		}
 
 		Set<String> excelKeys = new HashSet<>();
+		Map<String, String> dlvMap = new HashMap<>();
+		for (Map<String, Object> code : codeMapper.findCodesByGroupId("DLVGB")) {
+			dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
+		}
 		List<Map<String, Object>> results = new ArrayList<>();
 		int matchedCount = 0;
 
@@ -944,6 +1134,16 @@ public class NewcarService {
 
 			boolean validLinkId = linkId.length() == 8;if (!validLinkId) errors.add("주문번호가 없습니다.");
 			if (buyAmt == null) errors.add("공급가액이 0원입니다.");
+			try {
+				validateSupplyAmountRegistDate(row.get("REGIST_DATE"));
+			} catch (BusinessException e) {
+				errors.add(e.getMessage());
+			}
+			try {
+				resolveSupplyAmountSpecialist(row.get("SPACE_GB"), row.get("SPACE_NM"), user, dlvMap);
+			} catch (BusinessException e) {
+				errors.add(e.getMessage());
+			}
 			if (!linkId.isEmpty() && !carIdNo.isEmpty()
 					&& !excelKeys.add(linkId + "\u0000" + carIdNo)) {
 				errors.add("엑셀 내 중복된 주문번호와 차대번호");
@@ -1193,9 +1393,8 @@ public class NewcarService {
 			update.put("ECO_YN", resolveExcelEcoYn(Objects.toString(after.get("model"), "").trim(), Objects.toString(after.get("carPackage"), "").trim(), Objects.toString(after.get("engine"), "").trim()));
 		}
 		
+		String registDate = validateSupplyAmountRegistDate(after.get("registDate"));
 		if (changedFields.contains("registDate")) {
-			String registDate = Objects.toString(after.get("registDate"), "").replaceAll("[^0-9]", "");
-			if (registDate.length() != 8) throw new BusinessException("차량 등록일 정보를 확인해 주세요.", 400);
 			update.put("REGIST_DATE", registDate);
 		}
 		
@@ -1210,33 +1409,54 @@ public class NewcarService {
 		
 		if (changedFields.contains("ownerNm")) update.put("OWNER_NM", Objects.toString(after.get("ownerNm"), "").trim());
 		
+		Map<String, Object> memberInfo = resolveSupplyAmountSpecialist(after.get("spaceGb"), after.get("spaceNm"), user, dlvMap);
 		if (changedFields.contains("spaceGb")) {
-			String spaceGb = Objects.toString(after.get("spaceGb"), "").trim();
-			
-			// 배송지 확인
-			String codeId = dlvMap.get(spaceGb);
+			update.put("DELIVERY_GB", dlvMap.get(Objects.toString(after.get("spaceGb"), "").trim()));
+		}
+		if (changedFields.contains("spaceGb") || changedFields.contains("spaceNm")) {
+			update.put("MEMBER_ID", memberInfo.get("LOGIN_ID"));
+			update.put("BRANCH_ID", memberInfo.get("BRANCH_ID"));
+		}
+	}
 
-		    if (codeId == null) {
-		    	throw new BusinessException("존재하지 않는 Space : " + spaceGb);
-		    } else {
-		        // INSERT 전에 CODE_ID로 치환
-		    	update.put("DELIVERY_GB", codeId);
-		    }
+	/** 등록일은 실제 존재하는 날짜이며 한국 시간 기준 오늘 또는 이후여야 한다. */
+	private String validateSupplyAmountRegistDate(Object value) {
+		String registDate = Objects.toString(value, "").trim();
+		if (registDate.isEmpty()) throw new BusinessException("차량 등록일 없음", 400);
+		if (!registDate.matches("\\d{8}|\\d{4}([-./])\\d{2}\\1\\d{2}")) {
+			throw new BusinessException("차량 등록일 형식 오류", 400);
 		}
-		
-		if (changedFields.contains("spaceNm")) {
-			String spaceNm = Objects.toString(after.get("spaceNm"), "").trim();
-			
-			// SPACE_GB에 해당하는 Specialist만 허용
-			Map<String, Object> memberInfo = authMapper.selectMemberSuInfo(Objects.toString(user.getCOMPANY_ID(), ""), Objects.toString(after.get("spaceGb"), "").trim(), spaceNm);
-			if (memberInfo == null) {
-				throw new BusinessException("Space 명과 담당 Specialist 정보 매칭 불가");
-		    } else {
-		    	update.put("MEMBER_ID", memberInfo.get("LOGIN_ID"));
-		    	update.put("BRANCH_ID", memberInfo.get("BRANCH_ID"));
-		    }
-			
+		String normalized = registDate.replaceAll("[-./]", "");
+		LocalDate date;
+		try {
+			date = LocalDate.parse(normalized, DateTimeFormatter.BASIC_ISO_DATE);
+		} catch (DateTimeParseException e) {
+			throw new BusinessException("차량 등록일 형식 오류", 400);
 		}
+		if (date.isBefore(LocalDate.now(SEARCH_ZONE))) {
+			throw new BusinessException("차량 등록일은 오늘 또는 이후 날짜만 가능합니다.", 400);
+		}
+		return normalized;
+	}
+
+	/** 비교 화면과 저장 시 동일한 기준으로 Space와 담당 Specialist를 확인한다. */
+	private Map<String, Object> resolveSupplyAmountSpecialist(Object spaceValue, Object specialistValue,
+			UserDto user, Map<String, String> dlvMap) {
+		String spaceGb = Objects.toString(spaceValue, "").trim();
+		String spaceNm = Objects.toString(specialistValue, "").trim();
+		List<String> errors = new ArrayList<>();
+		if (spaceGb.isEmpty()) {
+			errors.add("Space 없음");
+		} else if (!dlvMap.containsKey(spaceGb)) {
+			errors.add("존재하지 않는 Space : " + spaceGb);
+		}
+		if (spaceNm.isEmpty()) errors.add("담당 Specialist 없음");
+		if (!errors.isEmpty()) throw new BusinessException(String.join(", ", errors));
+
+		Map<String, Object> memberInfo = authMapper.selectMemberSuInfo(
+				Objects.toString(user.getCOMPANY_ID(), ""), spaceGb, spaceNm);
+		if (memberInfo == null) throw new BusinessException("Space 명과 담당 Specialist 정보 매칭 불가");
+		return memberInfo;
 	}
 
 	/** 변경된 로우데이터 이력 저장 */
@@ -1378,7 +1598,10 @@ public class NewcarService {
 				row.put("MODEL_YEAR", getCellValue(excelRow.getCell(3), formatter));
 				row.put("ENGINE", getCellValue(excelRow.getCell(4), formatter));
 				row.put("CAR_PACKAGE", getCellValue(excelRow.getCell(5), formatter));
-				row.put("REGIST_DATE", getDateCellValue(excelRow.getCell(7), formatter));
+				Cell registDateCell = excelRow.getCell(7);
+				row.put("REGIST_DATE", registDateCell != null && registDateCell.getCellType() == CellType.NUMERIC
+						&& DateUtil.isCellDateFormatted(registDateCell)
+						? getDateCellValue(registDateCell, formatter) : getCellValue(registDateCell, formatter));
 				row.put("DIRECT_YN", displayDirectYn(getCellValue(excelRow.getCell(8), formatter)));
 				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter));
 				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter));
@@ -1423,6 +1646,7 @@ public class NewcarService {
 		if (user == null || serviceId == null || serviceId.isBlank()) {
 			throw new BusinessException("수정 이력 조회 대상이 없습니다.", 400);
 		}
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.READ_DETAIL);
 		return common.selectList(Map.of(
 				"SERVICE_ID", serviceId.trim(),
 				"COMPANY_ID", Objects.toString(user.getCOMPANY_ID(), "")),
@@ -1443,13 +1667,21 @@ public class NewcarService {
 	        String fileName,
 	        HttpServletResponse response) throws Exception {
 
-	    File file = new File(attachService.getFormRoot(), fileName);
+	    String cleanFileName = Objects.toString(fileName, "").trim();
+	    if (cleanFileName.isEmpty()
+	            || !cleanFileName.equals(new File(cleanFileName).getName())
+	            || !cleanFileName.toLowerCase(Locale.ROOT).endsWith(".xlsx")) {
+	        throw new BusinessException("엑셀 업로드 양식 파일명이 올바르지 않습니다.", 400);
+	    }
 
-	    if (!file.exists()) {
+	    File formRoot = new File(attachService.getFormRoot()).getCanonicalFile();
+	    File file = new File(formRoot, cleanFileName).getCanonicalFile();
+
+	    if (!file.toPath().startsWith(formRoot.toPath()) || !file.isFile()) {
 	        throw new FileNotFoundException("엑셀 업로드 양식 파일이 없습니다.");
 	    }
 
-	    String encodedFileName = URLEncoder.encode(fileName, "UTF-8")
+	    String encodedFileName = URLEncoder.encode(cleanFileName, "UTF-8")
 	            .replace("+", "%20");
 
 	    response.setContentType(
@@ -1814,6 +2046,7 @@ public class NewcarService {
 
 	@Transactional
 	public int paymentProcess(List<Map<String, Object>> request, UserDto user) {
+		requireAllServiceAccess(request, user, ServiceAction.CHANGE_STATUS);
 	    int updateCount = 0;
 	    for (Map<String, Object> row : request) {
 
@@ -2035,7 +2268,10 @@ public class NewcarService {
 		    input.put("UPD_USER", user.getLOGIN_ID());
 
 		    // 서비스번호
-		    String serviceId = (String) input.get("SERVICE_ID");
+		    String serviceId = Objects.toString(input.get("SERVICE_ID"), "").trim();
+		    if (!serviceId.isEmpty()) {
+		        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
+		    }
 		    
 		    // 처리상태
 		    String procSt = String.valueOf(mService.get("PROC_ST"));
@@ -2391,12 +2627,14 @@ public class NewcarService {
 
 	@Transactional
 	public void requestProcessWithCalculation(List<Map<String, Object>> request, UserDto user) {
+		requireAllServiceAccess(request, user, ServiceAction.CHANGE_STATUS);
 		saveSupplyAmountCalculations(request, user);
 		requestProcess(request, user);
 	}
 
 	@Transactional
 	public void requestProcess(List<Map<String, Object>> request, UserDto user) {
+		requireAllServiceAccess(request, user, ServiceAction.CHANGE_STATUS);
 		// 성공 반환
 	    Map<String, Object> result = new HashMap<>();
 
@@ -2910,7 +3148,8 @@ public class NewcarService {
 
 
 	// 채권 및 영수증 조회
-	public Map<String, Object> selectBondInfo(String serviceId) {
+	public Map<String, Object> selectBondInfo(String serviceId, UserDto user) {
+	    serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.READ_DETAIL);
 
 	    Map<String, Object> param = new HashMap<>();
 	    param.put("SERVICE_ID", serviceId);
@@ -2921,6 +3160,10 @@ public class NewcarService {
 	public void updateChangeSu(Map<String, Object> param, UserDto user) {
 		
 		List<Map<String,Object>> list = (List<Map<String,Object>>) param.get("LIST");
+		if (list == null || list.isEmpty()) {
+		    throw new BusinessException("변경할 신청건이 없습니다.", 400);
+		}
+		requireAllServiceAccess(list, user, ServiceAction.REASSIGN);
 		
 		for(Map<String,Object> row : list) {
 
@@ -2936,7 +3179,8 @@ public class NewcarService {
 	}
 
 	public void cancel(Map<String, Object> param, UserDto user) {
-		
+		String serviceId = requestValue(param, "SERVICE_ID", "취소할 신청번호가 없습니다.");
+		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CANCEL);
 		param.put("UPD_USER", user.getLOGIN_ID());
 		// 처리상태 변경
 		common.update(param, "updateTrService");

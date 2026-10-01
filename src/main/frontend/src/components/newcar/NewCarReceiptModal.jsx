@@ -27,23 +27,13 @@ const NewCarReceiptModal = ({
 
 	    try {
 
-	        const [bondRes, govtRes] = await Promise.all([
-	            axios.get(
-	                `/api/newcar/bond-info/${dsService.SERVICE_ID}`
-	            ),
-	            axios.post('/api/common/query', {
-	                QUERY_ID: 'getGovtNM',
-	                SERVICE_ID: dsService.SERVICE_ID
-	            })
-	        ]);
-
-	        // 채권정보
-	        setDsBondInfo(bondRes.data.data || {});
-
-	        // 관청명
-	        setGovtNm(
-	            govtRes.data.data?.GOVT_NM || ''
+	        const bondRes = await axios.get(
+	            `/api/newcar/bond-info/${encodeURIComponent(dsService.SERVICE_ID)}`
 	        );
+
+	        const bondInfo = bondRes.data.data || {};
+	        setDsBondInfo(bondInfo);
+	        setGovtNm(bondInfo.GOVT_NM || '');
 
 	    } catch (e) {
 	        console.error('채권정보 조회 실패', e);

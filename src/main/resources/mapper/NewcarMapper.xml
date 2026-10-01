@@ -3,6 +3,44 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.newcar.mapper.NewcarMapper">
+	<sql id="serviceListAccessScope">
+		<!-- 로그인 세션으로 생성한 권한 범위. 누락되거나 미등록된 범위는 항상 차단한다. -->
+		<choose>
+			<when test="AUTH_SCOPE == 'GLOBAL'">
+				AND 1 = 1
+			</when>
+			<when test="AUTH_SCOPE == 'GOVERNMENT'">
+				AND TS.GOVT_ID = #{AUTH_GOVT_ID}
+			</when>
+			<when test="AUTH_SCOPE == 'COMPANY'">
+				AND TS.COMPANY_ID = #{AUTH_COMPANY_ID}
+			</when>
+			<when test="AUTH_SCOPE == 'BRANCH'">
+				AND TS.COMPANY_ID = #{AUTH_COMPANY_ID}
+				AND TS.BRANCH_ID = #{AUTH_BRANCH_ID}
+			</when>
+			<when test="AUTH_SCOPE == 'TEAM'">
+				AND TS.COMPANY_ID = #{AUTH_COMPANY_ID}
+				AND TS.BRANCH_ID = #{AUTH_BRANCH_ID}
+				AND TS.SANGSA_ID = #{AUTH_SANGSA_ID}
+			</when>
+			<when test="AUTH_SCOPE == 'OWNER'">
+				AND TS.COMPANY_ID = #{AUTH_COMPANY_ID}
+				AND TS.BRANCH_ID = #{AUTH_BRANCH_ID}
+				AND TS.MEMBER_ID = #{AUTH_MEMBER_ID}
+			</when>
+			<when test="AUTH_SCOPE == 'RELATED_COMPANY' and AUTH_COMPANY_IDS != null and AUTH_COMPANY_IDS.size() > 0">
+				AND TS.COMPANY_ID IN
+				<foreach collection="AUTH_COMPANY_IDS" item="authCompanyId" open="(" separator="," close=")">
+					#{authCompanyId}
+				</foreach>
+			</when>
+			<otherwise>
+				AND 1 = 0
+			</otherwise>
+		</choose>
+	</sql>
+
 	<!-- 로그인 회사별 Maker와 차량명이 같은 차량제원 한 건 조회함 -->
 	<select id="getCarSpec" resultType="java.util.Map">
 		SELECT *
@@ -157,6 +195,7 @@
             AND TS.SERVICE_ID  = NL.SERVICE_ID(+)
             AND TN.SERVICE_ID  = PM.SERVICE_ID
             AND PM.PAY_KD      = 'ACQ'
+			<include refid="serviceListAccessScope"/>
 			<choose>
 				<when test="DATE_CD == 'REGIST_DATE'">
 					AND TN.REGIST_DATE BETWEEN
@@ -402,6 +441,7 @@
         WHERE TS.WORK_CD = '010'
           AND TS.PROC_ST &lt;&gt; 'DEL'
 		  AND TOI.SEQ = 0
+		<include refid="serviceListAccessScope"/>
         <choose>
             <when test="COMPANY_ID != null and COMPANY_ID != ''">
                 AND TS.COMPANY_ID = #{COMPANY_ID}
@@ -785,18 +825,49 @@
 			  BASE_NM
 	</select>
 
+	<!-- 로그인 회사 지점에 연결된 번호판 담당자 조회 -->
+	<select id="getNumplateAssignee" resultType="java.util.Map">
+	    SELECT POST_NO,
+	           TEL_NO,
+	           PKG_COMMON.FN_DECRYPT(PHONE_NO) AS PHONE_NO,
+	           PKG_COMMON.FN_DECRYPT(ADDRESS) AS ADDRESS,
+	           PKG_COMMON.FN_DECRYPT(ADDRESS_DT) AS ADDRESS_DT
+	      FROM TM_CARNO_COMPANY
+	     WHERE COMPANY_ID = #{COMPANY_ID}
+	       AND BRANCH_ID = #{BRANCH_ID}
+	       AND USE_YN = 'Y'
+	</select>
+
 	<!-- 번호판 상태 체크 -->
-	<select id="checkDuplicateCarNo" parameterType="java.util.Map" resultType="java.util.Map">
+	<select id="checkDuplicateCarNo" resultType="java.util.Map">
 	
 	    SELECT TS.SERVICE_ID,
-	    	   PROC_ST,
-	           REQ_CAR_NO
+	    	   TS.COMPANY_ID,
+	    	   TS.PROC_ST,
+	           TN.REQ_CAR_NO
 	      FROM TR_SERVICE TS, TR_NEWCAR TN
 	     WHERE TN.SERVICE_ID = TS.SERVICE_ID
-	       AND REQ_CAR_NO = #{REQ_CAR_NO}
+	       AND TN.REQ_CAR_NO = #{REQ_CAR_NO}
 	       AND TS.SERVICE_ID <![CDATA[<>]]> #{SERVICE_ID}
 	
 	</select>
+
+	<!-- 삭제·반려 신청건에 남은 희망번호 해제 -->
+	<update id="releaseRequestedCarNo" parameterType="map">
+	    UPDATE TR_NEWCAR TN
+	       SET TN.REQ_CAR_NO = NULL,
+	           TN.UPD_USER = #{UPD_USER},
+	           TN.UPD_DATE = SYSDATE
+	     WHERE TN.SERVICE_ID = #{SERVICE_ID}
+	       AND TN.REQ_CAR_NO = #{REQ_CAR_NO}
+	       AND EXISTS (
+	           SELECT 1
+	             FROM TR_SERVICE TS
+	            WHERE TS.SERVICE_ID = TN.SERVICE_ID
+	              AND TS.COMPANY_ID = #{COMPANY_ID}
+	              AND TS.PROC_ST IN ('DEL', 'RET')
+	       )
+	</update>
 
 	<select id="getTrCarNoDetach" parameterType="map" resultType="map">
 	    SELECT 

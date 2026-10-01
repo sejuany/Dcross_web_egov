@@ -4,6 +4,7 @@ import java.net.InetAddress;
 import java.net.URLEncoder;
 import java.net.UnknownHostException;
 import java.nio.charset.StandardCharsets;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,7 +13,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
+import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
+import com.dacos.common.CommonService;
 import com.dacos.customer.mapper.CustomerMapper;
 import com.dacos.newcar.NewcarService;
 
@@ -29,6 +32,7 @@ public class CustomerService {
 	private static final Logger logger = LoggerFactory.getLogger(NewcarService.class);
     private final CustomerMapper customerMapper;
     private final CommonRepository common; // DB 접근 역할
+    private final CommonService commonService;
 
     public List<Map<String, Object>> convertFileUrls(List<Map<String, Object>> list, String token) {
 
@@ -53,6 +57,27 @@ public class CustomerService {
      */
     public Map<String, Object> getTokenOwnerInfo(Map<String, Object> param) {
         return customerMapper.getTokenOwnerInfo(param);
+    }
+
+    /** 고객 토큰에 연결된 접수건으로만 전자서명 완료 이력을 생성한다. */
+    public int insertDsignWithToken(String token) {
+        String cleanToken = Objects.toString(token, "").trim();
+        if (cleanToken.isEmpty()) {
+            throw new BusinessException("고객 인증 토큰이 없습니다.", 400);
+        }
+
+        Map<String, Object> info = getTokenInfo(Map.of("TOKEN", cleanToken));
+        if (info == null || info.isEmpty()) {
+            throw new BusinessException("유효하지 않은 링크입니다.", 404);
+        }
+
+        Map<String, Object> dsign = new HashMap<>();
+        dsign.put("SERVICE_ID", info.get("SERVICE_ID"));
+        dsign.put("CAR_NO", info.get("CAR_NO"));
+        dsign.put("DSIGN_GB", "WSIGN");
+        dsign.put("DSIGN_ST", "END");
+        dsign.put("INS_USER", "CUSTOMER");
+        return commonService.insertDsign(dsign);
     }
     
     /**

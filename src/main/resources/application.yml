@@ -2,6 +2,10 @@ server:
   port: 8081
   forward-headers-strategy: framework
   servlet:
+    session:
+      cookie:
+        http-only: true
+        same-site: lax
     encoding:
       charset: UTF-8
       enabled: true

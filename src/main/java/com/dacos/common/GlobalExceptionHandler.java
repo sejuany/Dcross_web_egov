@@ -1,7 +1,11 @@
 package com.dacos.common;
 
 import java.sql.SQLException;
+import java.util.Collections;
+import java.util.IdentityHashMap;
+import java.util.Set;
 
+import org.apache.catalina.connector.ClientAbortException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.dao.DataAccessException;
@@ -52,6 +56,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(DataAccessException.class)
     public ResponseEntity<ApiResponse<Void>> handleDataAccessException(
             DataAccessException e) {
+
+        BusinessException businessException = findBusinessException(e);
+        if (businessException != null) {
+            return handleBusinessException(businessException);
+        }
 
         // 상세 SQL과 스택 트레이스는 서버 로그에만 기록
         logger.error("[데이터베이스 처리 오류]", e);
@@ -143,6 +152,26 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * MyBatis가 인터셉터의 BusinessException을 PersistenceException 등으로
+     * 감싸더라도 원래 HTTP 상태와 사용자 메시지를 유지한다.
+     */
+    private BusinessException findBusinessException(Throwable throwable) {
+
+        Set<Throwable> visited = Collections.newSetFromMap(new IdentityHashMap<>());
+        Throwable current = throwable;
+
+        while (current != null && visited.add(current)) {
+            if (current instanceof BusinessException) {
+                return (BusinessException) current;
+            }
+
+            current = current.getCause();
+        }
+
+        return null;
+    }
+
+    /**
      * 정적 리소스 404
      */
     @ExceptionHandler(NoResourceFoundException.class)
@@ -159,10 +188,24 @@ public class GlobalExceptionHandler {
     }
 
     /**
+     * 응답 전송 중 브라우저·프록시가 연결을 닫은 경우다.
+     * 이미 끊긴 연결에는 오류 응답을 다시 쓸 수 없으므로 내부 오류로 처리하지 않는다.
+     */
+    @ExceptionHandler(ClientAbortException.class)
+    public void handleClientAbortException(ClientAbortException e) {
+        logger.debug("[클라이언트 연결 종료] {}", e.getMessage());
+    }
+
+    /**
      * 그 외 예상하지 못한 서버 오류
      */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleException(Exception e) {
+
+        BusinessException businessException = findBusinessException(e);
+        if (businessException != null) {
+            return handleBusinessException(businessException);
+        }
 
         logger.error("[서버 내부 오류]", e);
 

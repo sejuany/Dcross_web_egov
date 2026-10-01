@@ -162,11 +162,13 @@ public class NewcarController {
      */
     @PostMapping("/change-proc-st")
     public ResponseEntity<Map<String, Object>> changeProcSt(
-            @RequestBody Map<String, Object> request) {
+            @RequestBody Map<String, Object> request,
+            HttpSession session) {
         logger.info("[NewcarController] 상태 변경 요청");
+        UserDto user = AuthUtil.getLoginUser(session);
         List<String> serviceIds = toStringList(request.get("SERVICE_IDS"), "SERVICE_IDS");
         String procSt = String.valueOf(request.getOrDefault("PROC_ST", "")).trim();
-        int result = newcarService.changeProcSt(serviceIds, procSt);
+        int result = newcarService.changeProcSt(serviceIds, procSt, user);
         return ResponseEntity.ok(ApiResponse.withKey("result", result));
     }
     
@@ -225,10 +227,11 @@ public class NewcarController {
     @GetMapping("/excel-template")
     public void downloadExcelTemplate(
             @RequestParam("fileName") String fileName,
-            HttpServletResponse response) {
+            HttpServletResponse response,
+            HttpSession session) {
 
         try {
-
+            AuthUtil.getLoginUser(session);
             newcarService.downloadExcelTemplate(fileName, response);
 
         } catch (Exception e) {
@@ -378,7 +381,7 @@ public class NewcarController {
     	// 세션 체크
     	UserDto user = AuthUtil.getLoginUser(session);
  		// 미사용 번호판 상태복구
- 		return numplateService.getNumPlateRelease(param);
+	 	return numplateService.getNumPlateRelease(param, user, session);
     }
     
 	/**
@@ -392,7 +395,7 @@ public class NewcarController {
 		// 세션 체크
  		UserDto user = AuthUtil.getLoginUser(session);
  		
- 		return numplateService.selectNumplate(param, user);
+	 	return numplateService.selectNumplate(param, user, session);
 	}
 	
     /**
@@ -422,10 +425,8 @@ public class NewcarController {
 	        @RequestBody Map<String, Object> param,
 	        HttpSession session) {
 	
-	    // 세션 체크
- 		AuthUtil.getLoginUser(session);
-	
-	    int result = commonService.sendSms(param);
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    int result = newcarService.sendNumplateSms(param, user);
 	
 	    return ResponseEntity.ok(ApiResponse.withKey("result", result));
 	}
@@ -435,8 +436,8 @@ public class NewcarController {
 	public ResponseEntity<Map<String, Object>> sendSelfRegistrationSms(
 	        @RequestBody Map<String, Object> param,
 	        HttpSession session) {
-		AuthUtil.getLoginUser(session);
-		Map<String, Object> result = newcarService.sendSelfRegistrationSms(param);
+		UserDto user = AuthUtil.getLoginUser(session);
+		Map<String, Object> result = newcarService.sendSelfRegistrationSms(param, user);
 		result.put("success", true);
 		return ResponseEntity.ok(result);
 	}
@@ -500,6 +501,44 @@ public class NewcarController {
 	    newcarService.requestProcessWithCalculation(request, user);
 	    return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
 	}
+
+	/** 로그인 회사가 신청 후 번호판 우편발송 대상인지 확인 */
+	@GetMapping("/wa/post-numplate-company")
+	public ResponseEntity<Map<String, Object>> isWaPostNumplateCompany(HttpSession session) {
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    return ResponseEntity.ok(ApiResponse.withKey(
+	            "data", newcarService.isPostNumplateCompany(user)));
+	}
+
+	/** 로그인 회사 범위 안에서 번호판 담당자를 조회 */
+	@GetMapping("/wa/numplate-assignee")
+	public ResponseEntity<Map<String, Object>> getWaNumplateAssignee(
+	        @RequestParam("assignCd") String assignCd,
+	        HttpSession session) {
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    return ResponseEntity.ok(ApiResponse.withKey(
+	            "data", newcarService.getWaNumplateAssignee(assignCd, user)));
+	}
+
+	/** WA 희망번호 중복 확인 */
+	@PostMapping("/wa/numplate/check-duplicate")
+	public ResponseEntity<Map<String, Object>> checkWaDuplicateCarNo(
+	        @RequestBody Map<String, Object> request,
+	        HttpSession session) {
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    return ResponseEntity.ok(ApiResponse.withKey(
+	            "data", newcarService.checkWaDuplicateCarNo(request, user)));
+	}
+
+	/** 삭제·반려 신청건에 남은 희망번호 해제 */
+	@PostMapping("/wa/numplate/release")
+	public ResponseEntity<Map<String, Object>> releaseWaRequestedCarNo(
+	        @RequestBody Map<String, Object> request,
+	        HttpSession session) {
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    int updatedCount = newcarService.releaseWaRequestedCarNo(request, user);
+	    return ResponseEntity.ok(ApiResponse.withKey("updatedCount", updatedCount));
+	}
 	
 	/**
 	 * 채권 및 영수증 조회
@@ -507,11 +546,10 @@ public class NewcarController {
 	 */
 	@GetMapping("/bond-info/{serviceId}")
 	public ResponseEntity<Map<String, Object>> selectBondInfo(
-	        @PathVariable("serviceId") String serviceId) {
-
-	    return ResponseEntity.ok(
-	            newcarService.selectBondInfo(serviceId)
-	    );
+	        @PathVariable("serviceId") String serviceId,
+	        HttpSession session) {
+	    UserDto user = AuthUtil.getLoginUser(session);
+	    return ResponseEntity.ok(newcarService.selectBondInfo(serviceId, user));
 	}
 
     private void validatePdfUploadCompany(UserDto user) {
@@ -589,32 +627,16 @@ public class NewcarController {
 	
     /**
      * WA 신규등록 첨부파일 보기(실제 사진 불러오는 용도)
-     * GET /api/newcar/wa-attach-view?fileName=...
+     * GET /api/newcar/wa-attach-view?serviceId=...&fileName=...
      */
     @GetMapping("/wa-attach-view")
     public ResponseEntity<Resource> viewAttachFile(
+            @RequestParam("serviceId") String serviceId,
             @RequestParam("fileName") String fileName,
             HttpSession session
     ) throws Exception {
-
-        // 로그인 체크
-        AuthUtil.getLoginUser(session);
-
-        String cleanFileName = String.valueOf(fileName).trim();
-
-        if (cleanFileName.contains("..")
-                || cleanFileName.contains("/")
-                || cleanFileName.contains("\\")) {
-            throw new BusinessException("잘못된 파일명입니다.", 400);
-        }
-
-        Path filePath = attachService.getAttachFilePath(cleanFileName);
-
-        if (!Files.exists(filePath) || !Files.isRegularFile(filePath)) {
-            throw new BusinessException("첨부파일을 찾을 수 없습니다.", 404);
-        }
-
-        return attachService.buildSafeFileResponse(filePath, cleanFileName);
+        UserDto user = AuthUtil.getLoginUser(session);
+        return attachService.viewWaAttachFile(serviceId, null, fileName, user);
     }
     
     @GetMapping("/carpaper/download")

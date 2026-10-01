@@ -403,11 +403,15 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
                             </table>
                         </div>
                         <footer className="wa-action-confirm-footer wa-supply-amount-result-footer">
-                            <span className="wa-supply-amount-apply-message">위 내용으로 데이터를 수정합니다.</span>
+                            <span className="wa-supply-amount-apply-message">
+                                {phase === 'APPLIED' ? '데이터 수정이 완료되었습니다.' : '위 내용으로 데이터를 수정합니다.'}
+                            </span>
                             <div className="wa-supply-amount-result-actions">
-                                <button type="button" className="wa-status-action outline" onClick={closeResult} disabled={busy}>취소</button>
-                                <button type="button" className="wa-status-action primary" onClick={handleApply} disabled={busy || phase === 'APPLIED'}>
-                                    {busy ? <><LoaderCircle size={15} className="wa-spin" /> {phase === 'APPLYING' ? '반영 중' : '비교 중'}</> : phase === 'APPLIED' ? '반영 완료' : '확인'}
+                                {phase !== 'APPLIED' && (
+                                    <button type="button" className="wa-status-action outline" onClick={closeResult} disabled={busy}>취소</button>
+                                )}
+                                <button type="button" className="wa-status-action primary" onClick={phase === 'APPLIED' ? closeResult : handleApply} disabled={busy}>
+                                    {busy ? <><LoaderCircle size={15} className="wa-spin" /> {phase === 'APPLYING' ? '반영 중' : '비교 중'}</> : phase === 'APPLIED' ? '닫기' : '확인'}
                                 </button>
                             </div>
                         </footer>
