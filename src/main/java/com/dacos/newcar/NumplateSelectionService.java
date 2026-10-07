@@ -1,5 +1,6 @@
 package com.dacos.newcar;
 
+import java.net.URI;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.time.Instant;
@@ -17,7 +18,8 @@ import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.env.Environment;
+import org.springframework.core.env.Profiles;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.TransactionDefinition;
@@ -26,6 +28,8 @@ import org.springframework.transaction.interceptor.TransactionAspectSupport;
 import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
@@ -50,12 +54,49 @@ public class NumplateSelectionService {
     private final CommonRepository common;
     private final CommonService commonService;
     private final PlatformTransactionManager transactionManager;
+    private final Environment environment;
 	private final NewcarMapper newcarMapper;
 	private final ServiceAccessGuard serviceAccessGuard;
  	
-	@Value("${firebase.push.public-base-url}")
-	private String publicBaseUrl;
- 	
+	/** 스케줄 등 서버 기준 번호판 문자 링크 주소를 관리한다. */
+	public String buildNumplateSelectionUrl(String token) {
+		String origin;
+		if (environment.acceptsProfiles(Profiles.of("real"))) {
+			origin = "https://web.dcross.kr";
+		} else if (environment.acceptsProfiles(Profiles.of("dev"))) {
+			origin = "http://w.dcross.kr:8080";
+		} else if (environment.acceptsProfiles(Profiles.of("local"))) {
+			origin = "http://localhost:3000";
+		} else {
+			throw new BusinessException("번호판 문자 링크의 실행 환경을 확인해 주세요.");
+		}
+		return origin + "/customer/WaNewcarNumplateSelect?t=" + token;
+	}
+
+	/** 신청 버튼의 최초 문자는 서버 프로필이 아닌 브라우저 주소를 사용한다. */
+	String buildRequestNumplateSelectionUrl(String token) {
+		if (!(RequestContextHolder.getRequestAttributes() instanceof ServletRequestAttributes attributes)) {
+			throw new BusinessException("번호판 문자 링크의 접속 주소를 확인해 주세요.");
+		}
+		String origin = Objects.toString(attributes.getRequest().getHeader("Origin"), "").trim();
+		try {
+			URI uri = URI.create(origin);
+			String host = Objects.toString(uri.getHost(), "");
+			boolean local = "localhost".equalsIgnoreCase(host) || "127.0.0.1".equals(host);
+			boolean allowed = "https://web.dcross.kr".equals(origin)
+					|| "http://w.dcross.kr".equals(origin)
+					|| "http://w.dcross.kr:8080".equals(origin)
+					|| (local && ("http".equals(uri.getScheme()) || "https".equals(uri.getScheme())));
+			if (allowed && uri.getRawUserInfo() == null && uri.getRawQuery() == null
+					&& uri.getRawFragment() == null && "".equals(uri.getRawPath())
+					&& uri.getPort() >= -1 && uri.getPort() <= 65535) {
+				return origin + "/customer/WaNewcarNumplateSelect?t=" + token;
+			}
+		} catch (IllegalArgumentException e) {
+			// 임의 도메인이나 잘못된 주소로 고객 토큰이 발송되지 않도록 차단한다.
+		}
+		throw new BusinessException("번호판 문자 링크의 접속 주소를 확인해 주세요.");
+	}
 	
     /**
      * 신청 후 번호판 선택 문자 발송 처리
@@ -85,7 +126,7 @@ public class NumplateSelectionService {
         // 등록예정일 기준 D-3 확인
         boolean selectPeriod = isNumplateSelectPeriod(registDate);
 
-        // 번호판 선택 기간이 아닌 경우, 신차사업부 담당자에게 안내 메모 남기기
+        // 선택 기간이 지난 신청은 미납/번호 미선택 상태에 맞춰 알림을 등록한다.
         if (!selectPeriod) {
             logger.info(
                 "[번호판문자] 종료 - 번호판 선택 기간 아님. SERVICE_ID={}, REGIST_DATE={}",
@@ -98,15 +139,42 @@ public class NumplateSelectionService {
             
             // 신차사업부 담당자 조회
 			Map<String, Object> code = common.select(param1, "selectCodeDetail");
-			String newcarTeam = Objects.toString(code.get("CODE_NM"), "");
-            
-            Map<String, Object> param2 = new HashMap<>();
-            param2.put("CAR_NO", mNewCar.get("CARID_NO"));
-            param2.put("SERVICE_ID", serviceId);
-            param2.put("CONTENT_TX", "[신차사업] 등록예정일 임박 건 번호판 선택 필요"); // 보여 줄 내용
-            param2.put("COMPANY_ID", newcarTeam); // 보여 줄 사람
-            
-            common.insert(param2, "insertTmBoard");
+			String newcarTeam = code == null ? "" : Objects.toString(code.get("CODE_NM"), "").trim();
+			if (newcarTeam.isBlank()) {
+				logger.warn("[번호판문자] 알림 등록 제외 - 신차사업부 공통코드 없음. SERVICE_ID={}", serviceId);
+				return;
+			}
+
+			boolean numplateMissing = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim().isEmpty();
+			boolean unpaid = "N".equalsIgnoreCase(Objects.toString(mNewCar.get("PAY_ST"), "").trim());
+			String alertKind = numplateMissing && unpaid ? "BOTH"
+					: numplateMissing ? "NUMPLATE" : unpaid ? "PAYMENT" : "NONE";
+			String alertContent = switch (alertKind) {
+				case "BOTH" -> "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
+				case "NUMPLATE" -> "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
+				case "PAYMENT" -> "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
+				default -> "";
+			};
+			int alertCount = alertContent.isEmpty() ? 0
+					: newcarMapper.insertNewcarApplicationNumplateAlert(
+							serviceId,
+							Objects.toString(mNewCar.get("CARID_NO"), ""),
+							alertContent,
+							newcarTeam,
+							alertKind);
+			logger.info(
+					"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
+					serviceId, alertKind, alertCount);
+            return;
+        }
+
+        // 이미 번호가 배정된 신청은 고객 번호판 선택 문자와 토큰 발급 대상이 아님
+        String selectedCarNo = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim();
+        if (!selectedCarNo.isEmpty()) {
+            logger.info(
+                "[번호판문자] 발송 제외 - 이미 번호판 선택됨. SERVICE_ID={}, REQ_CAR_NO={}",
+                serviceId, selectedCarNo
+            );
             return;
         }
         
@@ -214,10 +282,8 @@ public class NumplateSelectionService {
 	        }
 	        Map<String, Object> sms = new HashMap<>(mNewcar);
 
-			// 환경별 번호판 선택 URL 생성
-			String url = publicBaseUrl
-			        + "/customer/WaNewcarNumplateSelect?t="
-			        + token;
+			// 신청 화면의 브라우저 주소를 기준으로 번호판 선택 URL 생성
+			String url = buildRequestNumplateSelectionUrl(token);
 			
 			// 주문번호
 			String orderNo = Objects.toString(mService.get("LINK_ID"), "").trim();
@@ -664,9 +730,9 @@ public class NumplateSelectionService {
 		String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
 		String phone = Objects.toString(param.get("PAY_HP_NO"), "").replaceAll("\\D", "");
-		String baseUrl = Objects.toString(publicBaseUrl, "").trim().replaceAll("/+$", "");
-		if (!phone.matches("\\d{10,11}") || !baseUrl.matches("https?://.+")) {
-			throw new BusinessException("수신번호 또는 서버 접속 주소를 확인해 주세요.");
+
+		if (serviceId.isEmpty() || !phone.matches("\\d{10,11}")) {
+			throw new BusinessException("서비스 또는 수신번호를 확인해 주세요.");
 		}
 
 		Map<String, Object> work = new HashMap<>();
@@ -689,7 +755,8 @@ public class NumplateSelectionService {
 
 			String confirmNo = Objects.toString(detachRow.get("CONFIRM_NO"), "");
 			List<String> carNos = confirmNo.isBlank() ? List.of() : Arrays.asList(confirmNo.split(","));
-			String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + existingToken;
+			String url = buildNumplateSelectionUrl(existingToken);
+			
 			Map<String, Object> sms = new HashMap<>();
 			sms.put("PAY_HP_NO", phone);
 			sms.put("MSG_TYPE", "3");
@@ -709,7 +776,7 @@ public class NumplateSelectionService {
 			throw new BusinessException("번호판 선택 링크 생성에 실패했습니다.");
 		}
 
-		String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + token;
+		String url = buildNumplateSelectionUrl(token);
 		Map<String, Object> sms = new HashMap<>();
 		sms.put("PAY_HP_NO", phone);
 		sms.put("MSG_TYPE", "3");

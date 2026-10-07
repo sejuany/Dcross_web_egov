@@ -1,6 +1,6 @@
 import { getAdjacentRequestStep, getVisibleRequestSteps, isDealCompany } from './requestSteps';
 import { initialDsService, serviceMap } from './WaNewcarInitial';
-import { registrationMailGuide, registrationPaperUrl } from './registrationMail';
+import { isPolestarWooriLease, registrationMailGuide, registrationPaperUrl } from './registrationMail';
 
 test('빈 자동차 정보 단계를 제외하고 다음과 이전 단계로 이동한다', () => {
     const steps = getVisibleRequestSteps(true);
@@ -31,4 +31,13 @@ test('등록증 이메일 안내는 폴스타와 지점 발송 여부를 구분�
 test('등록증 경로는 심사일자와 차량번호로 만든다', () => {
     expect(registrationPaperUrl('2026-09-23', '12가3456'))
         .toBe('/api/newcar/carpaper/download?date=260923&carNo=12%EA%B0%803456');
+});
+
+test('수수료 증빙 예외는 폴스타 우리금융캐피탈 일반 리스에만 적용한다', () => {
+    const bases = [{ COMPANY_ID: 'WA001', BASE_ID: 'W', BASE_NM: '우리금융캐피탈 주식회사(본점)' }];
+    const lease = { TASK_CD: 'LEASE', PROC_CD: 'I', BASE_BRANCH_ID: 'W' };
+    expect(isPolestarWooriLease('WA001', lease, bases)).toBe(true);
+    expect(isPolestarWooriLease('WA001', { ...lease, PROC_CD: 'C' }, bases)).toBe(false);
+    expect(isPolestarWooriLease('WB001', lease, bases)).toBe(false);
+    expect(isPolestarWooriLease('WA001', { ...lease, BASE_BRANCH_ID: 'OTHER' }, bases)).toBe(false);
 });

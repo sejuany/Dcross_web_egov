@@ -9,6 +9,9 @@ public class SchedulerDto {
 
     private String SERVICE_ID;
     private String WORK_CD;
+    private String TASK_CD;
+    private String PROC_CD;
+    private String LEASE_HP_NO;
     private String COMPANY_ID;
     private String BRANCH_ID;
     private String MEMBER_ID;

@@ -690,7 +690,7 @@
 	    FROM TR_SERVICE SV
 	         JOIN TR_NEWCAR NC ON SV.SERVICE_ID = NC.SERVICE_ID
 	    WHERE NC.CARID_NO = #{CARID_NO}
-		AND SV.PROC_ST IN ('SAV', 'C_REQ','REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END')
+		AND SV.PROC_ST IN ('SAV', 'C_REQ', 'W_REQ', 'REQ', 'S_END', 'S_REQ', 'P_REQ', 'B_REQ', 'P_END','PBEND', 'PREND', 'D_REQ', 'D_ING', 'D_END', 'D_CON','J_REQ', 'J_ING', 'J_END', 'END')
 	      AND SV.REQUEST_DT <![CDATA[<=]]> SYSDATE
 	</select>
 
@@ -1464,6 +1464,53 @@
 	       SET CARP_SEND_YN = 'Y', UPD_DATE = SYSDATE
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
+
+	<!-- 신청 시 번호 미선택/등록비 미납 알림을 상태 확인 후 당일 중복 없이 등록한다. -->
+	<insert id="insertNewcarApplicationNumplateAlert">
+	    INSERT INTO TM_BOARD (
+	        BOARD_ID, BOARD_GB, BOARD_VW, SUBJECT_TX, CONTENT_TX,
+	        COMPANY_ID, BOARD_DT, INS_DATE, UPD_DATE
+	    )
+	    SELECT 'P-' || TO_CHAR(SYSDATE, 'YYMMDD') || '-'
+	               || LPAD(SEQ_BOARD_ID.NEXTVAL, 5, '0'),
+	           'T', #{SERVICE_ID}, #{CARID_NO}, #{CONTENT_TX},
+	           #{COMPANY_ID}, SYSDATE, SYSDATE, SYSDATE
+	      FROM TR_SERVICE TS
+	      JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+	     WHERE TS.SERVICE_ID = #{SERVICE_ID}
+	       AND TS.WORK_CD = '010'
+	       AND (
+	           (
+	               #{ALERT_KIND} = 'NUMPLATE'
+	               AND TN.REQ_CAR_NO IS NULL
+	               AND (
+	                   (TS.JUDGE_ST IS NULL
+	                    AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END'))
+	                   OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ')
+	               )
+	           )
+	           OR (
+	               #{ALERT_KIND} = 'BOTH'
+	               AND TN.REQ_CAR_NO IS NULL
+	               AND TN.PAY_ST = 'N'
+	               AND TS.JUDGE_ST IS NULL
+	               AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END')
+	           )
+	           OR (
+	               #{ALERT_KIND} = 'PAYMENT'
+	               AND TN.PAY_ST = 'N'
+	               AND TS.JUDGE_ST IS NULL
+	               AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END')
+	           )
+	       )
+	       AND NOT EXISTS (
+	           SELECT 1
+	             FROM TM_BOARD B
+	            WHERE B.BOARD_VW = #{SERVICE_ID}
+	              AND B.CONTENT_TX = #{CONTENT_TX}
+	              AND TRUNC(B.INS_DATE) = TRUNC(SYSDATE)
+	       )
+	</insert>
 
 	<select id="getTrTaxReceipt" parameterType="map" resultType="map">
 	    SELECT SERVICE_ID,

@@ -205,7 +205,7 @@ const OwnerLease = ({
 					                value={dsNewCar.BIZ_NO}
 					                lengths={[3, 2, 5]}
 					                inputClassName="wa-number-center"
-					                placeholders={['123', '45', '67890']}
+					                placeholders={['000', '00', '00000']}
 					                onChange={value => setDsNewCar(prev => ({ ...prev, BIZ_NO: value }))}
 					            />
 					        </div>
@@ -315,7 +315,7 @@ const OwnerLease = ({
 								key={dsOwnerInfo.DEBTOR_GB}
 						        value={dsOwnerInfo.DEBTOR_BIZ_NO}
 						        lengths={[3, 2, 5]}
-						        placeholders={['123', '45', '67890']}
+						        placeholders={['000', '00', '00000']}
 								inputClassName="wa-number-center"
 						        onChange={value =>
 						            setDsOwnerInfo(prev => ({
@@ -353,7 +353,7 @@ const OwnerLease = ({
 						    value={dsOwnerInfo.DEBTOR_TEL_NO}
 						    lengths={[3, 4, 4]}
 							fixedValues={['010']}
-							placeholders={['010', '1234', '5678']}
+							placeholders={['010', '0000', '0000']}
 							inputClassName="wa-number-center"
 						    onChange={value =>
 						        setDsOwnerInfo(prev => ({

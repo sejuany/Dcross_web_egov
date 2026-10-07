@@ -67,9 +67,9 @@
 	.numplate-heading-type { margin-left: 6px; padding: 3px 7px; font-size: 10px; }
     .numplate-page-heading p { font-size: 12px; }
     .numplate-heading-icon { width: 38px; height: 38px; border-radius: 10px; }
-    .numplate-car-summary { margin: 0 -16px; padding: 10px 16px; gap: 8px; }
+    .numplate-car-summary { grid-template-columns: repeat(2, minmax(0, 1fr)); margin: 0 -16px; padding: 10px 16px; gap: 10px 8px; }
     .numplate-car-summary > div { gap: 6px; }
-    .numplate-car-summary strong { font-size: 12px; }
+    .numplate-car-summary strong { overflow: visible; font-size: 12px; text-overflow: clip; white-space: normal; overflow-wrap: anywhere; }
     .numplate-timer { margin: 12px 0 10px; padding: 9px 12px; font-size: 13px; }
     .numplate-timer strong { font-size: 16px; }
     .numplate-customer-list { grid-template-columns: repeat(2, 1fr); gap: 8px; margin: 10px 0 14px; }
@@ -1015,4 +1015,29 @@
     color: #102c57;
     font-size: 28px;
     font-weight: 700;
+}
+
+@media (max-width: 560px) {
+    .numplate-customer-page .numplate-car-summary { grid-template-columns: minmax(0, 1fr); }
+    .numplate-customer-page { padding: 16px 12px 16px; }
+    body:has(.numplate-customer-page) .customer-footer { display: none; }
+    .numplate-customer-page .numplate-heading-text h3 { font-size: 23px; line-height: 1.2; }
+    .numplate-customer-page .numplate-page-heading { gap: 9px; margin-bottom: 12px; }
+    .numplate-customer-page .numplate-heading-icon { width: 36px; height: 36px; }
+    .numplate-customer-page .numplate-page-heading p { margin-top: 2px; font-size: 12px; line-height: 1.3; }
+    .numplate-customer-page .numplate-car-summary { gap: 7px 8px; padding-top: 9px; padding-bottom: 9px; }
+    .numplate-customer-page .wa-numplate-timer {
+        margin: 12px 0 10px;
+        padding: 14px 15px;
+        border-radius: 16px;
+        box-shadow: 0 5px 14px color-mix(in srgb, var(--numplate-theme) 8%, transparent);
+    }
+    .numplate-customer-page .wa-numplate-timer-head { align-items: center; gap: 8px; }
+    .numplate-customer-page .wa-numplate-timer-head strong { font-size: 33px; }
+    .numplate-customer-page .wa-numplate-timer progress { height: 7px; margin: 10px 0 8px; }
+    .numplate-customer-page .wa-numplate-timer p { font-size: 12px; line-height: 1.35; }
+    .numplate-customer-page .numplate-customer-list { gap: 8px; margin: 10px 0 12px; }
+    .numplate-customer-page .numplate-customer-list label { min-height: 48px; padding: 7px 9px; gap: 7px; }
+    .numplate-customer-page .numplate-customer-list input { width: 18px; height: 18px; }
+    .numplate-customer-page .numplate-customer-list span { font-size: 14px; letter-spacing: -0.3px; }
 }

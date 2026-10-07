@@ -12,7 +12,6 @@ import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -39,9 +38,6 @@ public class SchedulerService {
     private final RegistrationMailService registrationMailService;
     private final NumplateSelectionService numplateService;
 
-    @Value("${firebase.push.public-base-url}")
-    private String publicBaseUrl;
-
     public SchedulerService(SchedulerMapper schedulerMapper, CommonService commonService, NewcarService newcarService,
             RegistrationMailService registrationMailService, NumplateSelectionService numplateService) {
         this.schedulerMapper = schedulerMapper;
@@ -63,7 +59,7 @@ public class SchedulerService {
 
         int sentCount = 0;
         for (String serviceId : serviceIds) {
-            if (registrationMailService.send(serviceId)) sentCount++;
+            if (registrationMailService.sendScheduled(serviceId)) sentCount++;
         }
         return sentCount;
     }
@@ -356,7 +352,7 @@ public class SchedulerService {
 
     /**
      * 등록예정일이 D-3 이상 남았고 아직 번호판을 선택하지 않은 고객에게 안내 문자를 보낸다.
-     * 등록비용 납부 여부에 따라 번호 선택 전용/등록비용 포함 문자를 구분한다.
+     * 현금/할부와 이용자명의 리스는 대표소유자, 리스는 리스계약자에게 발송한다.
      */
     public int processNewcarNumplateSelectionReminders() {
         List<SchedulerDto> candidates = schedulerMapper.selectNewcarNumplateReminderTargets();
@@ -392,10 +388,19 @@ public class SchedulerService {
                 continue;
             }
 
-            // 등록비용 안내를 함께 보내므로 납부자 연락처를 우선 사용한다.
-            String phoneNo = safeValue(target.getPAY_HP_NO()).trim();
-            if (phoneNo.isBlank()) {
+            String taskCd = safeValue(target.getTASK_CD()).trim();
+            String procCd = safeValue(target.getPROC_CD()).trim();
+            String phoneNo = "";
+            
+            if ("LEASE".equals(taskCd) && "I".equals(procCd)) {
+                phoneNo = safeValue(target.getLEASE_HP_NO()).trim();
+            } else if (("NORML".equals(taskCd) && "I".equals(procCd))
+                    || ("LEASE".equals(taskCd) && "C".equals(procCd))) {
                 phoneNo = safeValue(target.getMPHONE_NO()).trim();
+            } else {
+                logger.info("[번호판선택안내] 발송 제외 - 수신자 기준 없는 업무 유형. serviceId={}, taskCd={}, procCd={}",
+                        serviceId, taskCd, procCd);
+                continue;
             }
             if (phoneNo.isBlank()) {
                 logger.warn("[번호판선택안내] 발송 제외 - 고객 연락처 없음. serviceId={}", serviceId);
@@ -409,8 +414,7 @@ public class SchedulerService {
                     continue;
                 }
 
-                String baseUrl = safeValue(publicBaseUrl).replaceAll("/+$", "");
-                String url = baseUrl + "/customer/WaNewcarNumplateSelect?t=" + token;
+                String url = numplateService.buildNumplateSelectionUrl(token);
                 LocalDate deadlineDay = registrationDay.minusDays(3);
                 String deadline = deadlineDay.format(DateTimeFormatter.ofPattern("MM/dd"));
                 String insuranceDeadline = deadlineDay.format(DateTimeFormatter.ISO_LOCAL_DATE);
@@ -538,12 +542,14 @@ public class SchedulerService {
                 + "\r\n담당 스페셜리스트 : " + specialistPhone;
     }
 
-    /** 등록예정일 D-2 건의 번호 미선택/등록비 미납 상태를 신차사업부 알림으로 등록한다. */
+    /** 영업일 기준 D-2 및 등록예정일 경과 미처리 건을 신차사업부 알림으로 등록한다. */
     @Transactional
     public int processNewcarNumplateD2Alerts() {
         List<SchedulerDto> targets = schedulerMapper.selectNewcarNumplateD2AlertTargets();
-        if (targets == null || targets.isEmpty()) {
-            logger.info("[번호판D-2알림] 대상 없음");
+        List<SchedulerDto> overdueTargets = schedulerMapper.selectOverdueNewcarNumplateAlertTargets();
+        if ((targets == null || targets.isEmpty())
+                && (overdueTargets == null || overdueTargets.isEmpty())) {
+            logger.info("[번호판D-2알림] D-2 및 등록예정일 경과 대상 없음");
             return 0;
         }
 
@@ -554,16 +560,18 @@ public class SchedulerService {
         }
 
         int alertCount = 0;
-        for (SchedulerDto target : targets) {
+        for (SchedulerDto target : targets == null ? List.<SchedulerDto>of() : targets) {
             String serviceId = safeValue(target.getSERVICE_ID()).trim();
             String companyId = safeValue(target.getCOMPANY_ID()).trim();
             boolean numplateMissing = safeValue(target.getREQ_CAR_NO()).trim().isEmpty();
-            boolean unpaid = !"Y".equalsIgnoreCase(safeValue(target.getPAY_ST()).trim());
+            boolean unpaid = "N".equalsIgnoreCase(safeValue(target.getPAY_ST()).trim());
+            boolean reviewRequested = "REQ".equalsIgnoreCase(safeValue(target.getPROC_ST()).trim())
+                    && "S_REQ".equalsIgnoreCase(safeValue(target.getJUDGE_ST()).trim());
 
             logger.info(
-                "[번호판D-2알림] 상태 확인 - serviceId={}, registDate={}, reqCarNo={}, paySt={}, numplateMissing={}, unpaid={}",
-                serviceId, target.getREGIST_DATE(), target.getREQ_CAR_NO(), target.getPAY_ST(),
-                numplateMissing, unpaid
+                "[번호판D-2알림] 상태 확인 - serviceId={}, registDate={}, procSt={}, judgeSt={}, reqCarNo={}, paySt={}, numplateMissing={}, unpaid={}, reviewRequested={}",
+                serviceId, target.getREGIST_DATE(), target.getPROC_ST(), target.getJUDGE_ST(),
+                target.getREQ_CAR_NO(), target.getPAY_ST(), numplateMissing, unpaid, reviewRequested
             );
 
             if (!numplateService.isPostNumplateCompany(companyId)) {
@@ -574,15 +582,34 @@ public class SchedulerService {
                 continue;
             }
 
-            if (numplateMissing) {
+            // 심사요청 단계라도 번호판을 선택하지 않았다면 번호판 알림만 등록한다.
+            if (reviewRequested) {
+                if (numplateMissing) {
+                    alertCount += schedulerMapper.insertNewcarD2Alert(
+                        serviceId,
+                        target.getCARID_NO(),
+                        "[신차사업] 등록예정일 임박 건 번호판 선택 필요",
+                        newcarTeam
+                    );
+                }
+                continue;
+            }
+
+            if (numplateMissing && unpaid) {
+                alertCount += schedulerMapper.insertNewcarD2Alert(
+                    serviceId,
+                    target.getCARID_NO(),
+                    "[신차사업] 등록예정일 임박 건 납부/번호선택 필요",
+                    newcarTeam
+                );
+            } else if (numplateMissing) {
                 alertCount += schedulerMapper.insertNewcarD2Alert(
                     serviceId,
                     target.getCARID_NO(),
                     "[신차사업] 등록예정일 임박 건 번호판 선택 필요",
                     newcarTeam
                 );
-            }
-            if (unpaid) {
+            } else if (unpaid) {
                 alertCount += schedulerMapper.insertNewcarD2Alert(
                     serviceId,
                     target.getCARID_NO(),
@@ -592,7 +619,40 @@ public class SchedulerService {
             }
         }
 
-        logger.info("[번호판D-2알림] 완료 - 조회건수={}, 등록건수={}", targets.size(), alertCount);
+        for (SchedulerDto target : overdueTargets == null ? List.<SchedulerDto>of() : overdueTargets) {
+            String serviceId = safeValue(target.getSERVICE_ID()).trim();
+            String companyId = safeValue(target.getCOMPANY_ID()).trim();
+            boolean reviewRequested = "REQ".equalsIgnoreCase(safeValue(target.getPROC_ST()).trim())
+                    && "S_REQ".equalsIgnoreCase(safeValue(target.getJUDGE_ST()).trim());
+            boolean numplateMissing = safeValue(target.getREQ_CAR_NO()).trim().isEmpty();
+            logger.info(
+                "[등록예정일경과알림] 상태 확인 - serviceId={}, registDate={}, procSt={}, judgeSt={}, numplateMissing={}",
+                serviceId, target.getREGIST_DATE(), target.getPROC_ST(), target.getJUDGE_ST(), numplateMissing
+            );
+            if (!numplateService.isPostNumplateCompany(companyId)) {
+                logger.info(
+                    "[등록예정일경과알림] 제외 - 대상 업체 아님. serviceId={}, companyId={}",
+                    serviceId, companyId
+                );
+                continue;
+            }
+
+            alertCount += schedulerMapper.insertNewcarD2Alert(
+                serviceId,
+                target.getCARID_NO(),
+                reviewRequested && numplateMissing
+                    ? "[신차사업] 등록예정일 경과 건 번호판 선택 필요"
+                    : "[신차사업] 등록예정일 경과 건 처리 필요",
+                newcarTeam
+            );
+        }
+
+        logger.info(
+            "[번호판D-2알림] 완료 - D-2 조회건수={}, 경과 조회건수={}, 등록건수={}",
+            targets == null ? 0 : targets.size(),
+            overdueTargets == null ? 0 : overdueTargets.size(),
+            alertCount
+        );
         return alertCount;
     }
 

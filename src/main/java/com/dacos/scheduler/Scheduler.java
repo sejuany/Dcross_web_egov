@@ -68,8 +68,8 @@ public class Scheduler {
     }
 
     /** 등록증이 준비된 처리완료 신규등록 건의 메일을 영업시간에 발송한다. */
-    @Scheduled(cron = "0 0,30 9-17 * * *", zone = "Asia/Seoul")
-    @Scheduled(cron = "0 0 18 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0,30 9-18 * * *", zone = "Asia/Seoul")
+    @Scheduled(cron = "0 0 19 * * *", zone = "Asia/Seoul")
     public void processRegistrationMails() {
         String serverIp = commonService.getServerAddress("IP");
         // 등록메일 스케줄은 운영 서버에서만 실행한다.
@@ -77,6 +77,7 @@ public class Scheduler {
             runRegistrationMails("scheduled");
         }
     }
+    
 
     @GetMapping("/newcar/waiting-services/run")
     @PostMapping("/newcar/waiting-services/run")

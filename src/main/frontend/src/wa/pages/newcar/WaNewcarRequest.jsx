@@ -51,7 +51,7 @@ import OwnerRent from './owner/OwnerRent';
 // 상세 조회 화면
 import WaNewcarDetail from './WaNewcarDetail';
 import WaNoticeModal from '../common/WaNoticeModal';
-import { registrationMailGuide } from './registrationMail';
+import { isPolestarWooriLease, registrationMailGuide } from './registrationMail';
 
 // Style
 import '../../styles/wa.css';
@@ -544,9 +544,13 @@ const WaNewcarRequest = ({
 	const carpPostYn = String(branchPolicy.CARP_POST_YN || 'N').toUpperCase();
 	const carpScanYn = String(branchPolicy.CARP_SCAN_YN || 'N').toUpperCase();
 	const companyId = dsService.COMPANY_ID || dsUserInfo.COMPANY_ID;
+	const skipFeeReceipt = isPolestarWooriLease(companyId, dsNewCar, dsBaseList);
 	const carpMailYn = String(branchPolicy.CARP_MAIL_YN || 'N').toUpperCase();
 	const carpMailRequired = companyId === 'WA001' || carpMailYn === 'Y';
 	const carpMailGuide = registrationMailGuide(companyId, carpMailYn);
+	useEffect(() => {
+		if (skipFeeReceipt && dsTaxReceipt.GUBUN) setDsTaxReceipt({ ...initialDsTaxReceipt });
+	}, [skipFeeReceipt, dsTaxReceipt.GUBUN]);
 	// 공통코드 그룹별 목록. CommonSelect와 코드명 표시에서 사용한다.
 	const [codes, setCodes] = useState({});
 	const [noticeOpen, setNoticeOpen] = useState(false); // 서류 안내창
@@ -1729,7 +1733,7 @@ const WaNewcarRequest = ({
 			dsOwnerInfo: newDsOwnerInfo ? { ...newDsOwnerInfo } : { ...dsOwnerInfo },
 		    dsOwnerInfo1,
 			dsCarNoDetach: newDsCarNoDetach ? { ...newDsCarNoDetach } : { ...dsCarNoDetach },
-            dsTaxReceipt,
+            dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt } : dsTaxReceipt,
 
 		    dsPaymentList: newDsPaymentList ? [...newDsPaymentList] : [...dsPaymentList]
 		};
@@ -2132,7 +2136,7 @@ const WaNewcarRequest = ({
 	        dsOwnerInfo,
 	        dsOwnerInfo1,
 	        dsCarNoDetach,
-			dsTaxReceipt,
+			dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt } : dsTaxReceipt,
 	        dsPaymentList: [...dsPaymentList]
 	    };
 
@@ -2470,11 +2474,11 @@ const WaNewcarRequest = ({
 				|| requireValue(dsNewCar.NTAX_TRGET_GR_CD, '감면 등급');
 		}
 
-		if (!message && !['CASH', 'TAX'].includes(dsTaxReceipt.GUBUN)) {
+		if (!message && !skipFeeReceipt && !['CASH', 'TAX'].includes(dsTaxReceipt.GUBUN)) {
 			message = '현금영수증 또는 세금계산서를 선택해주세요.';
 		}
 
-		if (!message && dsTaxReceipt.GUBUN === 'CASH') {
+		if (!message && !skipFeeReceipt && dsTaxReceipt.GUBUN === 'CASH') {
 			const cashReceiptRegNo = onlyDigits(dsTaxReceipt.REG_NO);
 			const cashReceiptPhoneNo = onlyDigits(dsTaxReceipt.PHONE_NO);
 
@@ -2494,7 +2498,7 @@ const WaNewcarRequest = ({
 			}
 		}
 
-		if (!message && dsTaxReceipt.GUBUN === 'TAX') {
+		if (!message && !skipFeeReceipt && dsTaxReceipt.GUBUN === 'TAX') {
 			message = requireDigitLength(dsTaxReceipt.REG_NO, 10, '세금계산서 등록번호')
 				|| requireValue(dsTaxReceipt.COMPANY_NM, '세금계산서 상호명')
 				|| requireValue(dsTaxReceipt.NAME, '세금계산서 대표자명')
@@ -2671,7 +2675,7 @@ const WaNewcarRequest = ({
 				    'NTTGR'
 				)}
 				carpScanYn={carpScanYn}
-				carpPostYn={carpPostYn}
+				carpMailYn={carpMailYn}
 			/>
 	    );
 	}
@@ -2962,6 +2966,7 @@ const WaNewcarRequest = ({
 							dsBaseList={dsBaseList}
 							carpMailRequired={carpMailRequired}
 							carpMailGuide={carpMailGuide}
+							skipFeeReceipt={skipFeeReceipt}
 							/>
 						}
 	

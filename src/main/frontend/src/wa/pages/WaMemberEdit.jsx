@@ -270,7 +270,7 @@ const MemberEdit = () => {
                 value={form.MPHONE_NO}
                 onChange={handleChange}
                 className="profile-input"
-                placeholder="예: 010-1234-5678"
+                placeholder="예: 010-0000-0000"
               />
             </div>
           </div>

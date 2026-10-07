@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, FileText, X } from 'lucide-react';
+import { gf } from '../../../utils/utils';
 
 // 첨부서류 모달
 import WaNewcarAttachModal from './WaNewcarAttachModal';
@@ -10,6 +11,9 @@ import {
     getNtaxAttachPolicy,
 	NTAX_POLICY
 } from '../../../policy/attachPolicy';
+
+// 최종확인 화면에서만 사업자번호에 하이픈을 표시한다.
+const formatBusinessNo = value => String(value ?? '').replace(/^(\d{3})-?(\d{2})-?(\d{5})$/, '$1-$2-$3');
 
 const ConfirmInfo = ({
 	dsService,
@@ -133,7 +137,7 @@ const ConfirmInfo = ({
 	
 					            <div className="wa-confirm-item">
 					                <span>등록번호</span>
-					                <strong>{dsNewCar.REG_NO}</strong>
+					                <strong>{gf.formatRegNo(dsNewCar.REG_NO)}</strong>
 					            </div>
 	
 					            <div className="wa-confirm-item">
@@ -148,7 +152,7 @@ const ConfirmInfo = ({
 	
 					            <div className="wa-confirm-item">
 					                <span>휴대폰번호</span>
-					                <strong>{dsNewCar.MPHONE_NO}</strong>
+					                <strong>{gf.formatPhoneNo(dsNewCar.MPHONE_NO)}</strong>
 					            </div>
 
 								</>
@@ -163,15 +167,15 @@ const ConfirmInfo = ({
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>법인등록번호</span>
-					                <strong>{dsNewCar.REG_NO}</strong>
+					                <strong>{gf.formatRegNo(dsNewCar.REG_NO)}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>사업자등록번호</span>
-					                <strong>{dsNewCar.BIZ_NO}</strong>
+					                <strong>{formatBusinessNo(dsNewCar.BIZ_NO)}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>휴대폰번호</span>
-					                <strong>{dsNewCar.MPHONE_NO}</strong>
+					                <strong>{gf.formatPhoneNo(dsNewCar.MPHONE_NO)}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>본점 소재지</span>
@@ -193,11 +197,11 @@ const ConfirmInfo = ({
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>법인등록번호</span>
-					                <strong>{dsNewCar.REG_NO}</strong>
+					                <strong>{gf.formatRegNo(dsNewCar.REG_NO)}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>사업자등록번호</span>
-					                <strong>{dsNewCar.BIZ_NO}</strong>
+					                <strong>{formatBusinessNo(dsNewCar.BIZ_NO)}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>본점 주소</span>
@@ -223,11 +227,11 @@ const ConfirmInfo = ({
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>등록번호</span>
-					                <strong>{dsNewCar.REG_NO}</strong>
+					                <strong>{gf.formatRegNo(dsNewCar.REG_NO)}</strong>
 					            </div>
 					            <div className="wa-confirm-item">
 					                <span>휴대폰번호</span>
-					                <strong>{dsNewCar.MPHONE_NO}</strong>
+					                <strong>{gf.formatPhoneNo(dsNewCar.MPHONE_NO)}</strong>
 					            </div>
 								<div className="wa-confirm-item">
 					                <span>등본상 주소/본점소재지</span>
@@ -251,13 +255,13 @@ const ConfirmInfo = ({
 									<span>리스 계약자 등록번호</span>
 									<strong>
 										{dsOwnerInfo.DEBTOR_GB === 'C'
-											? dsOwnerInfo.DEBTOR_BIZ_NO
-											: dsOwnerInfo.DEBTOR_REG_NO}
+											? formatBusinessNo(dsOwnerInfo.DEBTOR_BIZ_NO)
+											: gf.formatRegNo(dsOwnerInfo.DEBTOR_REG_NO)}
 									</strong>
 								</div>
 								<div className="wa-confirm-item">
 									<span>리스 계약자 휴대폰번호</span>
-									<strong>{dsOwnerInfo.DEBTOR_TEL_NO}</strong>
+									<strong>{gf.formatPhoneNo(dsOwnerInfo.DEBTOR_TEL_NO)}</strong>
 								</div>
 							</div>
 						)}
@@ -270,11 +274,11 @@ const ConfirmInfo = ({
 								</div>
 								<div className="wa-confirm-item">
 									<span>법인등록번호</span>
-									<strong>{dsOwnerInfo.DEBTOR_REG_NO}</strong>
+									<strong>{gf.formatRegNo(dsOwnerInfo.DEBTOR_REG_NO)}</strong>
 								</div>
 								<div className="wa-confirm-item">
 									<span>사업자등록번호</span>
-									<strong>{dsOwnerInfo.DEBTOR_BIZ_NO}</strong>
+									<strong>{formatBusinessNo(dsOwnerInfo.DEBTOR_BIZ_NO)}</strong>
 								</div>
 								<div className="wa-confirm-item">
 									<span>본점 주소</span>
@@ -283,7 +287,7 @@ const ConfirmInfo = ({
 								{dsOwnerInfo.DEBTOR_TEL_NO && (
 									<div className="wa-confirm-item">
 										<span>리스 담당자 연락처</span>
-										<strong>{dsOwnerInfo.DEBTOR_TEL_NO}</strong>
+										<strong>{gf.formatPhoneNo(dsOwnerInfo.DEBTOR_TEL_NO)}</strong>
 									</div>
 								)}
 							</div>
@@ -300,12 +304,29 @@ const ConfirmInfo = ({
 
 				                <div className="wa-confirm-item">
 				                    <span>등록번호</span>
-				                    <strong>{dsOwnerInfo.DEBTOR_REG_NO}</strong>
+				                    <strong>{gf.formatRegNo(dsOwnerInfo.DEBTOR_REG_NO)}</strong>
+				                </div>
+
+				                {dsOwnerInfo.DEBTOR_GB === 'B' && (
+				                    <div className="wa-confirm-item">
+				                        <span>사업자번호</span>
+				                        <strong>{formatBusinessNo(dsOwnerInfo.DEBTOR_BIZ_NO)}</strong>
+				                    </div>
+				                )}
+
+				                <div className="wa-confirm-item">
+				                    <span>등본상 주소</span>
+				                    <strong>{dsOwnerInfo.DEBTOR_ADDR} {dsOwnerInfo.DEBTOR_ADDR_DT}</strong>
 				                </div>
 
 				                <div className="wa-confirm-item">
 				                    <span>공동소유비율</span>
 				                    <strong>{dsOwnerInfo.DEBTOR_RATIO}%</strong>
+				                </div>
+
+				                <div className="wa-confirm-item">
+				                    <span>휴대폰번호</span>
+				                    <strong>{gf.formatPhoneNo(dsOwnerInfo.DEBTOR_TEL_NO)}</strong>
 				                </div>
 				            </div>
 				        )}
@@ -433,7 +454,7 @@ const ConfirmInfo = ({
 
 		            <div className="wa-confirm-item">
 		                <span>결제자 연락처</span>
-		                <strong>{dsNewCar.PAY_HP_NO}</strong>
+		                <strong>{gf.formatPhoneNo(dsNewCar.PAY_HP_NO)}</strong>
 		            </div>
 		
 		            {carpPostYn === 'Y' && <div className="wa-confirm-item">

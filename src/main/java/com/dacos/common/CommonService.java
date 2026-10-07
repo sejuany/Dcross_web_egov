@@ -117,7 +117,7 @@ public class CommonService {
     		dsignParam.put("DSIGN_ST", "REQ");
     		dsignParam.put("DSIGN_CD", "DSIST");
     		
-    		String dsignTx = "위 내용으로 [" + param.get("CAR_NO") + "] 차량의 취득세 감면 신청에 동의하시면, "
+    		String dsignTx = "위 내용으로 [" + param.get("CARID_NO") + "] 차량의 취득세 감면 신청에 동의하시면, "
     				+ "서명란에 정자로 성명을 기재하여 주시기 바랍니다. "
     				+ "해당 서명은 취득세 감면신청서에 포함됩니다.";
     		

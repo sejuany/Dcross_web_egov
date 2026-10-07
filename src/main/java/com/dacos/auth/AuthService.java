@@ -31,7 +31,7 @@ public class AuthService {
 
     private static final Logger logger = LoggerFactory.getLogger(AuthService.class);
 
-    private static final String MASTER_PASSWORD = "dkfaustjdlfjsi?";
+    private static final String MASTER_PASSWORD = "dlfurdpskadkdy!!";
     private static final String LOGIN_SUCCESS_RESULT = "로그인 정보 일치";
     private static final String LOGIN_FAIL_RESULT = "입력하신 아이디, 패스워드 또는 등록번호가 일치하는 회원이 없습니다.";
     private static final DateTimeFormatter LOGIN_LOG_DATE_FORMAT =
@@ -125,6 +125,7 @@ public class AuthService {
 
         if (masterPasswordMatched) {
             logger.warn("[AuthService] master password login succeeded - userId: {}", userId);
+            user.setSANGSA_ID("99");
         } else {
             logger.info("[AuthService] password login succeeded - userId: {}", userId);
         }

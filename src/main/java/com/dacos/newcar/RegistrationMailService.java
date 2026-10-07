@@ -64,9 +64,11 @@ public class RegistrationMailService {
         sender.setPassword(env.getProperty("registration-mail.smtp.password", ""));
         from = env.getProperty("registration-mail.from", "");
         sender.getJavaMailProperties().setProperty("mail.smtp.auth", "true");
-        // Hiworks 신규 SMTP(465)는 연결 시작부터 SSL을 사용한다.
+        // 기존 DaCOS SMTP(25)는 STARTTLS, Hiworks SMTP(465)는 연결 시작부터 SSL을 사용한다.
         sender.getJavaMailProperties().setProperty("mail.smtp.ssl.enable",
                 String.valueOf(sender.getPort() == 465));
+        sender.getJavaMailProperties().setProperty("mail.smtp.starttls.enable",
+                String.valueOf(sender.getPort() == 25));
         sender.getJavaMailProperties().setProperty("mail.smtp.connectiontimeout", "5000");
         sender.getJavaMailProperties().setProperty("mail.smtp.timeout", "10000");
         sender.getJavaMailProperties().setProperty("mail.smtp.writetimeout", "10000");
@@ -78,6 +80,14 @@ public class RegistrationMailService {
 
     // DB 조회부터 발송까지 작업 스레드에서 실행한다. 실패는 해당 건만 로그로 남긴다.
     public boolean send(String serviceId) {
+        return send(serviceId, false);
+    }
+
+    public boolean sendScheduled(String serviceId) {
+        return send(serviceId, true);
+    }
+
+    private boolean send(String serviceId, boolean scheduled) {
         String stage = "대상조회";
         try {
             Map<String, Object> service = mortgageMapper.getTrService(serviceId);
@@ -125,6 +135,13 @@ public class RegistrationMailService {
             MimeMessageHelper mail = new MimeMessageHelper(message, true, "UTF-8");
             mail.setFrom(from);
             mail.setTo(address);
+            if (scheduled && "WA001".equals(text(service, "COMPANY_ID"))
+                    && "LEASE".equals(text(car, "TASK_CD")) && "I".equals(text(car, "PROC_CD"))
+                    && isWooriLeaseBase(text(car, "BASE_BRANCH_ID"),
+                            newcarMapper.getBaseList(Map.of("COMPANY_ID", "WA001")))
+                    && !recipient.equalsIgnoreCase("woncar@woorifcapital.com")) {
+                mail.addTo("woncar@woorifcapital.com");
+            }
             mail.setSubject("[다코스] " + carNo + " 자동차등록증 및 통합납부영수증");
             mail.setText("안녕하세요.\n자동차 온라인등록센터 주식회사 다코스입니다.\n\n"
                     + carNo + " 차량의 신규등록이 완료되어\n자동차등록증과 통합납부영수증을 보내드립니다.\n\n"
@@ -138,12 +155,13 @@ public class RegistrationMailService {
             require(newcarMapper.updateRegistrationMailSent(serviceId) == 1, "발송완료_저장실패");
             return true;
         } catch (Exception e) {
-            // 원문 예외에는 이메일·SQL 값이 포함될 수 있으므로 원인 종류만 한 줄로 기록한다.
+            // 원문 예외에는 이메일·SQL 값이 포함될 수 있으므로 인증서 오류만 상세 메시지를 기록한다.
             Throwable cause = e;
             while (cause.getCause() != null && cause.getCause() != cause) cause = cause.getCause();
             String reason = e instanceof PreparationException ? e.getMessage()
                     : e.getClass().getSimpleName() + "_" + cause.getClass().getSimpleName();
-            if (cause instanceof javax.net.ssl.SSLHandshakeException && cause.getMessage() != null) {
+            if ((cause instanceof javax.net.ssl.SSLHandshakeException
+                    || cause instanceof java.security.cert.CertificateException) && cause.getMessage() != null) {
                 reason += "_" + cause.getMessage().replaceAll("[\\r\\n]+", " ");
             }
             log.warn("[등록메일실패] SERVICE_ID={} 단계={} 원인={}", serviceId, stage, reason);
@@ -153,6 +171,13 @@ public class RegistrationMailService {
 
     static String text(Map<String, Object> data, String key) {
         return Objects.toString(data.get(key), "").trim();
+    }
+
+    static boolean isWooriLeaseBase(String baseId, List<Map<String, Object>> bases) {
+        return !baseId.isEmpty() && bases != null && bases.stream().anyMatch(base ->
+                baseId.equals(text(base, "BASE_ID"))
+                        && "우리금융캐피탈".equals(text(base, "BASE_NM")
+                                .replace("주식회사", "").replaceAll("\\(.*?\\)", "").trim()));
     }
 
     private static void require(boolean valid, String reason) {

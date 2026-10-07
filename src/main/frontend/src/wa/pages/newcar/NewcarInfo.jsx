@@ -369,7 +369,7 @@ const LEASE_DEFAULTS = {
                 RT_BANK_CD: '020',
                 RETURN_NO: '1005604494985'
             },
-            dsTaxReceipt: {
+            /* dsTaxReceipt: {
                 GUBUN: 'TAX',
                 REG_NO: '3068118407',
                 COMPANY_NM: '우리금융캐피탈 주식회사',
@@ -378,7 +378,7 @@ const LEASE_DEFAULTS = {
                 BUSINESS_TYPE: '금융업',
                 INDUSTRY_TYPE: '할부금융',
                 MAIL1: 'woncar@woorifcapital.com'
-            }
+            } */
         },
 		산은캐피탈: {
 		    dsTaxReceipt: {
@@ -406,7 +406,7 @@ const fillEmptyDefaults = (current, defaults) => {
     return next;
 };
 
-const getLeaseDefaults = (taskCode, baseBranchId, dsBaseList) => {
+const getLeaseDefaults = (taskCode, procCode, baseBranchId, dsBaseList) => {
     if (taskCode !== 'LEASE') {
         return null;
     }
@@ -419,6 +419,7 @@ const getLeaseDefaults = (taskCode, baseBranchId, dsBaseList) => {
         .replace(/\(.*?\)/g, '')
         .trim();
 
+    if (leaseName === '우리금융캐피탈' && procCode !== 'I') return null;
     return LEASE_DEFAULTS[selectedLeaseBase?.COMPANY_ID]?.[leaseName] ?? null;
 };
 
@@ -449,9 +450,9 @@ const DEFERRED_INPUT_SYNC_DELAY = 220;
 // 모듈 상수로 고정해 SplitInput 내부 effect가 불필요하게 실행되지 않도록 한다.
 const PHONE_PART_LENGTHS = [3, 4, 4];
 const PHONE_FIXED_VALUES = ['010'];
-const PHONE_PLACEHOLDERS = ['010', '1234', '5678'];
+const PHONE_PLACEHOLDERS = ['010', '0000', '0000'];
 const BUSINESS_NO_PART_LENGTHS = [3, 2, 5];
-const BUSINESS_NO_PLACEHOLDERS = ['123', '45', '67890'];
+const BUSINESS_NO_PLACEHOLDERS = ['000', '00', '00000'];
 const removeHangul = (value) => String(value ?? '').replace(/[\u1100-\u11FF\u3130-\u318F\uA960-\uA97F\uAC00-\uD7AF\uD7B0-\uD7FF]/g, '');
 
 /**
@@ -1104,7 +1105,8 @@ const NewcarInfo = ({
     setDsPaymentList,
     dsBaseList = [],
 	carpMailRequired = false,
-	carpMailGuide = ''
+	carpMailGuide = '',
+    skipFeeReceipt = false
 }) => {
     const hasExemption = Boolean(dsNewCar.NTAX_TRGET_CD && dsNewCar.NTAX_TRGET_CD !== '00');
     const [isExemptionOpen, setIsExemptionOpen] = useState(hasExemption);
@@ -1218,6 +1220,7 @@ const NewcarInfo = ({
 
         const defaults = getLeaseDefaults(
             dsNewCar.TASK_CD,
+            dsNewCar.PROC_CD,
             dsNewCar.BASE_BRANCH_ID,
             dsBaseList
         );
@@ -1233,6 +1236,7 @@ const NewcarInfo = ({
     }, [
         dsBaseList,
         dsNewCar.BASE_BRANCH_ID,
+        dsNewCar.PROC_CD,
         dsNewCar.TASK_CD,
         setDsNewCar,
         setDsTaxReceipt
@@ -1672,6 +1676,7 @@ const NewcarInfo = ({
 
         const defaults = getLeaseDefaults(
             dsNewCar.TASK_CD,
+            dsNewCar.PROC_CD,
             dsNewCar.BASE_BRANCH_ID,
             dsBaseList
         );
@@ -1886,7 +1891,7 @@ const NewcarInfo = ({
                     </div>
                 </div>
 
-                <div className="wa-form-row">
+                {!skipFeeReceipt && <div className="wa-form-row">
                     <label className="wa-form-label">수수료 증빙 선택</label>
 
                     <div className="wa-form-control">
@@ -1992,6 +1997,7 @@ const NewcarInfo = ({
 											    <SplitInput
 											        value={dsTaxReceipt.REG_NO ?? ''}
 											        lengths={[3, 2, 5]}
+											        placeholders={BUSINESS_NO_PLACEHOLDERS}
 											        deferred
 											        onChange={value => {
 											            updateTaxReceipt({
@@ -2203,7 +2209,7 @@ const NewcarInfo = ({
                             </div>
                         )}
                     </div>
-                </div>
+                </div>}
 
                 {/* Trace에서 입력 지연이 확인된 환불 입력 영역을 로컬 draft로 격리함. */}
                 <RefundAccountFields

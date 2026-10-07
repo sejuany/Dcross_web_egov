@@ -127,7 +127,7 @@ const WaSendSmsModal = ({
 			// 2. 전자서명 이력 생성
 			await axios.post('/api/common/insertDsign', {
 			    SERVICE_ID: dsService.SERVICE_ID,
-				CAR_NO: dsNewCar.REQ_CAR_NO,
+				CARID_NO: dsNewCar.CARID_NO,
 				DSIGN_GB: 'WSIGN',
 				DSIGN_ST: 'REQ',
 				INS_USER: dsUserInfo.MEMBER_ID

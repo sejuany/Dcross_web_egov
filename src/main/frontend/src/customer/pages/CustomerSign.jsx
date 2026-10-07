@@ -18,7 +18,6 @@ import { gf, log } from '../../utils/utils';
 import {
 	getAttachPolicy,
 	getNtaxAttachPolicy,
-	getExemptionInfo,
 	SIGN_DOC
 } from '../../policy/attachPolicy';
 
@@ -34,20 +33,8 @@ const CustomerSign = () => {
 	let token = searchParams.get('t');
 	const [info, setInfo] = useState({});
 	const [ownerInfo, setOwnerInfo] = useState({});
-	const [codes, setCodes] = useState({});
 	// 로딩 상태
 	const [loading, setLoading] = useState(false);
-	
-	// 공통코드 데이터 로딩
-	useEffect(() => {
-
-		const loadCodes = async () => {
-		    const result = await gf.getCodes(['NTTCD', 'NTTGR', 'NTACD', 'NTWHO']);
-		    setCodes(result);
-		};
-
-		loadCodes();
-	}, [setCodes]);
 	
 	/* =========================================================
 	 * 화면 진입 시 데이터 조회
@@ -71,11 +58,6 @@ const CustomerSign = () => {
 	    [info, ownerInfo]
 	);
 
-	const exemptionInfo = useMemo(
-	    () => getExemptionInfo(info, codes),
-	    [info, codes]
-	);
-	
 	/* =========================================================
 	 * 신청 정보 조회
 	========================================================= */
@@ -356,11 +338,12 @@ const CustomerSign = () => {
 					</strong>
 					<br />
 					
-					감면대상 : <strong>{exemptionInfo.typeName}</strong><br />
-					감면등급 : <strong>{exemptionInfo.gradeName || '-'}</strong>
+					감면대상 : <strong>{info.NTAX_TRGET_NM || '-'}</strong><br />
+					감면등급 : <strong>{info.NTAX_TRGET_GR_CD && info.NTAX_TRGET_GR_CD !== '0'
+						? (info.NTAX_TRGET_GR_NM || '-') : '-'}</strong>
 				    <br /><br />
 
-				    위 내용으로 <strong>[{info.CAR_NO}]</strong> 차량의 취득세 감면 신청에 동의하시면,
+				    위 내용으로 <strong>[{info.CARID_NO}]</strong> 차량의 취득세 감면 신청에 동의하시면,
 				    아래 서명란에 정자로 성명을 기재하여 주시기 바랍니다.
 				    <br />
 				    해당 서명은 취득세 감면 신청서에 포함됩니다.

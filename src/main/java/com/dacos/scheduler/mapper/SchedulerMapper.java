@@ -27,6 +27,8 @@ public interface SchedulerMapper {
 
     List<SchedulerDto> selectNewcarNumplateD2AlertTargets();
 
+    List<SchedulerDto> selectOverdueNewcarNumplateAlertTargets();
+
     String selectNewcarTeamCompanyId();
 
     int insertNewcarD2Alert(

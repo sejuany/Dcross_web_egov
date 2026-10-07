@@ -88,7 +88,7 @@
           AND TOI.SEQ = 0
     </select>
 
-    <!-- 오늘 처리완료된 WA 신규등록 중 등기 발송 지점의 미발송 건 -->
+    <!-- 오늘 처리완료된 WA 신규등록 중 등록증 메일 발송 지점의 미발송 건 -->
     <select id="selectRegistrationMailTargets" resultType="string">
         SELECT TS.SERVICE_ID
           FROM TR_SERVICE TS
@@ -104,7 +104,7 @@
                  FROM TM_BRANCH TB
                 WHERE TB.COMPANY_ID = TS.COMPANY_ID
                   AND TB.BRANCH_ID = TS.BRANCH_ID
-                  AND TB.CARP_POST_YN = 'Y'
+                  AND TB.CARP_MAIL_YN = 'Y'
            )
          ORDER BY TS.PROC_DT, TS.SERVICE_ID
     </select>
@@ -113,6 +113,8 @@
     <select id="selectNewcarNumplateReminderTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT TS.SERVICE_ID,
                TS.WORK_CD,
+               TN.TASK_CD,
+               TN.PROC_CD,
                TS.COMPANY_ID,
                TS.PROC_ST,
                TS.JUDGE_ST,
@@ -124,13 +126,18 @@
                TN.TOTAL_AMT,
                TN.VBANK_NO,
                PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
-               PKG_COMMON.FN_DECRYPT(TN.PAY_HP_NO) AS PAY_HP_NO,
+               PKG_COMMON.FN_DECRYPT(TOI.DSIGN_HP_NO) AS LEASE_HP_NO,
                TCD.NUMPLATE_MSG_TOKEN
           FROM TR_SERVICE TS
           JOIN TR_NEWCAR TN
             ON TN.SERVICE_ID = TS.SERVICE_ID
           JOIN TR_CARNO_DETACH TCD
             ON TCD.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_OWNERINFO TOI
+            ON TOI.SERVICE_ID = TS.SERVICE_ID
+           AND TOI.SEQ = 0
+           AND TN.TASK_CD = 'LEASE'
+           AND TN.PROC_CD = 'I'
          WHERE TS.WORK_CD = '010'
            AND TN.REQ_CAR_NO IS NULL
            AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'DEL', 'RET')
@@ -194,10 +201,12 @@
          ORDER BY TN.REGIST_DATE, TS.SERVICE_ID
     </select>
 
-    <!-- 등록예정일이 정확히 D-2이고 번호 미선택 또는 등록비 미납인 신규등록 건 -->
+    <!-- 달력상 등록예정일 D-2가 주말/공휴일이면 직전 영업일에 알림 대상 조회 -->
     <select id="selectNewcarNumplateD2AlertTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT TS.SERVICE_ID,
                TS.COMPANY_ID,
+               TS.PROC_ST,
+               TS.JUDGE_ST,
                TS.LINK_ID,
                TN.CARID_NO,
                TN.REQ_CAR_NO,
@@ -207,11 +216,56 @@
           JOIN TR_NEWCAR TN
             ON TN.SERVICE_ID = TS.SERVICE_ID
          WHERE TS.WORK_CD = '010'
-           AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'DEL', 'RET')
-           AND TS.JUDGE_ST IS NULL
-           AND TRUNC(TN.REGIST_DATE) = TRUNC(SYSDATE) + 2
-           AND (TN.REQ_CAR_NO IS NULL OR NVL(TN.PAY_ST, 'N') != 'Y')
+           AND (
+               (TS.JUDGE_ST IS NULL
+                AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END')
+                AND (TN.REQ_CAR_NO IS NULL OR TN.PAY_ST = 'N'))
+               OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ' AND TN.REQ_CAR_NO IS NULL)
+           )
+           AND TRUNC(SYSDATE) = (
+               SELECT MAX(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET)
+                 FROM (
+                       SELECT LEVEL - 1 AS DAY_OFFSET
+                         FROM DUAL
+                      CONNECT BY LEVEL <![CDATA[<=]]> 32
+                 ) D
+                WHERE (TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET)
+                          - TRUNC(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET, 'IW') BETWEEN 0 AND 4
+                  AND INSTR(
+                        ',' || NVL((
+                            SELECT REPLACE(H.DETAIL_NM, ' ', '')
+                              FROM TM_CODE H
+                             WHERE H.GROUP_ID = 'ETC..'
+                               AND H.CODE_ID = 'HOLID'
+                               AND ROWNUM = 1
+                        ), '') || ',',
+                        ',' || TO_CHAR(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET, 'YYYYMMDD') || ','
+                      ) = 0
+           )
          ORDER BY TS.SERVICE_ID
+    </select>
+
+    <!-- 등록예정일이 지났고 지정된 정상 처리상태에 아직 도달하지 않은 신규등록 건 -->
+    <select id="selectOverdueNewcarNumplateAlertTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
+        SELECT TS.SERVICE_ID,
+               TS.COMPANY_ID,
+               TS.PROC_ST,
+               TS.JUDGE_ST,
+               TS.LINK_ID,
+               TN.CARID_NO,
+               TN.REQ_CAR_NO,
+               TN.REGIST_DATE
+          FROM TR_SERVICE TS
+          JOIN TR_NEWCAR TN
+            ON TN.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = '010'
+           AND TRUNC(TN.REGIST_DATE) <![CDATA[<]]> TRUNC(SYSDATE)
+           AND (
+               (TS.JUDGE_ST IS NULL
+                AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END'))
+               OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ' AND TN.REQ_CAR_NO IS NULL)
+           )
+         ORDER BY TN.REGIST_DATE, TS.SERVICE_ID
     </select>
 
     <select id="selectNewcarTeamCompanyId" resultType="string">

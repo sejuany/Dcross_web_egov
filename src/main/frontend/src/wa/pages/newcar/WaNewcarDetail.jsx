@@ -88,7 +88,7 @@ const WaNewcarDetail = ({
 	dsNTTCD,
 	dsNTTGR,
 	carpScanYn,
-	carpPostYn
+	carpMailYn
 }) => {
 	// 첨부서류 모달
 	const [attachModalOpen, setAttachModalOpen] = useState(false);
@@ -239,6 +239,11 @@ const WaNewcarDetail = ({
 
 		if (!dsService.JUDGE_DT || !dsNewCar.CAR_NO) {
 			gf.alert('등록증이 아직 올라오지 않았습니다.');
+			return;
+		}
+		if (!await gf.confirm('입력하신 메일주소로 등록증과 영수증을 보내시겠습니까?')) return;
+		if (!String(dsNewCar.CARP_MAIL || '').trim()) {
+			gf.alert('이메일 주소를 확인해주세요.');
 			return;
 		}
 
@@ -833,7 +838,7 @@ const WaNewcarDetail = ({
 				        <span className="wa-detail-name">수수료 증빙</span>
 				        <span>{taxReciptNm}</span>
 				    </div>
-				    {carpPostYn === 'Y' && (
+				    {carpMailYn === 'Y' && (
 				        <div className="wa-detail-row wa-detail-mail-row">
 				            <span className="wa-detail-name">등록증 이메일</span>
 				            <span>{dsNewCar.CARP_MAIL?.trim() || '-'}</span>

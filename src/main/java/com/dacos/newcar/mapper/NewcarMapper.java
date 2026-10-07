@@ -61,6 +61,14 @@ public interface NewcarMapper {
 
     /** 등록완료 메일 발송 성공 표시 */
     int updateRegistrationMailSent(@Param("SERVICE_ID") String serviceId);
+
+    /** 신청 시 선택기간 경과 알림을 당일 중복 없이 등록한다. */
+    int insertNewcarApplicationNumplateAlert(
+            @Param("SERVICE_ID") String serviceId,
+            @Param("CARID_NO") String carIdNo,
+            @Param("CONTENT_TX") String content,
+            @Param("COMPANY_ID") String companyId,
+            @Param("ALERT_KIND") String alertKind);
     
     /**
      *  신규등록 기본정보 초기화

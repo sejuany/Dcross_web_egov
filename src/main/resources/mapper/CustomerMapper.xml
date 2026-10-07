@@ -14,9 +14,20 @@
                OWNER_NM,
                TN.TASK_CD,
                TN.PROC_CD,
+               TN.CARID_NO,
                NTAX_TRGET_CD,
                NTAX_WHO,
                NTAX_TRGET_GR_CD,
+               (SELECT MAX(C.CODE_NM)
+                  FROM TM_CODE C
+                 WHERE C.GROUP_ID = 'NTTCD'
+                   AND C.CODE_ID = TN.NTAX_TRGET_CD
+                   AND C.USE_YN = 'Y') AS NTAX_TRGET_NM,
+               (SELECT MAX(C.CODE_NM)
+                  FROM TM_CODE C
+                 WHERE C.GROUP_ID = 'NTTGR'
+                   AND C.CODE_ID = TN.NTAX_TRGET_GR_CD
+                   AND C.USE_YN = 'Y') AS NTAX_TRGET_GR_NM,
            -- 신규등록인 경우 차량번호 REQ_CAR_NO
            CASE
                 WHEN TS.WORK_CD = '010' THEN TN.REQ_CAR_NO

@@ -508,7 +508,7 @@ public class NewcarController {
 	    UserDto user = AuthUtil.getLoginUser(session);
 	    return ResponseEntity.ok(ApiResponse.withKey(
 	            "data", newcarService.isPostNumplateCompany(user)));
-	} 
+	}
 
 	/** 로그인 회사 범위 안에서 번호판 담당자를 조회 */
 	@GetMapping("/wa/numplate-assignee")
