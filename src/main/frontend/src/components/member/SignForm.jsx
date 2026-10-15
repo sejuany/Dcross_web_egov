@@ -86,16 +86,6 @@ const needSangsaByMemberGb = (memberGb, companyId) => {
     return ['SA', 'SU'].includes(memberGb);
 };
 
-const getSignupFormTypeByCompanyId = async (companyId) => {
-    const normalizedCompanyId = String(companyId || '').trim().toUpperCase();
-
-    const isSpecial = await gf.isSpecialCompany(normalizedCompanyId);
-
-    return isSpecial
-        ? SIGNUP_FORM_TYPE.SPECIAL
-        : SIGNUP_FORM_TYPE.DEFAULT;
-};
-
 const getRegGbOptionsByCompanyId = (companyId) => {
     const firstChar = (companyId || '').trim().substring(0, 1).toUpperCase();
 
@@ -570,7 +560,11 @@ const SignForm = () => {
                 return;
             }
 
-            const formType = await getSignupFormTypeByCompanyId(companyId);
+            if (!['Y', 'N'].includes(info.SPECIAL_COMPANY_YN)) {
+                throw new Error('회원사 권한 설정을 확인할 수 없습니다.');
+            }
+            const formType = info.SPECIAL_COMPANY_YN === 'Y'
+                ? SIGNUP_FORM_TYPE.SPECIAL : SIGNUP_FORM_TYPE.DEFAULT;
             const regOptions = getRegGbOptionsByCompanyId(companyId);
 
             if (regOptions.length === 0) {
@@ -598,12 +592,10 @@ const SignForm = () => {
             const autoRegGb = regOptions.length === 1 ? regOptions[0].code : '';
 
             let associationList = [];
-            let branchList = [];
 
             if (autoRegGb) {
                 const result = await fetchCompanySelectOptions(companyId);
                 associationList = result.associationList;
-                branchList = result.branchList;
             }
 
             const associationExists = associationList.some(item =>
@@ -903,7 +895,7 @@ const SignForm = () => {
 
         const companyId = formData.searchCompanyId.trim().toUpperCase();
         const firstCompanyChar = companyId.substring(0, 1);
-        const isSpecialCompany = await gf.isSpecialCompany(companyId);
+        const isSpecialCompany = signupFormType === SIGNUP_FORM_TYPE.SPECIAL;
 
         let registNo = '';
 

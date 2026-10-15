@@ -74,7 +74,14 @@
 	        ADDRESS,
 	        ADDRESS_DT,
 	        POST_NO,
-	        COMPANY_NO  
+	        COMPANY_NO,
+	        CASE WHEN EXISTS (
+	            SELECT 1 FROM TM_CODE
+	            WHERE GROUP_ID = 'DEAL'
+	              AND CODE_ID = 'SPCOM'
+	              AND USE_YN = 'Y'
+	              AND INSTR(DETAIL_NM, '|' || TM_COMPANY.COMPANY_ID || '|') > 0
+	        ) THEN 'Y' ELSE 'N' END AS SPECIAL_COMPANY_YN
 	    FROM TM_COMPANY
 	    WHERE COMPANY_ID = #{COMPANY_ID}
 	      AND USE_YN = 'Y'

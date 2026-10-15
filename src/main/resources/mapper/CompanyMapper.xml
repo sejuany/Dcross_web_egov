@@ -980,6 +980,7 @@
     <update id="updateCompanyUserMaster" parameterType="java.util.Map">
         UPDATE TM_MEMBER_MT
         SET
+        	USE_YN = #{USE_YN},
             LOGIN_GB = #{LOGIN_GB},
             REGIST_NO = PKG_COMMON.FN_ENCRYPT(#{REGIST_NO}),
             UPD_USER = #{INS_USER},

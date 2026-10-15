@@ -66,7 +66,7 @@ public class AuthService {
     public UserDto authenticate(LoginRequest request) {
         return authenticate(request, null);
     }
-
+    
     @Transactional(noRollbackFor = BusinessException.class)
     public UserDto authenticate(LoginRequest request, String loginIp) {
         LoginResult result = authenticateForLogin(request, loginIp);
@@ -307,6 +307,17 @@ public class AuthService {
         } else {
             memberDT.put("ASSOCIATION_ID", member.get("ASSOCIATION_ID"));
             memberDT.put("COMPANY_ID", member.get("COMPANY_ID"));
+        }
+
+        String companyId = String.valueOf(member.get("COMPANY_ID")).trim().toUpperCase();
+        Map<String, Object> companyInfo = authMapper.selectCompanyInfo(Map.of("COMPANY_ID", companyId));
+        if (companyInfo == null) {
+            throw new BusinessException("회원사 정보를 다시 조회해주세요.");
+        }
+        String memberGb = String.valueOf(member.get("MEMBER_GB"));
+        if ("Y".equals(companyInfo.get("SPECIAL_COMPANY_YN"))
+                && !List.of("CA", "BA", "SA", "SU").contains(memberGb)) {
+            throw new BusinessException("회원사 권한을 다시 선택해주세요.");
         }
 
         memberDT.put("BRANCH_ID", member.get("BRANCH_ID"));

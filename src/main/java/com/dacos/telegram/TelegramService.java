@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
+import com.dacos.code.CodeService;
 import com.dacos.common.BusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
 
@@ -20,26 +21,13 @@ import com.fasterxml.jackson.databind.JsonNode;
 public class TelegramService {
 
     private final String botToken;
-    private final String chatId;
-    private final String newcarSelfChatId;
-    private final String newcarDealerServiceChatId;
-    private final String dacosDevChatId;
-    private final String trnsChatId;
+    private final CodeService codeService;
     private final RestTemplate restTemplate;
 
     public TelegramService(@Value("${BOT_TOKEN:}") String botToken,
-            @Value("${CHAT_ID:}") String chatId,
-            @Value("${NEWCAR_SELF_CHAT_ID:}") String newcarSelfChatId,
-            @Value("${NEWCAR_DEALER_SERVICE_CHAT_ID:}") String newcarDealerServiceChatId,
-            @Value("${DACOS_DEV:}") String dacosDevChatId,
-            @Value("${TRNS_CHAT_ID:}") String trnsChatId
-        ) {
+            CodeService codeService) {
         this.botToken = botToken;
-        this.chatId = chatId;
-        this.newcarSelfChatId = newcarSelfChatId;
-        this.newcarDealerServiceChatId = newcarDealerServiceChatId;
-        this.dacosDevChatId = dacosDevChatId;
-        this.trnsChatId = trnsChatId;
+        this.codeService = codeService;
         SimpleClientHttpRequestFactory factory = new SimpleClientHttpRequestFactory();
         factory.setConnectTimeout(10_000);
         factory.setReadTimeout(20_000);
@@ -70,7 +58,7 @@ public class TelegramService {
         }
         String targetChatId = resolveChatId(channel);
         if (!botToken.matches("[0-9]+:[A-Za-z0-9_-]+") || targetChatId.isBlank()) {
-            throw new BusinessException("텔레그램 BOT_TOKEN 또는 선택한 CHAT_ID 설정을 확인해 주세요.", 503);
+            throw new BusinessException("텔레그램 BOT_TOKEN 또는 TM_CODE의 채팅방 ID 설정을 확인해 주세요.", 503);
         }
 
         try {
@@ -103,25 +91,15 @@ public class TelegramService {
     }
 
     private String resolveChatId(String channel) {
-        if (channel == null || channel.isBlank()) {
-            return chatId;
+        if (channel == null || channel.isBlank() || channel.length() > 6) {
+            throw new BusinessException("channel은 TM_CODE의 TELEM 그룹 CODE_ID(1~6자)를 입력해 주세요.");
         }
-        if ("newcarself".equals(channel)) {
-            // 신규셀프이전방
-            return newcarSelfChatId;
+        for (Map<String, Object> code : codeService.getCodesByGroupId("TELEM")) {
+            if (channel.equals(code.get("CODE_ID"))) {
+                Object chatId = code.get("CODE_NM");
+                return chatId == null ? "" : chatId.toString();
+            }
         }
-        if ("newcardealerservice".equals(channel)) {
-            // 신규딜러서비스방
-            return newcarDealerServiceChatId;
-        }
-        if ("dacosdev".equals(channel)) {
-            // 응암식도락방
-            return dacosDevChatId;
-        }
-        if ("trns".equals(channel)) {
-            // 이전등록방
-            return trnsChatId;
-        }
-        throw new BusinessException("지원하지 않는 channel입니다.");
+        throw new BusinessException("TM_CODE의 TELEM 그룹에 등록되지 않았거나 사용 중이 아닌 channel입니다.");
     }
 }

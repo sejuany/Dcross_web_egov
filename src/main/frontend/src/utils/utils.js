@@ -135,7 +135,7 @@ export const gf = {
 	},
 	
 	// 특수회원사 여부 확인
-	// GROUP_ID='TUSE', CODE_ID='SPCOM'
+	// GROUP_ID='DEAL', CODE_ID='SPCOM'
 	isSpecialCompany: async (companyId) => {
 	    const targetCompanyId = String(companyId || '').trim().toUpperCase();
 
@@ -144,7 +144,7 @@ export const gf = {
 	    }
 
 	    const codes = await gf.getCodeDetails(['DEAL']);
-	    const list = codes?.TUSE || [];
+	    const list = codes?.DEAL || [];
 
 	    const specialCode = list.find(item =>
 	        (item.CODE_ID || item.codeId || item.code_ID) === 'SPCOM'

@@ -21,6 +21,7 @@ import com.dacos.attach.AttachService;
 import com.dacos.common.ApiResponse;
 import com.dacos.newcar.NewcarService;
 import com.dacos.newcar.NumplateSelectionService;
+import com.dacos.newcar.NumplateActionService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -37,15 +38,18 @@ public class CustomerController {
     private final AttachService attachService;
     private final NewcarService newcarService;
     private final NumplateSelectionService numplateService;
+    private final NumplateActionService numplateActionService;
 
     public CustomerController(CustomerService customerService,
                               AttachService attachService,
                               NewcarService newcarService,
-                              NumplateSelectionService numplateService) {
+                              NumplateSelectionService numplateService,
+                              NumplateActionService numplateActionService) {
         this.customerService = customerService;
         this.attachService = attachService;
         this.newcarService = newcarService;
         this.numplateService = numplateService;
+        this.numplateActionService = numplateActionService;
     }
 
 	/** 로그인 없이 문자 토큰으로 고객용 번호판 선택 화면 데이터를 조회한다. */
@@ -74,12 +78,18 @@ public class CustomerController {
 				"result", numplateService.selectCustomerNumplateType(param)));
 	}
 
+	@PostMapping("/numplate-selection/actions")
+	public ResponseEntity<Map<String, Object>> recordNumplateAction(@RequestBody Map<String, Object> param) {
+		numplateActionService.recordClientAction(param);
+		return ResponseEntity.ok(ApiResponse.withKey("result", true));
+	}
+
 	/** 로그인 없이 토큰에 배정된 번호 중 하나를 최종 확정한다. */
 	@PostMapping("/numplate-selection/confirm")
 	public ResponseEntity<Map<String, Object>> confirmNumplateSelection(
 			@RequestBody Map<String, Object> param) {
 		return ResponseEntity.ok(ApiResponse.withKey(
-				"result", numplateService.confirmCustomerNumplateSelection(param)));
+				"result", numplateActionService.confirm(param)));
 	}
 
     /** 로그인 없이 고객 토큰에 연결된 접수건의 전자서명 완료 이력을 생성한다. */

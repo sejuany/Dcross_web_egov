@@ -153,6 +153,13 @@ const WaNewcarNumplateSelect = () => {
 	};
 
 	// 서버가 동시 요청을 잠금 처리하므로 더블 클릭/재요청에도 한 번호만 최종 확정된다.
+	// 행동 전송 실패가 실제 번호 선택을 막지는 않는다.
+	const recordAction = (event, carNo = selected) => {
+		axios.post('/api/customer/numplate-selection/actions', {
+			TOKEN: token, EVENT_CD: event, CAR_NO: carNo
+		}).catch(() => console.warn('번호판 행동 이력 전송 실패'));
+	};
+
 	const confirm = async () => {
         if (!selected) return setMessage('번호판을 선택해 주세요.');
         setShowSelectionConfirm(false);
@@ -344,7 +351,7 @@ const WaNewcarNumplateSelect = () => {
 									className={`${selected === item.CAR_NO ? 'selected' : ''}${wobblingIndex === index ? ' pick-me' : ''}`.trim()}>
                                     <input type="radio" name="carNo" value={item.CAR_NO}
                                         checked={selected === item.CAR_NO} disabled={expired}
-                                        onChange={() => { setSelected(item.CAR_NO); setMessage(''); }} />
+                                        onChange={() => { setSelected(item.CAR_NO); setMessage(''); recordAction('NUMBER_CLICK', item.CAR_NO); }} />
                                     <span>{item.CAR_NO}</span>
 									{selected === item.CAR_NO && <b className="numplate-check-icon" aria-hidden="true">✓</b>}
                                 </label>
@@ -362,7 +369,7 @@ const WaNewcarNumplateSelect = () => {
                         <div className="customer-btn-group">
                             <button type="button" className="customer-btn customer-btn-primary"
 								disabled={loading || selectionUnavailable || (data.selectionStarted && !selected)}
-								onClick={canStart ? () => setShowLookupConsent(true) : () => setShowSelectionConfirm(true)}>
+								onClick={canStart ? () => setShowLookupConsent(true) : () => { setShowSelectionConfirm(true); recordAction('CONFIRM_OPEN'); }}>
 								{loading
 									? '처리 중'
 									: canStart
@@ -403,7 +410,7 @@ const WaNewcarNumplateSelect = () => {
 									<p><strong>{selected}</strong>를 선택하시겠습니까?</p>
 									<div className="numplate-consent-actions">
 										<button type="button" className="no"
-											onClick={() => setShowSelectionConfirm(false)}>취소</button>
+											onClick={() => { setShowSelectionConfirm(false); recordAction('CONFIRM_CANCEL'); }}>취소</button>
 										<button type="button" className="yes" disabled={loading} onClick={confirm}>확인</button>
 									</div>
 								</section>

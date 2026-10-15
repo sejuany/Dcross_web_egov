@@ -1643,4 +1643,13 @@
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
+    <!-- 토큰은 접수 식별에만 사용하고 이력에는 저장하지 않는다. -->
+    <insert id="insertNumplateAction" parameterType="map">
+        INSERT INTO TS_NUMPLATE_ACTION
+            (ACTION_ID, SERVICE_ID, EVENT_CD, CAR_NO, REQUEST_ID, DETAIL_TX, INS_DATE)
+        SELECT SEQ_NUMPLATE_ACTION.NEXTVAL, D.SERVICE_ID, #{EVENT_CD}, #{CAR_NO},
+               #{REQUEST_ID}, #{DETAIL_TX}, SYSTIMESTAMP
+          FROM TR_CARNO_DETACH D
+         WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+    </insert>
 </mapper>
