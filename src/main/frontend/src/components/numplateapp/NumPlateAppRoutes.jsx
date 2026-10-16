@@ -10,7 +10,6 @@ import ReturnList from './ReturnList';
 import ReturnDetail from './ReturnDetail';
 import NotificationCenter from './NotificationCenter';
 import MyPage from './MyPage';
-import OfflineList from './OfflineList';
 import IdCardUpload from './IdCardUpload';
 
 // 번호판 앱 전용 로그인으로 만든 세션만 하위 업무 화면에 접근할 수 있다.
@@ -37,7 +36,6 @@ export default function NumPlateAppRoutes() {
         <Route path="returns/:serviceId" element={<ReturnDetail />} />
         {/* 아직 이관하지 않은 하단 메뉴는 안내 화면을 표시한다. */}
         <Route path="notifications" element={<NotificationCenter />} />
-        <Route path="offline" element={<OfflineList />} />
         <Route path="mypage" element={<MyPage />} />
         <Route path="plates" element={<NumPlateInventory />} />
       </Route>

@@ -4,6 +4,10 @@ const CSRF_HEADER = 'X-CSRF-TOKEN';
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS', 'TRACE']);
 const PRE_AUTH_PATHS = new Set([
   '/api/login',
+  '/api/numplateapp/login',
+  '/api/numplateapp/passkeys/login/options',
+  '/api/numplateapp/passkeys/login/verify',
+  '/api/numplateapp/id-card',
   '/api/auth/withauth/token',
   '/api/auth/withauth/verify',
   '/api/auth/mobile/request',
@@ -17,6 +21,8 @@ const PRE_AUTH_PATHS = new Set([
 ]);
 const AUTH_LIFECYCLE_PATHS = new Set([
   '/api/login',
+  '/api/numplateapp/login',
+  '/api/numplateapp/passkeys/login/verify',
   '/api/logout',
   '/api/auth/withauth/verify',
   '/api/auth/mobile/verify',

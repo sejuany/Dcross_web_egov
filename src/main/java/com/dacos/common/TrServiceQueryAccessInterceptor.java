@@ -34,6 +34,7 @@ import org.springframework.web.context.request.ServletRequestAttributes;
 import com.dacos.auth.AuthController;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ServiceAccessGuard.ListAccessScope;
+import com.dacos.numplateApp.dto.NumPlateSearchRequest;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpSession;
@@ -91,6 +92,15 @@ public class TrServiceQueryAccessInterceptor implements Interceptor {
     private static final Set<String> ALLOW_UNASSIGNED_ROWS_QUERY_IDS = Set.of(
             "com.dacos.numplateApp.mapper.NumPlateMapper.getNumPlateList");
 
+    // 앱은 회원등급 대신 세션 전화번호로 담당 건/관할을 검증한다. 보조판 조회는 상세 권한 확인 후 호출된다.
+    private static final Set<String> NUMPLATE_APP_QUERY_IDS = Set.of(
+            "com.dacos.numplateApp.mapper.NumPlateMapper.getProcessList",
+            "com.dacos.numplateApp.mapper.NumPlateMapper.getReturnList",
+            "com.dacos.numplateApp.mapper.NumPlateMapper.getOfflineList",
+            "com.dacos.numplateApp.mapper.NumPlateMapper.getProcessDetail",
+            "com.dacos.numplateApp.mapper.NumPlateMapper.lockSubPanelService",
+            "com.dacos.numplateApp.mapper.NumPlateMapper.getSubPanelInfo");
+
     private final JdbcTemplate jdbcTemplate;
 
     public TrServiceQueryAccessInterceptor(JdbcTemplate jdbcTemplate) {
@@ -119,6 +129,12 @@ public class TrServiceQueryAccessInterceptor implements Interceptor {
             return invocation.proceed();
         }
 
+        // 공개 신분증 링크는 서비스에서 토큰 형식과 READY_YN을 검사한다. 다른 쿼리는 공개하지 않는다.
+        if ("/api/numplateapp/id-card".equals(request.getRequestURI())
+                && "com.dacos.numplateApp.mapper.NumPlateMapper.getIdCardUploadTarget".equals(statement.getId())) {
+            return invocation.proceed();
+        }
+
         UserDto user = sessionUser(request);
         if (user == null) {
             if (isAnonymousBusinessRequest(request)) {
@@ -126,6 +142,28 @@ public class TrServiceQueryAccessInterceptor implements Interceptor {
                 return invocation.proceed();
             }
             throw new BusinessException("로그인 정보가 없습니다.", 401);
+        }
+
+        if ("NUMPLATE_APP".equals(user.getLOGIN_GB())
+                && (request.getRequestURI().startsWith("/api/numplateapp/")
+                    || ("/image.do".equals(request.getRequestURI())
+                        && "com.dacos.numplateApp.mapper.NumPlateMapper.getProcessDetail".equals(statement.getId())))
+                && NUMPLATE_APP_QUERY_IDS.contains(statement.getId())
+                && parameter instanceof Map<?, ?> params) {
+            String phone = text(user.getMPHONE_NO()).replaceAll("[^0-9]", "");
+            if (phone.length() >= 8 && phone.equals(text(params.get("TEL_NO")))) {
+                return invocation.proceed();
+            }
+        }
+
+        // 앱 재고 화면도 서버가 고정한 로그인 회사 범위만 조회한다.
+        if ("NUMPLATE_APP".equals(user.getLOGIN_GB())
+                && "/api/numplate/list".equals(request.getRequestURI())
+                && "com.dacos.numplateApp.mapper.NumPlateMapper.getNumPlateList".equals(statement.getId())
+                && parameter instanceof NumPlateSearchRequest search
+                && !text(user.getCOMPANY_ID()).isEmpty()
+                && text(user.getCOMPANY_ID()).equals(search.getCOMPANY_ID())) {
+            return invocation.proceed();
         }
 
         ListAccessScope scope = ServiceAccessGuard.listAccessScopeFor(user);

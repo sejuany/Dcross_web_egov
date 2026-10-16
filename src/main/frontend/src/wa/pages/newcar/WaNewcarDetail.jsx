@@ -1,7 +1,8 @@
 import  React, {useRef, useState} from 'react';
+import { createPortal } from 'react-dom';
 
 import axios from 'axios';
-import { CalendarDays, CarFront, Download, Eye, EyeOff, FileText, LoaderCircle, Mail, Printer, UserRound, Search, X } from 'lucide-react';
+import { CalendarDays, CarFront, Download, Eye, EyeOff, FileText, History, LoaderCircle, Mail, Printer, UserRound, Search, X } from 'lucide-react';
 import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
@@ -98,6 +99,51 @@ const WaNewcarDetail = ({
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const [certificatePreviewUrl, setCertificatePreviewUrl] = useState(null);
 	const [mailSending, setMailSending] = useState(false);
+	const [actionHistoryModal, setActionHistoryModal] = useState({
+		open: false,
+		loading: false,
+		error: '',
+		rows: []
+	});
+
+	const NUMPLATE_ACTION_LABELS = {
+		NUMBER_CLICK: '번호 선택',
+		CONFIRM_OPEN: '확인창 열림',
+		CONFIRM_CANCEL: '확인창 취소',
+		CONFIRM_REQUEST: '확정 요청',
+		CONFIRM_SUCCESS: '확정 성공',
+		CONFIRM_FAILURE: '확정 실패'
+	};
+
+	const handleOpenActionHistory = async () => {
+		if (!dsService?.SERVICE_ID) {
+			setActionHistoryModal({ open: true, loading: false, error: '', rows: [] });
+			return;
+		}
+		setActionHistoryModal({ open: true, loading: true, error: '', rows: [] });
+		try {
+			const { data } = await axios.get('/api/newcar/numplate-selection/actions', {
+				params: { serviceId: dsService.SERVICE_ID }
+			});
+			setActionHistoryModal({
+				open: true,
+				loading: false,
+				error: '',
+				rows: Array.isArray(data?.list) ? data.list : []
+			});
+		} catch (e) {
+			setActionHistoryModal({
+				open: true,
+				loading: false,
+				error: e.response?.data?.message || '이력을 불러오지 못했습니다.',
+				rows: []
+			});
+		}
+	};
+
+	const closeActionHistoryModal = () => {
+		setActionHistoryModal(prev => ({ ...prev, open: false }));
+	};
 	const [mailRequested, setMailRequested] = useState(false);
 	const certificatePreviewFrame = useRef(null);
 	const serviceId = searchParams.get('serviceId');
@@ -766,6 +812,10 @@ const WaNewcarDetail = ({
 							    	<Search size={20} strokeWidth={2.5} />
 					                <span>등록서류 현황</span>
 					            </button>
+								<button type="button" className="wa-detail-delivery-btn" onClick={handleOpenActionHistory}>
+									<History size={18} strokeWidth={2.3} />
+									<span>번호판선택이력</span>
+								</button>
 					        </div>
 				    </div>
 				</div>
@@ -996,6 +1046,82 @@ const WaNewcarDetail = ({
 				
 			</div>
 			
+			{actionHistoryModal.open && createPortal(
+				<div
+					className="wa-request-modal-backdrop wa-numplate-history-backdrop"
+					role="presentation"
+					onMouseDown={closeActionHistoryModal}
+				>
+					<section
+						className="wa-action-confirm-frame wa-numplate-history-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="wa-numplate-history-title"
+						onMouseDown={e => e.stopPropagation()}
+					>
+						<header className="wa-action-confirm-header">
+							<strong id="wa-numplate-history-title">번호 선택 이력</strong>
+							<button
+								type="button"
+								className="wa-request-modal-close"
+								onClick={closeActionHistoryModal}
+								aria-label="닫기"
+							>
+								<X size={18} />
+							</button>
+						</header>
+						<div className="wa-numplate-history-content">
+							{actionHistoryModal.loading ? (
+								<div className="wa-numplate-history-state">이력을 불러오는 중입니다.</div>
+							) : actionHistoryModal.error ? (
+								<div className="wa-numplate-history-state error">{actionHistoryModal.error}</div>
+							) : (
+								<div className="wa-numplate-history-table-wrap">
+									<table className="wa-numplate-history-table">
+										<thead>
+											<tr>
+												<th>일시</th>
+												<th>상태</th>
+											</tr>
+										</thead>
+										<tbody>
+											{actionHistoryModal.rows.length > 0 ? (
+												actionHistoryModal.rows.map(row => (
+													<tr key={row.ACTION_ID}>
+														<td>{row.INS_DATE || '-'}</td>
+														<td>
+															<span className={`wa-numplate-event-badge event-${String(row.EVENT_CD || '').toLowerCase()}`}>
+																{NUMPLATE_ACTION_LABELS[row.EVENT_CD] || row.EVENT_CD || '-'}
+															</span>
+														</td>
+													</tr>
+												))
+											) : (
+												<tr>
+													<td colSpan={2} className="wa-numplate-history-empty">
+														조회된 이력이 없습니다.
+													</td>
+												</tr>
+											)}
+										</tbody>
+									</table>
+								</div>
+							)}
+						</div>
+						<footer className="wa-action-confirm-footer">
+							<button
+								type="button"
+								className="wa-status-action primary"
+								onClick={closeActionHistoryModal}
+							>
+								확인
+							</button>
+						</footer>
+					</section>
+				</div>,
+				document.body
+			)}
+
 			{templateDownloading && (
 			    <div
 			        style={{

@@ -3282,3 +3282,169 @@ hr.wa-divider.hr2 {
 	font-size: 13px;
 	font-weight: 500;
 }
+
+/* =========================================================
+ * 번호 선택 행동 이력 (TS_NUMPLATE_ACTION)
+ * ========================================================= */
+
+.wa-carinfo-history-bar {
+    display: flex;
+    justify-content: flex-end;
+    margin: -14px 0 12px;
+}
+
+.wa-carinfo-history-btn {
+    height: 34px;
+    padding: 0 14px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    border: 1px solid #d5dce7;
+    border-radius: 8px;
+    background: #f7f8fb;
+    color: #08295a;
+    font-size: 13px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: border-color 0.15s ease, background-color 0.15s ease, color 0.15s ease;
+}
+
+.wa-carinfo-history-btn:hover {
+    border-color: #08295a;
+    background: #edf4ff;
+    color: #08295a;
+}
+
+.wa-numplate-history-backdrop {
+    z-index: 10000;
+    padding: 24px;
+}
+
+.wa-numplate-history-modal {
+    width: min(560px, calc(100vw - 32px));
+    max-height: calc(100vh - 64px);
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e7ef;
+    border-radius: 14px;
+    background: #ffffff;
+    box-shadow: 0 24px 70px rgba(15, 23, 42, 0.25);
+}
+
+.wa-numplate-history-modal .wa-action-confirm-header {
+    border-bottom: 1px solid #e2e7ef;
+}
+
+.wa-numplate-history-modal .wa-action-confirm-header strong {
+    color: #08295a;
+}
+
+.wa-numplate-history-modal .wa-request-modal-close {
+    border-color: #d5dce7;
+}
+
+.wa-numplate-history-modal .wa-request-modal-close:hover {
+    border-color: #08295a;
+    color: #08295a;
+}
+
+.wa-numplate-history-content {
+    padding: 18px 20px;
+    min-height: 140px;
+    max-height: 55vh;
+    overflow-y: auto;
+}
+
+.wa-numplate-history-state {
+    padding: 36px 12px;
+    text-align: center;
+    color: #6b7280;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.wa-numplate-history-state.error {
+    color: #dc2626;
+}
+
+.wa-numplate-history-table-wrap {
+    border: 1px solid #e2e7ef;
+    border-radius: 10px;
+    overflow: hidden;
+}
+
+.wa-numplate-history-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.wa-numplate-history-table th,
+.wa-numplate-history-table td {
+    height: 38px;
+    padding: 6px 14px;
+    border-bottom: 1px solid #edf2f7;
+    text-align: center;
+    color: #111827;
+}
+
+.wa-numplate-history-table th {
+    background: #f6f8fb;
+    color: #08295a;
+    font-size: 12px;
+    font-weight: 800;
+}
+
+.wa-numplate-history-table tbody tr:last-child td {
+    border-bottom: 0;
+}
+
+.wa-numplate-history-table tbody tr:hover td {
+    background: #f9fbff;
+}
+
+.wa-numplate-history-table td:first-child {
+    font-variant-numeric: tabular-nums;
+    color: #374151;
+}
+
+.wa-numplate-history-empty {
+    padding: 32px 12px !important;
+    color: #6b7280 !important;
+    font-weight: 600;
+}
+
+.wa-numplate-event-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 24px;
+    padding: 0 10px;
+    border-radius: 999px;
+    background: #f2f5fa;
+    color: #08295a;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.wa-numplate-event-badge.event-confirm_success {
+    background: #edf8f2;
+    color: #167246;
+}
+
+.wa-numplate-event-badge.event-confirm_failure,
+.wa-numplate-event-badge.event-confirm_cancel {
+    background: #fff0ed;
+    color: #a23928;
+}
+
+.wa-numplate-event-badge.event-confirm_open,
+.wa-numplate-event-badge.event-confirm_request {
+    background: #edf4ff;
+    color: #2459d8;
+}
+
+.wa-numplate-history-modal .wa-action-confirm-footer {
+    border-top: 1px solid #e2e7ef;
+}

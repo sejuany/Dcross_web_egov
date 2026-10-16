@@ -460,6 +460,15 @@ public class NewcarController {
 				"result", numplateService.getNumplateSelectionStatus(serviceId, user)));
 	}
 
+	/** 접수건의 번호판 선택 행동 이력을 조회한다. */
+	@GetMapping("/numplate-selection/actions")
+	public ResponseEntity<Map<String, Object>> getNumplateActionHistory(
+			@RequestParam("serviceId") String serviceId, HttpSession session) {
+		UserDto user = AuthUtil.getLoginUser(session);
+		return ResponseEntity.ok(ApiResponse.withKey(
+				"list", numplateService.getNumplateActionHistory(serviceId, user)));
+	}
+
 	/**
 	 * 신규등록 저장 및 신청
 	 * POST /api/newcar/process

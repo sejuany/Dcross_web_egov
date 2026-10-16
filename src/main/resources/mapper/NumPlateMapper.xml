@@ -1652,4 +1652,14 @@
           FROM TR_CARNO_DETACH D
          WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
     </insert>
+
+    <select id="selectNumplateActionHistory" parameterType="map" resultType="map">
+        SELECT A.ACTION_ID,
+               TO_CHAR(A.INS_DATE, 'YYYY-MM-DD HH24:MI:SS') AS INS_DATE,
+               A.EVENT_CD
+          FROM TS_NUMPLATE_ACTION A
+          JOIN TR_SERVICE S ON S.SERVICE_ID = A.SERVICE_ID
+         WHERE A.SERVICE_ID = #{SERVICE_ID}
+         ORDER BY A.ACTION_ID
+    </select>
 </mapper>

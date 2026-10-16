@@ -34,6 +34,11 @@ public class CsrfProtectionInterceptor implements HandlerInterceptor {
             "http://w.dcross.kr");
     private static final Set<String> PRE_AUTH_PATHS = Set.of(
             "/api/login",
+            "/api/numplateapp/login",
+            "/api/numplateapp/process/list",
+            "/api/numplateapp/passkeys/login/options",
+            "/api/numplateapp/passkeys/login/verify",
+            "/api/numplateapp/id-card",
             "/api/auth/withauth/token",
             "/api/auth/withauth/verify",
             "/api/auth/mobile/request",

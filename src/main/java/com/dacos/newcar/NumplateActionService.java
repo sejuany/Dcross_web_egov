@@ -72,8 +72,7 @@ public class NumplateActionService {
             return count == null ? 0 : count;
         } catch (RuntimeException e) {
             // 이력 장애가 고객의 실제 번호 확정을 막지 않도록 하되 토큰/SQL은 출력하지 않는다.
-            logger.error("[번호판 행동 이력 저장 실패] event={}, requestId={}, cause={}",
-                    event, requestId, e.getClass().getSimpleName());
+            logger.error("[번호판 행동 이력 저장 실패] event={}, requestId={}, cause={}", event, requestId, e.getClass().getSimpleName());
             return -1;
         }
     }

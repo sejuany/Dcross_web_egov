@@ -1207,5 +1207,15 @@ public class NumplateSelectionService {
 	        return false;
 	    }
 	}
+
+	@Transactional(readOnly = true)
+	public List<Map<String, Object>> getNumplateActionHistory(String serviceId, UserDto user) {
+		if (user == null || serviceId == null || serviceId.isBlank()) {
+			throw new BusinessException("이력 조회 대상이 없습니다.", 400);
+		}
+		String trimmedServiceId = serviceId.trim();
+		serviceAccessGuard.requireAccess(user, trimmedServiceId, ServiceAction.READ_DETAIL);
+		return common.selectList(Map.of("SERVICE_ID", trimmedServiceId), "selectNumplateActionHistory");
+	}
 	
 }

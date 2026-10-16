@@ -298,8 +298,9 @@ public class NumPlateController {
             @PathVariable("slot") int slot,
             HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
+        numPlateService.getProcessDetail(serviceId, user);
         try {
-            byte[] image = numPlateService.getProcessImage(serviceId, slot, user);
+            byte[] image = numPlateService.getCompatibleProcessImage(serviceId, slot);
             MediaType type = image.length > 4 && image[0] == (byte) 0x89 && image[1] == 0x50
                     ? MediaType.IMAGE_PNG : MediaType.IMAGE_JPEG;
             return ResponseEntity.ok().cacheControl(CacheControl.noStore()).contentType(type).body(image);
@@ -378,6 +379,13 @@ public class NumPlateController {
 
     private void applyCompanyScope(NumPlateSearchRequest request, HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
+        if ("NUMPLATE_APP".equals(user.getLOGIN_GB())) {
+            if (user.getCOMPANY_ID() == null || user.getCOMPANY_ID().isBlank()) {
+                throw new com.dacos.common.BusinessException("로그인 계정의 번호판 업체 정보를 확인해 주세요.", 403);
+            }
+            request.setCOMPANY_ID(user.getCOMPANY_ID().trim());
+            return;
+        }
         // 일반 회사 사용자가 요청 본문의 회사코드를 바꿔 타사 데이터를 조회하지 못하게 한다.
         if (!"dacos".equalsIgnoreCase(user.getCOMPANY_ID())) {
             request.setCOMPANY_ID(user.getCOMPANY_ID());

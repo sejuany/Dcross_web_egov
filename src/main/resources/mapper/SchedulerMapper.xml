@@ -140,7 +140,7 @@
            AND TN.PROC_CD = 'I'
          WHERE TS.WORK_CD = '010'
            AND TN.REQ_CAR_NO IS NULL
-           AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'DEL', 'RET')
+           AND NVL(TS.PROC_ST, '-') IN ('P_REQ', 'PBEND', 'PREND', 'P_END')
            AND TS.JUDGE_ST IS NULL
            AND TN.REGIST_DATE IS NOT NULL
            AND TRUNC(TS.REQUEST_DT) <![CDATA[<]]> TRUNC(SYSDATE)
@@ -218,7 +218,7 @@
          WHERE TS.WORK_CD = '010'
            AND (
                (TS.JUDGE_ST IS NULL
-                AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END')
+                AND NVL(TS.PROC_ST, '-') IN ('P_REQ', 'PBEND', 'PREND', 'P_END')
                 AND (TN.REQ_CAR_NO IS NULL OR TN.PAY_ST = 'N'))
                OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ' AND TN.REQ_CAR_NO IS NULL)
            )
@@ -262,7 +262,7 @@
            AND TRUNC(TN.REGIST_DATE) <![CDATA[<]]> TRUNC(SYSDATE)
            AND (
                (TS.JUDGE_ST IS NULL
-                AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END'))
+                AND NVL(TS.PROC_ST, '-') NOT IN ('RET', 'DEL', 'END'))
                OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ' AND TN.REQ_CAR_NO IS NULL)
            )
          ORDER BY TN.REGIST_DATE, TS.SERVICE_ID

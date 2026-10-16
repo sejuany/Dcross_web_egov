@@ -18,7 +18,9 @@ ModuleRegistry.registerModules([AllCommunityModule]);
 export default function NumPlateSimpleList({ title, endpoint, columns, mobile = false }) {
   const gridRef = useRef(null);
   const { user } = useAuth();
-  const ownCompanyId = user?.company_ID === 'dacos' ? '' : (user?.company_ID || '');
+  const company = user?.company_ID || user?.COMPANY_ID || '';
+  const isAppUser = (user?.login_GB || user?.LOGIN_GB) === 'NUMPLATE_APP';
+  const ownCompanyId = isAppUser ? company : (company === 'dacos' ? '' : company);
   const [companyId, setCompanyId] = useState(ownCompanyId);
   const [companies, setCompanies] = useState([]);
   const [rows, setRows] = useState([]);
@@ -44,11 +46,11 @@ export default function NumPlateSimpleList({ title, endpoint, columns, mobile = 
 
   useEffect(() => {
     // DACOS 관리자는 회사를 선택할 수 있고 일반 사용자는 로그인 회사로 고정한다.
-    if (ownCompanyId) return;
+    if (ownCompanyId || isAppUser) return;
     axios.get('/api/companies', { params: { workCd: '010' } })
       .then(({ data }) => setCompanies(data.list || []))
       .catch(() => setCompanies([]));
-  }, [ownCompanyId]);
+  }, [ownCompanyId, isAppUser]);
 
   return (
     <div className={`status-container ${mobile ? 'numplate-mobile' : ''}`}>
@@ -80,7 +82,7 @@ export default function NumPlateSimpleList({ title, endpoint, columns, mobile = 
               className="erp-input"
               value={companyId}
               onChange={(event) => setCompanyId(event.target.value)}
-              disabled={Boolean(ownCompanyId)}
+              disabled={isAppUser || Boolean(ownCompanyId)}
               aria-label="회사"
             >
               <option value="">전체</option>

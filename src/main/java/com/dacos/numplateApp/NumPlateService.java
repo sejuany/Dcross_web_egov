@@ -162,7 +162,7 @@ public class NumPlateService {
         List<Map<String, Object>> managers = numPlateMapper.loginManager(param);
         if (managers.size() != 1
                 || !passwordMatches(current, Objects.toString(managers.get(0).get("ETC6"), ""))) {
-            throw new BusinessException("현재 비밀번호가 일치하지 않습니다.", 401);
+            throw new BusinessException("현재 비밀번호가 일치하지 않습니다.", 400);
         }
         if (passwordMatches(current, next)) throw new BusinessException("현재 비밀번호와 다른 번호를 입력해 주세요.");
         param.put("PWD", next);
@@ -212,7 +212,7 @@ public class NumPlateService {
         Map<String, Object> param = managerParam(user);
         String government = numPlateMapper.getOfflineGovernment(param);
         if (government == null || government.isBlank()) {
-            throw new BusinessException("오프라인 조회 권한이 없습니다.", 403);
+            throw new BusinessException("오프라인 조회 관할이 등록되지 않았습니다. 관리자에게 공통코드 ETC../NUMOFF의 담당자 전화번호·관할 설정을 확인해 주세요.", 403);
         }
         String type = Objects.toString(request.get("conditionType"), "MORTREG_DT");
         if (!Set.of("MORTREG_DT", "CAR_NO", "CARID_NO").contains(type)) type = "MORTREG_DT";
@@ -588,11 +588,6 @@ public class NumPlateService {
             throw new BusinessException("탈부착자 메모를 저장하지 못했습니다.", 409);
         }
         return getProcessDetail(serviceId, user);
-    }
-
-    public byte[] getProcessImage(String serviceId, int slot, UserDto user) {
-        getProcessDetail(serviceId, user);
-        return getCompatibleProcessImage(serviceId, slot);
     }
 
     /** 기존 JSP의 /image.do와 같은 규칙으로 파일 경로와 과거 BLOB 사진을 함께 조회한다. */
