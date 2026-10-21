@@ -11,7 +11,7 @@ const SignupTerm = () => {
         require2: false, 
         require3: false, 
         require4: false, 
-        optional: false  
+        require5: false  
     });
 
     const [isAllAgreed, setIsAllAgreed] = useState(false);
@@ -31,15 +31,13 @@ const SignupTerm = () => {
             require2: newState,
             require3: newState,
             require4: newState,
-            optional: newState
+            require5: newState
         });
     };
 
     const handleNext = async () => {
-        const { require1, require2, require3, require4 } = agreed;
-        if (require1 && require2 && require3 && require4) {
-            // 스크립트의 agreeValue=YY 또는 YN 로직 반영하여 데이터 전달 가능
-            const agreeValue = agreed.optional ? 'YY' : 'YN';
+        if (Object.values(agreed).every(val => val === true)) {
+            const agreeValue = 'YY';
             navigate('/signup-form', { state: { agreeValue } });
         } else {
 			await gf.alert("개인정보의 수집∙이용 필수 항목을 체크해주세요.\n동의하시지 않는 경우 회원가입이 제한됩니다.");
@@ -107,12 +105,12 @@ const SignupTerm = () => {
 	                    </table>
 	                </div>
 	
-	                {/* 3. 수집하는 개인정보 항목 (선택) */}
+	                {/* 3. 수집하는 개인정보 항목 (필수) */}
 	                <div className="term-section">
 	                    <div className="section-title">
-	                        <span>3. 수집하는 개인정보 항목 (선택)</span>
+	                        <span>3. 수집하는 개인정보 항목 (필수)</span>
 	                        <label className="check-label">
-	                            <input type="checkbox" checked={agreed.optional} onChange={() => handleCheck('optional')} /> 동의 <span className="text-blue">(선택)</span>
+	                            <input type="checkbox" checked={agreed.require5} onChange={() => handleCheck('require5')} /> 동의 <span className="text-red">(필수)</span>
 	                        </label>
 	                    </div>
 	                    <div className="term-box">
@@ -173,8 +171,8 @@ const SignupTerm = () => {
 	            </div>
 	
 	            <div className="term-footer">
-	                <p>전체 동의는 필수 및 선택정보에 대한 동의가 포함되어 있으며, 개별적으로 동의를 선택할 수 있습니다.<br/>
-	                   선택항목에 대한 동의를 거부하는 경우에도 서비스 이용이 가능합니다.</p>
+	                <p>모든 항목은 필수 동의 항목이며, 개별적으로 동의하거나 전체동의를 선택할 수 있습니다.<br/>
+	                   동의하지 않는 경우 회원가입이 제한됩니다.</p>
 	                <div className="footer-controls">
 	                    <label className="all-check">
 	                        <input type="checkbox" checked={isAllAgreed} onChange={handleAllCheck} /> 전체동의

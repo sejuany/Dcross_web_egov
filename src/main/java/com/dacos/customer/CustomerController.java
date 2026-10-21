@@ -84,6 +84,12 @@ public class CustomerController {
 		return ResponseEntity.ok(ApiResponse.withKey("result", true));
 	}
 
+	@PostMapping("/numplate-selection/report")
+	public ResponseEntity<Map<String, Object>> reportNumplateError(@RequestBody Map<String, Object> param) {
+		numplateActionService.reportError(param);
+		return ResponseEntity.ok(ApiResponse.withKey("result", true));
+	}
+
 	/** 로그인 없이 토큰에 배정된 번호 중 하나를 최종 확정한다. */
 	@PostMapping("/numplate-selection/confirm")
 	public ResponseEntity<Map<String, Object>> confirmNumplateSelection(

@@ -69,14 +69,12 @@ import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
 
 
 /**
  * 신차 등록 서비스
  * - getNewCarList: Map으로 반환하여 컬럼명 그대로 프론트에 전달 (직렬화 문제 방지)
  */
-@RequiredArgsConstructor
 @Service
 public class NewcarService {
 
@@ -110,6 +108,27 @@ public class NewcarService {
     private final CodeMapper codeMapper;
     private final AuthMapper authMapper;
     private final SchedulerMapper schedulerMapper;
+
+    public NewcarService(CommonService commonService, AuthService authService, CommonUtil commonUtil,
+            CommonRepository common, AttachService attachService, SearchLogInterceptor searchLogInterceptor,
+            NumplateSelectionService numplateService, ServiceAccessGuard serviceAccessGuard,
+            NewcarMapper newcarMapper, MortgageMapper mortgageMapper, PaymentMapper paymentMapper,
+            CodeMapper codeMapper, AuthMapper authMapper, SchedulerMapper schedulerMapper) {
+        this.commonService = commonService;
+        this.authService = authService;
+        this.commonUtil = commonUtil;
+        this.common = common;
+        this.attachService = attachService;
+        this.searchLogInterceptor = searchLogInterceptor;
+        this.numplateService = numplateService;
+        this.serviceAccessGuard = serviceAccessGuard;
+        this.newcarMapper = newcarMapper;
+        this.mortgageMapper = mortgageMapper;
+        this.paymentMapper = paymentMapper;
+        this.codeMapper = codeMapper;
+        this.authMapper = authMapper;
+        this.schedulerMapper = schedulerMapper;
+    }
 
     @Value("${self-newcar.url}")
     private String selfNewcarUrl;
@@ -2851,6 +2870,9 @@ public class NewcarService {
 
 	        logger.info("linkData >>" + linkData);
 
+	        // 관청 전송정보를 초기화하기 전에 문자 수신번호를 별도로 보관한다.
+	        String numplatePhoneNo = numplateService.getNumplateSelectPhoneNo(mNewCar, lOwnerInfoList);
+
 	        // 공동소유자 정보
 	        StringBuilder ownerInfo = new StringBuilder();
 
@@ -2926,7 +2948,7 @@ public class NewcarService {
 			    result.put("MESSAGE", "신청완료");
 			    
 			    // 대상 업체 및 발송 기간 확인은 기존 서비스에서 처리
-			    numplateService.processNumplateSelectSms(mService, mNewCar, lOwnerInfoList);
+			    numplateService.processNumplateSelectSms(mService, mNewCar, numplatePhoneNo);
 			}
 
 			mService.put("UPD_USER", user.getLOGIN_ID());

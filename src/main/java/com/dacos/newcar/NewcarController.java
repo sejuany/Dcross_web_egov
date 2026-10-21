@@ -469,6 +469,23 @@ public class NewcarController {
 				"list", numplateService.getNumplateActionHistory(serviceId, user)));
 	}
 
+	/** 접수건의 번호판 선택 오류제출 캡쳐 이미지를 조회한다. */
+	@GetMapping("/numplate-selection/report-image")
+	public ResponseEntity<Resource> getNumplateErrorReportImage(
+			@RequestParam("serviceId") String serviceId,
+			@RequestParam(value = "seq", required = false) String seq,
+			HttpSession session) throws IOException {
+		UserDto user = AuthUtil.getLoginUser(session);
+		Path path = numplateService.getNumplateErrorReportImage(serviceId, seq, user);
+		if (!Files.isRegularFile(path)) {
+			return ResponseEntity.notFound().build();
+		}
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CACHE_CONTROL, "no-store")
+				.contentType(MediaType.IMAGE_PNG)
+				.body(new UrlResource(path.toUri()));
+	}
+
 	/**
 	 * 신규등록 저장 및 신청
 	 * POST /api/newcar/process

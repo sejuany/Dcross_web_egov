@@ -1,6 +1,14 @@
-import React, { useEffect, useRef, useState } from 'react';
+<<<<<<< .mine
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+||||||| .r678
+=======
+import React, { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
+>>>>>>> .r680
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
+import html2canvas from 'html2canvas';
 import { AlertCircle, CarFront, CheckCircle2, ScanLine, UserRound, FileText, XCircle } from 'lucide-react';
 import '../styles/CustomerPage.css';
 import corporatePaintPlate from '../img/corporate-paint.jpg';
@@ -56,11 +64,31 @@ const WaNewcarNumplateSelect = () => {
 	const [selectedNumplateType, setSelectedNumplateType] = useState('');
 	const [showNumplateTypeConfirm, setShowNumplateTypeConfirm] = useState(false);
 	const [numplateTypeConfirmChecked, setNumplateTypeConfirmChecked] = useState(false);
+<<<<<<< .mine
+	const [showErrorReport, setShowErrorReport] = useState(false);
+	const [showReportSuccess, setShowReportSuccess] = useState(false);
+	const [reportSymptom, setReportSymptom] = useState('');
+	const [reportFeature, setReportFeature] = useState('');
+	const [reportCarNo, setReportCarNo] = useState('');
+	const [reportErrorMsg, setReportErrorMsg] = useState('');
+	const [reportSubmitting, setReportSubmitting] = useState(false);
     const selectedRef = useRef('');
+||||||| .r678
+=======
+    const selectedRef = useRef('');
+    const cardRef = useRef(null);
+    const contentRef = useRef(null);
+
+
+
+>>>>>>> .r680
+    const cardRef = useRef(null);
+    const contentRef = useRef(null);
+    const capturePromiseRef = useRef(null);
 
 	// URL의 공개 토큰만 서버로 보내며, 고객/차량/번호 목록과 서버 기준 만료 시각을 조회한다.
 	useEffect(() => {
-        axios.get('/api/customer/numplate-selection', { params: { token } })
+        axios({ method: 'get', url: '/api/customer/numplate-selection', params: { token } })
             .then(({ data: response }) => {
                 setData(response.result);
                 setSelected(response.result.selectedCarNo || '');
@@ -115,8 +143,8 @@ const WaNewcarNumplateSelect = () => {
 		setLoading(true);
 		setMessage('');
 		try {
-			const { data: response } = await axios.post('/api/customer/numplate-selection/start', {
-				TOKEN: token
+			const { data: response } = await axios({
+				method: 'post', url: '/api/customer/numplate-selection/start', data: { TOKEN: token }
 			});
 			setData(response.result);
 			setSelected(response.result.selectedCarNo || '');
@@ -139,9 +167,9 @@ const WaNewcarNumplateSelect = () => {
 		setLoading(true);
 		setMessage('');
 		try {
-			const { data: response } = await axios.post('/api/customer/numplate-selection/type', {
-				TOKEN: token,
-				NUMPLATE_GB: selectedNumplateType
+			const { data: response } = await axios({
+				method: 'post', url: '/api/customer/numplate-selection/type',
+				data: { TOKEN: token, NUMPLATE_GB: selectedNumplateType }
 			});
 			setData(response.result);
 			setSelectedNumplateType('');
@@ -155,9 +183,53 @@ const WaNewcarNumplateSelect = () => {
 	// 서버가 동시 요청을 잠금 처리하므로 더블 클릭/재요청에도 한 번호만 최종 확정된다.
 	// 행동 전송 실패가 실제 번호 선택을 막지는 않는다.
 	const recordAction = (event, carNo = selected) => {
-		axios.post('/api/customer/numplate-selection/actions', {
-			TOKEN: token, EVENT_CD: event, CAR_NO: carNo
+		axios({
+			method: 'post', url: '/api/customer/numplate-selection/actions',
+			data: { TOKEN: token, EVENT_CD: event, CAR_NO: carNo }
 		}).catch(() => console.warn('번호판 행동 이력 전송 실패'));
+	};
+
+	const captureCurrentScreen = () => html2canvas(document.querySelector('.numplate-customer-page'), {
+		useCORS: true,
+		scale: Math.min(window.devicePixelRatio || 1, 2),
+		ignoreElements: element => element.dataset?.numplateReportIgnore === 'true'
+	}).then(canvas => canvas.toDataURL('image/png'));
+
+	const openErrorReport = () => {
+		capturePromiseRef.current = captureCurrentScreen().catch(() => '');
+		setReportSymptom('');
+		setReportFeature('');
+		setReportCarNo(selected || '');
+		setReportErrorMsg('');
+		setShowErrorReport(true);
+	};
+
+	const submitErrorReport = async () => {
+		if (!reportSymptom.trim() && !reportFeature.trim() && !reportCarNo.trim()) {
+			setReportErrorMsg('오류 내용을 입력해 주세요.');
+			return;
+		}
+		setReportSubmitting(true);
+		setReportErrorMsg('');
+		try {
+			let image;
+			try {
+				image = await (capturePromiseRef.current || Promise.resolve(''));
+				if (!image) image = await captureCurrentScreen();
+			} catch {
+				setReportErrorMsg('화면을 캡쳐하지 못했습니다. 새로고침 후 다시 제출해 주세요.');
+				return;
+			}
+			await axios({ method: 'post', url: '/api/customer/numplate-selection/report', data: {
+				TOKEN: token, SYMPTOM: reportSymptom, FEATURE: reportFeature, CAR_NO: reportCarNo, IMAGE: image
+			} });
+			setShowErrorReport(false);
+			setShowReportSuccess(true);
+		} catch (error) {
+			setReportErrorMsg(error.response?.data?.message || '오류 제출에 실패했습니다.');
+		} finally {
+			setReportSubmitting(false);
+		}
 	};
 
 	const confirm = async () => {
@@ -165,9 +237,9 @@ const WaNewcarNumplateSelect = () => {
         setShowSelectionConfirm(false);
         setLoading(true);
         try {
-            const { data: response } = await axios.post('/api/customer/numplate-selection/confirm', {
-                TOKEN: token,
-                CAR_NO: selected
+            const { data: response } = await axios({
+                method: 'post', url: '/api/customer/numplate-selection/confirm',
+                data: { TOKEN: token, CAR_NO: selected }
             });
             setData(prev => ({ ...prev, selectedCarNo: response.result.carNo }));
             setMessage(`${response.result.carNo} 번호가 선택되었습니다.`);
@@ -204,9 +276,110 @@ const WaNewcarNumplateSelect = () => {
 		? savedNumplateGb === 'FG' ? '법인 필름' : savedNumplateGb === '2G' ? '법인 페인트' : ''
 		: '';
 
+<<<<<<< .mine
+    const isSelectingNumber = Boolean(data?.selectionStarted)
+        && !data.selectedCarNo
+        && !requiresNumplateTypeSelection
+        && !data.lookupFailed
+        && !selectionUnavailable;
+||||||| .r678
+=======
+    const isSelectingNumber = Boolean(data?.selectionStarted)
+        && !data.selectedCarNo
+        && !requiresNumplateTypeSelection
+        && !data.lookupFailed
+        && !selectionUnavailable;
+
+    // 모바일 번호 선택 중 내용이 화면보다 길 때만 세로 비율을 줄인다. 팝업은 별도로 표시한다.
+    useLayoutEffect(() => {
+        const card = cardRef.current;
+        const content = contentRef.current;
+        if (!isSelectingNumber) {
+            content.style.removeProperty('--numplate-content-scale');
+            return;
+        }
+        let observer;
+        const fitContent = () => {
+            if (window.innerWidth > 768) {
+                content.style.removeProperty('--numplate-content-scale');
+                return;
+            }
+            const style = window.getComputedStyle(card);
+            const availableHeight = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+            const contentHeight = content.offsetHeight;
+            content.style.setProperty('--numplate-content-scale',
+                contentHeight > 0 ? Math.min(1, Math.max(0, availableHeight) / contentHeight) : 1);
+        };
+        const observeLayout = () => {
+            observer?.disconnect();
+            if (window.innerWidth <= 768) {
+                observer = new ResizeObserver(fitContent);
+                observer.observe(card);
+                observer.observe(content);
+            }
+            fitContent();
+        };
+        observeLayout();
+        window.addEventListener('resize', observeLayout);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', observeLayout);
+        };
+    }, [isSelectingNumber]);
+
+    const buttonDisabled = loading || selectionUnavailable || Boolean(data?.selectionStarted && !selected);
+>>>>>>> .r680
+
+    // 모바일 번호 선택 중 내용이 화면보다 길 때만 세로 비율을 줄인다. 팝업은 별도로 표시한다.
+    useLayoutEffect(() => {
+        const card = cardRef.current;
+        const content = contentRef.current;
+        if (!isSelectingNumber) {
+            content.style.removeProperty('--numplate-content-scale');
+            return;
+        }
+        let observer;
+        const fitContent = () => {
+            if (window.innerWidth > 768) {
+                content.style.removeProperty('--numplate-content-scale');
+                return;
+            }
+            const style = window.getComputedStyle(card);
+            const availableHeight = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
+            const contentHeight = content.offsetHeight;
+            content.style.setProperty('--numplate-content-scale',
+                contentHeight > 0 ? Math.min(1, Math.max(0, availableHeight) / contentHeight) : 1);
+        };
+        const observeLayout = () => {
+            observer?.disconnect();
+            if (window.innerWidth <= 768) {
+                observer = new ResizeObserver(fitContent);
+                observer.observe(card);
+                observer.observe(content);
+            }
+            fitContent();
+        };
+        observeLayout();
+        window.addEventListener('resize', observeLayout);
+        return () => {
+            observer?.disconnect();
+            window.removeEventListener('resize', observeLayout);
+        };
+    }, [isSelectingNumber]);
+
+    const buttonDisabled = loading || selectionUnavailable || Boolean(data?.selectionStarted && !selected);
+
     return (
-        <div className={`customer-page numplate-customer-page numplate-${urgency}`}>
-            <div className="customer-card numplate-customer-card">
+<<<<<<< .mine
+        <div className={`customer-page numplate-customer-page numplate-${urgency}${isSelectingNumber ? ' numplate-selection-active' : ''}`}>
+            <div className="customer-card numplate-customer-card" ref={cardRef}>
+                <div className="numplate-card-content" ref={contentRef}>
+||||||| .r678
+=======
+        <div className={`customer-page numplate-customer-page numplate-${urgency}${isSelectingNumber ? ' numplate-selection-active' : ''}`}>
+            <div className="customer-card numplate-customer-card" ref={cardRef}>
+                <div className="numplate-card-content" ref={contentRef}>
+>>>>>>> .r680
                 <div className="numplate-page-heading">
                     <span className="numplate-heading-icon"><CarFront size={26} /></span>
                     <div className="numplate-heading-text">
@@ -219,6 +392,7 @@ const WaNewcarNumplateSelect = () => {
 							? '원하시는 번호판 종류를 먼저 선택해 주세요.'
 							: '번호 조회 후 5분이 지나면 오늘은 다시 조회할 수 없습니다.'}</p>
 					</div>
+					{token && <button type="button" className="numplate-report-btn" onClick={openErrorReport}>오류제출</button>}
                 </div>
 
                 {data && (
@@ -241,7 +415,7 @@ const WaNewcarNumplateSelect = () => {
 				) : requiresNumplateTypeSelection ? (
 					<>
 						<div className="numplate-type-list" role="radiogroup" aria-label="번호판 종류">
-							{numplateTypeOptions.map(option => (
+							{numplateTypeOptions.map((option, index) => (
 								<label key={option.value}
 									className={selectedNumplateType === option.value ? 'selected' : ''}>
 									<input type="radio" name="numplateType" value={option.value}
@@ -263,7 +437,7 @@ const WaNewcarNumplateSelect = () => {
 						{message && <p className="numplate-customer-message" role="alert">{message}</p>}
 						<div className="customer-btn-group numplate-type-submit">
 							<button type="button" className="customer-btn customer-btn-primary"
-								disabled={loading || !selectedNumplateType}
+								data-numplate-control="TYPE_BUTTON" disabled={loading || !selectedNumplateType}
 								onClick={() => {
 									setNumplateTypeConfirmChecked(false);
 									setShowNumplateTypeConfirm(true);
@@ -272,8 +446,14 @@ const WaNewcarNumplateSelect = () => {
 							</button>
 						</div>
 
-						{showNumplateTypeConfirm && selectedNumplateType && (
+<<<<<<< .mine
+						{showNumplateTypeConfirm && selectedNumplateType && createPortal(
 							<div className="numplate-consent-backdrop">
+||||||| .r678
+=======
+						{showNumplateTypeConfirm && selectedNumplateType && createPortal(
+							<div className="numplate-consent-backdrop" data-numplate-control="TYPE_BACKDROP">
+>>>>>>> .r680
 								<section className="numplate-consent-modal" role="dialog" aria-modal="true"
 									aria-labelledby="numplate-type-confirm-title">
 									<h4 id="numplate-type-confirm-title">번호판 종류 선택 확인</h4>
@@ -294,11 +474,11 @@ const WaNewcarNumplateSelect = () => {
 												setNumplateTypeConfirmChecked(false);
 											}}>취소</button>
 										<button type="button" className="yes"
-											disabled={!numplateTypeConfirmChecked || loading}
+											data-numplate-control="TYPE_CONFIRM" disabled={!numplateTypeConfirmChecked || loading}
 											onClick={saveNumplateType}>확인</button>
 									</div>
 								</section>
-							</div>
+							</div>, cardRef.current
 						)}
 					</>
 				) : data?.lookupFailed ? (
@@ -335,12 +515,6 @@ const WaNewcarNumplateSelect = () => {
 						        />
 						    )}
 	
-						    <p>
-						        {expired
-						            ? '번호 선택 시간이 종료되었습니다.'
-						            : '시간 종료 시 선택한 번호가 자동 확정됩니다.'}
-						    </p>
-	
 						</div>
 						)}
 
@@ -368,7 +542,7 @@ const WaNewcarNumplateSelect = () => {
                         {message && <p className="numplate-customer-message" role="alert">{message}</p>}
                         <div className="customer-btn-group">
                             <button type="button" className="customer-btn customer-btn-primary"
-								disabled={loading || selectionUnavailable || (data.selectionStarted && !selected)}
+								data-numplate-control="PRIMARY_BUTTON" disabled={buttonDisabled}
 								onClick={canStart ? () => setShowLookupConsent(true) : () => { setShowSelectionConfirm(true); recordAction('CONFIRM_OPEN'); }}>
 								{loading
 									? '처리 중'
@@ -382,8 +556,14 @@ const WaNewcarNumplateSelect = () => {
                             </button>
                         </div>
 
-						{showLookupConsent && (
+<<<<<<< .mine
+						{showLookupConsent && createPortal(
 							<div className="numplate-consent-backdrop">
+||||||| .r678
+=======
+						{showLookupConsent && createPortal(
+							<div className="numplate-consent-backdrop" data-numplate-control="LOOKUP_BACKDROP">
+>>>>>>> .r680
 								<section className="numplate-consent-modal" role="dialog" aria-modal="true"
 									aria-labelledby="numplate-consent-title">
 									<h4 id="numplate-consent-title">번호판 조회 안내</h4>
@@ -399,22 +579,28 @@ const WaNewcarNumplateSelect = () => {
 											onClick={startSelection}>예</button>
 									</div>
 								</section>
-							</div>
+							</div>, cardRef.current
 						)}
 
-						{showSelectionConfirm && selected && (
+<<<<<<< .mine
+						{showSelectionConfirm && selected && createPortal(
 							<div className="numplate-consent-backdrop">
+||||||| .r678
+=======
+						{showSelectionConfirm && selected && createPortal(
+							<div className="numplate-consent-backdrop" data-numplate-control="SELECTION_BACKDROP">
+>>>>>>> .r680
 								<section className="numplate-consent-modal" role="dialog" aria-modal="true"
 									aria-labelledby="numplate-selection-confirm-title">
 									<h4 id="numplate-selection-confirm-title">번호판 선택 확인</h4>
 									<p><strong>{selected}</strong>를 선택하시겠습니까?</p>
 									<div className="numplate-consent-actions">
 										<button type="button" className="no"
-											onClick={() => { setShowSelectionConfirm(false); recordAction('CONFIRM_CANCEL'); }}>취소</button>
+											data-numplate-control="SELECTION_CANCEL" onClick={() => { setShowSelectionConfirm(false); recordAction('CONFIRM_CANCEL'); }}>취소</button>
 										<button type="button" className="yes" disabled={loading} onClick={confirm}>확인</button>
 									</div>
 								</section>
-							</div>
+							</div>, cardRef.current
 						)}
                     </>
                 ) : (
@@ -422,6 +608,59 @@ const WaNewcarNumplateSelect = () => {
                         {loading ? '번호판 정보를 불러오고 있습니다.' : message}
                     </div>
                 )}
+<<<<<<< .mine
+
+                {showErrorReport && createPortal(
+                    <div className="numplate-consent-backdrop" data-numplate-report-ignore="true">
+                        <section className="numplate-consent-modal numplate-report-modal" role="dialog" aria-modal="true"
+                            aria-labelledby="numplate-error-report-title">
+                            <h4 id="numplate-error-report-title">오류 제출</h4>
+                            <p>현재 화면이 함께 캡쳐되어 전달됩니다. 발생하신 오류 내용을 입력해 주세요.</p>
+                            <div className="numplate-report-fields">
+                                <label className="numplate-report-field">
+                                    <span>어떤 현상인가요?</span>
+                                    <textarea rows={2} maxLength={300} value={reportSymptom}
+                                        onChange={event => setReportSymptom(event.target.value)} />
+                                </label>
+                                <label className="numplate-report-field">
+                                    <span>어떤 기능이 동작하지 않나요?</span>
+                                    <input type="text" maxLength={300} value={reportFeature}
+                                        onChange={event => setReportFeature(event.target.value)} />
+                                </label>
+                                <label className="numplate-report-field">
+                                    <span>어떤 번호를 선택하려 하셨나요?</span>
+                                    <input type="text" maxLength={20} value={reportCarNo}
+                                        onChange={event => setReportCarNo(event.target.value)} />
+                                </label>
+                            </div>
+                            {reportErrorMsg && <p className="numplate-customer-message" role="alert">{reportErrorMsg}</p>}
+                            <div className="numplate-consent-actions">
+                                <button type="button" className="no" disabled={reportSubmitting}
+                                    onClick={() => setShowErrorReport(false)}>취소</button>
+                                <button type="button" className="yes" disabled={reportSubmitting} onClick={submitErrorReport}>
+                                    {reportSubmitting ? '제출 중' : '제출'}
+                                </button>
+                            </div>
+                        </section>
+                    </div>, cardRef.current
+                )}
+                {showReportSuccess && createPortal(
+                    <div className="numplate-consent-backdrop" data-numplate-report-ignore="true">
+                        <section className="numplate-consent-modal" role="dialog" aria-modal="true"
+                            aria-labelledby="numplate-report-success-title">
+                            <h4 id="numplate-report-success-title">오류 접수 완료</h4>
+                            <p>오류 제출이 완료 되었습니다.<br />담당자에게 전달하여 신속하게 처리해드리도록 하겠습니다.</p>
+                            <div className="numplate-consent-actions" style={{ gridTemplateColumns: '1fr' }}>
+                                <button type="button" className="yes" onClick={() => setShowReportSuccess(false)}>확인</button>
+                            </div>
+                        </section>
+                    </div>, cardRef.current
+                )}
+				</div>
+||||||| .r678
+=======
+                </div>
+>>>>>>> .r680
             </div>
         </div>
     );

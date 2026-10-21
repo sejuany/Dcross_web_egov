@@ -365,6 +365,7 @@ const resolveSpecialVehicleEligibility = (dsNewCar) => {
 // 납부세액은 감면 전 세액 범위 안으로 제한하고 감면액은 차액으로 계산함.
 const buildExemptionResult = ({
     code = '',
+    ntaxTargetCode = code,
     grossAcqTax,
     payableAcqTax = grossAcqTax,
     reason = '',
@@ -382,8 +383,11 @@ const buildExemptionResult = ({
         applied: reduction > 0,
         reason,
         missingRequirements,
-        // 취득세 전액면제는 8, 일부감면은 확인필요 코드 11로 저장함.
-        ntaxApplyCode: reduction >= grossAcqTax && grossAcqTax > 0 ? '8' : (reduction > 0 ? '11' : '0')
+        // 비과세 대상 없이 친환경차 감면만 적용하면 0
+		// 비과세 대상이면 전액면제 8·일부감면 11로 저장함. -> 모두 확인필요로 변경
+        ntaxApplyCode: code === 'EV' && (!ntaxTargetCode || ntaxTargetCode === '00')
+            ? '0'
+            : (reduction >= grossAcqTax && grossAcqTax > 0 ? '11' : (reduction > 0 ? '11' : '0'))
     };
 };
 
@@ -552,6 +556,7 @@ const applyEcoAcqTaxExemption = ({
         && (!targetCode || targetCode === '00')) {
         return buildExemptionResult({
             code: 'EV',
+            ntaxTargetCode: targetCode,
             grossAcqTax,
             payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 400000),
             reason: '하이브리드 취득세 40만원 감면'
@@ -578,6 +583,7 @@ const applyEcoAcqTaxExemption = ({
 
     const electricResult = buildExemptionResult({
         code: 'EV',
+        ntaxTargetCode: targetCode,
         grossAcqTax,
         payableAcqTax: grossAcqTax - Math.min(grossAcqTax, 1400000),
         reason: '전기자동차 취득세 최대 140만원 감면'

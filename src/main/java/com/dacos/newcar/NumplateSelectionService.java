@@ -41,10 +41,8 @@ import com.dacos.common.ServiceAccessGuard.ServiceAction;
 import com.dacos.newcar.mapper.NewcarMapper;
 
 import jakarta.servlet.http.HttpSession;
-import lombok.RequiredArgsConstructor;
 
 @Service
-@RequiredArgsConstructor
 public class NumplateSelectionService {
 
 	private static final Logger logger = LoggerFactory.getLogger(NewcarService.class);
@@ -57,6 +55,17 @@ public class NumplateSelectionService {
     private final Environment environment;
 	private final NewcarMapper newcarMapper;
 	private final ServiceAccessGuard serviceAccessGuard;
+
+	public NumplateSelectionService(CommonRepository common, CommonService commonService,
+			PlatformTransactionManager transactionManager, Environment environment,
+			NewcarMapper newcarMapper, ServiceAccessGuard serviceAccessGuard) {
+		this.common = common;
+		this.commonService = commonService;
+		this.transactionManager = transactionManager;
+		this.environment = environment;
+		this.newcarMapper = newcarMapper;
+		this.serviceAccessGuard = serviceAccessGuard;
+	}
  	
 	/** 스케줄 등 서버 기준 번호판 문자 링크 주소를 관리한다. */
 	public String buildNumplateSelectionUrl(String token) {
@@ -106,7 +115,7 @@ public class NumplateSelectionService {
     public void processNumplateSelectSms(
             Map<String, Object> mService,
             Map<String, Object> mNewCar,
-            List<Map<String, Object>> lOwnerInfoList) {
+            String phoneNo) {
 
         String serviceId = Objects.toString(mService.get("SERVICE_ID"), "");
         String companyId = Objects.toString(mService.get("COMPANY_ID"), "");
@@ -135,6 +144,7 @@ public class NumplateSelectionService {
             
             Map<String, Object> param1 = new HashMap<>();
             param1.put("GROUP_ID", "TEAMS");
+<<<<<<< .mine
             param1.put("CODE_ID", "NEWC");
             
             // 신차사업부 담당자 조회
@@ -180,6 +190,61 @@ public class NumplateSelectionService {
         
 	    
 	    // 신청시 문자 보낼 때 사용하는 번호
+||||||| .r678
+=======
+            param1.put("CODE_ID", "NEWC");
+            
+            // 신차사업부 담당자 조회
+			Map<String, Object> code = common.select(param1, "selectCodeDetail");
+			String newcarTeam = code == null ? "" : Objects.toString(code.get("CODE_NM"), "").trim();
+			if (newcarTeam.isBlank()) {
+				logger.warn("[번호판문자] 알림 등록 제외 - 신차사업부 공통코드 없음. SERVICE_ID={}", serviceId);
+				return;
+			}
+
+			boolean numplateMissing = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim().isEmpty();
+			boolean unpaid = "N".equalsIgnoreCase(Objects.toString(mNewCar.get("PAY_ST"), "").trim());
+			String alertKind = numplateMissing && unpaid ? "BOTH"
+					: numplateMissing ? "NUMPLATE" : unpaid ? "PAYMENT" : "NONE";
+			String alertContent = switch (alertKind) {
+				case "BOTH" -> "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
+				case "NUMPLATE" -> "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
+				case "PAYMENT" -> "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
+				default -> "";
+			};
+			int alertCount = alertContent.isEmpty() ? 0
+					: newcarMapper.insertNewcarApplicationNumplateAlert(
+							serviceId,
+							Objects.toString(mNewCar.get("CARID_NO"), ""),
+							alertContent,
+							newcarTeam,
+							alertKind);
+			logger.info(
+					"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
+					serviceId, alertKind, alertCount);
+            return;
+        }
+
+        // 이미 번호가 배정된 신청은 고객 번호판 선택 문자와 토큰 발급 대상이 아님
+        String selectedCarNo = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim();
+        if (!selectedCarNo.isEmpty()) {
+            logger.info(
+                "[번호판문자] 발송 제외 - 이미 번호판 선택됨. SERVICE_ID={}, REQ_CAR_NO={}",
+                serviceId, selectedCarNo
+            );
+            return;
+        }
+        
+	    
+        // 번호판 선택 안내 문자 발송
+        sendNumplateSelectSms(mService, mNewCar, registDate, phoneNo);
+    }
+
+    /** 관청 전송용 소유자 정보 초기화 전에 문자 수신번호를 확보한다. */
+    String getNumplateSelectPhoneNo(Map<String, Object> mNewCar,
+            List<Map<String, Object>> lOwnerInfoList) {
+	    // 신청시 문자 보낼 때 사용하는 번호
+>>>>>>> .r680
 	    String taskCd = Objects.toString(mNewCar.get("TASK_CD"), "").trim();
 	    String procCd = Objects.toString(mNewCar.get("PROC_CD"), "").trim();
 	    String phoneNo = "";
@@ -188,7 +253,7 @@ public class NumplateSelectionService {
 	    if ("LEASE".equals(taskCd) && "I".equals(procCd)) {
 	        if (lOwnerInfoList != null && !lOwnerInfoList.isEmpty()) {
 	            phoneNo = Objects.toString(
-	                lOwnerInfoList.get(0).get("DEBTOR_TEL_NO"), ""
+	                lOwnerInfoList.get(0).get("DSIGN_HP_NO"), ""
 	            ).trim();
 	        }
 	    } 
@@ -199,8 +264,7 @@ public class NumplateSelectionService {
 	        phoneNo = Objects.toString(mNewCar.get("MPHONE_NO"), "").trim();
 	    }
 
-        // 번호판 선택 안내 문자 발송
-        sendNumplateSelectSms(mService, mNewCar, registDate, phoneNo);
+        return phoneNo;
     }
 
     // 등록예정일 기준 D-3 확인
@@ -972,6 +1036,7 @@ public class NumplateSelectionService {
 
 	private Map<String, Object> buildCustomerNumplateSelectionResult(
 			Map<String, Object> work, Map<String, Object> assignment) {
+<<<<<<< .mine
 		
 		Map<String, Object> listParam = new HashMap<>(work);
 		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
@@ -1035,6 +1100,74 @@ public class NumplateSelectionService {
 		if (nestedTokenIndex >= 0) {
 			normalizedToken = normalizedToken.substring(nestedTokenIndex + 3).trim();
 		}
+||||||| .r678
+=======
+		
+		Map<String, Object> listParam = new HashMap<>(work);
+		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
+		List<Map<String, Object>> rows = common.selectList(listParam, "selectNumplateMessageList");
+		int selectCount = getNumplateSelectCount(assignment);
+
+		Map<String, Object> result = new HashMap<>();
+		result.put("serviceId", Objects.toString(assignment.get("SERVICE_ID"), ""));
+		result.put("carNos", rows);
+		result.put("selectedCarNo", Objects.toString(assignment.get("REQ_CAR_NO"), ""));
+		result.put("expiresAt", Objects.toString(assignment.get("EXPIRES_AT"), ""));
+		result.put("customerName", Objects.toString(assignment.get("CUSTOMER_NM"), ""));
+		result.put("carIdNo", Objects.toString(assignment.get("CARID_NO"), ""));
+		result.put("carName", Objects.toString(assignment.get("CAR_NM"), ""));
+		result.put("linkId", Objects.toString(assignment.get("LINK_ID"), ""));
+		result.put("numplateGb", Objects.toString(assignment.get("SAVED_NUMPLATE_GB"), ""));
+		result.put("insuranceDeadline", Objects.toString(assignment.get("INSURANCE_DEADLINE"), ""));
+		result.put("insuranceStartDate", Objects.toString(assignment.get("INSURANCE_START_DATE"), ""));
+		result.put("selectCount", selectCount);
+		result.put("selectionStarted", selectCount >= 1);
+		result.put("canStart", selectCount == 0 && assignment.get("NUMPLATE_SELECT_TIME") == null);
+		result.put("lookupFailed", false);
+		result.put("requiresNumplateTypeSelection",
+				Objects.toString(assignment.get("REQ_CAR_NO"), "").isBlank()
+				&& selectCount == 0
+				&& assignment.get("NUMPLATE_SELECT_TIME") == null
+				&& "Y".equals(Objects.toString(assignment.get("NUMPLATE_TYPE_SELECT_YN"), "N")));
+		return result;
+	}
+
+	private boolean hasSelectedNumplateType(String numplateGb) {
+		String normalized = Objects.toString(numplateGb, "").trim().toUpperCase();
+		return normalized.length() >= 2 && normalized.charAt(1) == 'G';
+	}
+
+	private boolean isPremiumCorporateNumplateTarget(Map<String, Object> assignment) {
+		Object buyAmtValue = assignment.get("BUY_AMT");
+		long buyAmt;
+		if (buyAmtValue instanceof Number) {
+			buyAmt = ((Number) buyAmtValue).longValue();
+		} else {
+			try {
+				buyAmt = Long.parseLong(Objects.toString(buyAmtValue, "0").replace(",", ""));
+			} catch (NumberFormatException e) {
+				buyAmt = 0L;
+			}
+		}
+		boolean isLease = "LEASE".equals(assignment.get("TASK_CD"))
+				&& ("I".equals(assignment.get("PROC_CD")) || "C".equals(assignment.get("PROC_CD")));
+		Object registrationGb = assignment.get(isLease ? "DEBTOR_GB" : "REG_GB");
+		return "B".equals(registrationGb) && buyAmt >= 80_000_000L;
+	}
+
+	private int getNumplateSelectCount(Map<String, Object> assignment) {
+		return assignment.get("NUMPLATE_SELECT_COUNT") instanceof Number
+				? ((Number) assignment.get("NUMPLATE_SELECT_COUNT")).intValue()
+				: 0;
+	}
+
+	private String normalizeCustomerNumplateToken(String token) {
+		String normalizedToken = Objects.toString(token, "").trim();
+		int nestedTokenIndex = normalizedToken.lastIndexOf("?t=");
+		if (nestedTokenIndex >= 0) {
+			normalizedToken = normalizedToken.substring(nestedTokenIndex + 3).trim();
+		}
+>>>>>>> .r680
 		if (!normalizedToken.matches("[A-Za-z0-9_-]{20,128}")) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
@@ -1079,10 +1212,12 @@ public class NumplateSelectionService {
 		work.put("SERVICE_ID", assignment.get("SERVICE_ID"));
 		work.put("SELECT_SERVICE_ID", assignment.get("SERVICE_ID") + "_S");
 		work.put("NUMPLATE_GB", assignment.get("NUMPLATE_GB"));
-		if (common.update(work, "selectCustomerNumplate") != 1) {
+		int plateUpdateCount = common.update(work, "selectCustomerNumplate");
+		if (plateUpdateCount != 1) {
 			throw new BusinessException("배정되지 않은 번호판입니다.");
 		}
-		if (common.update(work, "updateSelectedNumplateInstaller") != 1) {
+		int installerUpdateCount = common.update(work, "updateSelectedNumplateInstaller");
+		if (installerUpdateCount != 1) {
 			throw new BusinessException("번호판 탈부착 담당자 정보를 찾을 수 없습니다.");
 		}
 		common.update(work, "releaseOtherNumplateMessageList");
@@ -1216,6 +1351,32 @@ public class NumplateSelectionService {
 		String trimmedServiceId = serviceId.trim();
 		serviceAccessGuard.requireAccess(user, trimmedServiceId, ServiceAction.READ_DETAIL);
 		return common.selectList(Map.of("SERVICE_ID", trimmedServiceId), "selectNumplateActionHistory");
+	}
+
+	public java.nio.file.Path getNumplateErrorReportImage(String serviceId, UserDto user) {
+		return getNumplateErrorReportImage(serviceId, null, user);
+	}
+
+	public java.nio.file.Path getNumplateErrorReportImage(String serviceId, String seqStr, UserDto user) {
+		if (user == null || serviceId == null || serviceId.isBlank()) {
+			throw new BusinessException("이력 조회 대상이 없습니다.", 400);
+		}
+		String trimmedServiceId = serviceId.trim();
+		serviceAccessGuard.requireAccess(user, trimmedServiceId, ServiceAction.READ_DETAIL);
+		Integer seq = parseReportSeq(seqStr);
+		return NumplateActionService.resolveExistingReportImage(trimmedServiceId, seq);
+	}
+
+	private static Integer parseReportSeq(String seqStr) {
+		if (seqStr == null || seqStr.isBlank()) {
+			return null;
+		}
+		try {
+			int val = Integer.parseInt(seqStr.trim());
+			if (val > 0) return val;
+		} catch (NumberFormatException e) {
+		}
+		throw new BusinessException("오류제출 회차가 올바르지 않습니다.", 400);
 	}
 	
 }

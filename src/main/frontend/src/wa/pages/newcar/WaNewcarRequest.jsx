@@ -1703,7 +1703,7 @@ const WaNewcarRequest = ({
 	 *
 	 * 처리 순서:
 	 * 1. dsService/dsNewCar/소유자/번호판/세금계산서/결제목록을 복사한다.
-	 * 2. 법인번호판 조건과 감면/카드 기본값을 보정한다.
+	 * 2. 감면/카드 기본값을 보정한다.
 	 * 3. formatNumberData()로 하이픈과 금액 쉼표를 제거한다.
 	 * 4. 처리상태를 SAV로 정리한 뒤 processService()를 호출한다.
 	 */
@@ -1737,19 +1737,6 @@ const WaNewcarRequest = ({
 
 		    dsPaymentList: newDsPaymentList ? [...newDsPaymentList] : [...dsPaymentList]
 		};
-		
-		// 법인번호판 대상이 아닌 경우
-		const isCorpNumplate =
-		    newDataSet.dsNewCar.REG_GB === 'B' &&
-		    Number(newDataSet.dsNewCar.BUY_AMT || 0) >= 80000000;
-
-		// 법인번호판이 아닌데 G 계열 번호판이면 전기(7)로 변경
-		if (
-		    !isCorpNumplate &&
-		    String(newDataSet.dsNewCar.NUMPLATE_GB).includes('G')
-		) {
-		    newDataSet.dsNewCar.NUMPLATE_GB = '7';
-		}
 		
 		// 숫자 데이터 하이픈(-), 쉼표(,) 등 제거 
 		newDataSet = formatNumberData(newDataSet); 
@@ -2927,6 +2914,7 @@ const WaNewcarRequest = ({
 							<CarInfo
 								dsService={dsService}
 								dsNewCar={dsNewCar}
+								dsOwnerInfo={dsOwnerInfo}
 								setDsNewCar={setDsNewCar}
 								dsCarNoDetach={dsCarNoDetach}
 								setDsCarNoDetach={setDsCarNoDetach}

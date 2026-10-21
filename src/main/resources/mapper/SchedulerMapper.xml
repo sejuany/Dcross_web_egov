@@ -140,8 +140,8 @@
            AND TN.PROC_CD = 'I'
          WHERE TS.WORK_CD = '010'
            AND TN.REQ_CAR_NO IS NULL
-           AND NVL(TS.PROC_ST, '-') IN ('P_REQ', 'PBEND', 'PREND', 'P_END')
-           AND TS.JUDGE_ST IS NULL
+           AND NVL(TS.PROC_ST, '-') IN ('P_REQ', 'PBEND', 'PREND', 'P_END', 'REQ', 'S_REQ')
+           AND (TS.JUDGE_ST IS NULL OR TS.JUDGE_ST IN ('P_REQ', 'PBEND', 'PREND', 'P_END', 'REQ', 'S_REQ'))
            AND TN.REGIST_DATE IS NOT NULL
            AND TRUNC(TS.REQUEST_DT) <![CDATA[<]]> TRUNC(SYSDATE)
            AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 3
@@ -259,6 +259,7 @@
           JOIN TR_NEWCAR TN
             ON TN.SERVICE_ID = TS.SERVICE_ID
          WHERE TS.WORK_CD = '010'
+           AND NVL(TN.DIRECT_YN, 'N') <![CDATA[<>]]> 'Y'
            AND TRUNC(TN.REGIST_DATE) <![CDATA[<]]> TRUNC(SYSDATE)
            AND (
                (TS.JUDGE_ST IS NULL

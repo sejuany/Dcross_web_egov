@@ -2,7 +2,9 @@ package com.dacos.telegram;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withException;
 
 import java.lang.reflect.Proxy;
 import java.util.HashMap;
@@ -23,6 +25,30 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 /** Spring 서버·DB·텔레그램에 연결하지 않는 채팅방 선택 검사. */
 class TelegramServiceTest {
+    @Test
+    void connectionFailureDoesNotPrintBotToken() {
+        CodeMapper mapper = (CodeMapper) Proxy.newProxyInstance(getClass().getClassLoader(),
+                new Class<?>[] { CodeMapper.class }, (proxy, method, args) ->
+                        List.of(Map.of("CODE_ID", "newds", "CODE_NM", "-10001")));
+        TelegramService service = new TelegramService("123:test-only", new CodeService(mapper));
+        MockRestServiceServer server = MockRestServiceServer.bindTo(
+                (RestTemplate) ReflectionTestUtils.getField(service, "restTemplate")).build();
+        server.expect(request -> {}).andRespond(withException(new java.io.IOException("123:test-only")));
+        java.io.PrintStream original = System.err;
+        var captured = new java.io.ByteArrayOutputStream();
+        try (var output = new java.io.PrintStream(captured)) {
+            System.setErr(output);
+            BusinessException error = assertThrows(BusinessException.class,
+                    () -> service.sendMessage("test", null, null, "newds"));
+            assertEquals(502, error.getStatusCode());
+            assertFalse(error.getMessage().contains("123:test-only"));
+        } finally {
+            System.setErr(original);
+        }
+        assertFalse(captured.toString().contains("123:test-only"));
+        server.verify();
+    }
+
     @Test
     void resolvesCodeNameOnEachRequestAndRejectsInvalidChannels() {
         Map<String, Object> code = new HashMap<>(Map.of("CODE_ID", "momo", "CODE_NM", "-10001"));
