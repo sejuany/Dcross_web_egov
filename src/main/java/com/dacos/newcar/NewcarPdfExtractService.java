@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -91,6 +92,20 @@ public class NewcarPdfExtractService {
         return data;
     }
 
+    Map<String, Object> storeProductionCertificate(MultipartFile file, UserDto user) throws IOException {
+        validatePdfFile(file);
+        return savePdfFile(file, file.getBytes(), user);
+    }
+
+    void removeProductionCertificate(String storedPath) throws IOException {
+        String prefix = "newcar-production-certificates/";
+        if (!storedPath.startsWith(prefix)) throw new IOException("Invalid production certificate path");
+        Path base = Paths.get(pdfUploadDir).toAbsolutePath().normalize();
+        Path file = base.resolve(storedPath.substring(prefix.length())).normalize();
+        if (!file.startsWith(base) || file.equals(base)) throw new IOException("Invalid production certificate path");
+        Files.deleteIfExists(file);
+    }
+
     private Map<String, Object> savePdfFile(MultipartFile file, byte[] pdfBytes, UserDto user) throws IOException {
         String datePath = LocalDate.now().format(DATE_PATH_FORMAT);
         Path baseDir = Paths.get(pdfUploadDir).toAbsolutePath().normalize();
@@ -110,7 +125,17 @@ public class NewcarPdfExtractService {
             throw new BusinessException("PDF 파일명이 올바르지 않습니다.", 400);
         }
 
-        Files.write(targetFile, pdfBytes);
+        boolean created = false;
+        try (var output = Files.newOutputStream(targetFile, StandardOpenOption.CREATE_NEW)) {
+            created = true;
+            output.write(pdfBytes);
+        } catch (IOException failure) {
+            if (created) {
+                try { Files.deleteIfExists(targetFile); }
+                catch (IOException cleanup) { failure.addSuppressed(cleanup); }
+            }
+            throw failure;
+        }
 
         String storedPath = "newcar-production-certificates/" + datePath + "/" + storedFileName;
         Map<String, Object> result = new HashMap<>();

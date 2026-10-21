@@ -667,7 +667,7 @@
             TO_CHAR(INSURER_EDT, 'YYYYMMDD')            AS INSURER_EDT,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO)            AS ADDR_INFO,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO2)           AS ADDR_INFO2,
-            LOW_POLLUTION_YN, CONTRACTOR_NM, CARD_YN,
+            LOW_POLLUTION_YN, LOW_POLLUTION_KD, LOW_POLLUTION_NO, CONTRACTOR_NM, CARD_YN, CARD_PAY_YN,
             TO_CHAR(CONTRACTOR_DT, 'YYYYMMDD')          AS CONTRACTOR_DT,
 			TO_CHAR(REGIST_DATE, 'YYYY-MM-DD')            AS REGIST_DATE
         FROM TR_NEWCAR
@@ -1558,4 +1558,26 @@
 	       AND SEQ = #{SEQ}
 	</delete>	
 
+    <select id="countWSelectedNumplate" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM TM_NUMPLATE_LIST
+         WHERE CAR_NO = #{CAR_NO}
+           AND SERVICE_ID = #{SERVICE_ID} || '_S'
+           AND CARID_NO = #{CARID_NO}
+           AND USE_YN = 'S'
+    </select>
+    <update id="updateWProductionCertificate" parameterType="map">
+        UPDATE TR_CARNO_DETACH SET FILENAME1 = #{FILENAME1}
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+    <update id="updateWProductionDate" parameterType="map">
+        UPDATE TR_NEWCAR SET MADE_DT = #{MADE_DT}
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+    <!-- 상태 확인과 W 저장이 동시에 진행되지 않도록 접수 행을 잠근다. -->
+    <select id="selectWNewcarServiceForUpdate" parameterType="map" resultType="map">
+        SELECT COMPANY_ID, PROC_ST, JUDGE_ST
+          FROM TR_SERVICE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           FOR UPDATE OF PROC_ST
+    </select>
 </mapper>
