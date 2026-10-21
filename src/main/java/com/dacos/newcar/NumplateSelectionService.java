@@ -936,6 +936,7 @@ public class NumplateSelectionService {
 
 		int selectCount = getNumplateSelectCount(assignment);
 		Map<String, Object> originalAssignment = assignment;
+		// COUNT=0이고 시작 시각이 없는 요청 중 UPDATE에 성공한 요청만 후보를 새로 추출한다.
 		if (selectCount == 0 && assignment.get("NUMPLATE_SELECT_TIME") == null
 				&& common.update(work, "startCustomerNumplateAccess") == 1) {
 			assignment = common.select(work, "selectCustomerNumplateAccess");
@@ -1034,6 +1035,7 @@ public class NumplateSelectionService {
 				buyAmt = 0L;
 			}
 		}
+		// 리스/이용자명의 리스는 계약자 구분을 사용해 내부 입력 화면 및 매퍼의 법인 판단과 맞춘다.
 		boolean isLease = "LEASE".equals(assignment.get("TASK_CD"))
 				&& ("I".equals(assignment.get("PROC_CD")) || "C".equals(assignment.get("PROC_CD")));
 		Object registrationGb = assignment.get(isLease ? "DEBTOR_GB" : "REG_GB");

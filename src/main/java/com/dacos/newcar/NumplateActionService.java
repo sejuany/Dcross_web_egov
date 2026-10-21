@@ -185,6 +185,7 @@ public class NumplateActionService {
             logger.error("[번호판 오류 제출 저장 실패] requestId={}, cause={}", requestId, failure.getClass().getSimpleName());
             throw new BusinessException("오류 내용을 저장하지 못했습니다.", 503);
         }
+        // 접수 저장을 완료한 뒤 알림을 보내 알림 장애가 이미 저장된 접수를 취소하지 않게 한다.
         if (telegramService != null) {
             try {
                 int seq = (Integer) access.get("REPORT_SEQ");
@@ -235,6 +236,7 @@ public class NumplateActionService {
 
     // 트랜잭션 프록시가 커밋/롤백을 끝낸 뒤 결과를 별도 트랜잭션에 기록한다.
     public Map<String, Object> confirm(Map<String, Object> param) {
+        // 같은 요청 ID로 확정 요청과 처리 결과를 연결해 한 번의 확정 시도를 추적한다.
         String requestId = UUID.randomUUID().toString();
         record(param, "CONFIRM_REQUEST", requestId, "");
         try {
