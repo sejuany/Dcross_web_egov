@@ -144,54 +144,6 @@ public class NumplateSelectionService {
             
             Map<String, Object> param1 = new HashMap<>();
             param1.put("GROUP_ID", "TEAMS");
-<<<<<<< .mine
-            param1.put("CODE_ID", "NEWC");
-            
-            // 신차사업부 담당자 조회
-			Map<String, Object> code = common.select(param1, "selectCodeDetail");
-			String newcarTeam = code == null ? "" : Objects.toString(code.get("CODE_NM"), "").trim();
-			if (newcarTeam.isBlank()) {
-				logger.warn("[번호판문자] 알림 등록 제외 - 신차사업부 공통코드 없음. SERVICE_ID={}", serviceId);
-				return;
-			}
-
-			boolean numplateMissing = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim().isEmpty();
-			boolean unpaid = "N".equalsIgnoreCase(Objects.toString(mNewCar.get("PAY_ST"), "").trim());
-			String alertKind = numplateMissing && unpaid ? "BOTH"
-					: numplateMissing ? "NUMPLATE" : unpaid ? "PAYMENT" : "NONE";
-			String alertContent = switch (alertKind) {
-				case "BOTH" -> "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
-				case "NUMPLATE" -> "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
-				case "PAYMENT" -> "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
-				default -> "";
-			};
-			int alertCount = alertContent.isEmpty() ? 0
-					: newcarMapper.insertNewcarApplicationNumplateAlert(
-							serviceId,
-							Objects.toString(mNewCar.get("CARID_NO"), ""),
-							alertContent,
-							newcarTeam,
-							alertKind);
-			logger.info(
-					"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
-					serviceId, alertKind, alertCount);
-            return;
-        }
-
-        // 이미 번호가 배정된 신청은 고객 번호판 선택 문자와 토큰 발급 대상이 아님
-        String selectedCarNo = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim();
-        if (!selectedCarNo.isEmpty()) {
-            logger.info(
-                "[번호판문자] 발송 제외 - 이미 번호판 선택됨. SERVICE_ID={}, REQ_CAR_NO={}",
-                serviceId, selectedCarNo
-            );
-            return;
-        }
-        
-	    
-	    // 신청시 문자 보낼 때 사용하는 번호
-||||||| .r678
-=======
             param1.put("CODE_ID", "NEWC");
             
             // 신차사업부 담당자 조회
@@ -244,7 +196,6 @@ public class NumplateSelectionService {
     String getNumplateSelectPhoneNo(Map<String, Object> mNewCar,
             List<Map<String, Object>> lOwnerInfoList) {
 	    // 신청시 문자 보낼 때 사용하는 번호
->>>>>>> .r680
 	    String taskCd = Objects.toString(mNewCar.get("TASK_CD"), "").trim();
 	    String procCd = Objects.toString(mNewCar.get("PROC_CD"), "").trim();
 	    String phoneNo = "";
@@ -1036,72 +987,6 @@ public class NumplateSelectionService {
 
 	private Map<String, Object> buildCustomerNumplateSelectionResult(
 			Map<String, Object> work, Map<String, Object> assignment) {
-<<<<<<< .mine
-		
-		Map<String, Object> listParam = new HashMap<>(work);
-		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
-		List<Map<String, Object>> rows = common.selectList(listParam, "selectNumplateMessageList");
-		int selectCount = getNumplateSelectCount(assignment);
-
-		Map<String, Object> result = new HashMap<>();
-		result.put("serviceId", Objects.toString(assignment.get("SERVICE_ID"), ""));
-		result.put("carNos", rows);
-		result.put("selectedCarNo", Objects.toString(assignment.get("REQ_CAR_NO"), ""));
-		result.put("expiresAt", Objects.toString(assignment.get("EXPIRES_AT"), ""));
-		result.put("customerName", Objects.toString(assignment.get("CUSTOMER_NM"), ""));
-		result.put("carIdNo", Objects.toString(assignment.get("CARID_NO"), ""));
-		result.put("carName", Objects.toString(assignment.get("CAR_NM"), ""));
-		result.put("linkId", Objects.toString(assignment.get("LINK_ID"), ""));
-		result.put("numplateGb", Objects.toString(assignment.get("SAVED_NUMPLATE_GB"), ""));
-		result.put("insuranceDeadline", Objects.toString(assignment.get("INSURANCE_DEADLINE"), ""));
-		result.put("insuranceStartDate", Objects.toString(assignment.get("INSURANCE_START_DATE"), ""));
-		result.put("selectCount", selectCount);
-		result.put("selectionStarted", selectCount >= 1);
-		result.put("canStart", selectCount == 0 && assignment.get("NUMPLATE_SELECT_TIME") == null);
-		result.put("lookupFailed", false);
-		result.put("requiresNumplateTypeSelection",
-				Objects.toString(assignment.get("REQ_CAR_NO"), "").isBlank()
-				&& selectCount == 0
-				&& assignment.get("NUMPLATE_SELECT_TIME") == null
-				&& "Y".equals(Objects.toString(assignment.get("NUMPLATE_TYPE_SELECT_YN"), "N")));
-		return result;
-	}
-
-	private boolean hasSelectedNumplateType(String numplateGb) {
-		String normalized = Objects.toString(numplateGb, "").trim().toUpperCase();
-		return normalized.length() >= 2 && normalized.charAt(1) == 'G';
-	}
-
-	private boolean isPremiumCorporateNumplateTarget(Map<String, Object> assignment) {
-		Object buyAmtValue = assignment.get("BUY_AMT");
-		long buyAmt;
-		if (buyAmtValue instanceof Number) {
-			buyAmt = ((Number) buyAmtValue).longValue();
-		} else {
-			try {
-				buyAmt = Long.parseLong(Objects.toString(buyAmtValue, "0").replace(",", ""));
-			} catch (NumberFormatException e) {
-				buyAmt = 0L;
-			}
-		}
-		return "B".equals(Objects.toString(assignment.get("REG_GB"), ""))
-				&& buyAmt >= 80_000_000L;
-	}
-
-	private int getNumplateSelectCount(Map<String, Object> assignment) {
-		return assignment.get("NUMPLATE_SELECT_COUNT") instanceof Number
-				? ((Number) assignment.get("NUMPLATE_SELECT_COUNT")).intValue()
-				: 0;
-	}
-
-	private String normalizeCustomerNumplateToken(String token) {
-		String normalizedToken = Objects.toString(token, "").trim();
-		int nestedTokenIndex = normalizedToken.lastIndexOf("?t=");
-		if (nestedTokenIndex >= 0) {
-			normalizedToken = normalizedToken.substring(nestedTokenIndex + 3).trim();
-		}
-||||||| .r678
-=======
 		
 		Map<String, Object> listParam = new HashMap<>(work);
 		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
@@ -1167,7 +1052,6 @@ public class NumplateSelectionService {
 		if (nestedTokenIndex >= 0) {
 			normalizedToken = normalizedToken.substring(nestedTokenIndex + 3).trim();
 		}
->>>>>>> .r680
 		if (!normalizedToken.matches("[A-Za-z0-9_-]{20,128}")) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}

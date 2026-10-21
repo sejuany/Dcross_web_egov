@@ -305,43 +305,6 @@ const WaNewcarNumplateSelect = () => {
 
     const buttonDisabled = loading || selectionUnavailable || Boolean(data?.selectionStarted && !selected);
 
-    // 모바일 번호 선택 중 내용이 화면보다 길 때만 세로 비율을 줄인다. 팝업은 별도로 표시한다.
-    useLayoutEffect(() => {
-        const card = cardRef.current;
-        const content = contentRef.current;
-        if (!isSelectingNumber) {
-            content.style.removeProperty('--numplate-content-scale');
-            return;
-        }
-        let observer;
-        const fitContent = () => {
-            if (window.innerWidth > 768) {
-                content.style.removeProperty('--numplate-content-scale');
-                return;
-            }
-            const style = window.getComputedStyle(card);
-            const availableHeight = card.clientHeight - parseFloat(style.paddingTop) - parseFloat(style.paddingBottom);
-            const contentHeight = content.offsetHeight;
-            content.style.setProperty('--numplate-content-scale',
-                contentHeight > 0 ? Math.min(1, Math.max(0, availableHeight) / contentHeight) : 1);
-        };
-        const observeLayout = () => {
-            observer?.disconnect();
-            if (window.innerWidth <= 768) {
-                observer = new ResizeObserver(fitContent);
-                observer.observe(card);
-                observer.observe(content);
-            }
-            fitContent();
-        };
-        observeLayout();
-        window.addEventListener('resize', observeLayout);
-        return () => {
-            observer?.disconnect();
-            window.removeEventListener('resize', observeLayout);
-        };
-    }, [isSelectingNumber]);
-
 	return (
         <div className={`customer-page numplate-customer-page numplate-${urgency}${isSelectingNumber ? ' numplate-selection-active' : ''}`}>
             <div className="customer-card numplate-customer-card" ref={cardRef}>
@@ -555,6 +518,52 @@ const WaNewcarNumplateSelect = () => {
                     <div className="numplate-empty-state" role="alert">
                         {loading ? '번호판 정보를 불러오고 있습니다.' : message}
                     </div>
+                )}
+                {showErrorReport && createPortal(
+                    <div className="numplate-consent-backdrop" data-numplate-report-ignore="true">
+                        <section className="numplate-consent-modal numplate-report-modal" role="dialog" aria-modal="true"
+                            aria-labelledby="numplate-error-report-title">
+                            <h4 id="numplate-error-report-title">오류 제출</h4>
+                            <p>현재 화면이 함께 캡쳐되어 전달됩니다. 발생하신 오류 내용을 입력해 주세요.</p>
+                            <div className="numplate-report-fields">
+                                <label className="numplate-report-field">
+                                    <span>어떤 현상인가요?</span>
+                                    <textarea rows={2} maxLength={300} value={reportSymptom}
+                                        onChange={event => setReportSymptom(event.target.value)} />
+                                </label>
+                                <label className="numplate-report-field">
+                                    <span>어떤 기능이 동작하지 않나요?</span>
+                                    <input type="text" maxLength={300} value={reportFeature}
+                                        onChange={event => setReportFeature(event.target.value)} />
+                                </label>
+                                <label className="numplate-report-field">
+                                    <span>어떤 번호를 선택하려 하셨나요?</span>
+                                    <input type="text" maxLength={20} value={reportCarNo}
+                                        onChange={event => setReportCarNo(event.target.value)} />
+                                </label>
+                            </div>
+                            {reportErrorMsg && <p className="numplate-customer-message" role="alert">{reportErrorMsg}</p>}
+                            <div className="numplate-consent-actions">
+                                <button type="button" className="no" disabled={reportSubmitting}
+                                    onClick={() => setShowErrorReport(false)}>취소</button>
+                                <button type="button" className="yes" disabled={reportSubmitting} onClick={submitErrorReport}>
+                                    {reportSubmitting ? '제출 중' : '제출'}
+                                </button>
+                            </div>
+                        </section>
+                    </div>, cardRef.current
+                )}
+                {showReportSuccess && createPortal(
+                    <div className="numplate-consent-backdrop" data-numplate-report-ignore="true">
+                        <section className="numplate-consent-modal" role="dialog" aria-modal="true"
+                            aria-labelledby="numplate-report-success-title">
+                            <h4 id="numplate-report-success-title">오류 접수 완료</h4>
+                            <p>오류 제출이 완료 되었습니다.<br />담당자에게 전달하여 신속하게 처리해드리도록 하겠습니다.</p>
+                            <div className="numplate-consent-actions" style={{ gridTemplateColumns: '1fr' }}>
+                                <button type="button" className="yes" onClick={() => setShowReportSuccess(false)}>확인</button>
+                            </div>
+                        </section>
+                    </div>, cardRef.current
                 )}
                 </div>
             </div>
