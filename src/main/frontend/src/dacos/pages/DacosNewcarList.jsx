@@ -1602,7 +1602,7 @@ const DacosNewcarList = () => {
 	}, [rawRows.length]);
 
     return (
-        <div className={`wa-status-page wa-newcar-list-page${pageHasModal ? ' has-modal' : ''}${selectedRows.length > 0 ? ' has-mobile-selection' : ''}`}>
+        <div className={`wa-status-page wa-newcar-list-page dacos-newcar-list-page${pageHasModal ? ' has-modal' : ''}${selectedRows.length > 0 ? ' has-mobile-selection' : ''}`}>
             <div className="wa-status-page-content" aria-hidden={pageHasModal ? 'true' : undefined}>
             <div className="wa-mobile-sticky-controls">
             <section className="wa-mobile-list-toolbar" aria-label="모바일 신규신청현황 조회 조건">

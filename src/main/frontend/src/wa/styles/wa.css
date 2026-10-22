@@ -1793,8 +1793,13 @@
 }
 
 .wa-status-data-row:focus {
-    outline: 2px solid rgba(47, 109, 246, 0.35);
+    outline: 2px solid rgba(49, 94, 227, 0.7);
     outline-offset: -2px;
+}
+
+.dacos-newcar-list-page .wa-status-data-row:focus {
+    outline: 2px solid rgba(49, 94, 227, 0.8);
+    outline-offset: -3px;
 }
 
 .wa-request-modal-backdrop{

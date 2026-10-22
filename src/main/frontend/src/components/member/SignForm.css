@@ -572,7 +572,6 @@
 button:disabled,
 input:disabled,
 select:disabled {
-    cursor: not-allowed;
     opacity: 0.72;
 }
 
@@ -729,7 +728,6 @@ select:disabled {
 .wa-space-field.field-disabled input {
     background: #f4f7fa !important;
     color: #a0aec0 !important;
-    cursor: not-allowed;
 }
 
 /* 기존 특수기업 지점 input + select */

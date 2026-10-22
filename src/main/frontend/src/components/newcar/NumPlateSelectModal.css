@@ -284,7 +284,6 @@
 }
 
 .numplate-sms-controls .btn-send:disabled {
-    cursor: not-allowed;
     opacity: .5;
 }
 

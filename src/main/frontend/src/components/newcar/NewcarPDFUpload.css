@@ -77,7 +77,6 @@
 
 .pdf-file-trigger:disabled,
 .pdf-action-button:disabled {
-    cursor: not-allowed;
     opacity: 0.58;
     transform: none;
 }
@@ -137,7 +136,6 @@
 
 .pdf-registration-type-option input:disabled,
 .pdf-registration-type-option input:disabled + span {
-    cursor: not-allowed;
     opacity: 0.65;
 }
 

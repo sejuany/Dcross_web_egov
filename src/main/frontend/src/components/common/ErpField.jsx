@@ -11,7 +11,7 @@
  * @prop {boolean} required   - true: 라벨에 필수(*) 표시 (기본값: false)
  * @prop {number}  span       - 가로 칸 수, 1~숫자 (기본값: 1)
  *                              전체 줄 = 12칸 기준. span=2면 2칸 차지
- * @prop {string}  labelWidth - 라벨 영역의 너비 (기본값: '85px')
+ * @prop {string|null} labelWidth - 라벨 너비 (기본값: '95px', null이면 CSS 사용)
  * @prop {string}  fontSize   - 라벨 글자 크기 (기본값: 없음)
  * @prop {node}    children   - 입력 폼 요소 (input, select 등)
  *
@@ -55,9 +55,11 @@ const ErpField = ({
 			<label
 				className={`erp-label ${required ? 'req' : ''}`}
 				style={{
-				    width: `100%`,
-				    minWidth: labelWidth,
-				    flex: `0 0 ${labelWidth}`,
+				    ...(labelWidth == null ? {} : {
+				        width: '100%',
+				        minWidth: labelWidth,
+				        flex: `0 0 ${labelWidth}`
+				    }),
 				    fontSize
 				}}
 			>

@@ -344,11 +344,9 @@
 .wum-radio-group > label:has(input:disabled) {
     opacity: 0.5;
     background: #f1f5f9;
-    cursor: not-allowed;
 }
 
 .wum-radio-group > label:has(input:disabled) input {
-    cursor: not-allowed;
 }
 
 .wum-search-radio .wum-radio-group > label {
@@ -646,7 +644,6 @@
 
 .wum-password-action button:disabled {
     background: #94a3b8;
-    cursor: not-allowed;
 }
 
 .wum-password-action p {
@@ -887,5 +884,5 @@
 .wum-section-actions button, .wum-detail-save-action button { height: 38px; min-width: 82px; padding: 0 14px; border: none; border-radius: 9px; background: #0f2f5f; color: #ffffff; font-size: 13px; font-weight: 900; display: inline-flex; align-items: center; justify-content: center; gap: 6px; cursor: pointer; white-space: nowrap; }
 .wum-section-actions button:hover, .wum-detail-save-action button:hover { background: #143b75; }
 .wum-detail-save-action { display: flex; justify-content: flex-end; margin-top: 18px; padding-top: 16px; border-top: 1px solid #e2e8f0; }
-.wum-detail-save-action button:disabled { background: #94a3b8; cursor: not-allowed; }
+.wum-detail-save-action button:disabled { background: #94a3b8; }
 .wum-password-action .wum-detail-save-button { margin-left: auto; }

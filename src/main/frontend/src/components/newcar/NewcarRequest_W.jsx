@@ -1,6 +1,9 @@
 import React, { useCallback, useEffect, useId, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { AgGridReact } from 'ag-grid-react';
+import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
+import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useTabs } from '../../context/TabContext';
 import { gf } from '../../utils/utils';
 import ErpField from '../common/ErpField';
@@ -19,6 +22,17 @@ const REQUEST_PATH = '/newcar/newcar-request-w';
 const LIST_PATH = '/newcar/newcar-list-w';
 const payLabels = { ACQ: '취득세', BFEE: '채권취급수수료', BOND: '채권', FEE: '등록수수료', INJI: '인지세', SPARE: '예비비', STAMP: '증지대', TNUM: '번호판대', UNUM: '번호판대행', UREG: '등록면허세' };
 const codeGroups = ['SGB', 'PR_ST', 'JG_ST', 'TASK', 'BOND', 'NTTCD', 'NTTGR', 'NTWHO', 'REGGB', 'NUMGB', 'NUMST', 'PAYST', 'PAYME', 'BANK', 'FUEL', 'NHOLE', 'NSEAL', 'CARM'];
+const productionCertificateFields = ['CARID_NO', 'CAR_NM', 'BUY_AMT', 'OWNER_NM', 'REG_GB', 'REG_NO', 'ADDRESS', 'MADE_DT'];
+ModuleRegistry.registerModules([AllCommunityModule]);
+const paymentColumns = [
+    { headerName: '결제종류', field: 'PAY_KD', width: 150, valueFormatter: p => payLabels[p.value] || p.value },
+    { headerName: '전자납부번호(가상계좌)', field: 'VBANK_NO', flex: 1 },
+    { headerName: '결제여부', field: 'PAY_OP', width: 120, valueFormatter: p => p.value === 'Y' ? '납부' : '미납' },
+    { headerName: '예상금액', field: 'PRE_PAY_AMT', width: 130, cellClass: 'ag-right-cell', valueFormatter: p => Number(p.value || 0).toLocaleString() },
+    { headerName: '결제금액', field: 'PAY_AMT', width: 130, cellClass: 'ag-right-cell', valueFormatter: p => Number(p.value || 0).toLocaleString() },
+    { headerName: '결제상태', field: 'PAY_ST', width: 120, valueFormatter: p => p.value === 'Y' ? '입금' : '미입금' },
+    { headerName: '결제일시', field: 'PAY_DT', width: 200, valueFormatter: p => p.value || '-' }
+];
 
 const NewcarRequest_W = () => {
     const location = useLocation();
@@ -35,7 +49,6 @@ const NewcarRequest_W = () => {
     const [certificate, setCertificate] = useState(null);
     const [preview, setPreview] = useState(null);
     const [paperUrl, setPaperUrl] = useState('');
-    const [autoFields, setAutoFields] = useState([]);
     const loadedKey = useRef('');
     const loadedData = useRef(null);
     const savingRef = useRef(false);
@@ -58,8 +71,6 @@ const NewcarRequest_W = () => {
             setData(next); setSecondOwner(Boolean(next.dsOwnerInfo1.DEBTOR_NM || Number(next.dsOwnerInfo1.DEBTOR_RATIO) > 0));
             loadedData.current = next;
             setCertificate(null); setPreview(null);
-            setAutoFields(next.dsCarNoDetach.FILENAME1 ? ['CARID_NO', 'CAR_NM', 'BUY_AMT', 'OWNER_NM', 'REG_NO', 'ADDRESS', 'MADE_DT', 'REGIST_DATE']
-                .filter(key => next.dsNewCar[key] !== '' && next.dsNewCar[key] != null) : []);
             return true;
         } catch (error) { setMessage(error.response?.data?.message || error.message || '조회 중 오류가 발생했습니다.'); return false; }
         finally { setBusy(false); }
@@ -187,45 +198,58 @@ const NewcarRequest_W = () => {
         pieces[part] = value.replace(/[@\s]/g, '');
         update('dsNewCar', 'CARP_MAIL', (pieces[0] || pieces[1]) ? `${pieces[0] || ''}@${pieces[1] || ''}` : '');
     };
-    const field = (key, name, label = fieldLabels[name], options = {}) => {
-        const { group, span = 3, readOnly = false, type = 'text', options: selectOptions, disabled = false, after } = options;
+    const control = (key, name, label = fieldLabels[name], options = {}) => {
+        const { group, readOnly = false, type = 'text', options: selectOptions, disabled = false, textClass, className = '' } = options;
         const needed = required.some(([record, fieldName]) => record === key && fieldName === name);
-        const isAuto = key === 'dsNewCar' && autoFields.includes(name);
-        const props = { name, 'aria-label': label, 'data-record': key, value: data[key]?.[name] ?? '',
-            className: `erp-input ${needed ? 'w-required' : ''} ${isAuto ? 'w-auto' : ''}`,
+        const isAuto = key === 'dsNewCar' && productionCertificateFields.includes(name);
+        const value = data[key]?.[name] ?? '';
+        const props = { name, 'aria-label': label, 'data-record': key,
+            value: ['BUY_AMT', 'TOTAL_AMT', 'RT_AMT'].includes(name) && value !== '' ? Number(value).toLocaleString() : value,
+            className: `erp-input ${needed ? 'w-required' : ''} ${isAuto ? 'w-auto' : ''} ${className}`,
             onChange: event => {
                 let value = event.target.value;
                 if (name === 'CARID_NO') value = value.toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 17);
                 if (name === 'BUY_AMT') value = value.replace(/[^0-9]/g, '');
                 update(key, name, value);
             } };
-        return <ErpField key={`${key}.${name}.${label}`} label={label} span={span} required={needed}>
-            {group && !readOnly ? <CommonSelect {...props} codes={codes} groupId={group} options={selectOptions} disabled={disabled || !editable} />
-                : group ? <input {...props} value={(selectOptions || codes[group] || []).find(row => String(row.CODE_ID) === String(props.value))?.CODE_NM || props.value} readOnly />
-                : <input {...props} type={type} readOnly={readOnly || disabled || !editable} maxLength={name === 'CARID_NO' ? 17 : undefined} />}
-            {after}
+        if (textClass) return <span aria-label={label} className={`${textClass} ${isAuto ? 'w-auto' : ''}`}>{value}</span>;
+        return group ? <CommonSelect {...props} codes={codes} groupId={group} options={selectOptions} disabled={readOnly || disabled || !editable} />
+            : <input {...props} type={type} readOnly={readOnly || disabled || !editable} maxLength={name === 'CARID_NO' ? 17 : undefined} />;
+    };
+    const field = (key, name, label = fieldLabels[name], options = {}) => {
+        const { span = 3, before, after } = options;
+        const labelClass = ['TASK_CD', 'REGIST_DATE', 'FUEL_CD', 'NUMPLATE_GB', 'CAR_NO', 'FM_NM', 'BUY_AMT', 'RT_AMT'].includes(name) || label === '형식' ? 'label-120'
+            : ['OWNER_NM', 'RETURN_NM'].includes(name) ? 'label-110' : ['RATIO_NO', 'DEBTOR_RATIO'].includes(name) ? 'label-115' : '';
+        return <ErpField key={`${key}.${name}.${label}`} label={label} span={span} labelWidth={null} className={labelClass}>
+            {before}{control(key, name, label, options)}{after}
         </ErpField>;
     };
     const addressFields = (key, prefix, label) => {
         const names = prefix === 'OWNER' ? ['ADDRESS', 'ADDRESS_DT'] : prefix === 'BASE' ? ['BASE_ADDRESS', 'BASE_ADDRESS_DT']
             : prefix === 'CARP' ? ['CARP_ADDRESS', 'CARP_ADDRESS_DT'] : prefix === 'TAX' ? ['ADDR', 'ADDR_DT'] : ['DEBTOR_ADDR', 'DEBTOR_ADDR_DT'];
         const disabled = !editable || (key.startsWith('dsOwnerInfo') && !jointRequired);
-        return <React.Fragment key={`${key}.${prefix}`}>
-            <div className="erp-row">{field(key, names[0], label, { span: 12, readOnly: true,
-                after: <button type="button" className="btn-erp sm light" disabled={disabled} onClick={() => setAddressTarget({ key, prefix })}>{label} 검색</button> })}</div>
-            <div className="erp-row">{field(key, names[1], `${label} 상세`, { span: 12, disabled })}</div>
-        </React.Fragment>;
+        return <div className="erp-row" key={`${key}.${prefix}`}>{field(key, names[0], label, {
+            span: 12, readOnly: true, className: 'text-left',
+            before: ['BASE', 'CARP'].includes(prefix) && <input type="checkbox" style={{ margin: '0 5px' }} aria-label={`${label}를 소유자주소와 동일하게`} disabled={!editable}
+                    onChange={event => { if (event.target.checked) setData(previous => ({ ...previous,
+                        dsNewCar: { ...previous.dsNewCar, ...(prefix === 'BASE' ? {
+                            BASE_ADDRESS: previous.dsNewCar.ADDRESS, BASE_ADDRESS_DT: previous.dsNewCar.ADDRESS_DT,
+                            BASE_POST_NO: previous.dsNewCar.POST_NO, BASE_BUBJUNG_CD: previous.dsNewCar.BUBJUNG_CD, ADDR_INFO2: previous.dsNewCar.ADDR_INFO
+                        } : { CARP_ADDRESS: previous.dsNewCar.ADDRESS, CARP_ADDRESS_DT: previous.dsNewCar.ADDRESS_DT, CARP_POST_NO: previous.dsNewCar.POST_NO }) } })); }} />,
+            after: <>{control(key, names[1], `${label} 상세`, { disabled, className: 'text-left' })}
+                <button type="button" className="btn-erp sm light" disabled={disabled} onClick={() => setAddressTarget({ key, prefix })}>주소 검색</button>
+            </>
+        })}</div>;
     };
     const jointPanel = (key, index) => <ErpSection title={`공동 소유자 정보${index ? ' (2)' : ''}`} className="owner-panel owner-co-panel" key={key}>
         <div className="erp-row">
-            {field(key, 'DEBTOR_NM', index ? '공동소유자명(2)' : '공동소유자명', { span: 6, disabled: !jointRequired })}
-            {field(key, 'DEBTOR_TEL_NO', '전화번호', { span: 6, disabled: !jointRequired })}
-        </div><div className="erp-row">
-            {field(key, 'DEBTOR_GB', '공동소유자 등록구분', { group: 'REGGB', span: 6, disabled: !jointRequired })}
-            {field(key, 'DEBTOR_REG_NO', '공동소유자 등록번호', { span: 6, disabled: !jointRequired })}
+            {field(key, 'DEBTOR_NM', index ? '공동소유자명(2)' : '공동소유자명', { span: 3, disabled: !jointRequired })}
+            {field(key, 'DEBTOR_TEL_NO', '전화번호', { span: 3, disabled: !jointRequired })}
+            {field(key, 'DEBTOR_REG_NO', '공동소유자 등록번호', { span: 6, disabled: !jointRequired,
+                before: control(key, 'DEBTOR_GB', '공동소유자 등록구분', { group: 'REGGB', disabled: !jointRequired }) })}
         </div><div className="erp-row">
             {data[key].DEBTOR_GB === 'B' && field(key, 'DEBTOR_BIZ_NO', '공동소유자 사업자번호', { span: 6, disabled: !jointRequired })}
-            {field(key, 'DEBTOR_RATIO', '공동소유자비율(%)', { span: data[key].DEBTOR_GB === 'B' ? 6 : 12, type: 'number', disabled: !jointRequired })}
+            {field(key, 'DEBTOR_RATIO', '공동소유자비율(%)', { span: data[key].DEBTOR_GB === 'B' ? 6 : 12, disabled: !jointRequired })}
         </div>{addressFields(key, 'JOINT', '공동소유자 주소')}
     </ErpSection>;
 
@@ -248,94 +272,96 @@ const NewcarRequest_W = () => {
         </div></div>
         {busy && <p className="w-state" role="status">처리 중입니다.</p>}
         {message && <p className="w-message" role="alert">{message}</p>}
-        <div className="tab-container"><div className="tab-content">
             <ErpSection isHeader><div className="erp-row">
-                {field('dsService', 'WORK_CD', '신청구분', { group: 'SGB', readOnly: true })}
+                {field('dsService', 'WORK_CD', '신청구분', { span: 2, group: 'SGB', readOnly: true })}
                 {field('dsService', 'SERVICE_ID', '접수번호', { readOnly: true })}
-                {field('dsCompanyInfo', 'COMPANY_NM', '회사명', { readOnly: true })}
+                {field('dsCompanyInfo', 'COMPANY_NM', '회사명', { span: 4, readOnly: true })}
                 {field('dsService', 'MEMBER_ID', '신청자명', { readOnly: true })}
             </div><div className="erp-row">
                 {field('dsService', 'REQUEST_DT', '신청일자', { readOnly: true, type: 'date' })}
-                {field('dsService', 'PROC_ST', '신청상태', { group: 'PR_ST', readOnly: true })}
+                {field('dsService', 'PROC_ST', '신청상태', { span: 2, group: 'PR_ST', readOnly: true })}
                 {field('dsService', 'JUDGE_DT', '심사일자', { readOnly: true, type: 'date' })}
-                {field('dsService', 'JUDGE_ST', '심사상태', { group: 'JG_ST', readOnly: true })}
+                {field('dsService', 'JUDGE_ST', '심사상태', { span: 2, group: 'JG_ST', readOnly: true })}
+                {field('dsCarNoDetach', 'NUMPLATE_ST', '배송상태', { span: 2, group: 'NUMST', readOnly: true })}
             </div><div className="erp-row">
-                {field('dsCarNoDetach', 'NUMPLATE_ST', '배송상태', { group: 'NUMST', readOnly: true })}
-                {field('dsService', 'RETURN_TX', '반려사유', { span: 9, readOnly: true })}
+                {field('dsService', 'RETURN_TX', '반려사유', { span: 12, readOnly: true })}
             </div></ErpSection>
             <ErpSection title="자동차정보"><div className="erp-row">
                 {field('dsNewCar', 'TASK_CD', '업무구분', { group: 'TASK', options: (codes.TASK || []).filter(row => ['NORML', 'LEASE'].includes(row.CODE_ID)) })}
-                {field('dsNewCar', 'CARID_NO')}{field('dsNewCar', 'REGIST_DATE', '등록예정일자', { type: 'date' })}{field('dsNewCar', 'BUY_AMT', '공급가액(VAT별도)')}
+                {field('dsNewCar', 'CARID_NO')}
+                {field('dsNewCar', 'REGIST_DATE', '등록예정일자', { span: 4, type: 'date' })}
+                {field('dsNewCar', 'FUEL_CD', '사용연료', { span: 2, group: 'FUEL', readOnly: true })}
             </div><div className="erp-row">
-                {field('dsNewCar', 'NUMPLATE_GB', '번호판지정 요구사항', { group: 'NUMGB', span: 6, options: (codes.NUMGB || []).filter(row => ['F', '7', 'FG'].includes(row.CODE_ID)) })}
-                {field('dsCarNoDetach', 'HOLE_YN', '천공 여부', { group: 'NHOLE' })}{field('dsCarNoDetach', 'SEAL_YN', '봉인 여부', { group: 'NSEAL' })}
-            </div><div className="erp-row">
-                {field('dsNewCar', 'REQ_CAR_NO', '선택 차량번호', { span: 6, readOnly: true,
-                    after: <button type="button" className="btn-erp sm light" disabled={!editable} onClick={showNumber}>번호선택</button> })}
-                {field('dsNewCar', 'CAR_NO', '등록차량번호', { readOnly: true })}{field('dsNewCar', 'MADE_DT', '최초등록일', { type: 'date', readOnly: true })}
-            </div><div className="erp-row">
-                {field('dsNewCar', 'CAR_KD', '차종', { group: 'CARM', readOnly: true })}{field('dsNewCar', 'FM_NM', '원동기형식', { readOnly: true })}
-                {field('dsNewCar', 'SPMNNO', '형식승인번호', { readOnly: true })}{field('dsNewCar', 'FUEL_CD', '사용연료', { group: 'FUEL', readOnly: true })}
-            </div><div className="erp-row">
-                {field('dsNewCar', 'CAR_NM', '차명', { span: 6, readOnly: true })}{field('dsNewCar', 'CAR_NM', '형식', { span: 6, readOnly: true })}
+                {field('dsNewCar', 'NUMPLATE_GB', '번호판지정 요구사항', { group: 'NUMGB', span: 6, options: (codes.NUMGB || []).filter(row => ['F', '7', 'FG'].includes(row.CODE_ID)),
+                    after: <>{control('dsCarNoDetach', 'HOLE_YN', '천공 여부', { group: 'NHOLE' })}{control('dsCarNoDetach', 'SEAL_YN', '봉인 여부', { group: 'NSEAL' })}</> })}
+                {field('dsNewCar', 'REQ_CAR_NO', '선택 차량번호', { span: 3, readOnly: true,
+                    after: <button type="button" className="btn-erp sm dark" disabled={!editable} onClick={showNumber}>번호선택</button> })}
+                {field('dsNewCar', 'CAR_NO', '등록차량번호', {  span: 2, textClass: 'value-red' })}                
+            </div><div className="erp-row">                
+                {field('dsNewCar', 'CAR_KD', '차 종', { span: 2, textClass: 'value-black' })}
+                {field('dsNewCar', 'CAR_NM', '차 명', { span: 2, textClass: 'value-black' })}
+                {field('dsNewCar', 'CAR_NM', '형 식', { span: 2, textClass: 'value-black' })}            
+                {field('dsNewCar', 'FM_NM', '원동기형식', { span: 2, textClass: 'value-black' })}
+                {field('dsNewCar', 'SPMNNO', '형식승인번호', { span: 2, textClass: 'value-black' })}
+                {field('dsNewCar', 'BUY_AMT', '공급가액(VAT별도)', { span: 2, className: 'text-right' })}
             </div></ErpSection>
+        <div className="tab-container">
             <div className="tab-header-list" role="tablist" aria-label="신규등록 정보">
                 <div className="tab-button-group">
                     <button type="button" role="tab" aria-selected={tab === 'owner'} className={`tab-btn ${tab === 'owner' ? 'active' : ''}`} onClick={() => setTab('owner')}>등록정보</button>
                     <button type="button" role="tab" aria-selected={tab === 'payment'} className={`tab-btn ${tab === 'payment' ? 'active' : ''}`} onClick={() => setTab('payment')}>결제정보</button>
                 </div>
+                <div className="tab-header-extra"><label className="tab-checkbox-label"><input type="checkbox" checked={secondOwner} disabled={!editable || !jointRequired} onChange={async event => {
+                    const checked = event.target.checked;
+                    if (!checked && !await gf.confirm('두 번째 공동소유자 정보를 지우시겠습니까?')) return;
+                    setSecondOwner(checked); if (!checked) setData(previous => ({ ...previous, dsOwnerInfo1: { ...initialOwnerInfo1 } }));
+                }} /> 공동소유자 2명</label></div>
             </div>
-            {tab === 'owner' ? <div role="tabpanel" aria-label="등록정보"><div className="owner-info-section"><div className="owner-split-layout">
+            <div className="tab-content">
+            {tab === 'owner' ? <div role="tabpanel" aria-label="등록정보" className="owner-info-section"><div className="owner-split-layout">
                 <ErpSection title="대표 소유자 정보" className="owner-panel owner-main-panel"><div className="erp-row">
-                    {field('dsService', 'LINK_ID', '주문번호', { span: 6 })}{field('dsCarNoDetach', 'CUSTOMER_NM', '계약자명', { span: 6 })}
+                    {field('dsService', 'LINK_ID', '주문번호', { span: 4 })}
+                    {field('dsCarNoDetach', 'CUSTOMER_NM', '계약자명', { span: 4 })}
+                    {field('dsNewCar', 'OWNER_NM', '대표소유자명', { span: 4 })}
                 </div><div className="erp-row">
-                    {field('dsNewCar', 'REG_GB', '등록구분', { span: 6, group: 'REGGB' })}{field('dsNewCar', 'REG_NO', '등록번호', { span: 6 })}
+                    {field('dsNewCar', 'REG_NO', '등록번호', { span: 6, before: control('dsNewCar', 'REG_GB', '등록구분', { group: 'REGGB' }) })}
+                    {car.REG_GB === 'B' && field('dsNewCar', 'BIZ_NO', '사업자번호', { span: 3 })}
+                    {field('dsNewCar', 'RATIO_NO', '대표소유자 비율(%)', { span: 3 })}
                 </div><div className="erp-row">
-                    {car.REG_GB === 'B' && field('dsNewCar', 'BIZ_NO', '사업자번호', { span: 6 })}
-                    {field('dsNewCar', 'OWNER_NM', '대표소유자명', { span: car.REG_GB === 'B' ? 6 : 12 })}
-                </div><div className="erp-row">
-                    {field('dsNewCar', 'RATIO_NO', '대표소유자 비율(%)', { span: 6, type: 'number' })}{field('dsNewCar', 'MPHONE_NO', '휴대폰번호', { span: 6 })}
-                </div><div className="erp-row">
-                    {field('dsNewCar', 'TEL_NO', '전화번호', { span: 12 })}
+                    {field('dsNewCar', 'MPHONE_NO', '휴대폰번호', { span: 6 })}
+                    {field('dsNewCar', 'TEL_NO', '전화번호', { span: 6 })}
                 </div>{addressFields('dsNewCar', 'OWNER', '소유자주소')}{addressFields('dsNewCar', 'BASE', '사용본거지')}
-                    <button type="button" className="btn-erp light" disabled={!editable} onClick={() => setData(previous => ({ ...previous,
-                        dsNewCar: { ...previous.dsNewCar, BASE_ADDRESS: car.ADDRESS, BASE_ADDRESS_DT: car.ADDRESS_DT, BASE_POST_NO: car.POST_NO, BASE_BUBJUNG_CD: car.BUBJUNG_CD, ADDR_INFO2: car.ADDR_INFO } }))}>사용본거지를 소유자주소와 동일하게</button>
                 </ErpSection>
                 <div>{jointPanel('dsOwnerInfo', 0)}
-                    <label className="tab-checkbox-label"><input type="checkbox" checked={secondOwner} disabled={!editable || !jointRequired} onChange={async event => {
-                        const checked = event.target.checked;
-                        if (!checked && !await gf.confirm('두 번째 공동소유자 정보를 지우시겠습니까?')) return;
-                        setSecondOwner(checked); if (!checked) setData(previous => ({ ...previous, dsOwnerInfo1: { ...initialOwnerInfo1 } }));
-                    }} /> 공동소유자 2명</label>
                     {secondOwner && jointPanel('dsOwnerInfo1', 1)}
                 </div>
-            </div><ErpSection title="신규등록정보" className="fixed-reg-info-section"><div className="erp-row">
-                {field('dsNewCar', 'BUY_AMT', '공급가액(VAT별도)')}{field('dsNewCar', 'NTAX_TRGET_CD', '비과세대상', { group: 'NTTCD' })}
-                {field('dsNewCar', 'NTAX_WHO', '비과세대상자', { group: 'NTWHO', disabled: car.NTAX_TRGET_CD === '00' })}
-                {field('dsNewCar', 'NTAX_TRGET_GR_CD', '비과세대상등급', { group: 'NTTGR', disabled: !gradeTargets.includes(car.NTAX_TRGET_CD) })}
+            <ErpSection title="신규등록정보" className="owner-panel fixed-reg-info-section"><div className="erp-row">
+                {field('dsNewCar', 'NTAX_TRGET_CD', '비과세대상', { span: 6, group: 'NTTCD', after: control('dsNewCar', 'NTAX_WHO', '비과세대상자', { group: 'NTWHO', disabled: car.NTAX_TRGET_CD === '00' }) })}
+                {field('dsNewCar', 'NTAX_TRGET_GR_CD', '비과세대상등급', { span: 6, group: 'NTTGR', disabled: !gradeTargets.includes(car.NTAX_TRGET_CD) })}
             </div><div className="erp-row">
-                {field('dsNewCar', 'CARD_YN', '취득세카드납부', { group: 'CARD', options: [{ CODE_ID: 'N', CODE_NM: '아니오' }, { CODE_ID: 'Y', CODE_NM: '예' }] })}
-                <ErpField label="카드납부확인" span={3}><input type="checkbox" aria-label="카드납부확인" checked={car.CARD_PAY_YN === 'Y'} disabled /></ErpField>
-                {field('dsNewCar', 'BOND_DC', '채권할인여부', { group: 'BOND' })}{field('dsNewCar', 'TOTAL_AMT', '등록비용', { readOnly: true })}
+                {field('dsNewCar', 'BOND_DC', '채권할인여부', { span: 6, group: 'BOND' })}
+                {field('dsNewCar', 'TOTAL_AMT', '등록비용', { span: 6, readOnly: true })}
             </div><div className="erp-row">
-                {field('dsNewCar', 'PAY_NM', '결제자명')}{field('dsNewCar', 'PAY_HP_NO', '결제자 휴대폰번호')}
-                {field('dsNewCar', 'RT_BANK_CD', '환급은행', { group: 'BANK' })}{field('dsNewCar', 'RETURN_NO', '환급계좌')}
+                <ErpField label="취득세카드납부" span={12} labelWidth={null}>
+                    <label className="chk-label"><input type="checkbox" aria-label="취득세카드납부" name="CARD_YN" data-record="dsNewCar" checked={car.CARD_YN === 'Y'} disabled={!editable}
+                        onChange={event => update('dsNewCar', 'CARD_YN', event.target.checked ? 'Y' : 'N')} />카드납부</label>
+                    <label className="chk-label"><input type="checkbox" aria-label="카드납부확인" checked={car.CARD_PAY_YN === 'Y'} disabled />카드납부 확인</label>
+                </ErpField>
             </div><div className="erp-row">
-                {field('dsNewCar', 'RETURN_NM', '환급계좌예금주', { span: 6 })}{field('dsNewCar', 'RT_AMT', '환급금액', { span: 6, readOnly: true })}
-            </div>{addressFields('dsNewCar', 'CARP', '등록증 배송지')}</ErpSection></div></div>
-                : <div role="tabpanel" aria-label="결제정보"><div className="payment-info-section"><ErpSection title="결제 및 납부 정보"><div className="erp-row">
-                    {field('dsNewCar', 'PAY_ST', '납부상태', { group: 'PAYST', readOnly: true })}{field('dsNewCar', 'PAY_ME', '납부방법', { group: 'PAYME', readOnly: true })}
-                    {field('dsNewCar', 'VBANK_NO', '가상계좌', { readOnly: true })}{field('dsNewCar', 'TOTAL_AMT', '총 금액', { readOnly: true })}
-                </div><table className="w-payments"><caption>결제 세부 비용 (조회 전용)</caption><thead><tr><th>항목</th><th>예정 금액</th><th>납부 금액</th></tr></thead>
-                    <tbody>{data.dsPaymentList.map(row => <tr key={row.PAY_KD}><th>{payLabels[row.PAY_KD] || row.PAY_KD}</th><td>{Number(row.PRE_PAY_AMT || 0).toLocaleString()}원</td><td>{Number(row.PAY_AMT || 0).toLocaleString()}원</td></tr>)}</tbody></table>
-                    <div className="w-bottom-actions"><button type="button" className="btn-erp light" disabled={!service.SERVICE_ID || busy} onClick={() => setModal('receipt')}>납부영수증</button>
-                        <button type="button" className="btn-erp light" disabled={!service.SERVICE_ID || car.BOND_LINK_YN !== 'Y' || busy} onClick={() => setModal('bond')}>채권 인쇄</button></div>
-                </ErpSection></div></div>}
-            <ErpSection title="추가 정보"><div className="erp-row">
-                <ErpField label="저공해차여부" span={3}><input type="checkbox" aria-label="저공해차여부" checked={car.LOW_POLLUTION_YN === 'Y'} disabled /></ErpField>
-                {field('dsNewCar', 'LOW_POLLUTION_KD', '저공해발급 종류', { readOnly: true })}{field('dsNewCar', 'LOW_POLLUTION_NO', '저공해발급 번호', { span: 6, readOnly: true })}
+                {field('dsNewCar', 'PAY_NM', '결제자명', { span: 6 })}
+                {field('dsNewCar', 'PAY_HP_NO', '결제자 휴대폰번호', { span: 6 })}
             </div><div className="erp-row">
-                <ErpField label="이메일" span={12}>
+                {field('dsNewCar', 'RETURN_NO', '환급계좌', { span: 12, before: control('dsNewCar', 'RT_BANK_CD', '환급은행', { group: 'BANK' }) })}
+            </div><div className="erp-row">
+                {field('dsNewCar', 'RETURN_NM', '환급계좌예금주', { span: 6 })}
+                {field('dsNewCar', 'RT_AMT', '환급금액', { span: 6, readOnly: true, className: 'text-right' })}
+            </div>{addressFields('dsNewCar', 'CARP', '등록증 배송지')}</ErpSection>
+            <ErpSection title="추가 정보" className="owner-panel fixed-reg-info-section"><div className="erp-row">
+                <ErpField label="저공해차여부" span={4} labelWidth={null}><input type="checkbox" aria-label="저공해차여부" checked={car.LOW_POLLUTION_YN === 'Y'} disabled /></ErpField>
+                {field('dsNewCar', 'LOW_POLLUTION_KD', '저공해발급 종류', { span: 4, readOnly: true })}
+                {field('dsNewCar', 'LOW_POLLUTION_NO', '저공해발급 번호', { span: 4, readOnly: true })}
+            </div><div className="erp-row">
+                <ErpField label="이메일" span={12} labelWidth={null}>
                     <input className="erp-input" name="CARP_MAIL" data-record="dsNewCar" aria-label="등록증 이메일 아이디" value={(car.CARP_MAIL || '').split('@')[0]} readOnly={!editable}
                         onChange={event => updateEmail(0, event.target.value)} />
                     <span>@</span><input className="erp-input" aria-label="등록증 이메일 도메인" list={domainList} value={(car.CARP_MAIL || '').split('@')[1] || ''} readOnly={!editable}
@@ -344,19 +370,34 @@ const NewcarRequest_W = () => {
                     <button type="button" className="btn-erp light" disabled={!editable} onClick={() => update('dsNewCar', 'CARP_MAIL', '')}>지우기</button>
                 </ErpField>
             </div><div className="erp-row">
-                <ErpField label="메모" span={12}><textarea className="erp-input erp-textArea" aria-label="메모" name="MEMO_TX" data-record="dsNewCar" maxLength={2000} value={car.MEMO_TX || ''} readOnly={!editable} onChange={event => update('dsNewCar', 'MEMO_TX', event.target.value)} /></ErpField>
+                <ErpField label="메모" span={12} labelWidth={null}><textarea className="erp-input erp-textArea" aria-label="메모" name="MEMO_TX" data-record="dsNewCar" maxLength={2000} value={car.MEMO_TX || ''} readOnly={!editable} onChange={event => update('dsNewCar', 'MEMO_TX', event.target.value)} /></ErpField>
             </div><div className="w-bottom-actions">
                 <button type="button" className="btn-erp light" disabled={busy} onClick={showPaper}>등록증 확인</button>
                 <button type="button" className="btn-erp light" disabled={busy} onClick={() => setModal('tax')}>세금계산서/현금영수증 정보</button>
                 {certificate && <span>저장 대기 제작증: {certificate.name}</span>}
-            </div></ErpSection>
+            </div></ErpSection></div></div>
+                : <div role="tabpanel" aria-label="결제정보" className="payment-info-section"><ErpSection title="결제 및 납부 정보"><div className="erp-row">
+                    {field('dsNewCar', 'PAY_NM', '결제자명', { span: 4 })}{field('dsNewCar', 'PAY_HP_NO', '결제자 휴대폰번호', { span: 4 })}
+                    {field('dsNewCar', 'PAY_ST', '납부상태', { span: 4, group: 'PAYST', readOnly: true, after: <>
+                        <button type="button" className="btn-erp sm light" disabled={!service.SERVICE_ID || car.BOND_LINK_YN !== 'Y' || busy} onClick={() => setModal('bond')}>채권 인쇄</button>
+                        <button type="button" className="btn-erp sm light" disabled={!service.SERVICE_ID || busy} onClick={() => setModal('receipt')}>납부영수증</button>
+                    </> })}
+                </div><div className="erp-row">
+                    {field('dsNewCar', 'PAY_ME', '납부방법', { span: 4, group: 'PAYME', readOnly: true })}
+                    {field('dsNewCar', 'VBANK_NO', '가상계좌', { span: 4, readOnly: true, before: control('dsNewCar', 'VBANK_CD', '가상계좌 은행', { group: 'BANK', readOnly: true }) })}
+                    {field('dsNewCar', 'TOTAL_AMT', '총 금액', { span: 4, readOnly: true, className: 'text-right', after: <span className="wonText">원</span> })}
+                </div><div className="erp-row mt-10"><div className="ag-theme-alpine" style={{ width: '100%', height: '286px' }}>
+                    <AgGridReact theme="legacy" suppressMovableColumns suppressDragLeaveHidesColumns suppressColumnMoveAnimation suppressClickEdit
+                        rowData={data.dsPaymentList} columnDefs={paymentColumns}
+                        defaultColDef={{ sortable: true, resizable: true, suppressMovable: true, cellClass: 'ag-center-cell', editable: false }} />
+                </div></div></ErpSection></div>}
         </div></div>
         {modal === 'pdf' && preview && <div className="w-modal-backdrop"><section className="w-modal" role="dialog" aria-modal="true" aria-labelledby="w-pdf-title">
             <h3 id="w-pdf-title">제작증 반영 내용 확인</h3><p>현재 화면에 반영될 값입니다. 저장·신청 전까지 접수에는 저장되지 않습니다.</p>
             <table className="w-payments"><thead><tr><th>항목</th><th>현재</th><th>제작증</th></tr></thead><tbody>{Object.entries(preview.values).map(([key, value]) => <tr key={key}><th>{fieldLabels[key] || { CAR_NM: '차명', MADE_DT: '최초등록일' }[key] || key}</th><td>{car[key] || '-'}</td><td>{value}</td></tr>)}</tbody></table>
             <div className="w-bottom-actions"><button type="button" className="btn-erp" onClick={() => {
                 setData(previous => ({ ...previous, dsNewCar: { ...previous.dsNewCar, ...preview.values } }));
-                setCertificate(preview.file); setAutoFields(Object.keys(preview.values)); setPreview(null); setModal('');
+                setCertificate(preview.file); setPreview(null); setModal('');
                 setMessage('제작증을 화면에 반영했습니다. 저장 또는 신청하면 원본 PDF도 함께 저장됩니다.');
             }}>반영</button><button type="button" className="btn-erp light" onClick={() => { setPreview(null); setModal(''); }}>취소</button></div>
         </section></div>}

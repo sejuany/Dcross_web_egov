@@ -168,6 +168,16 @@
     min-width: 120px;
 }
 
+/* ErpField의 기본 폭을 CSS로 사용하는 화면도 기존 라벨과 같은 폭을 유지한다. */
+.new-reg-container .erp-grid .erp-label {
+    min-width: 95px;
+    flex: 0 0 95px;
+}
+
+.new-reg-container .field-group.label-110 > .erp-label { min-width: 110px; flex-basis: 110px; }
+.new-reg-container .field-group.label-115 > .erp-label { min-width: 115px; flex-basis: 115px; }
+.new-reg-container .field-group.label-120 > .erp-label { min-width: 120px; flex-basis: 120px; }
+
 
 .erp-input:focus {
     outline: 1px solid #4dabf7;
@@ -650,7 +660,7 @@ input.erp-input:read-only {
 .tab-content {
     flex: 1;
     border: 1px solid #ced4da;
-    padding: 4px;
+    padding: 0px;
     min-height: 0;
     overflow: auto;
     background-color: #f7f9fc;
@@ -708,7 +718,6 @@ input.erp-input:read-only {
     gap: 4px;
     align-items: stretch;
 }
-
 .owner-panel {
     min-width: 0;
     margin-bottom: 0;
@@ -757,7 +766,7 @@ input.erp-input:read-only {
 }
 
 .fixed-reg-info-section .erp-textArea {
-    height: 48px !important;
+    height: 111px !important;
 }
 
 @media (max-width: 1980px) {
@@ -774,6 +783,8 @@ input.erp-input:read-only {
 #ADDRESS,
 #BASE_ADDRESS,
 #DELIVERY_ADDR,
+.new-reg-container input[name="ADDRESS"],
+.new-reg-container input[name="BASE_ADDRESS"],
 input[name="CARP_ADDRESS"] {
     flex: 1 1 180px;
     text-align: left;
@@ -782,6 +793,8 @@ input[name="CARP_ADDRESS"] {
 #ADDRESS_DT,
 #BASE_ADDRESS_DT,
 #DELIVERY_ADDR_DT,
+.new-reg-container input[name="ADDRESS_DT"],
+.new-reg-container input[name="BASE_ADDRESS_DT"],
 input[name="CARP_ADDRESS_DT"] {
     flex: 0 1 170px;
     width: auto !important;
@@ -804,6 +817,8 @@ input[name="CARP_POST_NO"] {
     #ADDRESS_DT,
     #BASE_ADDRESS_DT,
     #DELIVERY_ADDR_DT,
+    .new-reg-container input[name="ADDRESS_DT"],
+    .new-reg-container input[name="BASE_ADDRESS_DT"],
     input[name="CARP_ADDRESS_DT"] {
         flex-basis: 180px;
     }
@@ -1083,7 +1098,7 @@ button.btn-erp.sm.light.mL-25 {
 
 /* W 화면의 필수값·자동입력 표시와 추가 팝업. 배치는 위 공통 스타일을 사용한다. */
 .newcar-request-w .erp-input.w-required { background-color: #fff6cc !important; border: 1px solid #dc3545 !important; }
-.newcar-request-w .erp-input.w-auto { background-color: #e1f3ff !important; border: 1px solid #2382c8 !important; }
+.newcar-request-w .erp-input.w-auto, .newcar-request-w span.w-auto { background-color: #e1f3ff !important; border: 1px solid #2382c8 !important; }
 .newcar-request-w .w-bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px; }
 .newcar-request-w .w-message, .newcar-request-w .w-state { margin: 0; padding: 9px 12px; background: #fff5dc; color: #723f00; }
 .newcar-request-w .w-payments { width: 100%; border-collapse: collapse; background: white; }

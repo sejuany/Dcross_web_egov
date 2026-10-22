@@ -20,7 +20,7 @@ class CustomerNumplateLoggingTest {
     @Test
     void selectionAndExplicitReportWorkWithoutAutomaticDiagnosticRoutes() throws Exception {
         Map<String, Object> selectionResult = Map.of("serviceId", "TEST-SERVICE");
-        NumplateSelectionService selection = new NumplateSelectionService(null, null, null, null, null, null) {
+        NumplateSelectionService selection = new NumplateSelectionService(null, null, null, null, null, null, null) {
             @Override
             public Map<String, Object> getCustomerNumplateSelection(String token) {
                 return selectionResult;

@@ -238,7 +238,7 @@ const WaNewcarNumplateSelect = () => {
 
 	const expired = remainingSeconds === 0;
 	const canStart = Boolean(data?.canStart);
-	// COUNT/TIME 조합이 시작 가능 상태가 아니거나 5분이 지난 경우 조회 불가로 처리한다.
+	// 희망번호/조회 시각이 시작 가능 상태가 아니거나 5분이 지난 경우 조회 불가로 처리한다.
 	const selectionUnavailable = Boolean(data)
 		&& !canStart
 		&& (!data.selectionStarted || !data.expiresAt || expired);

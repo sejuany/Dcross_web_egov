@@ -51,7 +51,7 @@ class NumplateReportMappingTest {
                 return Map.of();
             }
         };
-        NumplateSelectionService service = new NumplateSelectionService(null, null, null, null, null, guard);
+        NumplateSelectionService service = new NumplateSelectionService(null, null, null, null, null, guard, null);
         UserDto user = new UserDto();
         for (String seq : List.of("0", "-1", "invalid", "2147483648")) {
             assertEquals(400, assertThrows(BusinessException.class,

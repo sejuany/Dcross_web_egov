@@ -2948,7 +2948,8 @@ public class NewcarService {
 			    result.put("MESSAGE", "신청완료");
 			    
 			    // 대상 업체 및 발송 기간 확인은 기존 서비스에서 처리
-			    numplateService.processNumplateSelectSms(mService, mNewCar, numplatePhoneNo);
+			    numplateService.processNumplateSelectSms(mService, mNewCar, numplatePhoneNo,
+			        Objects.toString(mCarNoDetach.get("CUSTOMER_NM"), ""));
 			}
 
 			mService.put("UPD_USER", user.getLOGIN_ID());

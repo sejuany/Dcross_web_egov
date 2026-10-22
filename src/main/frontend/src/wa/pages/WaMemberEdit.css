@@ -245,7 +245,7 @@
 .profile-save-button:disabled,
 .profile-line-button:disabled {
   opacity: 0.6;
-  cursor: not-allowed;
+  
 }
 
 @media (max-width: 768px) {

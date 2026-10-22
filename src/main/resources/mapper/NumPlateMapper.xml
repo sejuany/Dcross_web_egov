@@ -767,20 +767,23 @@
 	                 FROM TR_CARNO_DETACH D
 	                WHERE D.SERVICE_ID = N.SERVICE_ID
 	                  AND D.NUMPLATE_MSG_TOKEN = #{TOKEN}
-	                  AND NVL(D.NUMPLATE_SELECT_COUNT, 0) = 0
 	                  AND D.NUMPLATE_SELECT_TIME IS NULL
 	           )
 	</update>
 
-	<!-- 화면 진입이 아니라 조회 버튼 요청에서만 COUNT를 0→1로 바꾸고 5분을 시작해 중복 추출을 막는다. -->
-	<!-- 재조회를 허용하려면 관리자가 COUNT=0과 SELECT_TIME=NULL을 함께 초기화해야 한다. -->
+	<!-- 조회 버튼 요청에서 번호 미선택 및 조회 시각이 비어 있는 경우에만 5분을 시작해 중복 추출을 막는다. -->
 	<update id="startCustomerNumplateAccess" parameterType="map">
 	    UPDATE TR_CARNO_DETACH
-	       SET NUMPLATE_SELECT_COUNT = 1,
+	       SET NUMPLATE_SELECT_COUNT = NVL(NUMPLATE_SELECT_COUNT, 0) + 1,
 	           NUMPLATE_SELECT_TIME = SYSDATE
 	     WHERE NUMPLATE_MSG_TOKEN = #{TOKEN}
-	       AND NVL(NUMPLATE_SELECT_COUNT, 0) = 0
 	       AND NUMPLATE_SELECT_TIME IS NULL
+	       AND EXISTS (
+	               SELECT 1
+	                 FROM TR_NEWCAR N
+	                WHERE N.SERVICE_ID = TR_CARNO_DETACH.SERVICE_ID
+	                  AND N.REQ_CAR_NO IS NULL
+	           )
 	</update>
 
 	<!-- 고객이 조회 버튼을 누른 시점에 신청 조건과 일치하는 미사용 번호를 완전 무작위로 최대 10개 추출한다. -->

@@ -62,7 +62,7 @@ class NumplateActionServiceTest {
                 return 1;
             }
         };
-        NumplateSelectionService selection = new NumplateSelectionService(null, null, null, null, null, null) {
+        NumplateSelectionService selection = new NumplateSelectionService(null, null, null, null, null, null, null) {
             @Override
             public Map<String, Object> confirmCustomerNumplateSelection(Map<String, Object> param) {
                 confirmations++;

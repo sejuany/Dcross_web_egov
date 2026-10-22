@@ -62,7 +62,7 @@ class NumplateSelectionServiceTest {
                 return List.of();
             }
         };
-        NumplateSelectionService service = new NumplateSelectionService(common, null, null, null, null, null);
+        NumplateSelectionService service = new NumplateSelectionService(common, null, null, null, null, null, null);
         Map<String, Object> request = Map.of("TOKEN", token, "NUMPLATE_GB", "FG");
         if (allowed) {
             assertEquals("FG", service.selectCustomerNumplateType(request).get("numplateGb"));

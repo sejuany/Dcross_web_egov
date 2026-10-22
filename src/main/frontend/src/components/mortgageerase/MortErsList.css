@@ -189,7 +189,7 @@
 .mort-form-grid .inline input { flex: 1; }
 .mort-form-grid .inline select { width: 90px; }
 .mort-form-grid .inline button, .receipt-button-row button { min-width: 56px; border: 1px solid #8093a6; background: #e8eef4; color: #334e68; cursor: pointer; }
-.mort-form-grid .inline button:disabled, .receipt-button-row button:disabled { opacity: .5; cursor: not-allowed; }
+.mort-form-grid .inline button:disabled, .receipt-button-row button:disabled { opacity: .5;}
 .mort-form-grid.payment { grid-template-columns: repeat(2, 1fr); }
 .payment-method-control { display: flex; align-items: center; min-width: 0; background: #fff; border-left: 1px solid #9caebb; }
 .payment-method-control > select { flex: 1; border-left: 0; }
@@ -212,4 +212,4 @@
 .mort-memo-hint { padding: 0 10px 7px; color: #657786; font-size: 11px; }
 .mort-memo-actions { padding: 8px 10px; text-align: right; background: #eef2f6; }
 .mort-memo-actions button { min-width: 64px; height: 27px; margin-left: 5px; border: 1px solid #8ea0b2; background: #fff; color: #334e68; cursor: pointer; }
-.mort-memo-actions button:disabled, .mort-memo-title button:disabled { opacity: .5; cursor: not-allowed; }
+.mort-memo-actions button:disabled, .mort-memo-title button:disabled { opacity: .5; }

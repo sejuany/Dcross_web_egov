@@ -3,6 +3,30 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.newcar.mapper.NewcarMapper">
+	<!-- D-2가 주말/공휴일이면 직전 영업일부터 등록예정일 당일까지 조회한다. TN 별칭을 사용한다. -->
+	<sql id="numplateAlertBusinessDateRange">
+	    AND TRUNC(SYSDATE) BETWEEN (
+	        SELECT MAX(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET)
+	          FROM (
+	                SELECT LEVEL - 1 AS DAY_OFFSET
+	                  FROM DUAL
+	               CONNECT BY LEVEL <![CDATA[<=]]> 32
+	          ) D
+	         WHERE (TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET)
+	                   - TRUNC(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET, 'IW') BETWEEN 0 AND 4
+	           AND INSTR(
+	                 ',' || NVL((
+	                     SELECT REPLACE(H.DETAIL_NM, ' ', '')
+	                       FROM TM_CODE H
+	                      WHERE H.GROUP_ID = 'ETC..'
+	                        AND H.CODE_ID = 'HOLID'
+	                        AND ROWNUM = 1
+	                 ), '') || ',',
+	                 ',' || TO_CHAR(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET, 'YYYYMMDD') || ','
+	               ) = 0
+	    ) AND TRUNC(TN.REGIST_DATE)
+	</sql>
+
 	<sql id="serviceListAccessScope">
 		<!-- 로그인 세션으로 생성한 권한 범위. 누락되거나 미등록된 범위는 항상 차단한다. -->
 		<choose>

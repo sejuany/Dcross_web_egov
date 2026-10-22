@@ -123,7 +123,6 @@
 
 .btn-status:disabled {
     opacity: 0.6;
-    cursor: not-allowed;
 }
 
 /* 1280px Optimization for Toolbar & Buttons */
@@ -512,7 +511,7 @@
     background: #e6e9ed;
     color: #aab2bd;
     border-color: #e2e8f0;
-    cursor: not-allowed;
+    
     box-shadow: none;
 }
 

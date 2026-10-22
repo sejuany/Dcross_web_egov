@@ -74,8 +74,7 @@
 }
 
 .cum-header-actions button:disabled {
-    background: #9aa8bb;
-    cursor: not-allowed;
+    background: #9aa8bb;    
 }
 
 /* Body */
@@ -141,7 +140,6 @@
 .cum-field select:disabled {
     background: #eef2f6;
     color: #4a5568;
-    cursor: not-allowed;
     opacity: 1;
 }
 
@@ -444,7 +442,6 @@
 
 .cum-password-row button:disabled {
     background: #9aa8bb;
-    cursor: not-allowed;
 }
 
 /* Regist No */
