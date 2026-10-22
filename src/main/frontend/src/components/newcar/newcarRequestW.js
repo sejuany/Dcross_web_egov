@@ -16,6 +16,16 @@ export const fieldLabels = {
     DEBTOR_REG_NO: '공동소유자 등록번호', DEBTOR_BIZ_NO: '공동소유자 사업자번호', DEBTOR_RATIO: '공동소유자비율'
 };
 const digits = value => String(value ?? '').replace(/\D/g, '');
+export const formatWPhoneNo = value => {
+    const number = digits(value);
+    const prefix = number.startsWith('02') ? 2 : 3;
+    const middle = number.length > prefix + 7 ? 4 : 3;
+    return [number.slice(0, prefix), number.slice(prefix, prefix + middle), number.slice(prefix + middle)].filter(Boolean).join('-');
+};
+export const formatWBusinessNo = value => {
+    const number = digits(value);
+    return [number.slice(0, 3), number.slice(3, 5), number.slice(5)].filter(Boolean).join('-');
+};
 const blank = value => value === null || value === undefined || String(value).trim() === '';
 export const canEditW = (service = {}) =>
     ['INPUT', 'SAV', 'C_REQ', 'C_SAV', 'I_REQ', 'I_SAV', 'W_REQ', 'RET', 'DEL'].includes(service.PROC_ST)

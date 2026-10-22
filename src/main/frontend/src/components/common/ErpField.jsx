@@ -10,7 +10,7 @@
  * @prop {string}  label      - 왼쪽에 표시할 라벨 텍스트 (필수)
  * @prop {boolean} required   - true: 라벨에 필수(*) 표시 (기본값: false)
  * @prop {number}  span       - 가로 칸 수, 1~숫자 (기본값: 1)
- *                              전체 줄 = 12칸 기준. span=2면 2칸 차지
+ *                              전체 줄 = 12칸 기준. W 화면에서는 2.5 같은 소수도 사용 가능
  * @prop {string|null} labelWidth - 라벨 너비 (기본값: '95px', null이면 CSS 사용)
  * @prop {string}  fontSize   - 라벨 글자 크기 (기본값: 없음)
  * @prop {node}    children   - 입력 폼 요소 (input, select 등)
@@ -50,7 +50,7 @@ const ErpField = ({
 }) => {
 	return (
 		// col-{span}: 그리드에서 몇 칸을 차지할지 결정
-		<div className={`field-group col-${span} ${className}`}>
+		<div className={`field-group col-${span} ${className}`} style={{ '--erp-span': span, ...style }}>
 			{/* erp-label: 왼쪽 라벨 / req 클래스: 필수 표시(*) 추가 */}
 			<label
 				className={`erp-label ${required ? 'req' : ''}`}

@@ -86,3 +86,8 @@ config/dcross.env
 .gitignore
 src/main/resources/application-real.yml
 *test.jsx
+src/main/frontend/src/components/newcar/newcarRequestW.test.js
+src/main/frontend/src/components/newcar/NewcarRequest_W.test.jsx
+uploads/newcar-production-certificates/20261022/태후코스메틱 제작증.pdf
+uploads/newcar-production-certificates/20261022/서환석 교수님 제작증.pdf
+uploads/newcar-production-certificates/20261022/55fec0e2-d21b-429b-a0e7-98dfc2260c64_다코스_제작증.pdf

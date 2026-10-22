@@ -19,7 +19,7 @@
     align-items: center;
     color: #fff;
     flex: 0 0 auto;
-    min-height: 28px;
+    min-height: 30px;
 }
 
 .toolbar-left,
@@ -218,8 +218,8 @@
 
 /* Buttons */
 .btn-erp {
-    height: 22px;
-    padding: 0 9px;
+    height: 24px;
+    padding: 0 15px;
     font-size: 13px;
     border-radius: 3px;
     border: 1px solid #2e5b8d;
@@ -228,7 +228,7 @@
     cursor: pointer;
     font-weight: 500;
     transition: all 0.15s ease;
-
+    margin: 0 2px;
     /* 버튼 글씨 가운데 정렬*/
     display: flex;
     align-items: center;
@@ -430,8 +430,8 @@ input.erp-input:read-only {
 /* 1280px Optimization for Buttons */
 @media (max-width: 1980px) {
     .btn-erp {
-        height: 20px;
-        padding: 0 4px;
+        height: 24px;
+        padding: 0 15px;
         font-size: 12px;
     }
 }
@@ -475,20 +475,20 @@ input.erp-input:read-only {
 
 /* small */
 .btn-erp.sm {
-    padding: 0 8px;
+    padding: 12px 15px;
     font-size: 12px;
     min-width: 52px;
 }
 
 /* medium */
 .btn-erp.md {
-    padding: 0 14px;
+    padding: 12px 15px;
     font-size: 13px;
 }
 
 /* large */
 .btn-erp.lg {
-    padding: 0 24px;
+    padding: 12px 24px;
     font-size: 13px;
 }
 
@@ -691,7 +691,7 @@ input.erp-input:read-only {
 
 .tab-content .btn-erp.sm,
 .tab-content .btn-erp.md {
-    height: 22px;
+    height: 24px;
     min-width: 52px;
     padding: 0 6px;
 }
@@ -766,7 +766,7 @@ input.erp-input:read-only {
 }
 
 .fixed-reg-info-section .erp-textArea {
-    height: 111px !important;
+    height: 147px !important;
 }
 
 @media (max-width: 1980px) {
@@ -1094,6 +1094,19 @@ button.btn-erp.sm.light.mL-25 {
 
 #SERVICE_ID {
 	cursor: pointer;
+}
+
+/* W 화면은 12칸 안에서 소수 span을 사용하고 라벨 너비를 필드별로 지정한다. */
+.newcar-request-w .erp-row > .field-group {
+    flex: 0 0 calc(var(--erp-span) / 12 * 100%);
+    box-sizing: border-box;
+}
+
+.newcar-request-w .erp-row > .field-group > .erp-label {
+    width: var(--erp-label-width, 100px) !important;
+    min-width: var(--erp-label-width, 100px);
+    flex: 0 0 var(--erp-label-width, 100px);
+    box-sizing: border-box;
 }
 
 /* W 화면의 필수값·자동입력 표시와 추가 팝업. 배치는 위 공통 스타일을 사용한다. */
