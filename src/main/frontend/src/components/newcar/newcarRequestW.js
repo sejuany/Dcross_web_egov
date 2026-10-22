@@ -13,7 +13,9 @@ export const fieldLabels = {
     NTAX_TRGET_GR_CD: '비과세대상등급', NTAX_WHO: '비과세대상자', CARD_YN: '취득세카드납부', BOND_DC: '채권할인여부',
     PAY_NM: '결제자명', PAY_HP_NO: '결제자 휴대폰번호', RT_BANK_CD: '환급은행', RETURN_NO: '환급계좌', RETURN_NM: '환급계좌예금주',
     CARP_ADDRESS: '등록증 배송지', DEBTOR_GB: '공동소유자 등록구분', DEBTOR_NM: '공동소유자명', DEBTOR_TEL_NO: '공동소유자 전화번호',
-    DEBTOR_REG_NO: '공동소유자 등록번호', DEBTOR_BIZ_NO: '공동소유자 사업자번호', DEBTOR_RATIO: '공동소유자비율'
+    DEBTOR_REG_NO: '공동소유자 등록번호', DEBTOR_BIZ_NO: '공동소유자 사업자번호', DEBTOR_RATIO: '공동소유자비율',
+    ADDRESS_DT: '소유자 상세주소', POST_NO: '소유자 우편번호', DEBTOR_ADDR: '공동소유자 주소',
+    DEBTOR_ADDR_DT: '공동소유자 상세주소', DEBTOR_ROAD_CD: '공동소유자 우편번호'
 };
 const digits = value => String(value ?? '').replace(/\D/g, '');
 export const formatWPhoneNo = value => {
@@ -27,6 +29,10 @@ export const formatWBusinessNo = value => {
     return [number.slice(0, 3), number.slice(3, 5), number.slice(5)].filter(Boolean).join('-');
 };
 const blank = value => value === null || value === undefined || String(value).trim() === '';
+const date = value => {
+    const text = String(value || '');
+    return /^\d{8}$/.test(text) ? `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}` : text.slice(0, 10);
+};
 export const canEditW = (service = {}) =>
     ['INPUT', 'SAV', 'C_REQ', 'C_SAV', 'I_REQ', 'I_SAV', 'W_REQ', 'RET', 'DEL'].includes(service.PROC_ST)
     && (!service.JUDGE_ST || ['RET', 'DEL'].includes(service.PROC_ST));
@@ -36,10 +42,6 @@ export const normalizeWData = (data = {}) => {
         DEBTOR_REG_NO: owner.DEBTOR_REG_NO ?? owner.REG_NO ?? '',
         DEBTOR_BIZ_NO: owner.DEBTOR_BIZ_NO ?? owner.BIZ_NO ?? '',
         DEBTOR_TEL_NO: owner.DEBTOR_TEL_NO ?? owner.DSIGN_HP_NO ?? '' });
-    const date = value => {
-        const text = String(value || '');
-        return /^\d{8}$/.test(text) ? `${text.slice(0, 4)}-${text.slice(4, 6)}-${text.slice(6, 8)}` : text.slice(0, 10);
-    };
     return {
         ...data,
         dsService: { ...initialDsService, ...data.dsService, REQUEST_DT: date(data.dsService?.REQUEST_DT), JUDGE_DT: date(data.dsService?.JUDGE_DT) },
@@ -120,13 +122,30 @@ export const validateW = (data, action = 'SAVE') => {
 };
 
 export const pdfWChanges = (current, extracted) => {
+    if (extracted.rawText !== undefined && !String(extracted.rawText || '').trim()) {
+        throw new Error('이 PDF에는 추출할 수 있는 텍스트가 없습니다. 텍스트가 포함된 원본 PDF로 다시 업로드해 주세요.');
+    }
     const vin = String(extracted.carIdNo || '').trim().toUpperCase();
     if (!/^[A-Z0-9]{17}$/.test(vin)) throw new Error('제작증에서 유효한 차대번호를 찾지 못했습니다.');
     if (current.CARID_NO && current.CARID_NO !== vin) throw new Error('현재 신청과 제작증의 차대번호가 다릅니다.');
+    const owners = extracted.owners || [];
+    if (owners.length > 3) throw new Error('소유자가 3명을 초과하는 제작증은 담당자에게 확인해 주세요.');
+    const owner = owners[0] || {};
     const values = {
-        CARID_NO: vin, CAR_NM: extracted.carName, BUY_AMT: digits(extracted.supplyAmount), OWNER_NM: extracted.ownerName,
-        REG_NO: digits(extracted.ownerRegNo), ADDRESS: extracted.ownerAddress,
-        MADE_DT: extracted.manufactureDate, REGIST_DATE: extracted.firstTransferDate
+        CARID_NO: vin, CAR_NM: extracted.carName, BUY_AMT: digits(extracted.supplyAmount), OWNER_NM: owner.name || extracted.ownerName,
+        REG_NO: digits(owner.regNo || extracted.ownerRegNo), ADDRESS: owner.address || extracted.ownerAddress,
+        ADDRESS_DT: owner.addressDetail, POST_NO: owner.postNo,
+        MADE_DT: date(extracted.manufactureDate), REGIST_DATE: date(extracted.firstTransferDate)
     };
-    return Object.fromEntries(Object.entries(values).filter(([key, value]) => !blank(value)));
+    const changes = { dsNewCar: Object.fromEntries(Object.entries(values).filter(([key, value]) => !blank(value))) };
+    if (owners.length > 1) {
+        Object.assign(changes.dsNewCar, { REG_GB: 'R', RATIO_NO: '' });
+        owners.slice(1).forEach((joint, index) => {
+            changes[index ? 'dsOwnerInfo1' : 'dsOwnerInfo'] = {
+                DEBTOR_GB: 'R', DEBTOR_NM: joint.name || '', DEBTOR_REG_NO: digits(joint.regNo), DEBTOR_RATIO: '',
+                DEBTOR_ADDR: joint.address || '', DEBTOR_ADDR_DT: joint.addressDetail || '', DEBTOR_ROAD_CD: joint.postNo || ''
+            };
+        });
+    }
+    return changes;
 };

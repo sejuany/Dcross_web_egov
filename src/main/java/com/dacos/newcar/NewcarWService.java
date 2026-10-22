@@ -13,12 +13,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionSynchronization;
-import org.springframework.transaction.support.TransactionSynchronizationManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.springframework.web.multipart.MultipartFile;
 
@@ -32,7 +28,6 @@ import com.dacos.common.ServiceAccessGuard.ServiceAction;
 /** 딜러 화면에서 숨긴 값과 조회 전용 값을 서버 원본과 병합한 뒤 기존 저장 프로세스를 사용한다. */
 @Service
 public class NewcarWService {
-    private static final Logger log = LoggerFactory.getLogger(NewcarWService.class);
     private static final Set<String> EDITABLE_STATES = Set.of("INPUT", "SAV", "C_REQ", "C_SAV", "I_REQ", "I_SAV", "W_REQ", "RET", "DEL");
     private static final String[] CAR_FIELDS = {"TASK_CD", "CARID_NO", "REGIST_DATE", "NUMPLATE_GB", "REG_GB", "REG_NO", "BIZ_NO", "OWNER_NM",
         "RATIO_NO", "MPHONE_NO", "TEL_NO", "ADDRESS", "ADDRESS_DT", "POST_NO", "BUBJUNG_CD", "ADDR_INFO", "BASE_ADDRESS", "BASE_ADDRESS_DT",
@@ -131,17 +126,6 @@ public class NewcarWService {
                 if (!originalVin.isEmpty() && !originalVin.equals(text(car, "CARID_NO"))) fail("저장된 신청과 제작증의 차대번호가 다릅니다.");
                 putNonBlank(car, "CAR_NM", extracted.get("carName"));
                 putNonBlank(car, "MADE_DT", extracted.get("manufactureDate"));
-                Map<String, Object> saved = pdf.storeProductionCertificate(file, user);
-                String storedPath = text(saved, "storedPath");
-                TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
-                    @Override public void afterCompletion(int completion) {
-                        if (completion == STATUS_ROLLED_BACK) {
-                            try { pdf.removeProductionCertificate(storedPath); }
-                            catch (IOException e) { log.error("W 제작증 롤백 파일 정리 실패", e); }
-                        }
-                    }
-                });
-                detach.put("FILENAME1", storedPath);
             } catch (IOException e) { throw new BusinessException("제작증 파일을 처리하지 못했습니다.", 400); }
         }
 
@@ -158,11 +142,12 @@ public class NewcarWService {
         data.put("dsService", service); data.put("dsNewCar", car); data.put("dsCarNoDetach", detach);
         data.put("dsOwnerInfo", owners.get(0)); data.put("dsOwnerInfo1", owners.get(1));
         data.put("dsPaymentList", payments); data.put("dsTaxReceipt", tax);
-        boolean hasFile = file != null && !file.isEmpty();
-        boolean stagedRequest = hasFile && "REQUEST".equals(action);
+        // 제작증은 검증·값 추출에만 사용하며 원본 파일은 보관하지 않는다.
+        boolean hasProductionDate = file != null && !file.isEmpty() && !text(car, "MADE_DT").isEmpty();
+        boolean stagedRequest = hasProductionDate && "REQUEST".equals(action);
         Map<String, Object> saveData = data;
         if (stagedRequest) {
-            // 원본 파일 연결에 실패한 신청을 관청으로 전송하지 않도록 파일 저장을 먼저 끝낸다.
+            // 제작일자 저장 실패 시 관청 신청이 먼저 진행되지 않도록 한다.
             saveData = new HashMap<>(data);
             Map<String, Object> draftService = new HashMap<>(service);
             draftService.put("PROC_ST", id.isEmpty() ? "SAV" : text(map(original, "dsService"), "PROC_ST"));
@@ -171,12 +156,7 @@ public class NewcarWService {
         }
         Map<String, Object> response = legacy.processNewCar(saveData, user);
         Map<String, Object> result = successfulResult(response);
-        // 공용 탈부착 UPDATE는 FILENAME1을 다루지 않으므로 W 업로드에서만 명시적으로 갱신한다.
-        if (hasFile && common.update(Map.of("SERVICE_ID", result.get("SERVICE_ID"),
-                "FILENAME1", detach.get("FILENAME1")), "updateWProductionCertificate") != 1) {
-            throw new BusinessException("제작증 원본 연결을 완료하지 못했습니다.", 409);
-        }
-        if (hasFile && !text(car, "MADE_DT").isEmpty() && common.update(Map.of("SERVICE_ID", result.get("SERVICE_ID"),
+        if (hasProductionDate && common.update(Map.of("SERVICE_ID", result.get("SERVICE_ID"),
                 "MADE_DT", car.get("MADE_DT")), "updateWProductionDate") != 1) {
             throw new BusinessException("제작증 차량정보를 저장하지 못했습니다.", 409);
         }

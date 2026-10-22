@@ -1581,10 +1581,6 @@
            AND CARID_NO = #{CARID_NO}
            AND USE_YN = 'S'
     </select>
-    <update id="updateWProductionCertificate" parameterType="map">
-        UPDATE TR_CARNO_DETACH SET FILENAME1 = #{FILENAME1}
-         WHERE SERVICE_ID = #{SERVICE_ID}
-    </update>
     <update id="updateWProductionDate" parameterType="map">
         UPDATE TR_NEWCAR SET MADE_DT = #{MADE_DT}
          WHERE SERVICE_ID = #{SERVICE_ID}

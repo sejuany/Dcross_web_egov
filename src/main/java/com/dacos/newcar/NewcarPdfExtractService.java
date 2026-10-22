@@ -32,6 +32,8 @@ public class NewcarPdfExtractService {
     private static final Pattern MONEY_PATTERN = Pattern.compile("([0-9]{1,3}(?:,[0-9]{3})+|[0-9]+)\\s*원");
     private static final Pattern REG_NO_PATTERN = Pattern.compile("\\d{6}-?\\d{6,7}|\\d{6}-?\\d{7}");
     private static final Pattern KOREAN_DATE_PATTERN = Pattern.compile("(\\d{4})\\s*년\\s*(\\d{1,2})\\s*월\\s*(\\d{1,2})\\s*일");
+    private static final Pattern ROAD_ADDRESS_PATTERN = Pattern.compile("^(.*?(?:로|길)\\s*\\d+(?:-\\d+)?)(?:\\s+(.*))?$");
+    private static final Pattern POST_NO_PATTERN = Pattern.compile("\\s+(\\d{5})$");
     private static final DateTimeFormatter DATE_PATH_FORMAT = DateTimeFormatter.BASIC_ISO_DATE;
 
     @Value("${newcar.pdf-upload-dir:./uploads/newcar-production-certificates}")
@@ -85,25 +87,12 @@ public class NewcarPdfExtractService {
         data.put("ownerName", extractOwnerName(lines));
         data.put("ownerRegNo", extractOwnerRegNo(lines));
         data.put("ownerAddress", extractOwnerAddress(lines));
+        data.put("owners", extractOwners(lines));
         data.put("firstTransferDate", extractDateAfterLabel(lines, "최초양도연월일"));
         data.put("manufactureDate", extractDateAfterLabel(lines, "제작연월일"));
         data.put("rawText", rawText);
 
         return data;
-    }
-
-    Map<String, Object> storeProductionCertificate(MultipartFile file, UserDto user) throws IOException {
-        validatePdfFile(file);
-        return savePdfFile(file, file.getBytes(), user);
-    }
-
-    void removeProductionCertificate(String storedPath) throws IOException {
-        String prefix = "newcar-production-certificates/";
-        if (!storedPath.startsWith(prefix)) throw new IOException("Invalid production certificate path");
-        Path base = Paths.get(pdfUploadDir).toAbsolutePath().normalize();
-        Path file = base.resolve(storedPath.substring(prefix.length())).normalize();
-        if (!file.startsWith(base) || file.equals(base)) throw new IOException("Invalid production certificate path");
-        Files.deleteIfExists(file);
     }
 
     private Map<String, Object> savePdfFile(MultipartFile file, byte[] pdfBytes, UserDto user) throws IOException {
@@ -362,6 +351,47 @@ public class NewcarPdfExtractService {
         }
 
         return "";
+    }
+
+    private List<Map<String, String>> extractOwners(List<String> lines) {
+        String name = extractOwnerName(lines);
+        if (name.isBlank()) return List.of();
+        String[] names = name.split("\\s*[,，]\\s*");
+        List<String> numbers = new ArrayList<>();
+        List<String> addresses = new ArrayList<>();
+        int header = findLineIndex(lines, "성명");
+        int addressIndex = -1;
+        for (int i = header; i < lines.size(); i++) {
+            if (compact(lines.get(i)).startsWith("주소")) { addressIndex = i; break; }
+            Matcher matcher = REG_NO_PATTERN.matcher(lines.get(i));
+            while (matcher.find()) numbers.add(matcher.group());
+        }
+        if (addressIndex >= 0) {
+            for (int i = addressIndex; i < lines.size() && addresses.size() < names.length; i++) {
+                String line = i == addressIndex ? removeBeforeLabel(lines.get(i), "주소") : lines.get(i);
+                if (compact(line).contains("양수인의신규등록") || compact(line).contains("자동차관리법")) break;
+                if (!line.isBlank()) addresses.add(normalizeText(line));
+            }
+        }
+        List<Map<String, String>> owners = new ArrayList<>();
+        for (int i = 0; i < names.length; i++) {
+            Map<String, String> owner = new HashMap<>();
+            owner.put("name", names[i].trim());
+            owner.put("regNo", i < numbers.size() ? numbers.get(i) : "");
+            String address = i < addresses.size() ? addresses.get(i) : "";
+            Matcher postal = POST_NO_PATTERN.matcher(address);
+            if (postal.find() && ROAD_ADDRESS_PATTERN.matcher(address.substring(0, postal.start()).trim()).matches()) {
+                owner.put("postNo", postal.group(1));
+                address = address.substring(0, postal.start()).trim();
+            }
+            Matcher road = ROAD_ADDRESS_PATTERN.matcher(address);
+            if (road.matches()) {
+                owner.put("address", road.group(1));
+                owner.put("addressDetail", road.group(2) == null ? "" : road.group(2));
+            } else owner.put("address", address);
+            owners.add(owner);
+        }
+        return owners;
     }
 
     private String extractDateAfterLabel(List<String> lines, String label) {

@@ -295,7 +295,6 @@ const NewcarRequest_W = () => {
             <button type="button" className="btn-erp light" disabled={!editable} onClick={() => fileRef.current?.click()}>제작증 업로드</button>
             <button type="button" className="btn-erp light" disabled={busy} onClick={showPaper}>등록증 확인</button>
             <button type="button" className="btn-erp light" disabled={busy} onClick={() => setModal('tax')}>세금계산서/현금영수증 정보</button>
-            {certificate && <span>저장 대기 제작증: {certificate.name}</span>}
             <input ref={fileRef} type="file" accept="application/pdf,.pdf" hidden onChange={selectPdf} aria-label="제작증 PDF" />
         </div><div className="toolbar-right">
             <button type="button" className="btn-erp" disabled={!editable} onClick={() => save('REQUEST')}>신청</button>
@@ -437,11 +436,13 @@ const NewcarRequest_W = () => {
         </div></div>
         {modal === 'pdf' && preview && <div className="w-modal-backdrop"><section className="w-modal" role="dialog" aria-modal="true" aria-labelledby="w-pdf-title">
             <h3 id="w-pdf-title">제작증 반영 내용 확인</h3><p>현재 화면에 반영될 값입니다. 저장·신청 전까지 접수에는 저장되지 않습니다.</p>
-            <table className="w-payments"><thead><tr><th>항목</th><th>현재</th><th>제작증</th></tr></thead><tbody>{Object.entries(preview.values).map(([key, value]) => <tr key={key}><th>{fieldLabels[key] || { CAR_NM: '차명', MADE_DT: '최초등록일' }[key] || key}</th><td>{car[key] || '-'}</td><td>{value}</td></tr>)}</tbody></table>
+            <table className="w-payments"><thead><tr><th>항목</th><th>현재</th><th>제작증</th></tr></thead><tbody>{Object.entries(preview.values).flatMap(([record, fields]) => Object.entries(fields).map(([key, value]) => <tr key={`${record}.${key}`}><th>{fieldLabels[key] || { CAR_NM: '차명', MADE_DT: '최초등록일' }[key] || key}{record === 'dsOwnerInfo1' ? ' (2)' : ''}</th><td>{data[record][key] || '-'}</td><td>{value || '-'}</td></tr>))}</tbody></table>
             <div className="w-bottom-actions"><button type="button" className="btn-erp" onClick={() => {
-                setData(previous => ({ ...previous, dsNewCar: { ...previous.dsNewCar, ...preview.values } }));
+                setData(previous => ({ ...previous, ...Object.fromEntries(Object.entries(preview.values)
+                    .map(([record, fields]) => [record, { ...previous[record], ...fields }])) }));
+                if (preview.values.dsOwnerInfo1) setSecondOwner(true);
                 setCertificate(preview.file); setPreview(null); setModal('');
-                setMessage('제작증을 화면에 반영했습니다. 저장 또는 신청하면 원본 PDF도 함께 저장됩니다.');
+                setMessage(`제작증을 화면에 반영했습니다. 저장·신청 시 입력정보만 저장되며 원본 PDF는 보관하지 않습니다.${preview.values.dsOwnerInfo ? ' 대표·공동소유자 비율은 직접 입력해 주세요.' : ''}`);
             }}>반영</button><button type="button" className="btn-erp light" onClick={() => { setPreview(null); setModal(''); }}>취소</button></div>
         </section></div>}
         {modal === 'tax' && <div className="w-modal-backdrop"><section className="w-modal" role="dialog" aria-modal="true" aria-labelledby="w-tax-title">
