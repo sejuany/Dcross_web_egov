@@ -609,10 +609,11 @@ public class SchedulerService {
             if (inserted > 0) {
                 numplateService.sendNewcarTeamTelegramAfterCommit(
                     serviceId,
+                    target.getCARID_NO(),
                     target.getCUSTOMER_NM(),
                     toLocalDate(target.getREGIST_DATE()).format(DateTimeFormatter.ISO_LOCAL_DATE),
                     unpaid,
-                    numplateMissing,
+                    target.getREQ_CAR_NO(),
                     alertContent
                 );
             }

@@ -173,8 +173,9 @@ public class NumplateSelectionService {
 						"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
 						serviceId, alertKind, alertCount);
 				if (alertCount > 0) {
-					sendNewcarTeamTelegramAfterCommit(serviceId, customerName, registDate,
-							unpaid, numplateMissing, alertContent);
+					sendNewcarTeamTelegramAfterCommit(serviceId, Objects.toString(mNewCar.get("CARID_NO"), ""),
+							customerName, registDate,
+							unpaid, Objects.toString(mNewCar.get("REQ_CAR_NO"), ""), alertContent);
 				}
 			}
         }
@@ -203,18 +204,20 @@ public class NumplateSelectionService {
     }
 
 	/** 새로 등록된 신차팀 임박 알림만 커밋 후 텔레그램으로 전송한다. */
-	public void sendNewcarTeamTelegramAfterCommit(String serviceId, String customerName,
-			String registDate, boolean unpaid, boolean numplateMissing, String alertContent) {
+	public void sendNewcarTeamTelegramAfterCommit(String serviceId, String carIdNo, String customerName,
+			String registDate, boolean unpaid, String reqCarNo, String alertContent) {
+		String selectedCarNo = Objects.toString(reqCarNo, "").trim();
 		Runnable send = () -> {
 			try {
 				String registrationDay = new SimpleDateFormat("yyyy-MM-dd")
 						.format(getNumplateSelectLimitDate(registDate, 0));
 				String message = "[" + alertContent.replace("[신차사업] ", "") + "]"
 						+ "\n• 접수번호: " + serviceId
+						+ "\n• 차대번호: " + Objects.toString(carIdNo, "")
 						+ "\n• 고객명: " + Objects.toString(customerName, "")
 						+ "\n• 등록예정일: " + registrationDay
 						+ "\n• 납부유무: " + (unpaid ? "미납" : "납부완료")
-						+ "\n• 번호선택: " + (numplateMissing ? "미선택" : "선택완료");
+						+ "\n• 번호선택: " + (selectedCarNo.isEmpty() ? "미선택" : "선택완료(" + selectedCarNo + ")");
 				telegramService.sendMessage(message, null, null, "newds");
 			} catch (ParseException | RuntimeException e) {
 				// 고객명이나 인증정보가 포함될 수 있는 메시지/예외 내용은 기록하지 않는다.

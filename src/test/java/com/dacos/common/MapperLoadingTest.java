@@ -31,9 +31,14 @@ class MapperLoadingTest {
         String sql = configuration.getMappedStatement(
                 "com.dacos.scheduler.mapper.SchedulerMapper.selectNewcarNumplateD2AlertTargets")
                 .getBoundSql(Map.of()).getSql();
-        assertTrue(sql.contains("TRUNC(SYSDATE) BETWEEN"));
+        assertTrue(sql.contains("TRUNC(TN.REGIST_DATE) BETWEEN TRUNC(SYSDATE)"));
+        assertTrue(sql.contains("ROWNUM <= 2"));
         assertTrue(sql.contains("'IW'"));
         assertTrue(sql.contains("H.CODE_ID = 'HOLID'"));
+        String applicationSql = configuration.getMappedStatement(
+                "com.dacos.newcar.mapper.NewcarMapper.insertNewcarApplicationNumplateAlert")
+                .getBoundSql(Map.of()).getSql();
+        assertTrue(applicationSql.contains("TRUNC(TN.REGIST_DATE) BETWEEN TRUNC(SYSDATE)"));
     }
 
     private void parse(Configuration configuration, Resource resource) throws Exception {
