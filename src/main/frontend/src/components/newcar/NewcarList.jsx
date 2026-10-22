@@ -88,8 +88,12 @@ const getInitialSearchFilters = (user) => ({
 	selectedDeliveryGb: []
 });
 
-const NewcarList = () => {
+const NewcarList = ({ isW = false }) => {
     const location = useLocation();
+    const listPath = isW ? '/newcar/newcar-list-w' : '/newcar/newcar-list';
+    const requestTabId = isW ? 'newcar-request-w' : 'newcar-request';
+    const requestTitle = isW ? '신규등록(W)' : '신규등록';
+    const requestPath = `/newcar/${requestTabId}`;
 	const { activeTabId, addTab, removeTab } = useTabs(); // 탭 관리
     const gridRef = useRef(null);
 	const fileInputRef = useRef(null);
@@ -311,7 +315,7 @@ const NewcarList = () => {
             return;
         }
 
-        addTab('newcar-request', '신규등록', '/newcar/newcar-request', {
+        addTab(requestTabId, requestTitle, requestPath, {
             state: {
                 receiptNo: serviceId,
                 detailOpenKey: `${serviceId}-${Date.now()}`
@@ -324,7 +328,7 @@ const NewcarList = () => {
     };
 
     const handleRegistClick = () => {
-		addTab('newcar-request', '신규등록', '/newcar/newcar-request');
+		addTab(requestTabId, requestTitle, requestPath);
     };
 
     const handlePdfUploadClick = () => {
@@ -558,7 +562,7 @@ const NewcarList = () => {
 
     useEffect(() => {
         const handleKeyDown = (e) => {
-            if (location.pathname !== '/newcar/newcar-list') return;
+            if (location.pathname !== listPath) return;
 
             switch (e.key) {
                 case 'F2':
@@ -592,7 +596,7 @@ const NewcarList = () => {
 
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
-    }, [location.pathname, searchFilters]);
+    }, [location.pathname, searchFilters, listPath, requestTabId, requestTitle, requestPath]);
 	
 	const memberGbConfig = {
 	    SA: {

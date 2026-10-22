@@ -45,7 +45,7 @@ beforeEach(() => {
 
 test('삭제 항목·배송탭을 제거하고 툴바 버튼과 조회 전용 항목을 표시한다', async () => {
     const { container } = await renderReady();
-    expect(Array.from(container.querySelectorAll('.toolbar-left button')).map(button => button.textContent)).toEqual(['첨부서류', '제작증 업로드', '목록']);
+    expect(Array.from(container.querySelectorAll('.toolbar-left button')).map(button => button.textContent)).toEqual(['목록', '첨부서류', '제작증 업로드']);
     for (const label of ['임시번호판 상태', '용도구분', '등록관청', '차령만료일', '신규등록 구분', '업무 구분', '입금구분', '등록비용사전조회', '신규등록일자', '채권금액', '채권납부계좌']) {
         expect(screen.queryByText(label, { exact: true })).toBeNull();
     }
@@ -60,10 +60,58 @@ test('삭제 항목·배송탭을 제거하고 툴바 버튼과 조회 전용 �
 });
 test('메모는 탭과 무관하게 유지하고 비용 표·납부정보는 수정할 수 없다', async () => {
     await renderReady(); fireEvent.change(screen.getByLabelText('메모'), { target: { value: 'TEST-MEMO' } });
+    const registrationTab = screen.getByRole('tab', { name: '등록정보' });
+    const paymentTab = screen.getByRole('tab', { name: '결제정보' });
+    expect(registrationTab.parentElement).toHaveClass('tab-button-group');
+    expect(paymentTab.parentElement).toBe(registrationTab.parentElement);
     fireEvent.click(screen.getByRole('tab', { name: '결제정보' }));
+    expect(paymentTab).toHaveAttribute('aria-selected', 'true');
+    expect(screen.getByRole('tabpanel', { name: '결제정보' })).toBeVisible();
     expect(screen.getByLabelText('메모')).toHaveValue('TEST-MEMO');
     for (const label of ['납부상태', '납부방법', '가상계좌', '총 금액']) expect(screen.getByLabelText(label)).toHaveAttribute('readonly');
     expect(screen.getByRole('table').querySelector('input')).toBeNull();
+});
+
+test('공통 CSS의 select 화살표와 작은 여백은 필수·자동입력·비활성 표시에서도 유지된다', async () => {
+    const style = document.createElement('style');
+    style.textContent = require('fs').readFileSync(`${__dirname}/NewcarRequest.css`, 'utf8');
+    document.head.appendChild(style);
+    try {
+        await renderReady();
+        const select = screen.getByLabelText('업무구분');
+        for (const className of ['erp-input', 'erp-input w-required', 'erp-input w-required w-auto']) {
+            select.className = className;
+            for (const disabled of [false, true]) {
+                select.disabled = disabled;
+                const computed = getComputedStyle(select);
+                expect(computed.backgroundImage).toContain('data:image/svg+xml');
+                expect(computed.paddingLeft).toBe('4px');
+                expect(computed.paddingRight).toBe('14px');
+                expect(computed.margin).toBe('1px');
+            }
+        }
+    } finally { style.remove(); }
+});
+
+test.each(['B', 'R'])('등록구분 %s에서도 공통 행·소유자 배치를 사용하고 행 너비를 채운다', async registrationType => {
+    const record = original(); record.dsNewCar.REG_GB = registrationType;
+    axios.get.mockResolvedValue({ data: { success: true, data: record } });
+    const { container } = await renderReady();
+    expect(container.querySelector('.new-reg-container .tab-container > .tab-content')).not.toBeNull();
+    expect(container.querySelector('.owner-split-layout .owner-main-panel')).not.toBeNull();
+    expect(container.querySelector('.owner-split-layout .owner-co-panel')).not.toBeNull();
+    expect(container.querySelector('.fixed-reg-info-section')).not.toBeNull();
+    expect(container.querySelector('.w-fields, .w-owner-grid, .w-scroll')).toBeNull();
+    const checkRows = () => {
+        for (const row of container.querySelectorAll('.erp-row')) {
+            const columns = Array.from(row.children).map(child => Number(child.className.match(/\bcol-(\d+)\b/)?.[1] || 0));
+            expect(columns.reduce((sum, span) => sum + span, 0)).toBe(12);
+        }
+    };
+    checkRows();
+    fireEvent.click(screen.getByRole('button', { name: '세금계산서/현금영수증 정보' }));
+    fireEvent.change(screen.getByLabelText('증빙 종류'), { target: { value: 'TAX' } });
+    checkRows();
 });
 test('제작증 확인·취소는 접수를 저장하지 않고 반영한 PDF만 저장 시 전송한다', async () => {
     await renderReady();

@@ -328,9 +328,7 @@ input.erp-input:disabled,
 textarea.erp-input:disabled,
 select.erp-input:disabled,
 input.erp-input:read-only {
-    cursor: not-allowed;
-    
-    background: #f8fafc !important;
+    background-color: #f8fafc !important;
     border: 1px solid #d5dee8 !important;
     color: #495057 !important;
 
@@ -340,15 +338,6 @@ input.erp-input:read-only {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-}
-
-/* hover */
-input.erp-input:read-only:hover,
-textarea.erp-input:read-only:hover,
-input.erp-input:disabled:hover,
-textarea.erp-input:disabled:hover,
-select.erp-input:disabled:hover {
-    cursor: not-allowed;
 }
 
 /* 메모 영역*/
@@ -381,16 +370,6 @@ select.erp-input:disabled:hover {
         letter-spacing: -1px;
     }
 
-    select.erp-input {
-        padding-left: 1px;
-        padding-right: 12px;
-        text-overflow: ellipsis;
-        appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 2px center;
-        background-size: 10px;
-    }
 }
 
 .flex-grow {
@@ -690,6 +669,16 @@ select.erp-input:disabled:hover {
     font-size: 13px;
 }
 
+.new-reg-container select.erp-input {
+    padding: 0 14px 0 4px;
+    text-overflow: ellipsis;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%20fill%3D%22none%22%20stroke%3D%22%2344546a%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 2px center;
+    background-size: 10px;
+}
+
 .tab-content .btn-erp.sm,
 .tab-content .btn-erp.md {
     height: 22px;
@@ -772,7 +761,7 @@ select.erp-input:disabled:hover {
 }
 
 @media (max-width: 1980px) {
-    .owner-split-layout {
+    .new-reg-container:not(.newcar-request-w) .owner-split-layout {
         grid-template-columns: 1fr;
     }
 
@@ -804,6 +793,10 @@ input[name="CARP_POST_NO"] {
 }
 
 @media (max-width: 1100px) {
+    .owner-split-layout {
+        grid-template-columns: 1fr;
+    }
+
     .tab-content {
         padding: 6px;
     }
@@ -1087,3 +1080,17 @@ button.btn-erp.sm.light.mL-25 {
 #SERVICE_ID {
 	cursor: pointer;
 }
+
+/* W 화면의 필수값·자동입력 표시와 추가 팝업. 배치는 위 공통 스타일을 사용한다. */
+.newcar-request-w .erp-input.w-required { background-color: #fff6cc !important; border: 1px solid #dc3545 !important; }
+.newcar-request-w .erp-input.w-auto { background-color: #e1f3ff !important; border: 1px solid #2382c8 !important; }
+.newcar-request-w .w-bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px; }
+.newcar-request-w .w-message, .newcar-request-w .w-state { margin: 0; padding: 9px 12px; background: #fff5dc; color: #723f00; }
+.newcar-request-w .w-payments { width: 100%; border-collapse: collapse; background: white; }
+.newcar-request-w .w-payments caption { text-align: left; padding: 8px; font-weight: bold; }
+.newcar-request-w .w-payments th, .newcar-request-w .w-payments td { border: 1px solid #d6dee8; padding: 7px 10px; overflow-wrap: anywhere; }
+.newcar-request-w .w-payments td { text-align: right; }
+.newcar-request-w .w-modal-backdrop { position: fixed; inset: 0; z-index: 2000; background: #172d4b80; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.newcar-request-w .w-modal { width: min(850px, 95vw); max-height: 90vh; overflow: auto; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 12px 36px #0003; }
+.newcar-request-w .w-modal h3 { margin: 0 0 12px; }
+.newcar-request-w .w-paper { width: 100%; height: 70vh; border: 1px solid #d6dee8; }
