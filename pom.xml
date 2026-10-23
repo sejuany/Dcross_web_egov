@@ -21,25 +21,71 @@
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
 		<egovframe.rte.version>5.0.0</egovframe.rte.version>
-		<spring.framework.version>6.2.18</spring.framework.version>
+		<spring.framework.version>6.2.19</spring.framework.version>
 	</properties>
 
 	<!-- Firebase와 Selenium이 참조하는 OpenTelemetry 버전을 하나로 맞춘다. -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-framework-bom</artifactId>
+				<version>${spring.framework.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
 				<groupId>io.opentelemetry</groupId>
 				<artifactId>opentelemetry-bom</artifactId>
-				<version>1.57.0</version>
+				<version>1.67.0</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>com.fasterxml.jackson</groupId>
 				<artifactId>jackson-bom</artifactId>
-				<version>2.22.2</version>
+				<version>2.22.4</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>4.2.19.Final</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-bom</artifactId>
+				<version>2.26.1</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-core</artifactId>
+				<version>10.1.61</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-el</artifactId>
+				<version>10.1.61</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.tomcat.embed</groupId>
+				<artifactId>tomcat-embed-websocket</artifactId>
+				<version>10.1.61</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-configuration2</artifactId>
+				<version>2.15.1</version>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-compress</artifactId>
+				<version>1.28.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -73,7 +119,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -94,7 +140,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 		</dependency>
 
 		<!-- 표준프레임워크 실행환경 -->
@@ -217,7 +263,7 @@
 		<dependency>
 		    <groupId>org.apache.poi</groupId>
 		    <artifactId>poi-ooxml</artifactId>
-		    <version>5.2.5</version>
+		    <version>5.4.1</version>
 		</dependency>
 
 		<dependency>
@@ -229,13 +275,13 @@
 		<dependency>
 		    <groupId>org.apache.logging.log4j</groupId>
 		    <artifactId>log4j-api</artifactId>
-		    <version>2.23.1</version>
+		    <version>2.26.1</version>
 		</dependency>
 		
 		<dependency>
 		    <groupId>org.apache.logging.log4j</groupId>
 		    <artifactId>log4j-core</artifactId>
-		    <version>2.23.1</version>
+		    <version>2.26.1</version>
 		</dependency>
 
 		<!-- MyBatis Spring Boot Starter -->
@@ -260,7 +306,7 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-crypto</artifactId>
-			<version>6.2.2</version>
+			<version>6.5.11</version>
 		</dependency>
 
 		<!-- 번호판 매니저 Face ID/Touch ID 패스키(WebAuthn) 서버 검증 -->
@@ -299,7 +345,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 			<optional>true</optional>
 			<exclusions>
 				<exclusion>
@@ -317,7 +363,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -452,8 +498,8 @@
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v22.15.0</nodeVersion>
-							<npmVersion>10.9.2</npmVersion>
+							<nodeVersion>v22.23.4</nodeVersion>
+							<npmVersion>10.9.9</npmVersion>
 						</configuration>
 					</execution>
 					<execution>
@@ -506,7 +552,7 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-			<version>3.5.15</version>
+			<version>3.5.16</version>
 				<configuration>
 					<jvmArguments>-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dstdout.encoding=UTF-8</jvmArguments>
 					<includeSystemScope>true</includeSystemScope>
