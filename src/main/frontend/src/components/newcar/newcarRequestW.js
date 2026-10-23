@@ -1,10 +1,56 @@
 import { initialDsService, initialDsNewCar, initialOwnerInfo, initialOwnerInfo1, initialDsCarNoDetach } from './newcarInitial';
+import axios from 'axios';
+import { buildCarSpecPatch, resolveBondSearchCriteria } from '../../wa/pages/newcar/newcarCarSpec';
+import { AUTO_APPLY_EXEMPTION_TARGET_CODES, EXEMPTION_GRADE_CODES_BY_TARGET, calculateNewcarEstimate, resolveBondPreExemption } from '../../wa/pages/newcar/newcarAmountCalculator';
 
 export const emptyTaxReceipt = {
     GUBUN: '', ETC1: 'N', REG_NO: '', NAME: '', COMPANY_NM: '', PHONE_NO: '',
     ADDR: '', ADDR_DT: '', POST_NO: '', BUSINESS_TYPE: '', INDUSTRY_TYPE: '', MAIL1: '', MAIL2: ''
 };
-export const gradeTargets = ['01', '02', '03', '04', '05', '14'];
+export const gradeTargets = Object.keys(EXEMPTION_GRADE_CODES_BY_TARGET).filter(code => !AUTO_APPLY_EXEMPTION_TARGET_CODES.has(code));
+export const exemptionWGrade = (target, current) => {
+    if (AUTO_APPLY_EXEMPTION_TARGET_CODES.has(target)) return 'D';
+    if (!target || target === '00') return '0';
+    return (EXEMPTION_GRADE_CODES_BY_TARGET[target] || []).includes(current) ? current : '';
+};
+export const estimateWInputs = car => Object.fromEntries([
+    'TASK_CD', 'CARID_NO', 'CAR_NM', 'BASE_ADDRESS', 'BUY_AMT', 'NTAX_TRGET_CD', 'NTAX_TRGET_GR_CD',
+    'NTAX_WHO', 'BOND_DC', 'CARD_YN', 'NUMPLATE_GB'
+].map(name => [name, String(car[name] ?? '').trim()]));
+
+export const loadWCarSpec = async car => {
+    if (!car.CAR_NM?.trim()) throw new Error('차량명을 확인해 주세요.');
+    const response = await axios.get('/api/newcar/car-spec', { params: { carName: car.CAR_NM } });
+    const spec = response.data?.data;
+    if (!response.data?.success || !spec) throw new Error(response.data?.message || '차량제원을 찾을 수 없습니다.');
+    return { ...buildCarSpecPatch(car, spec), MADE_DT: car.MADE_DT || spec.MADE_DT || '',
+        VH_TY_CD: String(spec.MULTI_PURPOSE_YN).toUpperCase() === 'Y' ? '3' : '',
+        COLOR_GB: spec.COLOR_GB ?? car.COLOR_GB, SPMNNO: spec.SPMNNO ?? car.SPMNNO,
+        LOW_POLLUTION_YN: spec.LOW_POLLUTION_YN ?? car.LOW_POLLUTION_YN };
+};
+
+export const calculateWEstimate = async (data, codes) => {
+    const car = data.dsNewCar;
+    if (!car.BASE_ADDRESS?.trim()) throw new Error('사용본거지 주소를 입력해 주세요.');
+    if (!(Number(car.BUY_AMT) > 0)) throw new Error('공급가액을 입력해 주세요.');
+    if (!car.BOND_DC) throw new Error('채권할인여부를 선택해 주세요.');
+    if (!car.NTAX_TRGET_CD || (gradeTargets.includes(car.NTAX_TRGET_CD) && !car.NTAX_TRGET_GR_CD)
+        || (gradeTargets.includes(car.NTAX_TRGET_CD) && car.NTAX_TRGET_GR_CD === '0')) throw new Error('비과세대상과 등급을 선택해 주세요.');
+    const [spec, taxResponse] = await Promise.all([loadWCarSpec(car), axios.get('/api/newcar/tax-info')]);
+    if (!taxResponse.data?.success || !taxResponse.data?.data) throw new Error('신규등록 세율정보를 찾을 수 없습니다.');
+    const newCar = { ...car, ...spec, TM_TAX_INFO: taxResponse.data.data };
+    const criteria = resolveBondSearchCriteria(newCar);
+    const exemption = resolveBondPreExemption(newCar, codes);
+    const bond = exemption.exempt ? { BOND_RATE: 0, AREA: criteria.area, BOND_GB: 'N', FULL_EXEMPT_YN: 'Y' }
+        : (await axios.get('/api/newcar/bond-rate', { params: { baseAddress: criteria.area, carGb: criteria.carGb, baseValue: criteria.baseValue } })).data?.data;
+    if (bond?.BOND_RATE === undefined || bond?.BOND_RATE === null) throw new Error('공채 매입률을 찾을 수 없습니다.');
+    Object.assign(newCar, { BOND_RATE: bond.BOND_RATE, BOND_AREA: bond.AREA, BOND_GB: bond.BOND_GB,
+        BOND_FULL_EXEMPT_YN: bond.FULL_EXEMPT_YN || 'N', BOND_SEARCH_CAR_GB: criteria.carGb, BOND_SEARCH_BASE_VALUE: criteria.baseValue });
+    const result = calculateNewcarEstimate({ dsNewCar: newCar, dsPaymentList: data.dsPaymentList, dsWorkCp: data.dsWorkCp, codes });
+    if (result.missingRequirements.length) throw new Error(`계산 기준정보를 확인해 주세요: ${result.missingRequirements.map(value =>
+        ({ 'TM_TAX rates': '유효 세율', 'bond purchase rate': '공채 매입률', 'TUSE/SBOND discount rate': '공채 할인율' }[value] || value.replace(/\([^)]*\)/g, ''))).join(', ')}`);
+    return { ...result, car: newCar, inputs: estimateWInputs(newCar) };
+};
 export const fieldLabels = {
     TASK_CD: '업무구분', CARID_NO: '차대번호', REGIST_DATE: '등록예정일자', NUMPLATE_GB: '번호판지정 요구사항',
     HOLE_YN: '천공 여부', SEAL_YN: '봉인 여부', BUY_AMT: '공급가액', LINK_ID: '주문번호', CUSTOMER_NM: '계약자명',
@@ -15,7 +61,12 @@ export const fieldLabels = {
     CARP_ADDRESS: '등록증 배송지', DEBTOR_GB: '공동소유자 등록구분', DEBTOR_NM: '공동소유자명', DEBTOR_TEL_NO: '공동소유자 전화번호',
     DEBTOR_REG_NO: '공동소유자 등록번호', DEBTOR_BIZ_NO: '공동소유자 사업자번호', DEBTOR_RATIO: '공동소유자비율',
     ADDRESS_DT: '소유자 상세주소', POST_NO: '소유자 우편번호', DEBTOR_ADDR: '공동소유자 주소',
-    DEBTOR_ADDR_DT: '공동소유자 상세주소', DEBTOR_ROAD_CD: '공동소유자 우편번호'
+    DEBTOR_ADDR_DT: '공동소유자 상세주소', DEBTOR_ROAD_CD: '공동소유자 우편번호',
+    MADE_YY: '연식', CAR_CC: '배기량', GETIN_NO: '승차정원', CAR_KD: '차종', CAR_CD: '차량구분', CAR_KD_CD: '차종코드',
+    FM_NM: '형식', FOM_NM: '제원형식', FUEL_CD: '사용연료', COLOR_GB: '원동기형식', SPMNNO: '형식승인번호',
+    LENGTH: '길이', WIDTH: '너비', HEIGHT: '높이', MAX_CAP: '최대적재량', TOTAL_CAP: '총중량',
+    CAR_US_KD: '차체형태', MULTI_PURPOSE_YN: '다목적 여부', VH_TY_CD: '차체구분', ECO_YN: '친환경 여부',
+    VHCTY_ASORT_CODE: '차종구분', LOW_POLLUTION_YN: '저공해차 여부'
 };
 const digits = value => String(value ?? '').replace(/\D/g, '');
 export const formatWPhoneNo = value => {
@@ -47,6 +98,7 @@ export const normalizeWData = (data = {}) => {
         dsService: { ...initialDsService, ...data.dsService, REQUEST_DT: date(data.dsService?.REQUEST_DT), JUDGE_DT: date(data.dsService?.JUDGE_DT) },
         dsNewCar: { ...initialDsNewCar, FUEL_CD: '', NUMPLATE_GB: '', CARP_MAIL: '',
             LOW_POLLUTION_YN: '', LOW_POLLUTION_KD: '', LOW_POLLUTION_NO: '', ...data.dsNewCar,
+            ...(AUTO_APPLY_EXEMPTION_TARGET_CODES.has(String(data.dsNewCar?.NTAX_TRGET_CD)) ? { NTAX_TRGET_GR_CD: 'D' } : {}),
             MADE_DT: date(data.dsNewCar?.MADE_DT), REGIST_DATE: date(data.dsNewCar?.REGIST_DATE) },
         dsOwnerInfo: normalizeOwner(initialOwnerInfo, data.dsOwnerInfo),
         dsOwnerInfo1: normalizeOwner(initialOwnerInfo1, data.dsOwnerInfo1),
@@ -139,10 +191,10 @@ export const pdfWChanges = (current, extracted) => {
     };
     const changes = { dsNewCar: Object.fromEntries(Object.entries(values).filter(([key, value]) => !blank(value))) };
     if (owners.length > 1) {
-        Object.assign(changes.dsNewCar, { REG_GB: 'R', RATIO_NO: '' });
+        Object.assign(changes.dsNewCar, { REG_GB: 'R', RATIO_NO: '0' });
         owners.slice(1).forEach((joint, index) => {
             changes[index ? 'dsOwnerInfo1' : 'dsOwnerInfo'] = {
-                DEBTOR_GB: 'R', DEBTOR_NM: joint.name || '', DEBTOR_REG_NO: digits(joint.regNo), DEBTOR_RATIO: '',
+                DEBTOR_GB: 'R', DEBTOR_NM: joint.name || '', DEBTOR_REG_NO: digits(joint.regNo), DEBTOR_RATIO: '0',
                 DEBTOR_ADDR: joint.address || '', DEBTOR_ADDR_DT: joint.addressDetail || '', DEBTOR_ROAD_CD: joint.postNo || ''
             };
         });

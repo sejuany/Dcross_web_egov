@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import axios from 'axios';
-import html2pdf from 'html2pdf.js';
+import html2pdf from 'html2pdf.js/dist/html2pdf.min.js';
 
 import './NewCarReceiptModal.css';
 

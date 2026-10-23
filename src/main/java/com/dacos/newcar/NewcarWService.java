@@ -4,11 +4,11 @@ import static com.dacos.newcar.NewcarWValidation.*;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -38,6 +38,9 @@ public class NewcarWService {
         "DEBTOR_MPHONE_NO", "DEBTOR_ADDR", "DEBTOR_ADDR_DT", "DEBTOR_ROAD_CD"};
     private static final String[] TAX_FIELDS = {"GUBUN", "ETC1", "REG_NO", "NAME", "COMPANY_NM", "PHONE_NO", "ADDR", "ADDR_DT", "POST_NO",
         "BUSINESS_TYPE", "INDUSTRY_TYPE", "MAIL1", "MAIL2"};
+    private static final Set<String> PAYMENT_KINDS = Set.of("ACQ", "BFEE", "BOND", "FEE", "INJI", "SPARE", "STAMP", "TNUM", "UNUM", "UREG");
+    private static final String[] ESTIMATE_INPUTS = {"TASK_CD", "CARID_NO", "CAR_NM", "BASE_ADDRESS", "BUY_AMT", "NTAX_TRGET_CD",
+        "NTAX_TRGET_GR_CD", "NTAX_WHO", "BOND_DC", "CARD_YN", "NUMPLATE_GB"};
     private final NewcarService legacy;
     private final NewcarPdfExtractService pdf;
     private final ServiceAccessGuard access;
@@ -83,6 +86,7 @@ public class NewcarWService {
             defaults.forEach(car::putIfAbsent);
         }
         car = merge(car, map(request, "dsNewCar"), CAR_FIELDS);
+        if (Set.of("06", "09", "12", "13", "15").contains(text(car, "NTAX_TRGET_CD"))) car.put("NTAX_TRGET_GR_CD", "D");
         car.put("CARID_NO", text(car, "CARID_NO").toUpperCase());
         String selected = text(car, "REQ_CAR_NO");
         if (!"DELETE".equals(action) && !selected.isEmpty() && !selected.equals(text(map(original, "dsNewCar"), "REQ_CAR_NO"))) {
@@ -129,10 +133,19 @@ public class NewcarWService {
             } catch (IOException e) { throw new BusinessException("제작증 파일을 처리하지 못했습니다.", 400); }
         }
 
+        Map<String, Object> estimate = map(request, "dsEstimate");
+        boolean hasVehicleInfo = !"DELETE".equals(action) && ((file != null && !file.isEmpty()) || !estimate.isEmpty());
+        if (hasVehicleInfo) {
+            Map<String, Object> spec = legacy.getCarSpec(user.getCOMPANY_ID(), text(car, "CAR_NM"));
+            for (String name : List.of("CAR_NM", "MADE_YY", "CAR_CC", "GETIN_NO", "CAR_KD", "CAR_KD_CD", "FM_NM", "FUEL_CD", "COLOR_GB", "SPMNNO", "ECO_YN", "LOW_POLLUTION_YN")) {
+                putNonBlank(car, name, spec.get(name));
+            }
+            car.put("VH_TY_CD", "Y".equalsIgnoreCase(text(spec, "MULTI_PURPOSE_YN")) ? "3" : "");
+        }
         List<Map<String, Object>> payments = rows(original.get("dsPaymentList"));
+        if (!"DELETE".equals(action) && !estimate.isEmpty()) payments = applyEstimate(request, car, payments, map(original, "dsWorkCp"));
         if ("REQUEST".equals(action)) {
-            // 원본 신규등록 화면의 신청 계산식을 그대로 적용한다. 비용 기본값은 서버 조회값을 사용한다.
-            calculateApplicationAmounts(car, payments);
+            if (estimate.isEmpty()) fail("예상금액계산 후 확인을 눌러 주세요.");
             service.put("PROC_ST", "A".equals(text(car, "PAY_GB")) ? "S_WAIT" : "P_REQ");
             service.put("JUDGE_ST", "A".equals(text(car, "PAY_GB")) ? "S_WAIT" : "");
         } else if ("DELETE".equals(action)) {
@@ -143,11 +156,10 @@ public class NewcarWService {
         data.put("dsOwnerInfo", owners.get(0)); data.put("dsOwnerInfo1", owners.get(1));
         data.put("dsPaymentList", payments); data.put("dsTaxReceipt", tax);
         // 제작증은 검증·값 추출에만 사용하며 원본 파일은 보관하지 않는다.
-        boolean hasProductionDate = file != null && !file.isEmpty() && !text(car, "MADE_DT").isEmpty();
-        boolean stagedRequest = hasProductionDate && "REQUEST".equals(action);
+        boolean stagedRequest = hasVehicleInfo && "REQUEST".equals(action);
         Map<String, Object> saveData = data;
         if (stagedRequest) {
-            // 제작일자 저장 실패 시 관청 신청이 먼저 진행되지 않도록 한다.
+            // 차량제원 저장 실패 시 관청 신청이 먼저 진행되지 않도록 한다.
             saveData = new HashMap<>(data);
             Map<String, Object> draftService = new HashMap<>(service);
             draftService.put("PROC_ST", id.isEmpty() ? "SAV" : text(map(original, "dsService"), "PROC_ST"));
@@ -156,8 +168,7 @@ public class NewcarWService {
         }
         Map<String, Object> response = legacy.processNewCar(saveData, user);
         Map<String, Object> result = successfulResult(response);
-        if (hasProductionDate && common.update(Map.of("SERVICE_ID", result.get("SERVICE_ID"),
-                "MADE_DT", car.get("MADE_DT")), "updateWProductionDate") != 1) {
+        if (hasVehicleInfo && common.update(merge(car, Map.of("SERVICE_ID", result.get("SERVICE_ID")), "SERVICE_ID"), "updateWCarSpec") != 1) {
             throw new BusinessException("제작증 차량정보를 저장하지 못했습니다.", 409);
         }
         if (stagedRequest) {
@@ -219,21 +230,56 @@ public class NewcarWService {
         if (source instanceof List<?> list) for (Object row : list) result.add(new HashMap<>((Map<String, Object>) row));
         return result;
     }
-    private static BigDecimal floorTen(BigDecimal value) { return value.divide(BigDecimal.TEN, 0, RoundingMode.DOWN).multiply(BigDecimal.TEN); }
-    static void calculateApplicationAmounts(Map<String, Object> car, List<Map<String, Object>> payments) {
-        BigDecimal buy = number(car, "BUY_AMT");
-        BigDecimal acq = floorTen(buy.multiply(new BigDecimal("0.07")));
-        BigDecimal grossBond = floorTen(buy.multiply(new BigDecimal("0.2")));
-        BigDecimal bond = floorTen(buy.multiply(new BigDecimal("0.02")));
-        BigDecimal bondFee = floorTen(grossBond.multiply(new BigDecimal("0.003")).add(BigDecimal.valueOf(600)));
-        BigDecimal total = BigDecimal.ZERO;
-        for (Map<String, Object> row : payments) {
-            String kind = text(row, "PAY_KD");
-            BigDecimal amount = switch (kind) { case "ACQ" -> acq; case "BOND" -> bond; case "BFEE" -> bondFee; default -> number(row, "PAY_AMT"); };
-            row.put("PRE_PAY_AMT", amount); row.put("PAY_AMT", amount);
-            if (Set.of("ACQ", "BOND", "BFEE", "FEE", "STAMP", "INJI").contains(kind)
-                    && !("ACQ".equals(kind) && "Y".equals(text(car, "CARD_YN")))) total = total.add(amount);
+    static List<Map<String, Object>> applyEstimate(Map<String, Object> request, Map<String, Object> car,
+            List<Map<String, Object>> original, Map<String, Object> workCp) {
+        Map<String, Object> estimate = map(request, "dsEstimate");
+        Map<String, Object> inputs = map(estimate, "INPUTS");
+        for (String name : ESTIMATE_INPUTS) {
+            if (!text(car, name).equals(text(inputs, name))) fail("계산 조건이 변경되었습니다. 예상금액을 다시 계산해 주세요.");
         }
+        Object incoming = request.get("dsPaymentList");
+        if (!(incoming instanceof List<?>)) fail("예상 결제정보를 확인해 주세요.");
+        List<Map<String, Object>> payments = new ArrayList<>();
+        Set<String> seen = new HashSet<>();
+        BigDecimal total = BigDecimal.ZERO;
+        for (Object value : (List<?>) incoming) {
+            if (!(value instanceof Map<?, ?>)) fail("예상 결제정보를 확인해 주세요.");
+            @SuppressWarnings("unchecked") Map<String, Object> row = (Map<String, Object>) value;
+            String kind = text(row, "PAY_KD");
+            Map<String, Object> saved = original.stream().filter(item -> kind.equals(text(item, "PAY_KD"))).findFirst().orElse(Map.of());
+            if (!PAYMENT_KINDS.contains(kind)) {
+                if (saved.isEmpty()) fail("예상 결제항목을 확인해 주세요.");
+                continue;
+            }
+            if (!seen.add(kind)) fail("예상 결제항목을 확인해 주세요.");
+            BigDecimal amount = estimateAmount(row, "PAY_AMT");
+            if (amount.compareTo(estimateAmount(row, "PRE_PAY_AMT")) != 0) fail("예상 결제금액이 일치하지 않습니다.");
+            if (("Y".equals(text(saved, "PAY_ST")) || !text(saved, "PAY_DT").isEmpty())
+                    && (amount.compareTo(number(saved, "PAY_AMT")) != 0 || ("BOND".equals(kind)
+                        && estimateAmount(row, "REAL_ALOAN").compareTo(number(saved, "REAL_ALOAN")) != 0))) fail("납부 완료된 결제정보는 변경할 수 없습니다.");
+            if ("FEE".equals(kind)) {
+                Map<String, Object> fee = workCp.containsKey("FEE") ? workCp : saved;
+                if (!fee.isEmpty() && amount.compareTo(number(fee, workCp.containsKey("FEE") ? "FEE" : "PAY_AMT")) != 0) fail("등록수수료가 서버 기준값과 다릅니다.");
+            }
+            Map<String, Object> payment = new HashMap<>(saved);
+            payment.put("PAY_KD", kind); payment.put("PRE_PAY_AMT", amount); payment.put("PAY_AMT", amount);
+            payment.putIfAbsent("PAY_OP", "Y"); payment.putIfAbsent("PAY_ST", "N");
+            if ("BOND".equals(kind)) { payment.put("REAL_ALOAN", estimateAmount(row, "REAL_ALOAN")); car.put("BOND_AMT", amount); }
+            payments.add(payment);
+            if (!("ACQ".equals(kind) && "Y".equals(text(car, "CARD_YN")))) total = total.add(amount);
+        }
+        if (!seen.equals(PAYMENT_KINDS)) fail("예상 결제항목이 누락되었습니다.");
+        original.stream().filter(row -> !PAYMENT_KINDS.contains(text(row, "PAY_KD"))).forEach(row -> payments.add(new HashMap<>(row)));
+        String applyCode = text(estimate, "NTAX_APPLC_CD");
+        if (!Set.of("0", "11").contains(applyCode)) fail("비과세 적용구분을 확인해 주세요.");
+        car.put("NTAX_APPLC_CD", applyCode); car.put("STANDARD_AMT", number(car, "BUY_AMT"));
         car.put("PREREG_AMT", total); car.put("TOTAL_AMT", total);
+        return payments;
+    }
+    private static BigDecimal estimateAmount(Map<String, Object> row, String name) {
+        if (text(row, name).isEmpty()) fail("예상 결제금액이 누락되었습니다.");
+        BigDecimal amount = number(row, name);
+        if (amount.signum() < 0 || amount.stripTrailingZeros().scale() > 0 || amount.compareTo(new BigDecimal("999999999999999")) > 0) fail("예상 결제금액을 확인해 주세요.");
+        return amount;
     }
 }

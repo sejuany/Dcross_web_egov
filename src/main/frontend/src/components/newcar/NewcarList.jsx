@@ -74,7 +74,7 @@ const timeOptions = [
 const getInitialSearchFilters = (user) => ({
     workCode: '010',
     companyID: user.company_ID === 'dacos' ? '' : user.company_ID,
-	govtId: user.member_GB === 'CA' || user.member_GB === 'SA' || user.member_GB === 'SU' ? 'CHANG' : '',
+	govtId: user.member_GB === 'CA' || user.member_GB === 'SA' || user.member_GB === 'SU' ? 'INCHN' : '',
     userNM: '',
     customerNM: '',
     carNo: '',
@@ -600,17 +600,17 @@ const NewcarList = ({ isW = false }) => {
 	
 	const memberGbConfig = {
 	    SA: {
-	        govts: ['CHANG'],
+	        govts: ['INCHN'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
 	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    },
 	    CA: {
-	        govts: ['CHANG'],
+	        govts: ['INCHN'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
 	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    },
 	    SU: {
-	        govts: ['CHANG'],
+	        govts: ['INCHN'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
 	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    }

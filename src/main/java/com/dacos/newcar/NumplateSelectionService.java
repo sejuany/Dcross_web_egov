@@ -1281,24 +1281,19 @@ public class NumplateSelectionService {
 	        String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 	        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
 	        String preCarNo = Objects.toString(param.get("PRE_CAR_NO"), "");
-
-	        if (preCarNo.isBlank()) {
-	            return true;
-	        }
+	        List<String> queried = getNumplateSession(session, serviceId);
 
 	        List<String> numList = Arrays.stream(preCarNo.split(","))
 	                .filter(no -> !no.isBlank())
 	                .collect(Collectors.toList());
 
-	        if (numList.isEmpty()) {
-	            return true;
-	        }
-	        List<String> queried = getNumplateSession(session, serviceId);
+	        if ((queried == null || queried.isEmpty()) && numList.isEmpty()) return true;
 	        if (queried == null || !queried.containsAll(numList)) {
 	            throw new BusinessException("현재 세션에서 조회하지 않은 번호판이 포함되어 있습니다.", 409);
 	        }
 
-	        param.put("NUM_LIST", numList);
+	        // 마지막 화면의 10개가 아니라 해당 접수·세션에서 조회한 전체 P 번호를 복구한다.
+	        param.put("NUM_LIST", new ArrayList<>(queried));
 
 	        common.update(param, "releaseNumplateList");
 

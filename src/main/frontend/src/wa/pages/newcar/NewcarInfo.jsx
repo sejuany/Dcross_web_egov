@@ -17,6 +17,8 @@ import { gf } from '../../../utils/utils';
 import SplitInput from '../common/SplitInput';
 import AddressSearch from '../common/AddressSearch';
 import {
+    AUTO_APPLY_EXEMPTION_TARGET_CODES,
+    EXEMPTION_GRADE_CODES_BY_TARGET,
     buildNewcarEstimateKey,
     calculateNewcarEstimate,
     calculateTotalFromRows,
@@ -122,22 +124,6 @@ const FALLBACK_EXEMPTION_GRADES = [
     { CODE_ID: '01', CODE_NM: '중증장애' },
     { CODE_ID: '05', CODE_NM: '경증장애' }
 ];
-
-const AUTO_APPLY_EXEMPTION_TARGET_CODES = new Set(['06', '09', '12', '13', '15']);
-
-const EXEMPTION_GRADE_CODES_BY_TARGET = {
-    '01': ['1', '2', '3', '4', '5', '6', '7'],
-    '02': ['1', '2', '3', '4', '5', '6', '7', '8', '9', '10', '11', '12', '13', '14'],
-    '03': ['A', 'B', 'C'],
-    '04': ['01', '05', '1', '2', '3', '4', '5', '6'],
-    '05': ['01', '05', '1', '2', '3', '4', '5', '6'],
-    '06': ['D'],
-    '09': ['D'],
-    '12': ['D'],
-    '13': ['D'],
-    '14': ['1', '2', '3', '4', '5', '6', '7'],
-    '15': ['D']
-};
 
 const EXCLUDED_EXEMPTION_TARGET_NAMES = new Set([
     '경상북도소상공인',

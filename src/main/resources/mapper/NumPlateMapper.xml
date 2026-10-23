@@ -582,7 +582,7 @@
 	
 	</update>
 	
-	<!-- 미사용으로 원복 -->
+	<!-- 관리자 조회 번호만 원복하고 문자 토큰으로 고객에게 배정된 번호는 유지한다. -->
 	<update id="releaseNumplateList"
         parameterType="java.util.HashMap">
 	
@@ -590,7 +590,7 @@
 	       SET USE_YN = 'N',
 	           APPEAR_DT = NULL
 	     WHERE USE_YN = 'P'
-	       AND NUMPLATE_MSG_TOKEN IS NOT NULL
+	       AND NUMPLATE_MSG_TOKEN IS NULL
 	       AND CAR_NO IN
 	       <foreach collection="NUM_LIST"
 	                item="carNo"

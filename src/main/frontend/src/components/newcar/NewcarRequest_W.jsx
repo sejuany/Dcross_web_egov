@@ -15,14 +15,32 @@ import NewCarReceiptModal from './NewCarReceiptModal';
 import BondReceiptModal from './BondReceiptModal';
 import WaNewcarAttachModal from '../../wa/pages/newcar/WaNewcarAttachModal';
 import { initialOwnerInfo1 } from './newcarInitial';
-import { canEditW, fieldLabels, formatWBusinessNo, formatWPhoneNo, gradeTargets, normalizeWData, pdfWChanges, requiredWFields, validateW } from './newcarRequestW';
+import { calculateWEstimate, canEditW, estimateWInputs, exemptionWGrade, fieldLabels, formatWBusinessNo, formatWPhoneNo, gradeTargets, loadWCarSpec, normalizeWData, pdfWChanges, requiredWFields, validateW } from './newcarRequestW';
+import { EXEMPTION_GRADE_CODES_BY_TARGET, formatAmount } from '../../wa/pages/newcar/newcarAmountCalculator';
 import './NewcarRequest.css';
 
 const REQUEST_PATH = '/newcar/newcar-request-w';
 const LIST_PATH = '/newcar/newcar-list-w';
 const payLabels = { ACQ: '취득세', BFEE: '채권취급수수료', BOND: '채권', FEE: '등록수수료', INJI: '인지세', SPARE: '예비비', STAMP: '증지대', TNUM: '번호판대', UNUM: '번호판대행', UREG: '등록면허세' };
-const codeGroups = ['SGB', 'PR_ST', 'JG_ST', 'TASK', 'BOND', 'NTTCD', 'NTTGR', 'NTWHO', 'REGGB', 'NUMGB', 'NUMST', 'PAYST', 'PAYME', 'BANK', 'FUEL', 'NHOLE', 'NSEAL', 'CARM'];
+const codeGroups = ['SGB', 'PR_ST', 'JG_ST', 'TASK', 'BOND', 'NTTCD', 'NTTGR', 'NTWHO', 'REGGB', 'NUMGB', 'NUMST', 'PAYST', 'PAYME', 'BANK', 'FUEL', 'NHOLE', 'NSEAL', 'CARM', 'TUSE'];
 const productionCertificateFields = ['CARID_NO', 'CAR_NM', 'BUY_AMT', 'OWNER_NM', 'REG_GB', 'REG_NO', 'ADDRESS', 'MADE_DT'];
+const certificateVehicleFields = ['CAR_NM', 'CARID_NO', 'BUY_AMT', 'MADE_DT', 'REGIST_DATE'];
+const certificateOwnerFields = ['OWNER_NM', 'REG_GB', 'REG_NO', 'RATIO_NO', 'ADDRESS', 'ADDRESS_DT', 'POST_NO'];
+const certificateJointFields = ['DEBTOR_NM', 'DEBTOR_GB', 'DEBTOR_REG_NO', 'DEBTOR_RATIO', 'DEBTOR_ADDR', 'DEBTOR_ADDR_DT', 'DEBTOR_ROAD_CD'];
+const certificateLabels = { CAR_NM: '차명', OWNER_NM: '성명 / 상호', DEBTOR_NM: '성명 / 상호', DEBTOR_GB: '등록구분', DEBTOR_REG_NO: '등록번호',
+    RATIO_NO: '소유 비율', DEBTOR_RATIO: '소유 비율', ADDRESS: '주소', DEBTOR_ADDR: '주소', ADDRESS_DT: '상세주소',
+    DEBTOR_ADDR_DT: '상세주소', POST_NO: '우편번호', DEBTOR_ROAD_CD: '우편번호', MADE_DT: '최초등록일' };
+const previewValue = (name, value, codes) => {
+    if (value === null || value === undefined || value === '') return '-';
+    if (['REG_GB', 'DEBTOR_GB'].includes(name)) return { R: '개인', B: '법인' }[value] || value;
+    if (['REG_NO', 'DEBTOR_REG_NO'].includes(name)) return gf.formatRegNo(String(value).replace(/\D/g, ''));
+    if (name === 'FUEL_CD') return (codes.FUEL || []).find(row => String(row.CODE_ID).toLowerCase() === String(value).toLowerCase())?.CODE_NM || value;
+    if (name.endsWith('_YN')) return { Y: '예', N: '아니오' }[value] || value;
+    if (['RATIO_NO', 'DEBTOR_RATIO'].includes(name)) return `${value}%`;
+    const unit = { BUY_AMT: '원', CAR_CC: 'cc', GETIN_NO: '명', LENGTH: 'mm', WIDTH: 'mm', HEIGHT: 'mm', MAX_CAP: 'kg', TOTAL_CAP: 'kg' }[name];
+    if (unit) return `${formatAmount(value)} ${unit}`;
+    return value;
+};
 ModuleRegistry.registerModules([AllCommunityModule]);
 const paymentColumns = [
     { headerName: '결제종류', field: 'PAY_KD', width: 150, valueFormatter: p => payLabels[p.value] || p.value },
@@ -48,6 +66,8 @@ const NewcarRequest_W = () => {
     const [addressTarget, setAddressTarget] = useState(null);
     const [certificate, setCertificate] = useState(null);
     const [preview, setPreview] = useState(null);
+    const [estimatePreview, setEstimatePreview] = useState(null);
+    const [confirmedEstimate, setConfirmedEstimate] = useState(null);
     const [paperUrl, setPaperUrl] = useState('');
     const loadedKey = useRef('');
     const loadedData = useRef(null);
@@ -59,7 +79,8 @@ const NewcarRequest_W = () => {
     const editable = canEditW(service) && data.dsUserInfo.COMPANY_ID === 'WB001' && !busy;
     const required = requiredWFields(data);
     const jointRequired = Number(car.RATIO_NO) < 100;
-    const update = (key, name, value) => setData(previous => ({ ...previous, [key]: { ...previous[key], [name]: value } }));
+    const update = (key, name, value) => setData(previous => ({ ...previous, [key]: { ...previous[key], [name]: value,
+        ...(key === 'dsNewCar' && name === 'NTAX_TRGET_CD' ? { NTAX_TRGET_GR_CD: exemptionWGrade(value, previous.dsNewCar.NTAX_TRGET_GR_CD) } : {}) } }));
 
     const load = useCallback(async (id = '') => {
         setBusy(true); setMessage('');
@@ -71,6 +92,7 @@ const NewcarRequest_W = () => {
             setData(next); setSecondOwner(Boolean(next.dsOwnerInfo1.DEBTOR_NM || Number(next.dsOwnerInfo1.DEBTOR_RATIO) > 0));
             loadedData.current = next;
             setCertificate(null); setPreview(null);
+            setEstimatePreview(null); setConfirmedEstimate(null);
             return true;
         } catch (error) { setMessage(error.response?.data?.message || error.message || '조회 중 오류가 발생했습니다.'); return false; }
         finally { setBusy(false); }
@@ -103,6 +125,10 @@ const NewcarRequest_W = () => {
         if (savingRef.current || !editable) return false;
         const error = action === 'DELETE' ? null : validateW(supplied, action);
         if (error) { focusError(error); return false; }
+        if (action !== 'DELETE' && ((confirmedEstimate && JSON.stringify(confirmedEstimate.inputs) !== JSON.stringify(estimateWInputs(supplied.dsNewCar)))
+            || (action === 'REQUEST' && !confirmedEstimate))) {
+            setTab('owner'); setMessage('예상금액계산 후 확인을 눌러 주세요. 계산 조건이 변경되면 다시 계산해야 합니다.'); return false;
+        }
         if (action !== 'SAVE' && !await gf.confirm(action === 'DELETE' ? '신청건을 삭제하시겠습니까?' : '입력한 내용으로 신청하시겠습니까?')) return false;
         if (savingRef.current) return false;
         savingRef.current = true; setBusy(true); setMessage('');
@@ -112,6 +138,7 @@ const NewcarRequest_W = () => {
                 update('dsNewCar', 'REQ_CAR_NO', '');
             }
             const request = JSON.parse(JSON.stringify(supplied));
+            if (confirmedEstimate && action !== 'DELETE') request.dsEstimate = { INPUTS: confirmedEstimate.inputs, NTAX_APPLC_CD: confirmedEstimate.ntaxApplyCode };
             // 표시용 구분 문자는 제거하되 계좌·등록번호의 앞자리 0은 유지한다.
             for (const key of ['dsNewCar', 'dsOwnerInfo', 'dsOwnerInfo1', 'dsTaxReceipt']) {
                 const fields = key === 'dsNewCar' ? ['REG_NO', 'BIZ_NO', 'MPHONE_NO', 'TEL_NO', 'PAY_HP_NO', 'RETURN_NO']
@@ -128,6 +155,8 @@ const NewcarRequest_W = () => {
             setCertificate(null);
             loadedKey.current = `${id}:`; navigate(REQUEST_PATH, { replace: true, state: { receiptNo: id } });
             const refreshed = await load(id);
+            if (refreshed && action === 'SAVE' && confirmedEstimate
+                && JSON.stringify(confirmedEstimate.inputs) === JSON.stringify(estimateWInputs(loadedData.current.dsNewCar))) setConfirmedEstimate(confirmedEstimate);
             setMessage(refreshed ? (action === 'REQUEST' ? '신청되었습니다.' : action === 'DELETE' ? '삭제되었습니다.' : '저장되었습니다.')
                 : '처리는 완료됐지만 다시 조회하지 못했습니다. 새로고침해 주세요.');
             return true;
@@ -143,8 +172,19 @@ const NewcarRequest_W = () => {
             const body = new FormData(); body.append('file', file);
             const response = await axios.post('/api/newcar/pdf-extract', body);
             if (!response.data?.success) throw new Error(response.data?.message || '제작증 추출에 실패했습니다.');
-            setPreview({ file, values: pdfWChanges(car, response.data.data || {}) }); setModal('pdf');
+            const values = pdfWChanges(car, response.data.data || {});
+            const spec = await loadWCarSpec({ ...car, ...values.dsNewCar });
+            values.dsNewCar = { ...values.dsNewCar, ...Object.fromEntries(Object.entries(spec).filter(([key, value]) =>
+                value !== '' && value !== undefined && value !== null && !['STANDARD_AMT', 'CAR_SPEC_MAKER'].includes(key))) };
+            setPreview({ file, values }); setModal('pdf');
         } catch (error) { setMessage(error.response?.data?.message || error.message || 'PDF를 읽지 못했습니다.'); }
+        finally { setBusy(false); }
+    };
+    const showEstimate = async () => {
+        if (!editable) return;
+        setBusy(true); setMessage('');
+        try { setEstimatePreview(await calculateWEstimate(data, codes)); setModal('estimate'); }
+        catch (error) { setMessage(error.response?.data?.message || error.message || '예상금액을 계산하지 못했습니다.'); }
         finally { setBusy(false); }
     };
     const showNumber = async () => {
@@ -333,10 +373,10 @@ const NewcarRequest_W = () => {
                     after: <>{control('dsCarNoDetach', 'HOLE_YN', '천공 여부', { group: 'NHOLE' })}{control('dsCarNoDetach', 'SEAL_YN', '봉인 여부', { group: 'NSEAL' })}</> })}
                 {field('dsNewCar', 'REQ_CAR_NO', '선택 차량번호', { span: 4.5, readOnly: true,
                     after: <button type="button" className="btn-erp sm dark" disabled={!editable} onClick={showNumber}>번호선택</button> })}
-            </div><div className="erp-row">                
+            </div><div className="erp-row">
                 {field('dsNewCar', 'CAR_KD', '차 종', { labelWidth:'125px', span: 2, textClass: 'value-black' })}
-                {field('dsNewCar', 'CAR_NM', '차 명', { span: 2, textClass: 'value-black' })}
-                {field('dsNewCar', 'FM_NM', '형 식', { span: 2, textClass: 'value-black' })}            
+                {field('dsNewCar', 'CAR_NM', '차 명', { span: 2 })}
+                {field('dsNewCar', 'FM_NM', '형 식', { span: 2, textClass: 'value-black' })}
                 {field('dsNewCar', 'COLOR_GB', '원동기형식', { span: 2, textClass: 'value-black' })}
                 {field('dsNewCar', 'SPMNNO', '형식승인번호', { span: 2, textClass: 'value-black' })}
                 {field('dsNewCar', 'BUY_AMT', '공급가액(VAT별도)', { span: 2, labelWidth: '125px', className: 'text-right' })}
@@ -373,7 +413,9 @@ const NewcarRequest_W = () => {
                 </div>
             <ErpSection title="신규등록정보" className="owner-panel fixed-reg-info-section"><div className="erp-row">
                 {field('dsNewCar', 'NTAX_TRGET_CD', '비과세대상', { span: 6, group: 'NTTCD', after: control('dsNewCar', 'NTAX_WHO', '비과세대상자', { group: 'NTWHO', disabled: car.NTAX_TRGET_CD === '00' }) })}
-                {field('dsNewCar', 'NTAX_TRGET_GR_CD', '비과세대상등급', { span: 6, group: 'NTTGR', disabled: !gradeTargets.includes(car.NTAX_TRGET_CD) })}
+                {field('dsNewCar', 'NTAX_TRGET_GR_CD', '비과세대상등급', { span: 6, group: 'NTTGR', disabled: !gradeTargets.includes(car.NTAX_TRGET_CD),
+                    options: (codes.NTTGR || []).filter(row => (EXEMPTION_GRADE_CODES_BY_TARGET[car.NTAX_TRGET_CD] || ['0']).includes(String(row.CODE_ID))),
+                    after: <button type="button" className="btn-erp sm light" disabled={!editable} onClick={showEstimate}>예상금액계산</button> })}
             </div><div className="erp-row">
                 {field('dsNewCar', 'BOND_DC', '채권할인여부', { span: 4, group: 'BOND' })}
                 {field('dsNewCar', 'TOTAL_AMT', '등록비용', { span: 4, readOnly: true })}
@@ -419,7 +461,7 @@ const NewcarRequest_W = () => {
         </div>
     </div>
                 : <div role="tabpanel" aria-label="결제정보" className="payment-info-section"><ErpSection title="결제 및 납부 정보"><div className="erp-row">
-                    {field('dsNewCar', 'PAY_NM', '결제자명', { span: 4 })}{field('dsNewCar', 'PAY_HP_NO', '결제자 휴대폰번호', { span: 4 })}
+                    {field('dsNewCar', 'PAY_NM', '결제자명', { span: 4 })}{field('dsNewCar', 'PAY_HP_NO', '결제자 연락처', { span: 4 })}
                     {field('dsNewCar', 'PAY_ST', '납부상태', { span: 4, group: 'PAYST', readOnly: true, after: <>
                         <button type="button" className="btn-erp sm light" disabled={!service.SERVICE_ID || car.BOND_LINK_YN !== 'Y' || busy} onClick={() => setModal('bond')}>채권 인쇄</button>
                         <button type="button" className="btn-erp sm light" disabled={!service.SERVICE_ID || busy} onClick={() => setModal('receipt')}>납부영수증</button>
@@ -434,30 +476,115 @@ const NewcarRequest_W = () => {
                         defaultColDef={{ sortable: true, resizable: true, suppressMovable: true, cellClass: 'ag-center-cell', editable: false }} />
                 </div></div></ErpSection></div>}
         </div></div>
-        {modal === 'pdf' && preview && <div className="w-modal-backdrop"><section className="w-modal" role="dialog" aria-modal="true" aria-labelledby="w-pdf-title">
-            <h3 id="w-pdf-title">제작증 반영 내용 확인</h3><p>현재 화면에 반영될 값입니다. 저장·신청 전까지 접수에는 저장되지 않습니다.</p>
-            <table className="w-payments"><thead><tr><th>항목</th><th>현재</th><th>제작증</th></tr></thead><tbody>{Object.entries(preview.values).flatMap(([record, fields]) => Object.entries(fields).map(([key, value]) => <tr key={`${record}.${key}`}><th>{fieldLabels[key] || { CAR_NM: '차명', MADE_DT: '최초등록일' }[key] || key}{record === 'dsOwnerInfo1' ? ' (2)' : ''}</th><td>{data[record][key] || '-'}</td><td>{value || '-'}</td></tr>))}</tbody></table>
-            <div className="w-bottom-actions"><button type="button" className="btn-erp" onClick={() => {
+        {modal === 'pdf' && preview && <div className="w-modal-backdrop"><section className="w-modal w-certificate-modal" role="dialog" aria-modal="true" aria-labelledby="w-pdf-title" aria-describedby="w-pdf-description">
+            <header className="w-certificate-header"><div><span className="w-certificate-eyebrow">제작증 업로드</span>
+                <h3 id="w-pdf-title">제작증 반영 내용 확인</h3></div><span className="w-certificate-file" title={preview.file.name}>{preview.file.name}</span>
+                <p id="w-pdf-description">변경될 값을 확인해 주세요. 실제 저장은 저장·신청 버튼을 누를 때 진행됩니다.</p>
+            </header>
+            <div className="w-certificate-body">{[
+                { title: '차량 정보', record: 'dsNewCar', names: certificateVehicleFields, className: 'w-certificate-vehicle' },
+                { title: '대표 소유자', record: 'dsNewCar', names: certificateOwnerFields },
+                ...['dsOwnerInfo', 'dsOwnerInfo1'].map((record, index) => ({ title: `공동 소유자${index ? ' 2' : ''}`, record, names: certificateJointFields })),
+                { title: '차량제원 · 추가정보', record: 'dsNewCar', names: Object.keys(preview.values.dsNewCar || {}).filter(name =>
+                    !certificateVehicleFields.includes(name) && !certificateOwnerFields.includes(name)), details: true }
+            ].map(group => {
+                const names = group.names.filter(name => Object.prototype.hasOwnProperty.call(preview.values[group.record] || {}, name));
+                if (!names.length) return null;
+                const fields = <dl className="w-certificate-fields">{names.map(name => {
+                    const value = preview.values[group.record][name];
+                    const previous = data[group.record][name];
+                    const changed = String(previous ?? '') !== String(value ?? '');
+                    const hasPrevious = previous !== '' && previous !== undefined && previous !== null;
+                    return <div key={name} className={`w-certificate-field ${changed ? 'is-changed' : ''} ${['CAR_NM', 'ADDRESS', 'DEBTOR_ADDR'].includes(name) ? 'is-wide' : ''}`}>
+                        <dt>{certificateLabels[name] || fieldLabels[name] || name}</dt><dd>
+                            <span className={`w-certificate-value ${name === 'CARID_NO' ? 'is-vin' : ''}`}>{previewValue(name, value, codes)}</span>
+                            {changed && hasPrevious && <span className="w-certificate-previous">기존 {previewValue(name, previous, codes)}</span>}
+                        </dd></div>;
+                })}</dl>;
+                return group.details ? <details key={group.title} className="w-certificate-specs"><summary>{group.title}<span>{names.length}개 항목</span></summary>{fields}</details>
+                    : <section key={group.title} className={`w-certificate-card ${group.className || ''}`} aria-label={group.title}><h4>{group.title}</h4>{fields}</section>;
+            })}</div>
+            <footer className="w-bottom-actions w-certificate-footer"><span>파란 항목이 화면에 새로 반영됩니다.</span><button type="button" className="btn-erp" onClick={async () => {
                 setData(previous => ({ ...previous, ...Object.fromEntries(Object.entries(preview.values)
                     .map(([record, fields]) => [record, { ...previous[record], ...fields }])) }));
                 if (preview.values.dsOwnerInfo1) setSecondOwner(true);
                 setCertificate(preview.file); setPreview(null); setModal('');
+                setConfirmedEstimate(null);
                 setMessage(`제작증을 화면에 반영했습니다. 저장·신청 시 입력정보만 저장되며 원본 PDF는 보관하지 않습니다.${preview.values.dsOwnerInfo ? ' 대표·공동소유자 비율은 직접 입력해 주세요.' : ''}`);
-            }}>반영</button><button type="button" className="btn-erp light" onClick={() => { setPreview(null); setModal(''); }}>취소</button></div>
+                if (preview.values.dsOwnerInfo) {
+                    setTab('owner');
+                    await gf.alert('대표소유자 비율을 입력해 주세요.');
+                    focusError({ key: 'dsNewCar', name: 'RATIO_NO', message: '대표소유자 비율을 입력해 주세요.' });
+                }
+            }}>반영</button><button type="button" className="btn-erp light" onClick={() => { setPreview(null); setModal(''); }}>취소</button></footer>
         </section></div>}
-        {modal === 'tax' && <div className="w-modal-backdrop"><section className="w-modal" role="dialog" aria-modal="true" aria-labelledby="w-tax-title">
-            <h3 id="w-tax-title">세금계산서/현금영수증 정보</h3><p>입력한 정보는 신청 화면에서 저장·신청할 때 함께 저장됩니다.</p><div className="erp-grid"><div className="erp-row">
-                {field('dsTaxReceipt', 'GUBUN', '증빙 종류', { span: 12, group: 'RECEIPT', options: [{ CODE_ID: 'TAX', CODE_NM: '세금계산서' }, { CODE_ID: 'CASH', CODE_NM: '현금영수증' }] })}
-            </div>
-                {tax.GUBUN === 'CASH' && <div className="erp-row">{field('dsTaxReceipt', 'PHONE_NO', '현금영수증 휴대폰번호', { span: 6 })}{field('dsTaxReceipt', 'REG_NO', '현금영수증 사업자번호', { span: 6 })}</div>}
+        {modal === 'estimate' && estimatePreview && <div className="w-modal-backdrop"><section className="w-modal" role="dialog" aria-modal="true" aria-labelledby="w-estimate-title">
+            <h3 id="w-estimate-title">예상금액 확인</h3><p>확인하면 화면에 반영되며, 저장·신청 시 결제정보에 저장됩니다.</p>
+            <p>사용본거지: {estimatePreview.car.BASE_ADDRESS} / 차량: {estimatePreview.car.CAR_NM}{estimatePreview.car.VH_TY_CD === '3' ? ' (다목적)' : ''}</p>
+            <p>취득세 감면: {formatAmount(estimatePreview.acqReductionAmt)}원 / {estimatePreview.exemptionReason || '감면 없음'}</p>
+            <p>공채: {estimatePreview.bondReliefReason} / 매입기준금액 {formatAmount(estimatePreview.bondBaseAmt)}원</p>
+            <table className="w-payments"><thead><tr><th>항목</th><th>예상금액</th></tr></thead><tbody>
+                {estimatePreview.updatedPaymentList.map(row => <tr key={row.PAY_KD}><th>{payLabels[row.PAY_KD] || row.PAY_KD}</th><td>{formatAmount(row.PAY_AMT)}원</td></tr>)}
+            </tbody><tfoot><tr><th>총 입금액{estimatePreview.isCardPay ? ' (취득세 카드납부 제외)' : ''}</th><td>{formatAmount(estimatePreview.totalAmt)}원</td></tr></tfoot></table>
+            <div className="w-bottom-actions"><button type="button" className="btn-erp" onClick={() => {
+                setData(previous => ({ ...previous, dsNewCar: { ...previous.dsNewCar, ...estimatePreview.car,
+                    TOTAL_AMT: estimatePreview.totalAmt, PREREG_AMT: estimatePreview.totalAmt, BOND_AMT: estimatePreview.bond,
+                    STANDARD_AMT: estimatePreview.taxableStandard, NTAX_APPLC_CD: estimatePreview.ntaxApplyCode }, dsPaymentList: estimatePreview.updatedPaymentList }));
+                setConfirmedEstimate(estimatePreview); setEstimatePreview(null); setModal(''); setMessage('예상금액을 화면에 반영했습니다. 저장·신청 시 결제정보에 저장됩니다.');
+            }}>확인</button><button type="button" className="btn-erp light" onClick={() => { setEstimatePreview(null); setModal(''); }}>취소</button></div>
+        </section></div>}
+        {modal === 'tax' && <div className="w-modal-backdrop"><section className="w-modal w-certificate-modal w-tax-modal" role="dialog" aria-modal="true" aria-labelledby="w-tax-title" aria-describedby="w-tax-description">
+            <header className="w-certificate-header">
+                <div><span className="w-certificate-eyebrow">증빙 정보</span><h3 id="w-tax-title">세금계산서/현금영수증 정보</h3></div>
+                <p id="w-tax-description">입력한 정보는 신청 화면에서 저장·신청할 때 함께 저장됩니다.</p>
+            </header>
+            <div className="w-certificate-body">
+                <section className="w-certificate-card w-tax-wide">
+                    <h4>증빙 종류</h4>
+                    <div className="w-tax-kind">{control('dsTaxReceipt', 'GUBUN', '증빙 종류', { group: 'RECEIPT', options: [{ CODE_ID: 'TAX', CODE_NM: '세금계산서' }, { CODE_ID: 'CASH', CODE_NM: '현금영수증' }] })}</div>
+                    {!tax.GUBUN && <p className="w-tax-hint">증빙 종류를 선택하면 입력 항목이 표시됩니다.</p>}
+                </section>
+                {tax.GUBUN === 'CASH' && <section className="w-certificate-card w-tax-wide">
+                    <h4>현금영수증 발급 정보</h4>
+                    <div className="w-tax-fields">
+                        <label className="w-tax-field"><span>휴대폰번호</span>{control('dsTaxReceipt', 'PHONE_NO', '현금영수증 휴대폰번호')}</label>
+                        <label className="w-tax-field"><span>사업자번호</span>{control('dsTaxReceipt', 'REG_NO', '현금영수증 사업자번호')}</label>
+                    </div>
+                    <p className="w-tax-hint">휴대폰번호 또는 사업자번호 중 하나를 입력해 주세요.</p>
+                </section>}
                 {tax.GUBUN === 'TAX' && <>
-                    <div className="erp-row">{field('dsTaxReceipt', 'REG_NO', '세금계산서 사업자번호', { span: 6 })}{field('dsTaxReceipt', 'COMPANY_NM', '상호명', { span: 6 })}</div>
-                    <div className="erp-row">{field('dsTaxReceipt', 'NAME', '대표자명', { span: 6 })}{field('dsTaxReceipt', 'PHONE_NO', '연락처', { span: 6 })}</div>
-                    <div className="erp-row">{field('dsTaxReceipt', 'BUSINESS_TYPE', '업태', { span: 6 })}{field('dsTaxReceipt', 'INDUSTRY_TYPE', '업종', { span: 6 })}</div>
-                    <div className="erp-row">{field('dsTaxReceipt', 'MAIL1', '세금계산서 이메일', { span: 6 })}{field('dsTaxReceipt', 'MAIL2', '추가 이메일', { span: 6 })}</div>
+                    <section className="w-certificate-card">
+                        <h4>사업자 정보</h4>
+                        <div className="w-tax-fields">
+                            <label className="w-tax-field"><span>사업자번호</span>{control('dsTaxReceipt', 'REG_NO', '세금계산서 사업자번호')}</label>
+                            <label className="w-tax-field"><span>상호명</span>{control('dsTaxReceipt', 'COMPANY_NM', '상호명')}</label>
+                            <label className="w-tax-field w-tax-wide"><span>대표자명</span>{control('dsTaxReceipt', 'NAME', '대표자명')}</label>
+                            <label className="w-tax-field"><span>업태</span>{control('dsTaxReceipt', 'BUSINESS_TYPE', '업태')}</label>
+                            <label className="w-tax-field"><span>업종</span>{control('dsTaxReceipt', 'INDUSTRY_TYPE', '업종')}</label>
+                        </div>
+                    </section>
+                    <section className="w-certificate-card">
+                        <h4>연락처 · 이메일</h4>
+                        <div className="w-tax-fields">
+                            <label className="w-tax-field w-tax-wide"><span>연락처</span>{control('dsTaxReceipt', 'PHONE_NO', '연락처')}</label>
+                            <label className="w-tax-field w-tax-wide"><span>세금계산서 이메일</span>{control('dsTaxReceipt', 'MAIL1', '세금계산서 이메일')}</label>
+                            <label className="w-tax-field w-tax-wide"><span>추가 이메일</span>{control('dsTaxReceipt', 'MAIL2', '추가 이메일')}</label>
+                        </div>
+                    </section>
+                    <section className="w-certificate-card w-tax-wide">
+                        <h4>사업장 주소</h4>
+                        <div className="w-tax-address">
+                            <label className="w-tax-field"><span>주소</span>{control('dsTaxReceipt', 'ADDR', '사업장주소', { readOnly: true })}</label>
+                            <button type="button" className="btn-erp light" disabled={!editable} onClick={() => setAddressTarget({ key: 'dsTaxReceipt', prefix: 'TAX' })}>주소 검색</button>
+                        </div>
+                        <label className="w-tax-field w-tax-detail"><span>상세주소</span>{control('dsTaxReceipt', 'ADDR_DT', '사업장주소 상세')}</label>
+                    </section>
                 </>}
-            </div>{tax.GUBUN === 'TAX' && addressFields('dsTaxReceipt', 'TAX', '사업장주소')}
-            <button type="button" className="btn-erp light" onClick={() => setModal('')}>닫기</button>
+            </div>
+            <footer className="w-bottom-actions w-certificate-footer">
+                <span>닫은 후에도 입력한 내용은 화면에 유지됩니다.</span>
+                <button type="button" className="btn-erp" onClick={() => setModal('')}>닫기</button>
+            </footer>
         </section></div>}
         {modal === 'attach' && <WaNewcarAttachModal open dsService={service} dsNewCar={car} dsOwnerInfo={data.dsOwnerInfo} dsCarNoDetach={detach}
             readOnly={!canEditW(service)} allowSms={false}

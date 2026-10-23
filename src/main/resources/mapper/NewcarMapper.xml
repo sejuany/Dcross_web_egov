@@ -1581,8 +1581,24 @@
            AND CARID_NO = #{CARID_NO}
            AND USE_YN = 'S'
     </select>
-    <update id="updateWProductionDate" parameterType="map">
-        UPDATE TR_NEWCAR SET MADE_DT = #{MADE_DT}
+    <!-- W 화면의 조회 전용 차량정보는 서버에서 확인한 제작증·제원 값만 저장한다. -->
+    <update id="updateWCarSpec" parameterType="map">
+        UPDATE TR_NEWCAR
+        <set>
+            <if test="MADE_DT != null and MADE_DT != ''">MADE_DT = #{MADE_DT},</if>
+            <if test="MADE_YY != null">MADE_YY = #{MADE_YY},</if>
+            <if test="CAR_CC != null">CAR_CC = #{CAR_CC},</if>
+            <if test="GETIN_NO != null">GETIN_NO = #{GETIN_NO},</if>
+            <if test="CAR_KD != null">CAR_KD = #{CAR_KD},</if>
+            <if test="CAR_KD_CD != null">CAR_KD_CD = #{CAR_KD_CD},</if>
+            <if test="FM_NM != null">FM_NM = #{FM_NM},</if>
+            <if test="FUEL_CD != null">FUEL_CD = #{FUEL_CD},</if>
+            <if test="COLOR_GB != null">COLOR_GB = #{COLOR_GB},</if>
+            <if test="SPMNNO != null">SPMNNO = #{SPMNNO},</if>
+            <if test="ECO_YN != null">ECO_YN = #{ECO_YN},</if>
+            <if test="LOW_POLLUTION_YN != null">LOW_POLLUTION_YN = #{LOW_POLLUTION_YN},</if>
+            VH_TY_CD = #{VH_TY_CD}
+        </set>
          WHERE SERVICE_ID = #{SERVICE_ID}
     </update>
     <!-- 상태 확인과 W 저장이 동시에 진행되지 않도록 접수 행을 잠근다. -->
