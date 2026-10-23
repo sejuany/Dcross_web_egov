@@ -3,19 +3,19 @@ package com.dacos.config;
 import org.jasypt.encryption.StringEncryptor;
 import org.jasypt.encryption.pbe.PooledPBEStringEncryptor;
 import org.jasypt.encryption.pbe.config.SimpleStringPBEConfig;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.core.env.Environment;
 
 @Configuration
 public class JasyptConfig {
 
-    // VM argument(-Djasypt.encryptor.password=...)로 넘긴 값을 여기서 받습니다.
-    @Value("${jasypt.encryptor.password}")
-    private String encryptKey;
-
     @Bean("jasyptStringEncryptor")
-    public StringEncryptor stringEncryptor() {
+    public StringEncryptor stringEncryptor(Environment environment) {
+        // BeanFactoryPostProcessor 단계(로깅 재초기화)에서도 @Value BeanPostProcessor 등록 전에
+        // 안전하게 마스터 키를 읽을 수 있도록 Environment에서 직접 조회합니다.
+        String encryptKey = environment.getRequiredProperty("jasypt.encryptor.password");
+
         PooledPBEStringEncryptor encryptor = new PooledPBEStringEncryptor();
         SimpleStringPBEConfig config = new SimpleStringPBEConfig();
         
