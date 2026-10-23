@@ -368,6 +368,18 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.5.0</version>
+				<configuration>
+					<excludes>
+						<exclude>application-local.yml</exclude>
+						<exclude>application-real.yml</exclude>
+						<exclude>mobile-ok/*.dat</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-war-plugin</artifactId>
 				<version>3.4.0</version>
 				<configuration>
@@ -386,7 +398,6 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>3.5.2</version>
 				<configuration>
-					<skipTests>true</skipTests>
 					<reportFormat>xml</reportFormat>
 					<excludes>
 						<exclude>**/Abstract*.java</exclude>
@@ -402,6 +413,13 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 				<version>3.3.1</version>
+				<configuration>
+					<excludes>
+						<exclude>application-local.yml</exclude>
+						<exclude>application-real.yml</exclude>
+						<exclude>mobile-ok/*.dat</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<id>attach-sources</id>

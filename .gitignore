@@ -82,13 +82,21 @@ logs/
 # =========================================
 docs/
 *.md
+!/UPDATE_GUIDE.md
 config/dcross.env
 .gitignore
 src/main/resources/application-real.yml
 *.pdf
 
-# 테스트 파일은 로컬에서만 유지
+# 기존 로컬 테스트는 제외하고 보안 패치 회귀 테스트만 버전 관리
 *.test.*
 *.spec.*
 __tests__/
-/src/test/
+/src/test/**
+!/src/test/**/
+!/src/test/java/com/dacos/config/WebConfigTest.java
+!/src/test/java/com/dacos/config/JasyptConfigTest.java
+!/src/test/java/com/dacos/newcar/ReceiptPdfCreatorTest.java
+src/test/java/com/dacos/config/JasyptConfigTest.java
+src/test/java/com/dacos/config/WebConfigTest.java
+src/test/java/com/dacos/newcar/ReceiptPdfCreatorTest.java
