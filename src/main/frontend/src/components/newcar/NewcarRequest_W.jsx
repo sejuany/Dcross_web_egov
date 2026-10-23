@@ -316,7 +316,11 @@ const NewcarRequest_W = () => {
             </>
         })}</div>;
     };
-    const jointPanel = (key, index) => <ErpSection title={`공동 소유자 정보${index ? ' (2)' : ''}`} className="owner-panel owner-co-panel" key={key}>
+    const jointPanel = (key, index) => <ErpSection title={`공동 소유자 정보${index ? ' (2)' : ''}`} titleExtra={!index && <label className="tab-checkbox-label"><input type="checkbox" checked={secondOwner} disabled={!editable || !jointRequired} onChange={async event => {
+        const checked = event.target.checked;
+        if (!checked && !await gf.confirm('두 번째 공동소유자 정보를 지우시겠습니까?')) return;
+        setSecondOwner(checked); if (!checked) setData(previous => ({ ...previous, dsOwnerInfo1: { ...initialOwnerInfo1 } }));
+    }} /> 공동소유자 2명</label>} className="owner-panel owner-co-panel" key={key}>
         <div className="erp-row">
             {field(key, 'DEBTOR_NM', index ? '공동소유자명(2)' : '공동소유자명', { labelWidth: '125px', span: 4, disabled: !jointRequired })}
             {field(key, 'DEBTOR_REG_NO', '공동소유자 등록번호', { labelWidth: '125px', span: 6, disabled: !jointRequired,
@@ -387,11 +391,6 @@ const NewcarRequest_W = () => {
                     <button type="button" role="tab" aria-selected={tab === 'owner'} className={`tab-btn ${tab === 'owner' ? 'active' : ''}`} onClick={() => setTab('owner')}>등록정보</button>
                     <button type="button" role="tab" aria-selected={tab === 'payment'} className={`tab-btn ${tab === 'payment' ? 'active' : ''}`} onClick={() => setTab('payment')}>결제정보</button>
                 </div>
-                <div className="tab-header-extra"><label className="tab-checkbox-label"><input type="checkbox" checked={secondOwner} disabled={!editable || !jointRequired} onChange={async event => {
-                    const checked = event.target.checked;
-                    if (!checked && !await gf.confirm('두 번째 공동소유자 정보를 지우시겠습니까?')) return;
-                    setSecondOwner(checked); if (!checked) setData(previous => ({ ...previous, dsOwnerInfo1: { ...initialOwnerInfo1 } }));
-                }} /> 공동소유자 2명</label></div>
             </div>
             <div className="tab-content">
             {tab === 'owner' ? <div role="tabpanel" aria-label="등록정보" className="owner-info-section"><div className="owner-split-layout">

@@ -2123,12 +2123,6 @@ const NewcarRequest = () => {
 						<button className={`tab-btn ${activeTab === 'delivery' ? 'active' : ''}`} onClick={() => setActiveTab('delivery')}>배송정보</button>
 						<button className={`tab-btn ${activeTab === 'payment' ? 'active' : ''}`} onClick={() => setActiveTab('payment')}>결제정보</button>
 					</div>
-
-					<div className="tab-header-extra">
-						<label className="tab-checkbox-label">
-							<input type="checkbox" checked={isMultiOwner} onChange={e => setIsMultiOwner(e.target.checked)} disabled={isDisabled()} /> 공동소유자 2명
-						</label>
-					</div>
 				</div>
 								
 				<div className="tab-content">
@@ -2221,7 +2215,15 @@ const NewcarRequest = () => {
 								</div>
 							</ErpSection>
 
-								<ErpSection title="공동 소유자 정보" className="owner-panel owner-co-panel">
+								<ErpSection
+									title="공동 소유자 정보"
+									className="owner-panel owner-co-panel"
+									titleExtra={
+										<label className="tab-checkbox-label">
+											<input type="checkbox" checked={isMultiOwner} onChange={e => setIsMultiOwner(e.target.checked)} disabled={isDisabled()} /> 공동소유자 2명
+										</label>
+									}
+								>
 									{/* 공동1 */}
 									<div className="erp-row">
 										<ErpField label="공동소유자명" span={3}>

@@ -34,13 +34,14 @@
  */
 import React from 'react';
 
-const ErpSection = ({ title, isHeader = false, children, className = '' }) => {
+const ErpSection = ({ title, titleExtra, isHeader = false, children, className = '' }) => {
     return (
         <div className={`erp-section ${isHeader ? 'header-info' : ''} ${className}`}>
             {/* title 속성이 있을 때만 섹션 제목 표시 */}
             {title && (
                 <div className="erp-section-title">
                     <span className="icon">◆</span> {title}
+                    {titleExtra && <div className="erp-section-title-extra">{titleExtra}</div>}
                 </div>
             )}
             {/* erp-grid: 내부 ErpField들이 그리드 형태로 배치됨 */}

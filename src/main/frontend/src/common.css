@@ -125,6 +125,12 @@ html {
     gap: 5px;
 }
 
+.erp-section-title-extra {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
 .sub-section-title {
     font-size: 13px;
     font-weight: bold;

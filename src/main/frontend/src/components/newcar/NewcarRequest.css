@@ -283,7 +283,7 @@ textarea.erp-input {
 }
 
 .erp-input {
-    height: 28px !important;
+    height: 28px;
     border: 1px solid #a3a3a3;
     padding: 0 4px;
     font-size: 15px;
