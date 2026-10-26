@@ -47,6 +47,8 @@ public interface SchedulerMapper {
 
     int resetNumplateSelectionForReminder(@Param("SERVICE_ID") String serviceId);
 
+    int appendNumplateReassignmentMemo(@Param("SERVICE_ID") String serviceId);
+
     SchedulerDto selectNewcarSpecialistInfo(@Param("MEMBER_ID") String memberId);
     
 }

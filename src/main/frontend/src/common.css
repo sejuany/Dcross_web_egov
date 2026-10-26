@@ -125,6 +125,12 @@ html {
     gap: 5px;
 }
 
+.erp-section-title-extra {
+    margin-left: auto;
+    display: flex;
+    align-items: center;
+}
+
 .sub-section-title {
     font-size: 13px;
     font-weight: bold;
@@ -207,8 +213,7 @@ input.erp-input:read-only,
 textarea.erp-input:read-only {
     background-color: #ebeff2 !important;
     color: #868e96;
-    border-color: #ced4da;
-    cursor: not-allowed;
+    border-color: #ced4da;    
 }
 
 input.erp-input:disabled,
@@ -217,16 +222,7 @@ select.erp-input:disabled,
 .erp-input.disabled {
     background-color: #ebeff2 !important;
     color: #868e96;
-    border-color: #ced4da;
-    cursor: not-allowed;
-}
-
-input.erp-input:read-only:hover,
-textarea.erp-input:read-only:hover,
-input.erp-input:disabled:hover,
-textarea.erp-input:disabled:hover,
-select.erp-input:disabled:hover {
-    cursor: not-allowed;
+    border-color: #ced4da;    
 }
 
 /* Highlight Classes */
@@ -338,8 +334,7 @@ select.erp-input:disabled:hover {
 .btn-erp.light:disabled {
     background: linear-gradient(to bottom, #dbe3ec, #c8d4e1) !important;
     border: 1px solid #a8b8ca !important;
-    color: #5a6b7d !important;
-    cursor: not-allowed !important;
+    color: #5a6b7d !important;    
     transform: none !important;
     opacity: 1;
     box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);

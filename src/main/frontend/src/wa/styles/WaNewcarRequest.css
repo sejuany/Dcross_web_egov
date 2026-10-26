@@ -2017,7 +2017,6 @@ hr.wa-divider.hr2 {
 
 .wa-attach-merge-btn:disabled {
     opacity: .5;
-    cursor: not-allowed;
 }
 
 
@@ -2313,7 +2312,6 @@ hr.wa-divider.hr2 {
 .wa-notice-modal .wa-attach-confirm-btn:disabled {
     background: #b8c3d4;
     border-color: #b8c3d4;
-    cursor: not-allowed;
 }
 
 .wa-exemption-warning-modal {
@@ -2518,7 +2516,6 @@ hr.wa-divider.hr2 {
 
 .wa-disabled {
     opacity: 0.5;
-    cursor: not-allowed;
     transition: opacity 0.2s ease;
     
     background: #f1f3f5;

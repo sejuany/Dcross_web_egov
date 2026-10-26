@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import html2pdf from "html2pdf.js";
+import html2pdf from 'html2pdf.js/dist/html2pdf.min.js';
 import ReceiptContent from "./ReceiptContent";
 import "../../styles/WaReceipt.css";
 

@@ -82,6 +82,7 @@ logs/
 # =========================================
 docs/
 *.md
+!/UPDATE_GUIDE.md
 config/dcross.env
 .gitignore
 src/main/resources/application-real.yml

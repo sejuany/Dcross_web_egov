@@ -164,10 +164,6 @@ const WaNumPlateSelectModal = ({
 	// 미사용 번호판 상태복구
 	const releaseNumplate = async () => {
 
-	    if (!preCarNoRef.current) {
-	        return;
-	    }
-		
 		// 조회한 번호판 전체를 한 번에 원복
 		await axios.post('/api/newcar/numplateRelease', {
 		    SERVICE_ID: dsService.SERVICE_ID,

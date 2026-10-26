@@ -90,7 +90,8 @@ public class NewcarService {
     // 회사별 차량제원 조회 조건을 한곳에서 관리함. 신규 고객 추가 시 회사코드, Maker, 차종구분을 함께 등록함.
     private static final Map<String, CarSpecSearchConfig> CAR_SPEC_SEARCH_CONFIG_BY_COMPANY = Map.of(
             "WA001", new CarSpecSearchConfig("POLESTAR", "1"),
-            "WA999", new CarSpecSearchConfig("BMW", "1")
+            "WA999", new CarSpecSearchConfig("BMW", "1"),
+            "WB001", new CarSpecSearchConfig("MERCEDES-BENZ", "1")
     );
     
     private final CommonService commonService;
@@ -2948,7 +2949,9 @@ public class NewcarService {
 			    result.put("MESSAGE", "신청완료");
 			    
 			    // 대상 업체 및 발송 기간 확인은 기존 서비스에서 처리
-			    numplateService.processNumplateSelectSms(mService, mNewCar, numplatePhoneNo);
+			    numplateService.processNumplateSelectSms(mService, mNewCar, numplatePhoneNo,
+						Objects.toString(mCarNoDetach.get("CUSTOMER_NM"),
+								Objects.toString(mNewCar.get("OWNER_NM"), "")));
 			}
 
 			mService.put("UPD_USER", user.getLOGIN_ID());

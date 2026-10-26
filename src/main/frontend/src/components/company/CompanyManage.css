@@ -657,7 +657,6 @@
 
 .company-manage-popup-address-row button:disabled {
     background: #94a3b8;
-    cursor: not-allowed;
 }
 /* 지점관리 팝업: 사용본거지 / 서비스사용선택 */
 .company-manage-branch-work-title {

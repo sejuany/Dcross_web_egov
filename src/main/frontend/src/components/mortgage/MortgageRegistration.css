@@ -164,7 +164,6 @@
 
 .erp-input.disabled {
     background-color: #e9ecef;
-    cursor: not-allowed;
 }
 
 .erp-input.sm {

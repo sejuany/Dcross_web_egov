@@ -15,17 +15,19 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.dacos.common.CommonService;
 
-import lombok.RequiredArgsConstructor;
-
 @RestController
 @RequestMapping("/api/scheduler")
-@RequiredArgsConstructor
 public class Scheduler {
 
     private static final Logger logger = LoggerFactory.getLogger(Scheduler.class);
 
     private final SchedulerService schedulerService;
     private final CommonService commonService;
+
+    public Scheduler(SchedulerService schedulerService, CommonService commonService) {
+        this.schedulerService = schedulerService;
+        this.commonService = commonService;
+    }
 
 	/** 1분마다 5분 유효시간이 지난 고객 번호판 배정을 회수한다. */
 	@Scheduled(cron = "0 * * * * *", zone = "Asia/Seoul")
@@ -55,7 +57,7 @@ public class Scheduler {
 	    }
     }
 
-    /** 매일 오전 9시에 D-3 이전은 문자를 발송하고 D-2 건은 DCROSS 알림을 등록한다. */
+    /** 매일 오전 9시에 안내 문자를 발송하고 영업일 D-2~당일 건은 신차팀 알림/텔레그램을 전송한다. */
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
     public void processNewcarNumplateSelectionReminders() {
         String serverIp = commonService.getServerAddress("IP");

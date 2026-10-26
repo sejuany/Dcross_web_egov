@@ -164,8 +164,8 @@ const WaNewcarNumplateSelect = () => {
 		}
 	};
 
-	// 서버가 동시 요청을 잠금 처리하므로 더블 클릭/재요청에도 한 번호만 최종 확정된다.
-	// 행동 전송 실패가 실제 번호 선택을 막지는 않는다.
+	// 화면에서는 선택/확인창 열림/취소만 전송하고, 확정 요청/성공/실패는 서버가 실제 처리 결과로 기록한다.
+	// 행동 전송 실패가 실제 번호 선택을 막지는 않는다. DOM_STATE 등 자동 화면 진단은 전송하지 않는다.
 	const recordAction = (event, carNo = selected) => {
 		axios({
 			method: 'post', url: '/api/customer/numplate-selection/actions',
@@ -180,6 +180,7 @@ const WaNewcarNumplateSelect = () => {
 	}).then(canvas => canvas.toDataURL('image/png'));
 
 	const openErrorReport = () => {
+		// 입력 팝업이 화면을 가리기 전에 고객이 오류를 겪은 화면을 캡처한다.
 		capturePromiseRef.current = captureCurrentScreen().catch(() => '');
 		setReportSymptom('');
 		setReportFeature('');
@@ -199,6 +200,7 @@ const WaNewcarNumplateSelect = () => {
 			let image;
 			try {
 				image = await (capturePromiseRef.current || Promise.resolve(''));
+				// 최초 캡처에 실패했으면 팝업을 제외하고 다시 캡처해 내용과 이미지를 함께 접수한다.
 				if (!image) image = await captureCurrentScreen();
 			} catch {
 				setReportErrorMsg('화면을 캡쳐하지 못했습니다. 새로고침 후 다시 제출해 주세요.');
@@ -236,7 +238,7 @@ const WaNewcarNumplateSelect = () => {
 
 	const expired = remainingSeconds === 0;
 	const canStart = Boolean(data?.canStart);
-	// COUNT/TIME 조합이 시작 가능 상태가 아니거나 5분이 지난 경우 조회 불가로 처리한다.
+	// 희망번호/조회 시각이 시작 가능 상태가 아니거나 5분이 지난 경우 조회 불가로 처리한다.
 	const selectionUnavailable = Boolean(data)
 		&& !canStart
 		&& (!data.selectionStarted || !data.expiresAt || expired);
@@ -519,6 +521,7 @@ const WaNewcarNumplateSelect = () => {
                         {loading ? '번호판 정보를 불러오고 있습니다.' : message}
                     </div>
                 )}
+                {/* 모바일 내용 축소의 영향을 받지 않도록 오류제출 팝업은 카드에 직접 표시한다. */}
                 {showErrorReport && createPortal(
                     <div className="numplate-consent-backdrop" data-numplate-report-ignore="true">
                         <section className="numplate-consent-modal numplate-report-modal" role="dialog" aria-modal="true"

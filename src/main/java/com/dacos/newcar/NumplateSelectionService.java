@@ -39,6 +39,7 @@ import com.dacos.common.CommonService;
 import com.dacos.common.ServiceAccessGuard;
 import com.dacos.common.ServiceAccessGuard.ServiceAction;
 import com.dacos.newcar.mapper.NewcarMapper;
+import com.dacos.telegram.TelegramService;
 
 import jakarta.servlet.http.HttpSession;
 
@@ -55,16 +56,19 @@ public class NumplateSelectionService {
     private final Environment environment;
 	private final NewcarMapper newcarMapper;
 	private final ServiceAccessGuard serviceAccessGuard;
+	private final TelegramService telegramService;
 
 	public NumplateSelectionService(CommonRepository common, CommonService commonService,
 			PlatformTransactionManager transactionManager, Environment environment,
-			NewcarMapper newcarMapper, ServiceAccessGuard serviceAccessGuard) {
+			NewcarMapper newcarMapper, ServiceAccessGuard serviceAccessGuard,
+			TelegramService telegramService) {
 		this.common = common;
 		this.commonService = commonService;
 		this.transactionManager = transactionManager;
 		this.environment = environment;
 		this.newcarMapper = newcarMapper;
 		this.serviceAccessGuard = serviceAccessGuard;
+		this.telegramService = telegramService;
 	}
  	
 	/** 스케줄 등 서버 기준 번호판 문자 링크 주소를 관리한다. */
@@ -110,12 +114,12 @@ public class NumplateSelectionService {
     /**
      * 신청 후 번호판 선택 문자 발송 처리
      * - 번호판 선택 대상 업체만 처리
-     * - 등록예정일 기준 D-3까지 문자 발송
+     * - 등록예정일 기준 D-1까지 문자 발송, 폴스타 임박 알림은 영업일 D-2부터 당일까지 등록
      */
     public void processNumplateSelectSms(
             Map<String, Object> mService,
             Map<String, Object> mNewCar,
-            String phoneNo) {
+            String phoneNo, String customerName) {
 
         String serviceId = Objects.toString(mService.get("SERVICE_ID"), "");
         String companyId = Objects.toString(mService.get("COMPANY_ID"), "");
@@ -132,15 +136,11 @@ public class NumplateSelectionService {
             return;
         }
 
-        // 등록예정일 기준 D-3 확인
-        boolean selectPeriod = isNumplateSelectPeriod(registDate);
+        // 문자 발송은 등록예정일 기준 D-1까지 허용한다.
+        boolean selectPeriod = isNumplateSelectPeriod(registDate, 1);
 
-        // 선택 기간이 지난 신청은 미납/번호 미선택 상태에 맞춰 알림을 등록한다.
-        if (!selectPeriod) {
-            logger.info(
-                "[번호판문자] 종료 - 번호판 선택 기간 아님. SERVICE_ID={}, REGIST_DATE={}",
-                serviceId, registDate
-            );
+        // 영업일 D-2부터 등록예정일 당일까지의 범위는 알림 INSERT SQL에서 검증한다.
+        if ("WA001".equals(companyId) && isNumplateSelectPeriod(registDate, 0)) {
             
             Map<String, Object> param1 = new HashMap<>();
             param1.put("GROUP_ID", "TEAMS");
@@ -151,29 +151,40 @@ public class NumplateSelectionService {
 			String newcarTeam = code == null ? "" : Objects.toString(code.get("CODE_NM"), "").trim();
 			if (newcarTeam.isBlank()) {
 				logger.warn("[번호판문자] 알림 등록 제외 - 신차사업부 공통코드 없음. SERVICE_ID={}", serviceId);
-				return;
+			} else {
+				boolean numplateMissing = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim().isEmpty();
+				boolean unpaid = "N".equalsIgnoreCase(Objects.toString(mNewCar.get("PAY_ST"), "").trim());
+				String alertKind = numplateMissing && unpaid ? "BOTH"
+						: numplateMissing ? "NUMPLATE" : unpaid ? "PAYMENT" : "NONE";
+				String alertContent = switch (alertKind) {
+					case "BOTH" -> "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
+					case "NUMPLATE" -> "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
+					case "PAYMENT" -> "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
+					default -> "";
+				};
+				int alertCount = alertContent.isEmpty() ? 0
+						: newcarMapper.insertNewcarApplicationNumplateAlert(
+								serviceId,
+								Objects.toString(mNewCar.get("CARID_NO"), ""),
+								alertContent,
+								newcarTeam,
+								alertKind);
+				logger.info(
+						"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
+						serviceId, alertKind, alertCount);
+				if (alertCount > 0) {
+					sendNewcarTeamTelegramAfterCommit(serviceId, Objects.toString(mNewCar.get("CARID_NO"), ""),
+							customerName, registDate,
+							unpaid, Objects.toString(mNewCar.get("REQ_CAR_NO"), ""), alertContent);
+				}
 			}
+        }
 
-			boolean numplateMissing = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim().isEmpty();
-			boolean unpaid = "N".equalsIgnoreCase(Objects.toString(mNewCar.get("PAY_ST"), "").trim());
-			String alertKind = numplateMissing && unpaid ? "BOTH"
-					: numplateMissing ? "NUMPLATE" : unpaid ? "PAYMENT" : "NONE";
-			String alertContent = switch (alertKind) {
-				case "BOTH" -> "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
-				case "NUMPLATE" -> "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
-				case "PAYMENT" -> "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
-				default -> "";
-			};
-			int alertCount = alertContent.isEmpty() ? 0
-					: newcarMapper.insertNewcarApplicationNumplateAlert(
-							serviceId,
-							Objects.toString(mNewCar.get("CARID_NO"), ""),
-							alertContent,
-							newcarTeam,
-							alertKind);
-			logger.info(
-					"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
-					serviceId, alertKind, alertCount);
+        if (!selectPeriod) {
+            logger.info(
+                "[번호판문자] 종료 - 번호판 선택 기간 아님. SERVICE_ID={}, REGIST_DATE={}",
+                serviceId, registDate
+            );
             return;
         }
 
@@ -191,6 +202,44 @@ public class NumplateSelectionService {
         // 번호판 선택 안내 문자 발송
         sendNumplateSelectSms(mService, mNewCar, registDate, phoneNo);
     }
+
+	/** 새로 등록된 신차팀 임박 알림만 커밋 후 텔레그램으로 전송한다. */
+	public void sendNewcarTeamTelegramAfterCommit(String serviceId, String carIdNo, String customerName,
+			String registDate, boolean unpaid, String reqCarNo, String alertContent) {
+		String selectedCarNo = Objects.toString(reqCarNo, "").trim();
+		Runnable send = () -> {
+			try {
+				String registrationDay = new SimpleDateFormat("yyyy-MM-dd")
+						.format(getNumplateSelectLimitDate(registDate, 0));
+				String message = "[" + alertContent.replace("[신차사업] ", "") + "]"
+						+ "\n• 접수번호: " + serviceId
+						+ "\n• 차대번호: " + Objects.toString(carIdNo, "")
+						+ "\n• 고객명: " + Objects.toString(customerName, "")
+						+ "\n• 등록예정일: " + registrationDay
+						+ "\n• 납부유무: " + (unpaid ? "미납" : "납부완료")
+						+ "\n• 번호선택: " + (selectedCarNo.isEmpty() ? "미선택" : "선택완료(" + selectedCarNo + ")");
+				telegramService.sendMessage(message, null, null, "newds");
+			} catch (ParseException | RuntimeException e) {
+				// 고객명이나 인증정보가 포함될 수 있는 메시지/예외 내용은 기록하지 않는다.
+				logger.warn("[신차팀텔레그램] 발송 실패 - SERVICE_ID={}, 오류유형={}",
+						serviceId, e.getClass().getSimpleName());
+			}
+		};
+		if (TransactionSynchronizationManager.isActualTransactionActive()) {
+			if (!TransactionSynchronizationManager.isSynchronizationActive()) {
+				logger.warn("[신차팀텔레그램] 발송 예약 실패 - SERVICE_ID={}", serviceId);
+				return;
+			}
+			TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+				@Override
+				public void afterCommit() {
+					send.run();
+				}
+			});
+		} else {
+			send.run();
+		}
+	}
 
     /** 관청 전송용 소유자 정보 초기화 전에 문자 수신번호를 확보한다. */
     String getNumplateSelectPhoneNo(Map<String, Object> mNewCar,
@@ -282,8 +331,8 @@ public class NumplateSelectionService {
 	    }
 	    
 	    try {
-	    	// 등록예정일 기준 번호판 선택 마감일(D-3)
-	        Date limitDate = getNumplateSelectLimitDate(registDate);
+	    	// 등록예정일 기준 번호판 선택 마감일(D-1)
+	        Date limitDate = getNumplateSelectLimitDate(registDate, 1);
 	        String selectLimitDate = new SimpleDateFormat("MM/dd").format(limitDate);
 	        Map<String, Object> tokenParam = new HashMap<>();
 	        tokenParam.put("SERVICE_ID", serviceId);
@@ -311,16 +360,26 @@ public class NumplateSelectionService {
 	        sms.put("PAY_HP_NO", phoneNo);
 
 	        sms.put("TEXT",
-	        	    "안녕하세요. 폴스타 차량번호 선택을 위하여 아래 링크에 접속해 주세요.\r\n\r\n"
+	        	    "안녕하세요. 폴스타 오토모티브코리아 차량번호 선택을 위한 링크를 안내해 드립니다.\r\n\r\n"
 	        	    + "주문번호 : " + orderNo + "\r\n"
-	        	    + "차대번호 : " + carIdNo + "\r\n\r\n"
+	        	    + "차대번호 : " + carIdNo + "\r\n"
 	        	    + url + "\r\n\r\n"
-	        	    + "※ 번호 조회 후 5분 내로 번호를 선택을 완료해 주시기 바라며, 시간 초과 시 자동 초기화됩니다.\r\n"
-	        	    + "번호 선택은 금일 중으로 위 링크를 통해 진행해 주시기 바랍니다.\r\n\r\n"
-	        	    + "차량대금 납부, 등록비용 납부, 번호 선택은 모두 09/18까지 완료되어야 원활한 등록이 가능합니다.\r\n"
+	        	    + "오늘 중으로 위 링크에 접속하셔서 번호를 선택해 주세요.\r\n\r\n"
+	        	    + "※ 번호 조회 후 5분 내로 선택을 완료해 주세요. (시간 초과 시 재선택 불가)\r\n\r\n"
+	        	    + "■ 아래 항목이 " + selectLimitDate + "까지 완료되어야 원활한 등록이 가능합니다.\r\n"
+	        	    + "차량대금 납부\r\n"
+	        	    + "등록비용 납부\r\n"
+	        	    + "번호 선택\r\n"
+	        	    + "보험가입\r\n\r\n"
 	        	    + "문의사항은 1844-0801(내선 1)로 연락해 주세요."
 	        	);
 
+	        // 기존 토큰을 재사용해도 문자 발송 대상의 조회 기회와 재배정 이력을 갱신한다.
+	        if (common.update(tokenParam, "resetNumplateSelectionForReminder") != 1
+	                || common.update(tokenParam, "appendNumplateReassignmentMemo") != 1) {
+	            logger.error("번호판 선택 문자 발송 제외 - 재배정 초기화/메모 저장 실패. SERVICE_ID={}", serviceId);
+	            return;
+	        }
 	        sendNumplateSmsAfterCommit(sms, serviceId);
 			
 	    } catch (Exception e) {
@@ -359,10 +418,9 @@ public class NumplateSelectionService {
 	
 	/**
 	 * 번호판 선택 가능 기간 여부
-	 * - 등록예정일 3일 전(D-3) 당일까지 선택 가능
-	 * - 예) 등록예정일 09/17 → 09/14까지 true
+	 * - 등록예정일에서 daysBefore일 전 당일까지 true
 	 */
-	private boolean isNumplateSelectPeriod(String registDate) {
+	private boolean isNumplateSelectPeriod(String registDate, int daysBefore) {
 	
 	    if (registDate == null || "".equals(registDate.trim())) {
 	        return false;
@@ -375,7 +433,7 @@ public class NumplateSelectionService {
 	    sdf.setLenient(false);
 	
 	    try {
-	        Date limitDate = getNumplateSelectLimitDate(registDate);
+	        Date limitDate = getNumplateSelectLimitDate(registDate, daysBefore);
 	
 	        // 시간 제외 후 날짜만 비교
 	        Date today = sdf.parse(sdf.format(new Date()));
@@ -390,10 +448,9 @@ public class NumplateSelectionService {
 	
 	/**
 	 * 번호판 선택 마감일 조회
-	 * - 등록예정일 기준 D-3
-	 * - 예) 등록예정일 20260917 → 20260914
+	 * - 등록예정일에서 daysBefore일을 뺀 날짜
 	 */
-	private Date getNumplateSelectLimitDate(String registDate) throws ParseException {
+	private Date getNumplateSelectLimitDate(String registDate, int daysBefore) throws ParseException {
 
 	    // 날짜에서 숫자만 추출
 	    registDate = registDate.replaceAll("[^0-9]", "");
@@ -405,7 +462,7 @@ public class NumplateSelectionService {
 
 	    Calendar cal = Calendar.getInstance();
 	    cal.setTime(registDt);
-	    cal.add(Calendar.DATE, -3);
+	    cal.add(Calendar.DATE, -daysBefore);
 
 	    return cal.getTime();
 	}
@@ -819,10 +876,9 @@ public class NumplateSelectionService {
 		}
 		String selected = Objects.toString(row.get("REQ_CAR_NO"), "");
 		Map<String, Object> result = new HashMap<>(row);
-		int selectCount = getNumplateSelectCount(row);
 		String state = !selected.isEmpty()
 				? "SELECTED"
-				: selectCount == 0 && row.get("NUMPLATE_SELECT_TIME") == null
+				: row.get("NUMPLATE_SELECT_TIME") == null
 						? "WAITING"
 						: "Y".equals(row.get("ACTIVE_YN")) ? "ACTIVE" : "EXPIRED";
 		result.put("state", state);
@@ -907,8 +963,7 @@ public class NumplateSelectionService {
 			}
 			throw new BusinessException("번호판 종류가 이미 선택되었습니다.");
 		}
-		if (getNumplateSelectCount(assignment) != 0
-				|| assignment.get("NUMPLATE_SELECT_TIME") != null) {
+		if (assignment.get("NUMPLATE_SELECT_TIME") != null) {
 			throw new BusinessException("번호판 조회가 시작되어 종류를 변경할 수 없습니다.");
 		}
 
@@ -934,9 +989,10 @@ public class NumplateSelectionService {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
 
-		int selectCount = getNumplateSelectCount(assignment);
 		Map<String, Object> originalAssignment = assignment;
-		if (selectCount == 0 && assignment.get("NUMPLATE_SELECT_TIME") == null
+		// COUNT는 안 봄. 시작 시각이 없는 요청 중 UPDATE에 성공한 요청만 후보를 새로 추출한다.
+		if (Objects.toString(assignment.get("REQ_CAR_NO"), "").isBlank()
+				&& assignment.get("NUMPLATE_SELECT_TIME") == null
 				&& common.update(work, "startCustomerNumplateAccess") == 1) {
 			assignment = common.select(work, "selectCustomerNumplateAccess");
 			if (assignment == null) {
@@ -946,7 +1002,7 @@ public class NumplateSelectionService {
 			Map<String, Object> drawParam = new HashMap<>(assignment);
 			drawParam.put("TOKEN", normalizedToken);
 			drawParam.put("LIMIT", 10);
-			// 관리자가 COUNT를 0으로 초기화한 재조회라면 이전 P 후보를 먼저 모두 반환한다.
+			// 조회 시각을 초기화한 재조회라면 이전 P 후보를 먼저 모두 반환한다.
 			common.update(drawParam, "releasePreviousNumplateMessage");
 			common.update(drawParam, "clearNumplateMessageDetach");
 			List<String> carNos = common.selectList(drawParam, "selectRandomCustomerNumplateList");
@@ -992,6 +1048,8 @@ public class NumplateSelectionService {
 		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
 		List<Map<String, Object>> rows = common.selectList(listParam, "selectNumplateMessageList");
 		int selectCount = getNumplateSelectCount(assignment);
+		boolean canStart = Objects.toString(assignment.get("REQ_CAR_NO"), "").isBlank()
+				&& assignment.get("NUMPLATE_SELECT_TIME") == null;
 
 		Map<String, Object> result = new HashMap<>();
 		result.put("serviceId", Objects.toString(assignment.get("SERVICE_ID"), ""));
@@ -1006,13 +1064,11 @@ public class NumplateSelectionService {
 		result.put("insuranceDeadline", Objects.toString(assignment.get("INSURANCE_DEADLINE"), ""));
 		result.put("insuranceStartDate", Objects.toString(assignment.get("INSURANCE_START_DATE"), ""));
 		result.put("selectCount", selectCount);
-		result.put("selectionStarted", selectCount >= 1);
-		result.put("canStart", selectCount == 0 && assignment.get("NUMPLATE_SELECT_TIME") == null);
+		result.put("selectionStarted", assignment.get("NUMPLATE_SELECT_TIME") != null);
+		result.put("canStart", canStart);
 		result.put("lookupFailed", false);
 		result.put("requiresNumplateTypeSelection",
-				Objects.toString(assignment.get("REQ_CAR_NO"), "").isBlank()
-				&& selectCount == 0
-				&& assignment.get("NUMPLATE_SELECT_TIME") == null
+				canStart
 				&& "Y".equals(Objects.toString(assignment.get("NUMPLATE_TYPE_SELECT_YN"), "N")));
 		return result;
 	}
@@ -1034,6 +1090,7 @@ public class NumplateSelectionService {
 				buyAmt = 0L;
 			}
 		}
+		// 리스/이용자명의 리스는 계약자 구분을 사용해 내부 입력 화면 및 매퍼의 법인 판단과 맞춘다.
 		boolean isLease = "LEASE".equals(assignment.get("TASK_CD"))
 				&& ("I".equals(assignment.get("PROC_CD")) || "C".equals(assignment.get("PROC_CD")));
 		Object registrationGb = assignment.get(isLease ? "DEBTOR_GB" : "REG_GB");
@@ -1066,26 +1123,46 @@ public class NumplateSelectionService {
 	 */
 	@Transactional
 	public Map<String, Object> confirmCustomerNumplateSelection(Map<String, Object> param) {
-		String token = normalizeCustomerNumplateToken(
-				Objects.toString(param.get("TOKEN"), ""));
+		String token;
+		try {
+			token = normalizeCustomerNumplateToken(Objects.toString(param.get("TOKEN"), ""));
+		} catch (BusinessException e) {
+			logger.warn("[번호판확정] 유효하지 않은 링크 - SERVICE_ID=확인불가");
+			throw e;
+		}
 		String carNo = Objects.toString(param.get("CAR_NO"), "").trim();
 		if (carNo.isEmpty() || carNo.length() > 20) {
+			logger.warn("[번호판확정] 번호 형식 오류 - SERVICE_ID=확인불가");
 			throw new BusinessException("선택한 번호판이 올바르지 않습니다.", 400);
 		}
 		// 더블 클릭이나 여러 브라우저의 동시 확정 요청이 한 번호만 선택하도록 배정 행을 잠근다.
 		Map<String, Object> assignment = common.select(Map.of("TOKEN", token, "LOCK_YN", "Y"), "selectNumplateMessageForUpdate");
 		if (assignment == null) {
+			logger.warn("[번호판확정] 배정 정보 없음 - SERVICE_ID=확인불가");
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
+		String serviceId = Objects.toString(assignment.get("SERVICE_ID"), "확인불가");
+		int selectCount = getNumplateSelectCount(assignment);
+		Object selectedAt = assignment.get("NUMPLATE_SELECT_TIME");
+		Object appearedAt = assignment.get("APPEAR_DT");
+		SimpleDateFormat logDateFormat = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+		logger.info("[번호판확정] 요청 확인 - SERVICE_ID={}, 조회횟수={}, 조회시각={}, 배정시각={}",
+				serviceId, selectCount,
+				selectedAt instanceof java.util.Date time ? logDateFormat.format(time) : "없음",
+				appearedAt instanceof java.util.Date time ? logDateFormat.format(time) : "없음");
 		String selected = Objects.toString(assignment.get("REQ_CAR_NO"), "");
 		if (!selected.isEmpty()) {
-			if (selected.equals(carNo)) return Map.of("carNo", carNo, "alreadySelected", true);
+			if (selected.equals(carNo)) {
+				logger.info("[번호판확정] 이미 확정된 번호 재요청 - SERVICE_ID={}", serviceId);
+				return Map.of("carNo", carNo, "alreadySelected", true);
+			}
+			logger.warn("[번호판확정] 다른 번호로 변경 불가 - SERVICE_ID={}", serviceId);
 			throw new BusinessException("이미 다른 번호가 선택되었습니다.");
 		}
-		Object selectedAt = assignment.get("NUMPLATE_SELECT_TIME");
-		if (getNumplateSelectCount(assignment) < 1
+		if (selectCount < 1
 				|| !(selectedAt instanceof java.util.Date)
 				|| !((java.util.Date) selectedAt).toInstant().plusSeconds(300).isAfter(Instant.now())) {
+			logger.warn("[번호판확정] 선택 시간 만료 - SERVICE_ID={}", serviceId);
 			throw new BusinessException("번호판 선택 시간이 만료되었습니다.");
 		}
 
@@ -1098,17 +1175,25 @@ public class NumplateSelectionService {
 		work.put("NUMPLATE_GB", assignment.get("NUMPLATE_GB"));
 		int plateUpdateCount = common.update(work, "selectCustomerNumplate");
 		if (plateUpdateCount != 1) {
+			logger.warn("[번호판확정] 번호 배정 확인 실패 - SERVICE_ID={}, 번호처리건수={}", serviceId, plateUpdateCount);
 			throw new BusinessException("배정되지 않은 번호판입니다.");
 		}
 		int installerUpdateCount = common.update(work, "updateSelectedNumplateInstaller");
 		if (installerUpdateCount != 1) {
+			logger.warn("[번호판확정] 탈부착 담당자 없음 - SERVICE_ID={}, 번호처리건수={}, 담당자처리건수={}",
+					serviceId, plateUpdateCount, installerUpdateCount);
 			throw new BusinessException("번호판 탈부착 담당자 정보를 찾을 수 없습니다.");
 		}
 		common.update(work, "releaseOtherNumplateMessageList");
 		work.put("REQ_CAR_NO", carNo);
-		if (common.update(work, "updateReqCarNo") != 1) {
+		int saveCount = common.update(work, "updateReqCarNo");
+		if (saveCount != 1) {
+			logger.warn("[번호판확정] 선택 번호 저장 실패 - SERVICE_ID={}, 번호처리건수={}, 담당자처리건수={}, 저장건수={}",
+					serviceId, plateUpdateCount, installerUpdateCount, saveCount);
 			throw new BusinessException("선택 번호 저장에 실패했습니다.");
 		}
+		logger.info("[번호판확정] 저장 처리 완료 - SERVICE_ID={}, 번호처리건수={}, 담당자처리건수={}, 저장건수={}",
+				serviceId, plateUpdateCount, installerUpdateCount, saveCount);
 		return Map.of("carNo", carNo, "alreadySelected", false);
 	}
 
@@ -1196,24 +1281,19 @@ public class NumplateSelectionService {
 	        String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 	        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
 	        String preCarNo = Objects.toString(param.get("PRE_CAR_NO"), "");
-
-	        if (preCarNo.isBlank()) {
-	            return true;
-	        }
+	        List<String> queried = getNumplateSession(session, serviceId);
 
 	        List<String> numList = Arrays.stream(preCarNo.split(","))
 	                .filter(no -> !no.isBlank())
 	                .collect(Collectors.toList());
 
-	        if (numList.isEmpty()) {
-	            return true;
-	        }
-	        List<String> queried = getNumplateSession(session, serviceId);
+	        if ((queried == null || queried.isEmpty()) && numList.isEmpty()) return true;
 	        if (queried == null || !queried.containsAll(numList)) {
 	            throw new BusinessException("현재 세션에서 조회하지 않은 번호판이 포함되어 있습니다.", 409);
 	        }
 
-	        param.put("NUM_LIST", numList);
+	        // 마지막 화면의 10개가 아니라 해당 접수·세션에서 조회한 전체 P 번호를 복구한다.
+	        param.put("NUM_LIST", new ArrayList<>(queried));
 
 	        common.update(param, "releaseNumplateList");
 

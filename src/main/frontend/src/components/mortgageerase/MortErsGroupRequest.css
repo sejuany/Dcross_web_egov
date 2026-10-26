@@ -122,7 +122,7 @@
     cursor: pointer;
 }
 
-.row-delete:disabled { color: #aaa; cursor: not-allowed; }
+.row-delete:disabled { color: #aaa; }
 .mort-group-footer { display: flex; gap: 20px; padding: 7px 10px; border: 1px solid #bac3cc; background: #fff; font-size: 13px; }
 .mort-group-footer strong { color: #0759a5; }
 

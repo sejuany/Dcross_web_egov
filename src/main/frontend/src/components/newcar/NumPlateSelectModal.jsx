@@ -66,10 +66,6 @@ const NumberPlateModal = ({
 	// 미사용 번호판 상태복구
 	const releaseNumplate = async ()=> {
 		
-		if (!preCarNoRef.current) {
-		    return;
-		}
-
 		const dsWhere = {
 			SERVICE_ID: dsService.SERVICE_ID,
 			PRE_CAR_NO: preCarNoRef.current,

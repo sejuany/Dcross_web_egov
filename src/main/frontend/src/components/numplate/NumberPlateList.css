@@ -116,7 +116,6 @@
 
 .btn-status:disabled {
     opacity: 0.6;
-    cursor: not-allowed;
 }
 
 /* 1280px Optimization for Toolbar & Buttons */

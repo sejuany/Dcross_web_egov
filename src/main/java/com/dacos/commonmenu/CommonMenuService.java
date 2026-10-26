@@ -2,6 +2,8 @@ package com.dacos.commonmenu;
 
 import java.util.List;
 import java.util.Map;
+import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -90,7 +92,71 @@ public class CommonMenuService {
             }
         }
 
-        return visibleMenus;
+        // 권한을 통과한 메뉴끼리만 비교하여, 기업 전용 메뉴가 같은 이름의 공통 메뉴를 대체하게 한다.
+        // 키는 상위 메뉴 ID와 메뉴명(예를들어 신규등록 처럼 이름이 같은 메뉴..)이며, 값은 해당 그룹에서 최종 선택된 메뉴 한 건이다.
+        Map<List<String>, Map<String, Object>> selectedMenus = new LinkedHashMap<>();
+        for (Map<String, Object> menu : visibleMenus) {
+            String id = getMapValue(menu, "ID");
+            if (id.length() <= 2) {
+                // 2자리 상위 메뉴는 화면 경로가 없는 분류 항목이므로 중복 선택 없이 유지한다.
+                selectedMenus.put(List.of(id), menu);
+                continue;
+            }
+            // 웹에서 숨기는 메뉴나 연결 경로가 없는 메뉴가 정상 메뉴를 밀어내지 않게 한다.
+            if ("disabled".equals(getMapValue(menu, "FILENAME"))
+                    || getMapValue(menu, "WEBPATH").isEmpty()) {
+                continue;
+            }
+
+            // ID 앞 2자리가 같은 상위 메뉴 안에서만 동명 메뉴를 비교한다. 다른 분류의 동명 메뉴는 별개다.
+            List<String> key = List.of(id.substring(0, 2), getMapValue(menu, "NAME"));
+            Map<String, Object> selected = selectedMenus.get(key);
+            int priority = getMenuPriority(menu, companyId, userWorkAuthList);
+            // 아직 선택된 메뉴가 없으면 -1로 두어 첫 후보가 선택되게 한다.
+            int selectedPriority = selected == null ? -1
+                    : getMenuPriority(selected, companyId, userWorkAuthList);
+            // 높은 우선순위로 교체하고, 동순위에서는 기존 DB 정렬 기준대로 ID가 작은 메뉴를 선택한다.
+            if (priority > selectedPriority || (priority == selectedPriority
+                    && id.compareTo(getMapValue(selected, "ID")) < 0)) {
+                selectedMenus.put(key, menu);
+            }
+        }
+
+        // 기업용 메뉴로 교체하더라도 최종 표시 순서는 기존 ORDER BY ID와 동일하게 유지한다.
+        return selectedMenus.values().stream()
+                .sorted(Comparator.comparing(menu -> getMapValue(menu, "ID")))
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * 동명 메뉴 선택 순위: 기업코드 일치(3) > 업무권한 일치(2) > 공통(1) > 관리자 예외 허용(0).
+     * 관리자는 다른 기업용 메뉴도 권한 검사를 통과하므로, 단순히 필터가 있다는 이유로 우선하지 않는다.
+     */
+    private int getMenuPriority(Map<String, Object> menu, String companyId,
+            List<Map<String, Object>> userWorkAuthList) {
+        String filterUse = getMapValue(menu, "FILTERUSE");
+        if (filterUse.isEmpty()) {
+            return 1;
+        }
+        // 기존 규칙상 3자리 필터는 업무코드다. CE 기업의 업무코드 메뉴 제외 규칙도 유지한다.
+        if (filterUse.length() == 3) {
+            return !companyId.startsWith("CE") && hasWorkAuth(userWorkAuthList, filterUse) ? 2 : 0;
+        }
+        return containsCompany(filterUse, companyId) ? 3 : 0;
+    }
+
+    /** 기업코드 목록을 정확히 비교하여 WB001이 WB0010에 부분 일치하는 것을 방지한다. */
+    private boolean containsCompany(String filterUse, String companyId) {
+        if (companyId.isEmpty()) {
+            return false;
+        }
+        // WB001, WB001|WB002, |WB001|WB002| 모두 허용한다. |는 정규식 문자라 이스케이프한다.
+        for (String code : filterUse.split("\\|")) {
+            if (companyId.equals(code.trim())) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public String getFavoriteMenu(UserDto user) {
@@ -247,7 +313,7 @@ public class CommonMenuService {
             return hasWorkAuth(userWorkAuthList, filterUse);
         }
 
-        return filterUse.contains(companyId);
+        return containsCompany(filterUse, companyId);
     }
 
     private boolean hasWorkAuth(List<Map<String, Object>> userWorkAuthList, String workCd) {

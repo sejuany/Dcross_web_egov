@@ -25,6 +25,8 @@ import CeMortErsGroupRequest from '../components/constructequip/CeMortErsGroupRe
 
 import NewcarRequest from '../components/newcar/NewcarRequest';
 import NewcarList from '../components/newcar/NewcarList';
+import NewcarRequest_W from '../components/newcar/NewcarRequest_W';
+import NewcarList_W from '../components/newcar/NewcarList_W';
 import NewCarGroupRequest from '../components/newcar/NewCarGroupRequest';
 import Epayconfirm from '../components/newcar/Epayconfirm';
 import NotUsedBond from '../components/newcar/NotUsedBond';
@@ -106,6 +108,8 @@ export const protectedRouteComponents = {
 
     '/newcar/newcar-request': NewcarRequest,
     '/newcar/newcar-list': NewcarList,
+    '/newcar/newcar-request-w': NewcarRequest_W,
+    '/newcar/newcar-list-w': NewcarList_W,
     '/newcar/newcar-group-request': NewCarGroupRequest,
     '/newcar/epayconfirm': Epayconfirm,
     '/newcar/not-used-bond': NotUsedBond,

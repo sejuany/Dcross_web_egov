@@ -107,7 +107,6 @@
 .wa-company-actions button:disabled,
 .wa-company-branch-actions button:disabled {
     background: #94a3b8;
-    cursor: not-allowed;
     filter: none;
 }
 
@@ -452,7 +451,6 @@
 
 .wa-company-address-search-row button:disabled {
     background: #94a3b8;
-    cursor: not-allowed;
 }
 
 /* select 강조 */

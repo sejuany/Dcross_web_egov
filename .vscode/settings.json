@@ -1,11 +1,11 @@
 {
     "java.configuration.updateBuildConfiguration": "automatic",
     "java.compile.nullAnalysis.mode": "automatic",
-    "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21.0.10",
+    "java.jdt.ls.java.home": "C:\\Program Files\\Java\\jdk-21.0.13.0.2",
     "java.configuration.runtimes": [
         {
             "name": "JavaSE-21",
-            "path": "C:\\Program Files\\Java\\jdk-21.0.10",
+            "path": "C:\\Program Files\\Java\\jdk-21.0.13.0.2",
             "default": true
         }
     ],
@@ -13,7 +13,7 @@
     "maven.terminal.customEnv": [
         {
             "environmentVariable": "JAVA_HOME",
-            "value": "C:\\Program Files\\Java\\jdk-21.0.10"
+            "value": "C:\\Program Files\\Java\\jdk-21.0.13.0.2"
         }
     ],
     "files.encoding": "utf8",
@@ -38,8 +38,8 @@
     },
     "terminal.integrated.env.windows": {
         "LANG": "ko_KR.UTF-8",
-        "JAVA_HOME": "C:\\Program Files\\Java\\jdk-21.0.10",
-        "Path": "C:\\Program Files\\Java\\jdk-21.0.10\\bin;${env:Path}"
+        "JAVA_HOME": "C:\\Program Files\\Java\\jdk-21.0.13.0.2",
+        "Path": "C:\\Program Files\\Java\\jdk-21.0.13.0.2\\bin;${env:Path}"
     },
     "terminal.integrated.fontFamily": "Consolas, 'Malgun Gothic', 'D2Coding'",
     "files.readonlyInclude": {

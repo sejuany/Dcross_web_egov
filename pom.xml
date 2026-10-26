@@ -20,26 +20,59 @@
 		<java.version>21</java.version>
 		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
 		<project.reporting.outputEncoding>UTF-8</project.reporting.outputEncoding>
-		<egovframe.rte.version>5.0.0</egovframe.rte.version>
-		<spring.framework.version>6.2.18</spring.framework.version>
+		<spring.boot.version>4.1.2</spring.boot.version>
+		<spring.framework.version>7.0.10</spring.framework.version>
 	</properties>
 
-	<!-- Firebase와 Selenium이 참조하는 OpenTelemetry 버전을 하나로 맞춘다. -->
+	<!-- Spring Boot BOM 및 공통 BOM 버전 관리 -->
 	<dependencyManagement>
 		<dependencies>
 			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>${spring.boot.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.springframework</groupId>
+				<artifactId>spring-framework-bom</artifactId>
+				<version>${spring.framework.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
 				<groupId>io.opentelemetry</groupId>
 				<artifactId>opentelemetry-bom</artifactId>
-				<version>1.57.0</version>
+				<version>1.67.0</version>
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
 			<dependency>
 				<groupId>com.fasterxml.jackson</groupId>
 				<artifactId>jackson-bom</artifactId>
-				<version>2.22.2</version>
+				<version>2.22.4</version>
 				<type>pom</type>
 				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>io.netty</groupId>
+				<artifactId>netty-bom</artifactId>
+				<version>4.2.19.Final</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.logging.log4j</groupId>
+				<artifactId>log4j-bom</artifactId>
+				<version>2.26.1</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<dependency>
+				<groupId>org.apache.commons</groupId>
+				<artifactId>commons-compress</artifactId>
+				<version>1.28.0</version>
 			</dependency>
 		</dependencies>
 	</dependencyManagement>
@@ -73,7 +106,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-mail</artifactId>
-			<version>3.5.15</version>
+			<version>${spring.boot.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -94,102 +127,31 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-actuator</artifactId>
-			<version>3.5.15</version>
-		</dependency>
-
-		<!-- 표준프레임워크 실행환경 -->
-		<dependency>
-			<groupId>org.egovframe.rte</groupId>
-			<artifactId>egovframe-rte-ptl-mvc</artifactId>
-			<version>${egovframe.rte.version}</version>
+			<version>${spring.boot.version}</version>
 			<exclusions>
 				<exclusion>
-					<artifactId>commons-logging</artifactId>
-					<groupId>commons-logging</groupId>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-logging</artifactId>
 				</exclusion>
 			</exclusions>
-		</dependency>
-		<dependency>
-			<groupId>org.egovframe.rte</groupId>
-			<artifactId>egovframe-rte-psl-dataaccess</artifactId>
-			<version>${egovframe.rte.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.egovframe.rte</groupId>
-			<artifactId>egovframe-rte-fdl-idgnr</artifactId>
-			<version>${egovframe.rte.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.egovframe.rte</groupId>
-			<artifactId>egovframe-rte-fdl-property</artifactId>
-			<version>${egovframe.rte.version}</version>
-		</dependency>
-		<dependency>
-			<groupId>org.egovframe.rte</groupId>
-			<artifactId>egovframe-rte-ptl-reactive</artifactId>
-			<version>${egovframe.rte.version}</version>
-		</dependency>
-		
-		<!-- JSP 구문을 지원하기 위한 표준 사양 -->
-		<dependency>
-			<groupId>jakarta.servlet.jsp</groupId>
-			<artifactId>jakarta.servlet.jsp-api</artifactId>
-			<version>4.0.0</version>
-			<scope>provided</scope>
-		</dependency>
-		<!-- JSTL 태그의 표준 사양 -->
-		<dependency>
-			<groupId>jakarta.servlet.jsp.jstl</groupId>
-			<artifactId>jakarta.servlet.jsp.jstl-api</artifactId>
-			<version>3.0.2</version>
-		</dependency>
-		<!-- JSTL 구현체 -->
-		<dependency>
-			<groupId>org.glassfish.web</groupId>
-			<artifactId>jakarta.servlet.jsp.jstl</artifactId>
-			<version>3.0.1</version>
 		</dependency>
 
 		<!-- Jakarta Validation -->
 		<dependency>
-			<groupId>jakarta.validation</groupId>
-			<artifactId>jakarta.validation-api</artifactId>
-			<version>3.1.1</version>
-		</dependency>
-		<dependency>
-			<groupId>org.hibernate.validator</groupId>
-			<artifactId>hibernate-validator</artifactId>
-			<version>8.0.2.Final</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.hsqldb</groupId>
-			<artifactId>hsqldb</artifactId>
-			<version>2.7.4</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.antlr</groupId>
-			<artifactId>antlr4</artifactId>
-			<version>4.13.2</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.eclipse</groupId>
-			<artifactId>yasson</artifactId>
-			<version>3.0.4</version>
-		</dependency>
-
-		<dependency>
-			<groupId>org.glassfish</groupId>
-			<artifactId>jakarta.json</artifactId>
-			<version>2.0.1</version>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-validation</artifactId>
+			<version>${spring.boot.version}</version>
+			<exclusions>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-logging</artifactId>
+				</exclusion>
+			</exclusions>
 		</dependency>
 
 		<dependency>
 			<groupId>org.junit.jupiter</groupId>
-			<artifactId>junit-jupiter-api</artifactId>
-			<version>5.12.1</version>
+			<artifactId>junit-jupiter</artifactId>
 			<scope>test</scope>
 		</dependency>
 
@@ -217,7 +179,7 @@
 		<dependency>
 		    <groupId>org.apache.poi</groupId>
 		    <artifactId>poi-ooxml</artifactId>
-		    <version>5.2.5</version>
+		    <version>5.4.1</version>
 		</dependency>
 
 		<dependency>
@@ -229,22 +191,28 @@
 		<dependency>
 		    <groupId>org.apache.logging.log4j</groupId>
 		    <artifactId>log4j-api</artifactId>
-		    <version>2.23.1</version>
+		    <version>2.26.1</version>
 		</dependency>
 		
 		<dependency>
 		    <groupId>org.apache.logging.log4j</groupId>
 		    <artifactId>log4j-core</artifactId>
-		    <version>2.23.1</version>
+		    <version>2.26.1</version>
+		</dependency>
+
+		<dependency>
+		    <groupId>org.apache.logging.log4j</groupId>
+		    <artifactId>log4j-slf4j2-impl</artifactId>
+		    <version>2.26.1</version>
 		</dependency>
 
 		<!-- MyBatis Spring Boot Starter -->
 		<dependency>
 			<groupId>org.mybatis.spring.boot</groupId>
 			<artifactId>mybatis-spring-boot-starter</artifactId>
-			<version>3.0.3</version>
+			<version>4.1.0</version>
 			<exclusions>
-				<!-- eGovFrame의 log4j-slf4j2-impl과 충돌하는 라이브러리 제거 -->
+				<!-- log4j-slf4j2-impl과 충돌하는 기본 로깅 스타터 제거 -->
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
 					<artifactId>spring-boot-starter-logging</artifactId>
@@ -260,7 +228,6 @@
 		<dependency>
 			<groupId>org.springframework.security</groupId>
 			<artifactId>spring-security-crypto</artifactId>
-			<version>6.2.2</version>
 		</dependency>
 
 		<!-- 번호판 매니저 Face ID/Touch ID 패스키(WebAuthn) 서버 검증 -->
@@ -299,7 +266,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-devtools</artifactId>
-			<version>3.5.15</version>
+			<version>${spring.boot.version}</version>
 			<optional>true</optional>
 			<exclusions>
 				<exclusion>
@@ -317,7 +284,7 @@
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-web</artifactId>
-			<version>3.5.15</version>
+			<version>${spring.boot.version}</version>
 			<exclusions>
 				<exclusion>
 					<groupId>org.springframework.boot</groupId>
@@ -327,22 +294,31 @@
 					<groupId>org.apache.logging.log4j</groupId>
 					<artifactId>log4j-to-slf4j</artifactId>
 				</exclusion>
+				<exclusion>
+					<groupId>org.springframework.boot</groupId>
+					<artifactId>spring-boot-starter-jackson</artifactId>
+				</exclusion>
 			</exclusions>
+		</dependency>
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-jackson2</artifactId>
+			<version>${spring.boot.version}</version>
 		</dependency>
 		
 		<!-- 쿼리 정렬 및 내용 보기 -->
 		<dependency>
 		    <groupId>com.github.gavlyukovskiy</groupId>
 		    <artifactId>p6spy-spring-boot-starter</artifactId>
-		    <version>1.9.0</version>
+		    <version>2.0.1</version>
 		</dependency>
 
 		<!-- 디비 정보 암호화 -->
 		<dependency>
-    		<groupId>com.github.ulisesbocchio</groupId>
-    		<artifactId>jasypt-spring-boot-starter</artifactId>
-    		<version>3.0.5</version> 
-    	</dependency>
+			<groupId>com.github.ulisesbocchio</groupId>
+			<artifactId>jasypt-spring-boot-starter</artifactId>
+			<version>4.0.4</version>
+		</dependency>
 
 	</dependencies>
 
@@ -392,6 +368,18 @@
 			</plugin>
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-jar-plugin</artifactId>
+				<version>3.5.0</version>
+				<configuration>
+					<excludes>
+						<exclude>application-local.yml</exclude>
+						<exclude>application-real.yml</exclude>
+						<exclude>mobile-ok/*.dat</exclude>
+					</excludes>
+				</configuration>
+			</plugin>
+			<plugin>
+				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-war-plugin</artifactId>
 				<version>3.4.0</version>
 				<configuration>
@@ -410,7 +398,6 @@
 				<artifactId>maven-surefire-plugin</artifactId>
 				<version>3.5.2</version>
 				<configuration>
-					<skipTests>true</skipTests>
 					<reportFormat>xml</reportFormat>
 					<excludes>
 						<exclude>**/Abstract*.java</exclude>
@@ -426,6 +413,13 @@
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-source-plugin</artifactId>
 				<version>3.3.1</version>
+				<configuration>
+					<excludes>
+						<exclude>application-local.yml</exclude>
+						<exclude>application-real.yml</exclude>
+						<exclude>mobile-ok/*.dat</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<id>attach-sources</id>
@@ -452,8 +446,8 @@
 							<goal>install-node-and-npm</goal>
 						</goals>
 						<configuration>
-							<nodeVersion>v22.15.0</nodeVersion>
-							<npmVersion>10.9.2</npmVersion>
+							<nodeVersion>v22.23.4</nodeVersion>
+							<npmVersion>10.9.9</npmVersion>
 						</configuration>
 					</execution>
 					<execution>
@@ -506,7 +500,7 @@
 			<plugin>
 				<groupId>org.springframework.boot</groupId>
 				<artifactId>spring-boot-maven-plugin</artifactId>
-			<version>3.5.15</version>
+				<version>${spring.boot.version}</version>
 				<configuration>
 					<jvmArguments>-Dfile.encoding=UTF-8 -Dconsole.encoding=UTF-8 -Dstdout.encoding=UTF-8</jvmArguments>
 					<includeSystemScope>true</includeSystemScope>

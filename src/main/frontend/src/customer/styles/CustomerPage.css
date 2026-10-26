@@ -18,7 +18,7 @@
 .numplate-customer-list label:hover { border-color: var(--numplate-theme); transform: translateY(-1px); }
 .numplate-customer-list label.selected { color: var(--numplate-theme); border-color: var(--numplate-theme); background: var(--numplate-theme-soft); box-shadow: 0 8px 24px rgba(var(--numplate-theme-rgb), .18); transform: translateY(-2px) scale(1.01); }
 .numplate-customer-list label.pick-me:not(.selected) { animation: numplate-shake-horizontal .8s cubic-bezier(.455, .03, .515, .955) both; }
-.numplate-customer-list label:has(input:disabled) { cursor: not-allowed; opacity: .55; transform: none; }
+.numplate-customer-list label:has(input:disabled) { opacity: .55; transform: none; }
 .numplate-customer-list input { width: 20px; height: 20px; flex-shrink: 0; margin: 0; accent-color: var(--numplate-theme); }
 .numplate-customer-list span { flex: 1; font-size: 16px; font-weight: 700; letter-spacing: -0.3px; white-space: nowrap; }
 .numplate-check-icon { width: 22px; height: 22px; display: grid; place-items: center; flex-shrink: 0; color: #fff; border-radius: 50%; background: var(--numplate-theme); font-size: 13px; line-height: 1; }
@@ -56,7 +56,6 @@
     color: #fff;
     background: #9ca3af;
     border-color: #9ca3af;
-    cursor: not-allowed;
     opacity: 1;
 }
 
@@ -998,7 +997,7 @@
 .numplate-consent-actions .yes:disabled {
     border-color: #cbd5e1;
     background: #cbd5e1;
-    cursor: not-allowed;
+    
 }
 
 @keyframes numplate-timer-pulse {

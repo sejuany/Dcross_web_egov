@@ -1,4 +1,4 @@
-﻿<?xml version="1.0" encoding="UTF-8"?>
+<?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
@@ -527,7 +527,7 @@
                     AND TS.PROC_ST = 'P_END'
                 </when>
                 <when test="PROC_ST == 'S_REQ'">
-                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_MAN', 'D_PAM', 'D_DAC')
+                    AND TS.PROC_ST IN ('S_REQ', 'S_END', 'D_REQ', 'D_ING', 'D_END', 'D_CON', 'D_DLY', 'D_PAY', 'D_MAN', 'D_PAM', 'D_DAC', 'REQ', 'D_PAQ', 'P_RET')
                 </when>
                 <when test="PROC_ST == 'S_END'">
                     AND TS.PROC_ST IN ('J_REQ', 'J_ING', 'J_END', 'J_WTX', 'END')
@@ -667,7 +667,7 @@
             TO_CHAR(INSURER_EDT, 'YYYYMMDD')            AS INSURER_EDT,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO)            AS ADDR_INFO,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO2)           AS ADDR_INFO2,
-            LOW_POLLUTION_YN, CONTRACTOR_NM, CARD_YN,
+            LOW_POLLUTION_YN, LOW_POLLUTION_KD, LOW_POLLUTION_NO, CONTRACTOR_NM, CARD_YN, CARD_PAY_YN,
             TO_CHAR(CONTRACTOR_DT, 'YYYYMMDD')          AS CONTRACTOR_DT,
 			TO_CHAR(REGIST_DATE, 'YYYY-MM-DD')            AS REGIST_DATE
         FROM TR_NEWCAR
@@ -1465,7 +1465,32 @@
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
-	<!-- 신청 시 번호 미선택/등록비 미납 알림을 상태 확인 후 당일 중복 없이 등록한다. -->
+	<!-- 주말과 기존 HOLID 공통코드의 휴일을 제외한 영업일 D-2부터 등록예정일 당일까지. -->
+	<sql id="numplateAlertBusinessDateRange">
+	    AND TRUNC(TN.REGIST_DATE) BETWEEN TRUNC(SYSDATE) AND (
+	        SELECT MAX(BUSINESS_DATE)
+	          FROM (
+	                SELECT TRUNC(SYSDATE) + D.DAY_OFFSET AS BUSINESS_DATE
+	                  FROM (SELECT LEVEL AS DAY_OFFSET FROM DUAL CONNECT BY LEVEL &lt;= 31) D
+	                 WHERE (TRUNC(SYSDATE) + D.DAY_OFFSET
+	                        - TRUNC(TRUNC(SYSDATE) + D.DAY_OFFSET, 'IW')) BETWEEN 0 AND 4
+	                   AND INSTR(
+	                         ',' || NVL((
+	                             SELECT REPLACE(H.DETAIL_NM, ' ', '')
+	                               FROM TM_CODE H
+	                              WHERE H.GROUP_ID = 'ETC..'
+	                                AND H.CODE_ID = 'HOLID'
+	                                AND ROWNUM = 1
+	                         ), '') || ',',
+	                         ',' || TO_CHAR(TRUNC(SYSDATE) + D.DAY_OFFSET, 'YYYYMMDD') || ','
+	                       ) = 0
+	                 ORDER BY D.DAY_OFFSET
+	               )
+	         WHERE ROWNUM &lt;= 2
+	    )
+	</sql>
+
+	<!-- 신청 시 폴스타 영업일 D-2~당일 번호 미선택/등록비 미납 알림을 당일 중복 없이 등록한다. -->
 	<insert id="insertNewcarApplicationNumplateAlert">
 	    INSERT INTO TM_BOARD (
 	        BOARD_ID, BOARD_GB, BOARD_VW, SUBJECT_TX, CONTENT_TX,
@@ -1479,29 +1504,20 @@
 	      JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
 	     WHERE TS.SERVICE_ID = #{SERVICE_ID}
 	       AND TS.WORK_CD = '010'
+	       AND TS.COMPANY_ID = 'WA001'
+	       <include refid="numplateAlertBusinessDateRange"/>
 	       AND (
-	           (
-	               #{ALERT_KIND} = 'NUMPLATE'
-	               AND TN.REQ_CAR_NO IS NULL
-	               AND (
-	                   (TS.JUDGE_ST IS NULL
-	                    AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END'))
-	                   OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ')
-	               )
-	           )
-	           OR (
-	               #{ALERT_KIND} = 'BOTH'
-	               AND TN.REQ_CAR_NO IS NULL
-	               AND TN.PAY_ST = 'N'
-	               AND TS.JUDGE_ST IS NULL
-	               AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END')
-	           )
-	           OR (
-	               #{ALERT_KIND} = 'PAYMENT'
-	               AND TN.PAY_ST = 'N'
-	               AND TS.JUDGE_ST IS NULL
-	               AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END')
-	           )
+	           (TS.JUDGE_ST IS NULL
+	            AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END'))
+	           OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ')
+	       )
+	       AND (
+	           (#{ALERT_KIND} = 'NUMPLATE'
+	            AND TN.REQ_CAR_NO IS NULL AND NVL(TN.PAY_ST, 'Y') != 'N')
+	           OR (#{ALERT_KIND} = 'BOTH'
+	               AND TN.REQ_CAR_NO IS NULL AND TN.PAY_ST = 'N')
+	           OR (#{ALERT_KIND} = 'PAYMENT'
+	               AND TN.REQ_CAR_NO IS NOT NULL AND TN.PAY_ST = 'N')
 	       )
 	       AND NOT EXISTS (
 	           SELECT 1
@@ -1558,4 +1574,38 @@
 	       AND SEQ = #{SEQ}
 	</delete>	
 
+    <select id="countWSelectedNumplate" parameterType="map" resultType="int">
+        SELECT COUNT(*) FROM TM_NUMPLATE_LIST
+         WHERE CAR_NO = #{CAR_NO}
+           AND SERVICE_ID = #{SERVICE_ID} || '_S'
+           AND CARID_NO = #{CARID_NO}
+           AND USE_YN = 'S'
+    </select>
+    <!-- W 화면의 조회 전용 차량정보는 서버에서 확인한 제작증·제원 값만 저장한다. -->
+    <update id="updateWCarSpec" parameterType="map">
+        UPDATE TR_NEWCAR
+        <set>
+            <if test="MADE_DT != null and MADE_DT != ''">MADE_DT = #{MADE_DT},</if>
+            <if test="MADE_YY != null">MADE_YY = #{MADE_YY},</if>
+            <if test="CAR_CC != null">CAR_CC = #{CAR_CC},</if>
+            <if test="GETIN_NO != null">GETIN_NO = #{GETIN_NO},</if>
+            <if test="CAR_KD != null">CAR_KD = #{CAR_KD},</if>
+            <if test="CAR_KD_CD != null">CAR_KD_CD = #{CAR_KD_CD},</if>
+            <if test="FM_NM != null">FM_NM = #{FM_NM},</if>
+            <if test="FUEL_CD != null">FUEL_CD = #{FUEL_CD},</if>
+            <if test="COLOR_GB != null">COLOR_GB = #{COLOR_GB},</if>
+            <if test="SPMNNO != null">SPMNNO = #{SPMNNO},</if>
+            <if test="ECO_YN != null">ECO_YN = #{ECO_YN},</if>
+            <if test="LOW_POLLUTION_YN != null">LOW_POLLUTION_YN = #{LOW_POLLUTION_YN},</if>
+            VH_TY_CD = #{VH_TY_CD}
+        </set>
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+    <!-- 상태 확인과 W 저장이 동시에 진행되지 않도록 접수 행을 잠근다. -->
+    <select id="selectWNewcarServiceForUpdate" parameterType="map" resultType="map">
+        SELECT COMPANY_ID, PROC_ST, JUDGE_ST
+          FROM TR_SERVICE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           FOR UPDATE OF PROC_ST
+    </select>
 </mapper>

@@ -46,7 +46,9 @@ const WaNewcarAttachModal = ({
 	dsUserInfo,
     onClose,
     onOpenSmsModal,
-	saveProcess
+	saveProcess,
+    readOnly = false,
+    allowSms = true
 }) => {
     const fileInputRefs = useRef({});
     const [attachFiles, setAttachFiles] = useState([]);
@@ -163,6 +165,7 @@ const WaNewcarAttachModal = ({
 
 	// 파일 선택창 열기
     const handleSelectFile = (code) => {
+        if (readOnly) return;
         if (!serviceId) {
             alert('저장 후 첨부파일을 등록할 수 있습니다.');
             return;
@@ -173,6 +176,7 @@ const WaNewcarAttachModal = ({
 
 	// 첨부파일 업로드
     const handleFileChange = async (doc, event) => {
+        if (readOnly) return;
         const file = event.target.files?.[0];
 
         event.target.value = '';
@@ -483,6 +487,7 @@ const WaNewcarAttachModal = ({
 												fileInputRefs.current[doc.code] = el;
                                             }}
                                             type="file"
+                                            disabled={readOnly}
                                             accept="image/*,.pdf"
                                             onChange={(event) => handleFileChange(doc, event)}
                                         />
@@ -517,7 +522,7 @@ const WaNewcarAttachModal = ({
 										        type="button"
 										        className="wa-attach-file-btn"
 										        onClick={() => handleSelectFile(doc.code)}
-										        disabled={uploadingCode === doc.code}
+										        disabled={readOnly || uploadingCode === doc.code}
 										    >
 										        {uploadingCode === doc.code
 										            ? '업로드중'
@@ -543,16 +548,16 @@ const WaNewcarAttachModal = ({
 
                         </div>
 						<div className="wa-attach-btn-div">
-							<button
+							{allowSms && !readOnly && <button
 	                            type="button"
 	                            className="wa-attach-link-btn"
 								onClick={() => setSmsModalOpen(true)}
 	                        >
 	                            <Mail size={16} />
 	                            관련 신청서 서명 및 파일업로드 링크 문자 발송
-	                        </button>
+                        </button>}
 							
-							{((attachPolicy.needSign || attachPolicy.needMinorDocs) &&
+							{(!readOnly && (attachPolicy.needSign || attachPolicy.needMinorDocs) &&
 								// 필요한 경우 더 추가 
 							    ['END', 'W_REQ', 'REQ', 'S_REQ', 'S_END'].includes(dsService.PROC_ST)) && (
 							    <button

@@ -1,6 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
-  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.scheduler.mapper.SchedulerMapper">
 
@@ -109,7 +108,7 @@
          ORDER BY TS.PROC_DT, TS.SERVICE_ID
     </select>
 
-    <!-- 등록예정일 D-3 이상 남았고 아직 번호판을 선택하지 않은 신규등록 건 -->
+    <!-- 등록예정일 D-1 이상 남았고 아직 번호판을 선택하지 않은 신규등록 건 -->
     <select id="selectNewcarNumplateReminderTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT TS.SERVICE_ID,
                TS.WORK_CD,
@@ -144,11 +143,11 @@
            AND (TS.JUDGE_ST IS NULL OR TS.JUDGE_ST IN ('P_REQ', 'PBEND', 'PREND', 'P_END', 'REQ', 'S_REQ'))
            AND TN.REGIST_DATE IS NOT NULL
            AND TRUNC(TS.REQUEST_DT) <![CDATA[<]]> TRUNC(SYSDATE)
-           AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 3
+           AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 1
          ORDER BY TN.REGIST_DATE, TS.SERVICE_ID
     </select>
 
-    <!-- 번호판을 선택했지만 등록비용을 내지 않은 W 계열 선납 신규등록 건 -->
+    <!-- 번호판 선택 여부와 관계없이 등록비용을 내지 않은 W 계열 선납 신규등록 건 -->
     <select id="selectNewcarPaymentReminderTargets" resultType="map">
         SELECT TS.SERVICE_ID,
                TS.LINK_ID,
@@ -194,20 +193,20 @@
            <!-- PBEND는 차량대금 납부 완료이므로 등록비용 미납은 PAY_ST로 확인한다. -->
            AND TS.PROC_ST IN ('P_REQ', 'PBEND')
            AND NVL(TN.PAY_ST, 'N') != 'Y'
-           AND TRIM(TN.REQ_CAR_NO) IS NOT NULL
-           AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 3
+           AND TRUNC(TN.REGIST_DATE) <![CDATA[>=]]> TRUNC(SYSDATE) + 1
            AND TN.VBANK_NO IS NOT NULL
            AND TN.PAY_HP_NO IS NOT NULL
          ORDER BY TN.REGIST_DATE, TS.SERVICE_ID
     </select>
 
-    <!-- 달력상 등록예정일 D-2가 주말/공휴일이면 직전 영업일에 알림 대상 조회 -->
+    <!-- 폴스타 등록예정일의 영업일 D-2부터 당일까지 미납/번호 미선택 알림 대상 -->
     <select id="selectNewcarNumplateD2AlertTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT TS.SERVICE_ID,
                TS.COMPANY_ID,
                TS.PROC_ST,
                TS.JUDGE_ST,
                TS.LINK_ID,
+               NVL(CD.CUSTOMER_NM, TN.OWNER_NM) AS CUSTOMER_NM,
                TN.CARID_NO,
                TN.REQ_CAR_NO,
                TN.REGIST_DATE,
@@ -215,33 +214,17 @@
           FROM TR_SERVICE TS
           JOIN TR_NEWCAR TN
             ON TN.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_CARNO_DETACH CD ON CD.SERVICE_ID = TS.SERVICE_ID
          WHERE TS.WORK_CD = '010'
+           AND TS.COMPANY_ID = 'WA001'
            AND (
                (TS.JUDGE_ST IS NULL
                 AND NVL(TS.PROC_ST, '-') IN ('P_REQ', 'PBEND', 'PREND', 'P_END')
                 AND (TN.REQ_CAR_NO IS NULL OR TN.PAY_ST = 'N'))
-               OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ' AND TN.REQ_CAR_NO IS NULL)
+               OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ'
+                   AND (TN.REQ_CAR_NO IS NULL OR TN.PAY_ST = 'N'))
            )
-           AND TRUNC(SYSDATE) = (
-               SELECT MAX(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET)
-                 FROM (
-                       SELECT LEVEL - 1 AS DAY_OFFSET
-                         FROM DUAL
-                      CONNECT BY LEVEL <![CDATA[<=]]> 32
-                 ) D
-                WHERE (TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET)
-                          - TRUNC(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET, 'IW') BETWEEN 0 AND 4
-                  AND INSTR(
-                        ',' || NVL((
-                            SELECT REPLACE(H.DETAIL_NM, ' ', '')
-                              FROM TM_CODE H
-                             WHERE H.GROUP_ID = 'ETC..'
-                               AND H.CODE_ID = 'HOLID'
-                               AND ROWNUM = 1
-                        ), '') || ',',
-                        ',' || TO_CHAR(TRUNC(TN.REGIST_DATE) - 2 - D.DAY_OFFSET, 'YYYYMMDD') || ','
-                      ) = 0
-           )
+           <include refid="com.dacos.newcar.mapper.NewcarMapper.numplateAlertBusinessDateRange"/>
          ORDER BY TS.SERVICE_ID
     </select>
 
@@ -320,13 +303,26 @@
          WHERE SERVICE_ID = #{SERVICE_ID}
     </select>
 
-    <!-- 재안내 문자를 발송할 때 기존 토큰은 유지하고 번호판 조회 기회만 초기화한다. -->
+    <!-- 재안내 문자를 발송할 때 기존 토큰과 누적 조회 횟수는 유지하고 조회 시각만 초기화한다. -->
     <update id="resetNumplateSelectionForReminder">
         UPDATE TR_CARNO_DETACH
-           SET NUMPLATE_SELECT_COUNT = 0,
-               NUMPLATE_SELECT_TIME = NULL
+           SET NUMPLATE_SELECT_TIME = NULL
          WHERE SERVICE_ID = #{SERVICE_ID}
            AND NUMPLATE_MSG_TOKEN IS NOT NULL
+           AND EXISTS (
+               SELECT 1 FROM TR_NEWCAR N
+                WHERE N.SERVICE_ID = TR_CARNO_DETACH.SERVICE_ID
+                  AND N.REQ_CAR_NO IS NULL
+           )
+    </update>
+
+    <!-- 기존 업무 메모를 보존하고 실제 처리 시각으로 번호 재배정 이력을 추가한다. -->
+    <update id="appendNumplateReassignmentMemo">
+        UPDATE TR_NEWCAR
+           SET MEMO_TX = CASE WHEN MEMO_TX IS NULL THEN '' ELSE MEMO_TX || CHR(10) END
+               || '[자동] ' || TO_CHAR(SYSDATE, 'MM-DD HH24:MI') || ' > 번호재배정'
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND REQ_CAR_NO IS NULL
     </update>
 
     <select id="selectMemberInfo" resultType="com.dacos.scheduler.dto.SchedulerDto">

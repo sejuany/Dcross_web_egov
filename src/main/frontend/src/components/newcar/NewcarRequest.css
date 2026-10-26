@@ -19,7 +19,7 @@
     align-items: center;
     color: #fff;
     flex: 0 0 auto;
-    min-height: 28px;
+    min-height: 30px;
 }
 
 .toolbar-left,
@@ -168,6 +168,16 @@
     min-width: 120px;
 }
 
+/* ErpField의 기본 폭을 CSS로 사용하는 화면도 기존 라벨과 같은 폭을 유지한다. */
+.new-reg-container .erp-grid .erp-label {
+    min-width: 95px;
+    flex: 0 0 95px;
+}
+
+.new-reg-container .field-group.label-110 > .erp-label { min-width: 110px; flex-basis: 110px; }
+.new-reg-container .field-group.label-115 > .erp-label { min-width: 115px; flex-basis: 115px; }
+.new-reg-container .field-group.label-120 > .erp-label { min-width: 120px; flex-basis: 120px; }
+
 
 .erp-input:focus {
     outline: 1px solid #4dabf7;
@@ -208,8 +218,8 @@
 
 /* Buttons */
 .btn-erp {
-    height: 22px;
-    padding: 0 9px;
+    height: 24px;
+    padding: 0 15px;
     font-size: 13px;
     border-radius: 3px;
     border: 1px solid #2e5b8d;
@@ -218,7 +228,7 @@
     cursor: pointer;
     font-weight: 500;
     transition: all 0.15s ease;
-
+    margin: 0 2px;
     /* 버튼 글씨 가운데 정렬*/
     display: flex;
     align-items: center;
@@ -273,7 +283,7 @@ textarea.erp-input {
 }
 
 .erp-input {
-    height: 28px !important;
+    height: 28px;
     border: 1px solid #a3a3a3;
     padding: 0 4px;
     font-size: 15px;
@@ -328,9 +338,7 @@ input.erp-input:disabled,
 textarea.erp-input:disabled,
 select.erp-input:disabled,
 input.erp-input:read-only {
-    cursor: not-allowed;
-    
-    background: #f8fafc !important;
+    background-color: #f8fafc !important;
     border: 1px solid #d5dee8 !important;
     color: #495057 !important;
 
@@ -340,15 +348,6 @@ input.erp-input:read-only {
     -webkit-appearance: none;
     -moz-appearance: none;
     appearance: none;
-}
-
-/* hover */
-input.erp-input:read-only:hover,
-textarea.erp-input:read-only:hover,
-input.erp-input:disabled:hover,
-textarea.erp-input:disabled:hover,
-select.erp-input:disabled:hover {
-    cursor: not-allowed;
 }
 
 /* 메모 영역*/
@@ -381,16 +380,6 @@ select.erp-input:disabled:hover {
         letter-spacing: -1px;
     }
 
-    select.erp-input {
-        padding-left: 1px;
-        padding-right: 12px;
-        text-overflow: ellipsis;
-        appearance: none;
-        background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3e%3cpolyline points='6 9 12 15 18 9'%3e%3c/polyline%3e%3c/svg%3e");
-        background-repeat: no-repeat;
-        background-position: right 2px center;
-        background-size: 10px;
-    }
 }
 
 .flex-grow {
@@ -441,8 +430,8 @@ select.erp-input:disabled:hover {
 /* 1280px Optimization for Buttons */
 @media (max-width: 1980px) {
     .btn-erp {
-        height: 20px;
-        padding: 0 4px;
+        height: 24px;
+        padding: 0 15px;
         font-size: 12px;
     }
 }
@@ -486,20 +475,20 @@ select.erp-input:disabled:hover {
 
 /* small */
 .btn-erp.sm {
-    padding: 0 8px;
+    padding: 12px 15px;
     font-size: 12px;
     min-width: 52px;
 }
 
 /* medium */
 .btn-erp.md {
-    padding: 0 14px;
+    padding: 12px 15px;
     font-size: 13px;
 }
 
 /* large */
 .btn-erp.lg {
-    padding: 0 24px;
+    padding: 12px 24px;
     font-size: 13px;
 }
 
@@ -671,7 +660,7 @@ select.erp-input:disabled:hover {
 .tab-content {
     flex: 1;
     border: 1px solid #ced4da;
-    padding: 4px;
+    padding: 0px;
     min-height: 0;
     overflow: auto;
     background-color: #f7f9fc;
@@ -690,9 +679,19 @@ select.erp-input:disabled:hover {
     font-size: 13px;
 }
 
+.new-reg-container select.erp-input {
+    padding: 0 14px 0 4px;
+    text-overflow: ellipsis;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%20fill%3D%22none%22%20stroke%3D%22%2344546a%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 2px center;
+    background-size: 10px;
+}
+
 .tab-content .btn-erp.sm,
 .tab-content .btn-erp.md {
-    height: 22px;
+    height: 24px;
     min-width: 52px;
     padding: 0 6px;
 }
@@ -719,7 +718,6 @@ select.erp-input:disabled:hover {
     gap: 4px;
     align-items: stretch;
 }
-
 .owner-panel {
     min-width: 0;
     margin-bottom: 0;
@@ -768,11 +766,11 @@ select.erp-input:disabled:hover {
 }
 
 .fixed-reg-info-section .erp-textArea {
-    height: 48px !important;
+    height: 147px !important;
 }
 
 @media (max-width: 1980px) {
-    .owner-split-layout {
+    .new-reg-container:not(.newcar-request-w) .owner-split-layout {
         grid-template-columns: 1fr;
     }
 
@@ -785,6 +783,8 @@ select.erp-input:disabled:hover {
 #ADDRESS,
 #BASE_ADDRESS,
 #DELIVERY_ADDR,
+.new-reg-container input[name="ADDRESS"],
+.new-reg-container input[name="BASE_ADDRESS"],
 input[name="CARP_ADDRESS"] {
     flex: 1 1 180px;
     text-align: left;
@@ -793,6 +793,8 @@ input[name="CARP_ADDRESS"] {
 #ADDRESS_DT,
 #BASE_ADDRESS_DT,
 #DELIVERY_ADDR_DT,
+.new-reg-container input[name="ADDRESS_DT"],
+.new-reg-container input[name="BASE_ADDRESS_DT"],
 input[name="CARP_ADDRESS_DT"] {
     flex: 0 1 170px;
     width: auto !important;
@@ -804,6 +806,10 @@ input[name="CARP_POST_NO"] {
 }
 
 @media (max-width: 1100px) {
+    .owner-split-layout {
+        grid-template-columns: 1fr;
+    }
+
     .tab-content {
         padding: 6px;
     }
@@ -811,6 +817,8 @@ input[name="CARP_POST_NO"] {
     #ADDRESS_DT,
     #BASE_ADDRESS_DT,
     #DELIVERY_ADDR_DT,
+    .new-reg-container input[name="ADDRESS_DT"],
+    .new-reg-container input[name="BASE_ADDRESS_DT"],
     input[name="CARP_ADDRESS_DT"] {
         flex-basis: 180px;
     }
@@ -1086,4 +1094,96 @@ button.btn-erp.sm.light.mL-25 {
 
 #SERVICE_ID {
 	cursor: pointer;
+}
+
+/* W 화면은 12칸 안에서 소수 span을 사용하고 라벨 너비를 필드별로 지정한다. */
+.newcar-request-w .erp-row > .field-group {
+    flex: 0 0 calc(var(--erp-span) / 12 * 100%);
+    box-sizing: border-box;
+}
+
+.newcar-request-w .erp-row > .field-group > .erp-label {
+    width: var(--erp-label-width, 100px) !important;
+    min-width: var(--erp-label-width, 100px);
+    flex: 0 0 var(--erp-label-width, 100px);
+    box-sizing: border-box;
+}
+
+/* W 화면의 필수값·자동입력 표시와 추가 팝업. 배치는 위 공통 스타일을 사용한다. */
+.newcar-request-w .erp-input.w-required { background-color: #fff6cc !important; border: 1px solid #dc3545 !important; }
+.newcar-request-w .erp-input.w-auto, .newcar-request-w span.w-auto { background-color: #e1f3ff !important; border: 1px solid #2382c8 !important; }
+.newcar-request-w .w-bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px; }
+.newcar-request-w .w-message, .newcar-request-w .w-state { margin: 0; padding: 9px 12px; background: #fff5dc; color: #723f00; }
+.newcar-request-w .w-payments { width: 100%; border-collapse: collapse; background: white; }
+.newcar-request-w .w-payments caption { text-align: left; padding: 8px; font-weight: bold; }
+.newcar-request-w .w-payments th, .newcar-request-w .w-payments td { border: 1px solid #d6dee8; padding: 7px 10px; overflow-wrap: anywhere; }
+.newcar-request-w .w-payments td { text-align: right; }
+.newcar-request-w .w-modal-backdrop { position: fixed; inset: 0; z-index: 2000; background: #172d4b80; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.newcar-request-w .w-modal { width: min(850px, 95vw); max-height: 90vh; overflow: auto; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 12px 36px #0003; }
+.newcar-request-w .w-modal h3 { margin: 0 0 12px; }
+.newcar-request-w .w-paper { width: 100%; height: 70vh; border: 1px solid #d6dee8; }
+
+/* 제작증 확인은 본문만 스크롤하고 주요 정보와 동작 버튼을 함께 보여준다. */
+.newcar-request-w .w-certificate-modal { width: min(1040px, calc(100vw - 32px)); max-height: min(820px, calc(100dvh - 32px)); padding: 0; display: flex; flex-direction: column; overflow: hidden; color: #20344d; border-radius: 12px; }
+.newcar-request-w .w-certificate-header { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; padding: 18px 22px 14px; border-bottom: 1px solid #dde5ef; background: #fff; }
+.newcar-request-w .w-certificate-eyebrow { display: block; margin-bottom: 4px; color: #547394; font-size: 11px; font-weight: 600; }
+.newcar-request-w .w-certificate-header h3 { margin: 0; font-size: 18px; line-height: 1.4; }
+.newcar-request-w .w-certificate-header p { flex-basis: 100%; margin: 0; color: #62748a; font-size: 12px; line-height: 1.5; }
+.newcar-request-w .w-certificate-file { max-width: 42%; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid #dde5ef; border-radius: 5px; color: #5b7089; font-size: 11px; background: #f7f9fc; }
+.newcar-request-w .w-certificate-body { min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; padding: 16px 20px; background: #f3f6fa; }
+.newcar-request-w .w-certificate-card { min-width: 0; padding: 12px; border: 1px solid #dbe3ed; border-radius: 8px; background: #fff; }
+.newcar-request-w .w-certificate-card h4 { margin: 0 0 10px; padding-left: 8px; border-left: 3px solid #32669f; color: #263e5d; font-size: 13px; line-height: 1.3; }
+.newcar-request-w .w-certificate-vehicle, .newcar-request-w .w-certificate-specs { grid-column: 1 / -1; }
+.newcar-request-w .w-certificate-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.newcar-request-w .w-certificate-field { min-width: 0; padding: 7px 9px; border: 1px solid transparent; border-radius: 5px; background: #f5f7fa; }
+.newcar-request-w .w-certificate-field.is-changed { background: #edf5ff; border-color: #d7e7fb; }
+.newcar-request-w .w-certificate-field.is-wide { grid-column: 1 / -1; }
+.newcar-request-w .w-certificate-field dt { margin-bottom: 3px; color: #64758a; font-size: 11px; line-height: 1.35; }
+.newcar-request-w .w-certificate-field dd { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.newcar-request-w .w-certificate-value { color: #233b58; font-size: 13px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.newcar-request-w .w-certificate-value.is-vin { font-family: Consolas, monospace; letter-spacing: .3px; }
+.newcar-request-w .w-certificate-previous { color: #7d8998; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.newcar-request-w .w-certificate-vehicle .w-certificate-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.newcar-request-w .w-certificate-vehicle .w-certificate-field.is-wide { grid-column: span 2; }
+.newcar-request-w .w-certificate-vehicle .w-certificate-field:first-child .w-certificate-value { font-size: 15px; }
+.newcar-request-w .w-certificate-specs { border: 1px solid #dbe3ed; border-radius: 8px; background: #fff; }
+.newcar-request-w .w-certificate-specs summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; color: #314d6d; font-size: 12px; font-weight: 600; }
+.newcar-request-w .w-certificate-specs summary::-webkit-details-marker { display: none; }
+.newcar-request-w .w-certificate-specs summary span { color: #8290a2; font-size: 11px; font-weight: 400; }
+.newcar-request-w .w-certificate-specs summary::after { content: ''; width: 6px; height: 6px; margin-left: auto; border: solid #6f839d; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.newcar-request-w .w-certificate-specs[open] summary::after { transform: rotate(225deg); }
+.newcar-request-w .w-certificate-specs .w-certificate-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0 12px 12px; }
+.newcar-request-w .w-certificate-footer { flex: 0 0 auto; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid #dde5ef; background: #fff; }
+.newcar-request-w .w-certificate-footer > span { margin-right: auto; color: #6b7d92; font-size: 11px; }
+.newcar-request-w .w-certificate-footer .btn-erp { min-width: 86px; min-height: 34px; border-radius: 5px; font-size: 13px; }
+.newcar-request-w .w-certificate-specs summary:focus-visible, .newcar-request-w .w-certificate-footer button:focus-visible { outline: 2px solid #2382c8; outline-offset: 2px; }
+/* 증빙 입력도 제작증 팝업의 카드·본문 스크롤·고정 하단 구성을 공유한다. */
+.newcar-request-w .w-tax-modal { width: min(850px, calc(100vw - 32px)); }
+.newcar-request-w .w-tax-wide { grid-column: 1 / -1; }
+.newcar-request-w .w-tax-kind { max-width: 300px; }
+.newcar-request-w .w-tax-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.newcar-request-w .w-tax-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin: 0; }
+.newcar-request-w .w-tax-field > span { color: #64758a; font-size: 11px; line-height: 1.4; }
+.newcar-request-w .w-tax-modal .erp-input { box-sizing: border-box; width: 100%; min-width: 0; height: 34px; padding: 6px 10px; border: 1px solid #cdd9e7; border-radius: 5px; background-color: #fff; color: #233b58; text-align: left; font-size: 13px; }
+.newcar-request-w .w-tax-modal select.erp-input { padding-right: 28px; }
+.newcar-request-w .w-tax-modal input.erp-input:read-only { background-color: #f5f7fa; }
+.newcar-request-w .w-tax-modal .erp-input:focus { border-color: #2382c8; outline: 2px solid #2382c830; }
+.newcar-request-w .w-tax-hint { margin: 10px 0 0; color: #6b7d92; font-size: 12px; line-height: 1.5; }
+.newcar-request-w .w-tax-address { display: flex; align-items: flex-end; gap: 8px; }
+.newcar-request-w .w-tax-address > label { flex: 1; }
+.newcar-request-w .w-tax-address > button { flex: 0 0 auto; min-height: 34px; border-radius: 5px; }
+.newcar-request-w .w-tax-detail { margin-top: 10px; }
+@media (max-width: 760px) {
+    .newcar-request-w .w-certificate-body { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px; }
+    .newcar-request-w .w-certificate-header { padding: 14px; gap: 8px; }
+    .newcar-request-w .w-certificate-header h3 { font-size: 16px; }
+    .newcar-request-w .w-certificate-file { max-width: 100%; }
+    .newcar-request-w .w-certificate-specs .w-certificate-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .newcar-request-w .w-certificate-footer { padding: 10px 14px; }
+}
+@media (max-width: 480px) {
+    .newcar-request-w .w-tax-fields { grid-template-columns: minmax(0, 1fr); }
+    .newcar-request-w .w-certificate-vehicle .w-certificate-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .newcar-request-w .w-certificate-vehicle .w-certificate-field.is-wide { grid-column: 1 / -1; }
+    .newcar-request-w .w-certificate-footer > span { flex-basis: 100%; }
 }
