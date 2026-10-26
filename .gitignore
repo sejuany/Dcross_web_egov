@@ -100,3 +100,4 @@ __tests__/
 src/test/java/com/dacos/config/JasyptConfigTest.java
 src/test/java/com/dacos/config/WebConfigTest.java
 src/test/java/com/dacos/newcar/ReceiptPdfCreatorTest.java
+UPDATE_GUIDE.md
