@@ -81,21 +81,18 @@ const WaNewcarNumplateSelect = () => {
             .finally(() => setLoading(false));
     }, [token]);
 
-	/*
-	 * 초 단위 카운트다운은 안내용 UI다. 브라우저 시간이 다르거나 탭이 지연되더라도
-	 * 최종 선택 가능 여부는 confirm API가 DB의 NUMPLATE_SELECT_TIME을 기준으로 다시 검증한다.
-	 */
+	// WAS가 계산한 남은 시간을 사용해 고객 기기 시계 변경이 카운트다운에 영향을 주지 않게 한다.
 	useEffect(() => {
-        if (!data?.expiresAt || data.selectedCarNo) {
+        if (data?.remainingMillis == null || data.selectedCarNo) {
             setRemainingSeconds(null);
             return;
         }
-        const expiresAt = new Date(data.expiresAt.replace(' ', 'T')).getTime();
-        const tick = () => setRemainingSeconds(Math.max(0, Math.ceil((expiresAt - Date.now()) / 1000)));
+        const expiresAt = performance.now() + data.remainingMillis;
+        const tick = () => setRemainingSeconds(Math.max(0, Math.ceil((expiresAt - performance.now()) / 1000)));
         tick();
         const timer = setInterval(tick, 1000);
         return () => clearInterval(timer);
-    }, [data?.expiresAt, data?.selectedCarNo]);
+    }, [data?.remainingMillis, data?.selectedCarNo]);
 
 	// 선택하지 않은 번호 중 하나를 5초마다 무작위로 흔들어 선택을 자연스럽게 유도한다.
 	useEffect(() => {
@@ -241,7 +238,7 @@ const WaNewcarNumplateSelect = () => {
 	// 희망번호/조회 시각이 시작 가능 상태가 아니거나 5분이 지난 경우 조회 불가로 처리한다.
 	const selectionUnavailable = Boolean(data)
 		&& !canStart
-		&& (!data.selectionStarted || !data.expiresAt || expired);
+		&& (!data.selectionStarted || data.remainingMillis == null || expired);
 	const remainingText = remainingSeconds == null
 	    ? '--:--'
 	    : `${String(Math.floor(remainingSeconds / 60)).padStart(2, '0')}:${String(remainingSeconds % 60).padStart(2, '0')}`;

@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.Base64;
+import java.util.Date;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Objects;
@@ -136,8 +137,8 @@ public class NumplateActionService {
                 + "\n[동작 안 하는 기능] " + (feature.isEmpty() ? "-" : feature)
                 + "\n[선택하려던 번호] " + (wantedCarNo.isEmpty() ? "-" : wantedCarNo);
         String requestId = UUID.randomUUID().toString();
-        Map<String, Object> work = Map.of("TOKEN", token, "EVENT_CD", "ERROR_REPORT",
-                "CAR_NO", wantedCarNo.isEmpty() ? "-" : wantedCarNo, "REQUEST_ID", requestId, "DETAIL_TX", detail);
+        Map<String, Object> work = new HashMap<>(Map.of("TOKEN", token, "EVENT_CD", "ERROR_REPORT",
+                "CAR_NO", wantedCarNo.isEmpty() ? "-" : wantedCarNo, "REQUEST_ID", requestId, "DETAIL_TX", detail));
         Map<String, Object> access;
         try {
             access = transaction.execute(status -> {
@@ -172,6 +173,7 @@ public class NumplateActionService {
                             serviceId, seq, failure.getClass().getSimpleName());
                     throw new BusinessException("오류 화면 캡쳐를 저장하지 못했습니다.", 503);
                 }
+                work.put("NOW", new Date());
                 if (common.insert(work, "insertNumplateAction") != 1) {
                     throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
                 }
@@ -264,10 +266,13 @@ public class NumplateActionService {
                 || carNo.length() > 20 || carNo.chars().anyMatch(Character::isISOControl)) {
             throw new BusinessException("행동 기록 요청이 올바르지 않습니다.");
         }
-        Map<String, Object> work = Map.of("TOKEN", token, "CAR_NO", carNo,
-                "EVENT_CD", event, "REQUEST_ID", requestId, "DETAIL_TX", detail);
+        Map<String, Object> work = new HashMap<>(Map.of("TOKEN", token, "CAR_NO", carNo,
+                "EVENT_CD", event, "REQUEST_ID", requestId, "DETAIL_TX", detail));
         try {
-            Integer count = transaction.execute(status -> common.insert(work, "insertNumplateAction"));
+            Integer count = transaction.execute(status -> {
+                work.put("NOW", new Date());
+                return common.insert(work, "insertNumplateAction");
+            });
             if (count == null || count != 1) {
                 logger.warn("[번호판 행동 이력 저장 건수 오류] event={} requestId={}", event, requestId);
             }

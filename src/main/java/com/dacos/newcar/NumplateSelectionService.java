@@ -820,7 +820,7 @@ public class NumplateSelectionService {
 		// DB에 토큰이 있으면 화면의 재발송 상태와 무관하게 기존 링크를 재사용한다.
 		if (!existingToken.isEmpty()) {
 			// 이미 고객이 선택을 완료했는지 확인
-			Map<String, Object> currentStatus = common.select(Map.of("SERVICE_ID", serviceId), "selectNumplateMessageStatus");
+			Map<String, Object> currentStatus = common.select(Map.of("SERVICE_ID", serviceId, "NOW", new Date()), "selectNumplateMessageStatus");
 			if (currentStatus != null && !Objects.toString(currentStatus.get("REQ_CAR_NO"), "").isEmpty()) {
 				throw new BusinessException("고객이 이미 번호판 선택을 완료했습니다.");
 			}
@@ -870,7 +870,7 @@ public class NumplateSelectionService {
 			throw new BusinessException("SP 계정만 조회할 수 있습니다.");
 		}
 		serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.READ_DETAIL);
-		Map<String, Object> row = common.select(Map.of("SERVICE_ID", serviceId), "selectNumplateMessageStatus");
+		Map<String, Object> row = common.select(Map.of("SERVICE_ID", serviceId, "NOW", new Date()), "selectNumplateMessageStatus");
 		if (row == null || row.get("NUMPLATE_MSG_TOKEN") == null) {
 			return Map.of("state", "NONE");
 		}
@@ -983,7 +983,7 @@ public class NumplateSelectionService {
 	@Transactional
 	public Map<String, Object> startCustomerNumplateSelection(String token) {
 		String normalizedToken = normalizeCustomerNumplateToken(token);
-		Map<String, Object> work = Map.of("TOKEN", normalizedToken);
+		Map<String, Object> work = Map.of("TOKEN", normalizedToken, "NOW", new Date());
 		Map<String, Object> assignment = common.select(work, "selectCustomerNumplateAccess");
 		if (assignment == null) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
@@ -1001,6 +1001,7 @@ public class NumplateSelectionService {
 
 			Map<String, Object> drawParam = new HashMap<>(assignment);
 			drawParam.put("TOKEN", normalizedToken);
+			drawParam.put("NOW", work.get("NOW"));
 			drawParam.put("LIMIT", 10);
 			// 조회 시각을 초기화한 재조회라면 이전 P 후보를 먼저 모두 반환한다.
 			common.update(drawParam, "releasePreviousNumplateMessage");
@@ -1056,6 +1057,9 @@ public class NumplateSelectionService {
 		result.put("carNos", rows);
 		result.put("selectedCarNo", Objects.toString(assignment.get("REQ_CAR_NO"), ""));
 		result.put("expiresAt", Objects.toString(assignment.get("EXPIRES_AT"), ""));
+		// 고객 기기의 시계와 무관하게 WAS 기준으로 계산한 남은 시간을 내려준다.
+		result.put("remainingMillis", assignment.get("NUMPLATE_SELECT_TIME") instanceof Date time
+				? Math.max(0L, time.getTime() + 300_000L - System.currentTimeMillis()) : null);
 		result.put("customerName", Objects.toString(assignment.get("CUSTOMER_NM"), ""));
 		result.put("carIdNo", Objects.toString(assignment.get("CARID_NO"), ""));
 		result.put("carName", Objects.toString(assignment.get("CAR_NM"), ""));
@@ -1159,9 +1163,10 @@ public class NumplateSelectionService {
 			logger.warn("[번호판확정] 다른 번호로 변경 불가 - SERVICE_ID={}", serviceId);
 			throw new BusinessException("이미 다른 번호가 선택되었습니다.");
 		}
+		Date now = new Date();
 		if (selectCount < 1
 				|| !(selectedAt instanceof java.util.Date)
-				|| !((java.util.Date) selectedAt).toInstant().plusSeconds(300).isAfter(Instant.now())) {
+				|| !((java.util.Date) selectedAt).toInstant().plusSeconds(300).isAfter(now.toInstant())) {
 			logger.warn("[번호판확정] 선택 시간 만료 - SERVICE_ID={}", serviceId);
 			throw new BusinessException("번호판 선택 시간이 만료되었습니다.");
 		}
@@ -1169,6 +1174,7 @@ public class NumplateSelectionService {
 		Map<String, Object> work = new HashMap<>();
 		work.put("TOKEN", token);
 		work.put("CAR_NO", carNo);
+		work.put("NOW", now);
 		work.put("CARID_NO", assignment.get("CARID_NO"));
 		work.put("SERVICE_ID", assignment.get("SERVICE_ID"));
 		work.put("SELECT_SERVICE_ID", assignment.get("SERVICE_ID") + "_S");
@@ -1204,33 +1210,35 @@ public class NumplateSelectionService {
 	 */
 	@Transactional
 	public int cleanupExpiredNumplateSelections2() {
-		int count = common.update(Map.of(), "appendExpiredNumplateMessageMemo");
-		count += common.update(Map.of(), "clearExpiredNumplateMessageDetach");
-		count += common.update(Map.of(), "releaseExpiredNumplateMessageList");
-		count += common.update(Map.of(), "releaseExpiredPendingNumplateList");
+		Map<String, Object> work = Map.of("NOW", new Date());
+		int count = common.update(work, "appendExpiredNumplateMessageMemo");
+		count += common.update(work, "clearExpiredNumplateMessageDetach");
+		count += common.update(work, "releaseExpiredNumplateMessageList");
+		count += common.update(work, "releaseExpiredPendingNumplateList");
 		return count;
 	}
 	
 	@Transactional
 	public int cleanupExpiredNumplateSelections() {
+	    Map<String, Object> work = Map.of("NOW", new Date());
 
 	    int memoCount = common.update(
-	        Map.of(),
+	        work,
 	        "appendExpiredNumplateMessageMemo"
 	    );
 
 	    int detachCount = common.update(
-	        Map.of(),
+	        work,
 	        "clearExpiredNumplateMessageDetach"
 	    );
 
 	    int messageCount = common.update(
-	        Map.of(),
+	        work,
 	        "releaseExpiredNumplateMessageList"
 	    );
 
 	    int pendingCount = common.update(
-	        Map.of(),
+	        work,
 	        "releaseExpiredPendingNumplateList"
 	    );
 

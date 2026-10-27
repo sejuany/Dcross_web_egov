@@ -775,7 +775,7 @@
 	<update id="startCustomerNumplateAccess" parameterType="map">
 	    UPDATE TR_CARNO_DETACH
 	       SET NUMPLATE_SELECT_COUNT = NVL(NUMPLATE_SELECT_COUNT, 0) + 1,
-	           NUMPLATE_SELECT_TIME = SYSDATE
+	           NUMPLATE_SELECT_TIME = #{NOW,jdbcType=TIMESTAMP}
 	     WHERE NUMPLATE_MSG_TOKEN = #{TOKEN}
 	       AND NUMPLATE_SELECT_TIME IS NULL
 	       AND EXISTS (
@@ -816,7 +816,7 @@
 	    UPDATE TM_NUMPLATE_LIST
 	       SET USE_YN = 'P',
 	           NUMPLATE_MSG_TOKEN = #{TOKEN},
-	           APPEAR_DT = SYSDATE
+	           APPEAR_DT = #{NOW,jdbcType=TIMESTAMP}
 	     WHERE USE_YN = 'N'
 	       AND CAR_NO IN
 	       <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
@@ -836,7 +836,7 @@
 	<update id="appendCustomerNumplateLookupMemo" parameterType="map">
 	    UPDATE TR_NEWCAR
 	       SET MEMO_TX = NVL(MEMO_TX || CHR(10), '')
-	           || TO_CHAR(SYSDATE, 'YY-MM-DD HH24:MI')
+	           || TO_CHAR(#{NOW,jdbcType=TIMESTAMP}, 'YY-MM-DD HH24:MI')
 	           || ' [번호판 조회] ' || REPLACE(#{CONFIRM_NO}, ',', ', ')
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
@@ -855,7 +855,7 @@
 	<update id="selectCustomerNumplate" parameterType="map">
 	    UPDATE TM_NUMPLATE_LIST
 	       SET USE_YN = 'S', SERVICE_ID = #{SELECT_SERVICE_ID}, CARID_NO = #{CARID_NO},
-	           UPD_USER = 'CUSTOMER', UPD_DATE = SYSDATE, USE_DT = SYSDATE
+	           UPD_USER = 'CUSTOMER', UPD_DATE = #{NOW,jdbcType=TIMESTAMP}, USE_DT = #{NOW,jdbcType=TIMESTAMP}
 	     WHERE CAR_NO = #{CAR_NO}
 	       AND NUMPLATE_MSG_TOKEN = #{TOKEN}
 	       AND USE_YN = 'P'
@@ -864,7 +864,7 @@
 	             FROM TR_CARNO_DETACH D
 	            WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
 	              AND NVL(D.NUMPLATE_SELECT_COUNT, 0) &gt;= 1
-	              AND D.NUMPLATE_SELECT_TIME &gt; SYSDATE - (5 / 1440)
+	              AND D.NUMPLATE_SELECT_TIME + (5 / 1440) &gt; #{NOW,jdbcType=TIMESTAMP}
 	       )
 	</update>
 
@@ -906,7 +906,7 @@
 	           NVL(D.NUMPLATE_SELECT_COUNT, 0) AS NUMPLATE_SELECT_COUNT,
 	           D.NUMPLATE_SELECT_TIME,
 	           TO_CHAR(D.NUMPLATE_SELECT_TIME + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
-	           CASE WHEN D.NUMPLATE_SELECT_TIME &gt; SYSDATE - (5 / 1440) THEN 'Y' ELSE 'N' END AS ACTIVE_YN
+	           CASE WHEN D.NUMPLATE_SELECT_TIME + (5 / 1440) &gt; #{NOW,jdbcType=TIMESTAMP} THEN 'Y' ELSE 'N' END AS ACTIVE_YN
 	      FROM TR_CARNO_DETACH D
 	      JOIN TR_NEWCAR N ON N.SERVICE_ID = D.SERVICE_ID
 	     WHERE D.SERVICE_ID = #{SERVICE_ID}
@@ -933,7 +933,7 @@
 	         WHERE P.USE_YN = 'P'
 	           AND NVL(D.NUMPLATE_SELECT_COUNT, 0) <![CDATA[>=]]> 1
 	           AND D.NUMPLATE_SELECT_TIME IS NOT NULL
-	           AND D.NUMPLATE_SELECT_TIME <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	           AND D.NUMPLATE_SELECT_TIME + (5 / 1440) <![CDATA[<=]]> #{NOW,jdbcType=TIMESTAMP}
 	         GROUP BY D.SERVICE_ID, D.CONFIRM_NO
 	    ) E
 	       ON (N.SERVICE_ID = E.SERVICE_ID)
@@ -942,7 +942,7 @@
 	                         WHEN N.MEMO_TX IS NULL THEN ''
 	                         ELSE N.MEMO_TX || CHR(10)
 	                     END
-	           || TO_CHAR(SYSDATE, 'YY-MM-DD HH24:MI')
+	           || TO_CHAR(#{NOW,jdbcType=TIMESTAMP}, 'YY-MM-DD HH24:MI')
 	           || ' [번호판 미사용 처리] ' || E.CAR_NOS
 	</update>
 
@@ -955,7 +955,7 @@
 	
 	       AND NVL(D.NUMPLATE_SELECT_COUNT, 0) <![CDATA[>=]]> 1
 	       AND D.NUMPLATE_SELECT_TIME IS NOT NULL
-	       AND D.NUMPLATE_SELECT_TIME <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	       AND D.NUMPLATE_SELECT_TIME + (5 / 1440) <![CDATA[<=]]> #{NOW,jdbcType=TIMESTAMP}
 	       AND EXISTS (
 	           SELECT 1
 	             FROM TR_NEWCAR N
@@ -984,7 +984,7 @@
 	                WHERE D.NUMPLATE_MSG_TOKEN = TM_NUMPLATE_LIST.NUMPLATE_MSG_TOKEN
 	                  AND NVL(D.NUMPLATE_SELECT_COUNT, 0) <![CDATA[>=]]> 1
 	                  AND D.NUMPLATE_SELECT_TIME IS NOT NULL
-	                  AND D.NUMPLATE_SELECT_TIME <![CDATA[<=]]> SYSDATE - (5 / 1440)
+	                  AND D.NUMPLATE_SELECT_TIME + (5 / 1440) <![CDATA[<=]]> #{NOW,jdbcType=TIMESTAMP}
 	           )
 	           OR (
 	               APPEAR_DT <![CDATA[<=]]> SYSDATE - (5 / 1440)
@@ -998,13 +998,19 @@
 	       )
 	</update>
 
-	<!-- 문자 토큰 없이 APPEAR_DT만 남은 오래된 P 번호를 회수하는 안전망이다. -->
+	<!-- 고객 조회 시각이 없는 기존 P 번호만 DB 배정 시각으로 회수한다. -->
 	<update id="releaseExpiredPendingNumplateList">
 	    UPDATE TM_NUMPLATE_LIST
 	       SET USE_YN = 'N', APPEAR_DT = NULL
 	     WHERE USE_YN = 'P'
 	       AND NUMPLATE_MSG_TOKEN IS NOT NULL
 	       AND APPEAR_DT &lt;= SYSDATE - (5 / 1440)
+	       AND NOT EXISTS (
+	           SELECT 1
+	             FROM TR_CARNO_DETACH D
+	            WHERE D.NUMPLATE_MSG_TOKEN = TM_NUMPLATE_LIST.NUMPLATE_MSG_TOKEN
+	              AND D.NUMPLATE_SELECT_TIME IS NOT NULL
+	       )
 	</update>
     
 	<!-- 번호판 상태 변경 -->
@@ -1666,7 +1672,7 @@
         INSERT INTO TS_NUMPLATE_ACTION
             (ACTION_ID, SERVICE_ID, EVENT_CD, CAR_NO, REQUEST_ID, DETAIL_TX, INS_DATE)
         SELECT SEQ_NUMPLATE_ACTION.NEXTVAL, D.SERVICE_ID, #{EVENT_CD}, #{CAR_NO},
-               #{REQUEST_ID}, #{DETAIL_TX}, SYSTIMESTAMP
+               #{REQUEST_ID}, #{DETAIL_TX}, #{NOW,jdbcType=TIMESTAMP}
           FROM TR_CARNO_DETACH D
          WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
            AND #{EVENT_CD} IN ('NUMBER_CLICK', 'CONFIRM_OPEN', 'CONFIRM_CANCEL',
