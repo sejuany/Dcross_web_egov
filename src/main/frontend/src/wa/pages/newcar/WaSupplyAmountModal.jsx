@@ -60,7 +60,7 @@ const resolveUploadedEcoYn = (carName, carPackage, engine) => {
         return normalizedCarName.includes('PERFORMANCE') || normalizedPackage.includes('PERFORMANCE') ? 'N' : 'Y';
     }
     if (normalizedCarName.includes('POLESTAR3')) {
-        return normalizedEngine.includes('REAR') ? 'Y' : 'N';
+        return normalizedCarName.includes('REAR') || normalizedEngine.includes('REAR') ? 'Y' : 'N';
     }
     return 'Y';
 };

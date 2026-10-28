@@ -529,6 +529,7 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     const carName = normalizeCarName(dsNewCar.CAR_NM);
     const performanceExcluded = carName.replace(/\s+/g, '').includes('POLESTAR4')
         && (carName.includes('PERFORMANCE') || normalizeCarName(dsNewCar.CAR_PACKAGE).includes('PERFORMANCE'));
+    const polestar3Excluded = carName.replace(/\s+/g, '').includes('POLESTAR3') && !carName.includes('REAR');
     const hasEcoConfig = hasValue(fmExclusions) || hasValue(enginePatterns);
     const fmExcluded = pipeContains(fmExclusions, fmName);
     const originalNameExcluded = carName === ORIGINAL_ECO_EXCLUDED_CAR_NAME;
@@ -542,8 +543,9 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
         acquisitionEligible: baseEligible
             && !originalNameExcluded
             && !performanceExcluded
+            && !polestar3Excluded
             && String(dsNewCar.ECO_YN ?? '').trim().toUpperCase() !== 'N',
-        bondEligible: baseEligible && !performanceExcluded
+        bondEligible: baseEligible && !performanceExcluded && !polestar3Excluded
     };
 };
 
