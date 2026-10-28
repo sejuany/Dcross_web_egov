@@ -197,10 +197,12 @@ public class NumPlateService {
         String keyword = Objects.toString(request.get("keyword"), "").trim();
         if (keyword.length() > 50) throw new BusinessException("검색어는 50자 이하로 입력해 주세요.");
         if (keyword.isEmpty()) conditionType = "";
+        String processType = normalizeProcessType(request.get("processType"));
         // 기존 JSP 쿼리의 파라미터명을 유지해 조회 결과와 검색 동작을 동일하게 한다.
         param.put("cOPTION", conditionType);
         param.put("CONDITION", keyword);
         param.put("TODAY", Boolean.TRUE.equals(request.get("todayOnly")) ? "Y" : "");
+        param.put("PROCESS_TYPE", processType);
         return numPlateMapper.getProcessList(param).stream().map(row -> {
             Map<String, Object> item = new HashMap<>(row);
             item.put("PROC_ST_NM", processStatusName(item));
@@ -489,7 +491,7 @@ public class NumPlateService {
             String installTime = Objects.toString(request.get("installTime"), "");
             validateSchedule(installDate, installTime);
             param.put("INSTALL_DT", installDate);
-            param.put("INSTALL_TM", installTime.replace(":", ""));
+            param.put("INSTALL_TM", toInstallTime(installTime));
             LocalDateTime scheduled = LocalDateTime.parse(installDate + "T" + installTime);
             if (scheduled.isAfter(LocalDateTime.now().plusMinutes(30))) {
                 throw new BusinessException("방문 예정시간 30분 전부터 심사요청이 가능합니다.", 409);
@@ -544,7 +546,7 @@ public class NumPlateService {
         Map<String, Object> param = managerParam(user);
         param.put("SERVICE_ID", validateServiceId(serviceId));
         param.put("INSTALL_DT", installDate);
-        param.put("INSTALL_TM", installTime.replace(":", ""));
+        param.put("INSTALL_TM", toInstallTime(installTime));
         if (Boolean.TRUE.equals(request.get("sendSms"))) {
             String smsText = scheduleSmsText(detail, installDate, installTime);
             commonService.sendSms(Map.of(
@@ -886,8 +888,8 @@ public class NumPlateService {
         numPlateMapper.appendReviewCancelMemo(param);
         numPlateMapper.appendReviewCancelTrnsMemo(param);
         param.put("INSTALL_DT", Objects.toString(detail.get("INSTALL_DT"), ""));
-        param.put("INSTALL_TM", Objects.toString(detail.get("INSTALL_TIME"), "")
-                + Objects.toString(detail.get("INSTALL_MINUTES"), ""));
+        param.put("INSTALL_TM", toInstallTime(Objects.toString(detail.get("INSTALL_TIME"), "")
+                + ":" + Objects.toString(detail.get("INSTALL_MINUTES"), "")));
         numPlateMapper.updateCancelSchedule(param);
         param.put("CONTENT_TX", "번호변경건 심사취소 - 관청에 반려 요청 필요");
         param.put("GUBUN", "RENT");
@@ -1036,6 +1038,17 @@ public class NumPlateService {
         if (!time.matches("(?:09|10|11|13|14|15|16|17):[0-5]0")) {
             throw new BusinessException("방문 예정시간을 확인해 주세요.");
         }
+    }
+
+    static String toInstallTime(String time) {
+        return time != null && time.matches("\\d{2}:\\d{2}")
+                ? time.substring(0, 2) + time.charAt(3)
+                : "";
+    }
+
+    static String normalizeProcessType(Object value) {
+        String processType = Objects.toString(value, "ALL");
+        return Set.of("ALL", "INSTALL", "DELIVERY").contains(processType) ? processType : "ALL";
     }
 
 }

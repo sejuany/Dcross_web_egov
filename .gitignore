@@ -92,5 +92,7 @@ src/main/resources/application-real.yml
 *Test.java
 UPDATE_GUIDE.md
 *test.java
+!src/test/java/com/dacos/numplateApp/NumPlateInstallTimeTest.java
+!src/test/java/com/dacos/numplateApp/NumPlateProcessTypeTest.java
 *.test.jsx
 *.spec.js

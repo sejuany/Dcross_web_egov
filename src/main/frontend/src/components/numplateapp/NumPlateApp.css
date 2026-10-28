@@ -9,6 +9,10 @@
   font-family: "Pretendard", "Malgun Gothic", sans-serif;
 }
 
+/* 로그인 공통 CSS의 body 중첩 스크롤을 번호판 앱에서 해제한다. */
+body:has(.numplate-app-shell) { height: auto; min-height: 100%; overflow: visible; }
+body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
+
 .numplate-login-page {
   display: grid;
   place-items: center;
@@ -150,6 +154,10 @@
 .numplate-page-title span { display: block; overflow: hidden; margin-top: 3px; color: #718096; font-size: 12px; text-overflow: ellipsis; white-space: nowrap; }
 .numplate-page-title button,
 .numplate-secondary-button { min-height: 40px; padding: 0 13px; border: 1px solid #bdc9d8; border-radius: 10px; background: #fff; color: #29435f; font-weight: 700; }
+.numplate-process-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
+.numplate-process-types button { min-height: 44px; border: 1px solid #1e66b3; border-radius: 10px; background: #fff; color: #174f8c; font: inherit; font-weight: 800; }
+.numplate-process-types button.active { background: #1e66b3; color: #fff; }
+.numplate-process-types button:disabled { opacity: .6; }
 
 .numplate-search-form { display: grid; grid-template-columns: 105px 1fr auto; gap: 8px; padding: 12px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }
 .numplate-search-form select,
@@ -164,6 +172,18 @@
 .numplate-request-form select,
 .numplate-request-form textarea { width: 100%; padding: 9px 11px; }
 .numplate-search-form button { padding: 0 15px; border-color: #1e66b3; background: #1e66b3; color: #fff; font-weight: 800; }
+.numplate-process-search-form { position: sticky; top: 58px; z-index: 19; grid-template-columns: 105px minmax(0, 1fr) auto auto; }
+.numplate-process-search-form button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.numplate-process-search-form button svg { width: 16px; height: 16px; }
+.numplate-process-search-form .numplate-refresh-button { border-color: #1e66b3; background: #fff; color: #174f8c; }
+.numplate-search-input { position: relative; min-width: 0; }
+.numplate-search-input input { padding-right: 42px; }
+.numplate-process-search-form .numplate-search-clear { position: absolute; top: 50%; right: 7px; width: 30px; min-height: 30px; padding: 0; transform: translateY(-50%); border: 0; background: transparent; color: #718096; }
+.numplate-process-search-form .numplate-search-clear svg { width: 18px; height: 18px; }
+.numplate-search-clear:focus-visible { outline: 2px solid #1e66b3; outline-offset: 1px; }
+.numplate-search-actions { grid-column: 3 / 5; display: grid; grid-template-columns: repeat(2, auto); gap: 8px; }
+.numplate-search-meta { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.numplate-result-count { color: #174f8c; font-size: 14px; font-weight: 800; }
 .numplate-today-filter { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; color: #52647a; font-size: 14px; }
 .numplate-today-filter input { width: 20px; min-height: 20px; }
 .numplate-inline-message { padding: 12px; border-radius: 10px; background: #fff1f0; color: #b42318; text-align: center; }
@@ -176,6 +196,7 @@
 .numplate-status-badge { padding: 5px 8px; border-radius: 999px; background: #e8f1fb; color: #174f8c; font-size: 12px; font-weight: 800; }
 .numplate-process-card dl,
 .numplate-status-card dl { display: grid; grid-template-columns: 78px 1fr; gap: 7px 10px; margin: 0; font-size: 14px; }
+.numplate-process-card .numplate-process-summary { grid-template-columns: max-content minmax(0, 1fr) max-content minmax(0, 1fr); gap: 7px 8px; }
 .numplate-process-card dt,
 .numplate-status-card dt { color: #718096; }
 .numplate-process-card dd,
@@ -303,6 +324,8 @@
   .numplate-sub-panel-choice { grid-template-columns: 1fr 1fr; }
   .numplate-sub-panel-choice strong,
   .numplate-sub-panel-choice button { grid-column: 1 / -1; }
-  .numplate-search-form { grid-template-columns: 96px 1fr; }
+  .numplate-search-form { grid-template-columns: 105px 1fr; }
   .numplate-search-form button { grid-column: 1 / -1; }
+  .numplate-search-actions { grid-column: 1 / -1; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .numplate-process-search-form button { grid-column: auto; width: 100%; }
 }
