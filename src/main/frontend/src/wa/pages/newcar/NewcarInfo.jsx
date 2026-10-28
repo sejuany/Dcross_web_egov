@@ -14,6 +14,8 @@ import {
 
 import CommonSelect from '../../../components/common/CommonSelect';
 import { gf } from '../../../utils/utils';
+import { registrationMailByteLength } from './registrationMail';
+import RegistrationEmailDomainSelect from './RegistrationEmailDomainSelect';
 import SplitInput from '../common/SplitInput';
 import AddressSearch from '../common/AddressSearch';
 import {
@@ -531,6 +533,92 @@ const DeferredInput = memo(({
 
 DeferredInput.displayName = 'DeferredInput';
 
+const splitRegistrationEmail = (value) => {
+    const mail = String(value ?? '');
+    const separator = mail.indexOf('@');
+    return separator < 0 ? [mail, ''] : [mail.slice(0, separator), mail.slice(separator + 1)];
+};
+
+// 아이디와 도메인은 나눠 입력받고, 상위 state에는 완성된 이메일 한 개를 전달한다.
+// 고객/리스사 주소 모두 서로의 길이에 관계없이 @와 도메인을 포함해 49자로 제한한다.
+const RegistrationEmailInput = memo(({ id, label, name, value, domainOptions, maxLength = 49, onCommit }) => {
+    const [parts, setParts] = useState(() => splitRegistrationEmail(value));
+    const partsRef = useRef(parts);
+    const lastCommittedRef = useRef(null);
+    const [directInput, setDirectInput] = useState(() => (
+        Boolean(parts[1]) && !domainOptions.some(option => option.CODE_NM === parts[1])
+    ));
+
+    useEffect(() => {
+        // 자체 입력 반영 시에는 아이디보다 먼저 선택한 도메인을 유지한다.
+        if (String(value ?? '') === lastCommittedRef.current) return;
+        const nextParts = splitRegistrationEmail(value);
+        partsRef.current = nextParts;
+        setParts(nextParts);
+        setDirectInput(Boolean(nextParts[1]) && !domainOptions.some(option => option.CODE_NM === nextParts[1]));
+    }, [value, domainOptions]);
+
+    const commitParts = (nextParts) => {
+        partsRef.current = nextParts;
+        setParts(nextParts);
+        const mail = nextParts[0] ? `${nextParts[0]}${nextParts[1] ? `@${nextParts[1]}` : ''}` : '';
+        lastCommittedRef.current = mail;
+        onCommit(name, mail);
+    };
+    const selectedDomain = domainOptions.find(option => option.CODE_NM === parts[1]);
+    // CODE_ID는 선택값으로만 쓰고, 실제 주소에는 CODE_NM의 도메인을 사용한다.
+    const options = domainOptions.map(option => ({ ...option, LABEL: `@${option.CODE_NM}` }));
+    options.push({ CODE_ID: '__DIRECT_EMAIL__', LABEL: '@직접입력' });
+
+    return (
+        <div className={`wa-registration-email${directInput ? ' wa-registration-email-direct' : ''}`}>
+            <DeferredInput
+                id={id}
+                className="wa-input"
+                name={name}
+                data-type="newcar"
+                maxLength={Math.max(0, maxLength - (parts[1] ? registrationMailByteLength(`@${parts[1]}`) : 0))}
+                value={parts[0]}
+                onCommit={(_, localPart) => commitParts([localPart, partsRef.current[1]])}
+                sanitizeValue={text => removeHangul(text).replace(/[@,\s]/g, '')}
+                placeholder="이메일 아이디"
+            />
+            <div className="wa-registration-email-domain">
+                {directInput && <div className="wa-registration-email-text">
+                    <span className="wa-registration-email-at" aria-hidden="true">@</span>
+                    <DeferredInput
+                        id={`${id}-domain`}
+                        className="wa-input"
+                        aria-label={`${label} 도메인 직접입력`}
+                        name={`${name}_DOMAIN`}
+                        maxLength={Math.max(0, maxLength - registrationMailByteLength(parts[0]) - 1)}
+                        value={parts[1]}
+                        onCommit={(_, domain) => commitParts([partsRef.current[0], domain])}
+                        sanitizeValue={text => removeHangul(text).replace(/[@,\s]/g, '')}
+                        placeholder="company.com"
+                    />
+                </div>}
+                <RegistrationEmailDomainSelect
+                    id={id}
+                    label={label}
+                    options={options}
+                    value={directInput ? '__DIRECT_EMAIL__' : selectedDomain?.CODE_ID || ''}
+                    onChange={event => {
+                        const direct = event.target.value === '__DIRECT_EMAIL__';
+                        setDirectInput(direct);
+                        if (!direct) {
+                            const domain = domainOptions.find(option => option.CODE_ID === event.target.value)?.CODE_NM || '';
+                            commitParts([partsRef.current[0], domain]);
+                        }
+                    }}
+                />
+            </div>
+        </div>
+    );
+});
+
+RegistrationEmailInput.displayName = 'RegistrationEmailInput';
+
 // 감면 대상별 필요서류 안내를 독립 렌더 영역으로 분리한다.
 // 감면 코드가 그대로라면 다른 입력값이 바뀌어도 긴 문서 목록 DOM을 다시 만들지 않는다.
 const RequiredDocuments = memo(({
@@ -995,34 +1083,49 @@ const RefundAccountFields = memo(({
     onFieldChange,
     onFieldCommit,
 	carpMail,
+	leaseMailEnabled,
 	receiptType,
 	taxEmail1,
 	carpMailRequired,
-	carpMailGuide
+	carpMailGuide,
+	emailDomainOptions
 }) => (
     <>
 		{/* 메일 발송 대상 지점과 WA001만 등록증 이메일을 입력받는다. */}
 		{carpMailRequired && <div className="wa-form-row">
-			<label className="wa-form-label">등록증 이메일 주소</label>
+			<label className="wa-form-label" htmlFor="newcar-carp-mail">등록증 이메일 주소</label>
 				
 		    <div className="wa-form-control">
-		        <DeferredInput
+		        <RegistrationEmailInput
 					key={`${recordKey}:CARP_MAIL`}
-		            className="wa-input"
-		            maxLength={50}
+					id="newcar-carp-mail"
+					label="등록증 이메일 주소"
 		            name="CARP_MAIL"
-		            data-type="newcar"
+					domainOptions={emailDomainOptions}
 					onCommit={onFieldCommit}
-					value={carpMail}
-		            sanitizeValue={removeHangul}
-		            placeholder="example@company.com"
+					value={carpMail.split(',')[0]}
 		        />
 				{/* 세금계산서 선택 시에만 MAIL1을 등록증 이메일로 복사할 수 있다. */}
 				{receiptType === 'TAX' && <label className="wa-form-sub-label"><input type="checkbox"
-					checked={Boolean(taxEmail1) && carpMail === taxEmail1} disabled={!taxEmail1}
+					checked={Boolean(taxEmail1) && carpMail.split(',')[0] === taxEmail1} disabled={!taxEmail1}
 					onChange={event => onFieldCommit('CARP_MAIL', event.target.checked ? taxEmail1 : '')} /> 세금계산서 메일과 동일</label>}
 				<p className="wa-mail-guide">{carpMailGuide}</p>
 		    </div>
+		</div>}
+		{carpMailRequired && leaseMailEnabled && <div className="wa-form-row">
+			<label className="wa-form-label" htmlFor="newcar-carp-mail-lease">등록증 이메일 주소(리스사)</label>
+			<div className="wa-form-control">
+				<RegistrationEmailInput
+					key={`${recordKey}:CARP_MAIL_LEASE`}
+					id="newcar-carp-mail-lease"
+					label="등록증 이메일 주소(리스사)"
+					name="CARP_MAIL_LEASE"
+					domainOptions={emailDomainOptions}
+					onCommit={onFieldCommit}
+					value={carpMail.split(',')[1] || ''}
+				/>
+				<p className="wa-mail-guide">영문·숫자·일반 특수문자는 각각 1글자로 계산하며, 이메일 포함 49자까지 입력할 수 있습니다.</p>
+			</div>
 		</div>}
 		
         <div className="wa-form-row">
@@ -1103,6 +1206,34 @@ const NewcarInfo = ({
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
     const [cashReceiptPhoneSource, setCashReceiptPhoneSource] = useState('');
     const taxReceiptBackupRef = useRef(null);
+    const selectedLeaseName = String(dsBaseList.find(item => (
+        String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
+    ))?.BASE_NM ?? '').replace(/주식회사/g, '').replace(/\(.*?\)/g, '').trim();
+    const isWooriLease = dsNewCar.TASK_CD === 'LEASE'
+        && ['I', 'C'].includes(dsNewCar.PROC_CD) && selectedLeaseName === '우리금융캐피탈';
+    const previousLeaseMailSelectionRef = useRef({
+        serviceId: dsService.SERVICE_ID,
+        baseId: dsNewCar.BASE_BRANCH_ID
+    });
+
+    // 우리금융 선택 시 기본 주소를 채우며, 이후 수정한 주소와 재조회한 저장 주소는 유지한다.
+    useEffect(() => {
+        const previousSelection = previousLeaseMailSelectionRef.current;
+        const leaseCompanyChanged = previousSelection.serviceId === dsService.SERVICE_ID
+            && String(previousSelection.baseId ?? '') !== String(dsNewCar.BASE_BRANCH_ID ?? '');
+        previousLeaseMailSelectionRef.current = {
+            serviceId: dsService.SERVICE_ID,
+            baseId: dsNewCar.BASE_BRANCH_ID
+        };
+        if (!isWooriLease || !setDsNewCar) return;
+        setDsNewCar(prev => {
+            const [primaryMail = '', leaseMail = ''] = String(prev.CARP_MAIL ?? '').split(',');
+            if (leaseMail && !leaseCompanyChanged) return prev;
+            const mail = `${primaryMail},woncar@woorifcapital.com`;
+            return prev.CARP_MAIL === mail ? prev : { ...prev, CARP_MAIL: mail };
+        });
+    }, [isWooriLease, dsNewCar.BASE_BRANCH_ID, dsService.SERVICE_ID, setDsNewCar]);
+
     const isPrivateBusinessEligible = (
         (
             (dsNewCar.TASK_CD === 'NORML' && dsNewCar.PROC_CD === 'I')
@@ -1173,6 +1304,7 @@ const NewcarInfo = ({
         || dsNewCar.NTAX_TRGET_CD === '00'
         || AUTO_APPLY_EXEMPTION_TARGET_CODES.has(String(dsNewCar.NTAX_TRGET_CD))
     );
+    const emailDomainOptions = useMemo(() => getCodeOptions(codes, 'EMAIL'), [codes]);
     const bankOptions = useMemo(
         () => getCodeOptions(codes, 'BANK', FALLBACK_BANKS),
         [codes]
@@ -1335,9 +1467,18 @@ const NewcarInfo = ({
 
     // DeferredInput이 조합 완료/debounce/blur 시 전달한 최신 draft를 dsNewCar에 확정한다.
     const commitNewCarField = useCallback((name, value) => {
-        updateNewCar(prev => (
-            prev[name] === value ? prev : { ...prev, [name]: value }
-        ));
+        updateNewCar(prev => {
+            if (name === 'CARP_MAIL' || name === 'CARP_MAIL_LEASE') {
+                // 고객/리스사 주소를 기존 CARP_MAIL 한 컬럼에 쉼표로 구분해 저장한다.
+                const [primaryMail = '', leaseMail = ''] = String(prev.CARP_MAIL ?? '').split(',');
+                const nextPrimaryMail = name === 'CARP_MAIL' ? value : primaryMail;
+                const nextLeaseMail = name === 'CARP_MAIL_LEASE' ? value : leaseMail;
+                // 첫 번째가 비어 있어도 쉼표 앞자리를 유지해 필수입력 검사에서 구분한다.
+                const mail = nextLeaseMail ? `${nextPrimaryMail},${nextLeaseMail}` : nextPrimaryMail;
+                return prev.CARP_MAIL === mail ? prev : { ...prev, CARP_MAIL: mail };
+            }
+            return prev[name] === value ? prev : { ...prev, [name]: value };
+        });
     }, [updateNewCar]);
 
     // 세금계산서 문자 입력용 확정 콜백이다.
@@ -2207,10 +2348,12 @@ const NewcarInfo = ({
                     onFieldChange={handleNewCarFieldChange}
                     onFieldCommit={commitNewCarField}
 					carpMail={dsNewCar.CARP_MAIL ?? ''}
+					leaseMailEnabled={dsNewCar.TASK_CD === 'LEASE' && ['I', 'C'].includes(dsNewCar.PROC_CD)}
 					receiptType={receiptType}
 					taxEmail1={dsTaxReceipt.MAIL1 ?? ''}
 					carpMailRequired={carpMailRequired}
 					carpMailGuide={carpMailGuide}
+					emailDomainOptions={emailDomainOptions}
                 />
 
             </div>

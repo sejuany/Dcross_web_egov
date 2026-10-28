@@ -62,6 +62,9 @@ public interface NewcarMapper {
     /** 등록완료 메일 발송 성공 표시 */
     int updateRegistrationMailSent(@Param("SERVICE_ID") String serviceId);
 
+    /** 접수건의 회사 ID로 등록증 메일 제목에 표시할 회원사명을 조회한다. */
+    String getRegistrationMailCompanyName(@Param("COMPANY_ID") String companyId);
+
     /** 신청 시 폴스타 D-2 미납/번호 미선택 알림을 당일 중복 없이 등록한다. */
     int insertNewcarApplicationNumplateAlert(
             @Param("SERVICE_ID") String serviceId,

@@ -194,6 +194,166 @@
     cursor:default;
 }
 
+.wa-registration-mail-backdrop {
+    z-index: 10000;
+    padding: 16px;
+    box-sizing: border-box;
+}
+
+/* 첨부 서류 확인의 공통 팝업 테마를 재사용하고 도메인 목록은 창 밖으로 펼친다. */
+.wa-registration-mail-modal {
+    width: min(680px, calc(100vw - 32px));
+    min-width: 0;
+    max-width: none;
+    overflow: visible;
+}
+
+.wa-registration-mail-modal .common-popup-header {
+    justify-content: space-between;
+    border-radius: 5px 5px 0 0;
+}
+
+.wa-registration-mail-modal .wa-request-modal-close {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+    padding: 0;
+    border: 0;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+}
+
+.wa-registration-mail-content {
+    width: 100%;
+    max-width: 470px;
+    margin: 0 auto;
+    text-align: left;
+    font-weight: 500;
+}
+
+/* 직접입력은 도메인 입력칸까지 한 줄에 표시할 공간을 확보한다. */
+.wa-registration-mail-content:has(.wa-registration-mail-inputs.direct) {
+    max-width: none;
+}
+
+/* 라디오의 시작점은 고정하고 라벨만 오른쪽 끝에 맞춘다. */
+.wa-registration-mail-row {
+    display: grid;
+    grid-template-columns: 130px minmax(0, 1fr);
+    align-items: center;
+    gap: 12px;
+    margin-bottom: 14px;
+}
+
+.wa-registration-mail-row label {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    text-align: right;
+    font-size: 13px;
+    white-space: nowrap;
+}
+
+.wa-registration-mail-row input[type="radio"] {
+    flex-shrink: 0;
+    margin: 0;
+    accent-color: #1d3d63;
+}
+
+.wa-registration-mail-row .wa-registration-mail-address {
+    display: block;
+    text-align: left;
+    white-space: normal;
+    overflow-wrap: anywhere;
+    font-size: 13px;
+    cursor: pointer;
+}
+
+.wa-registration-mail-inputs {
+    display: grid;
+    grid-template-columns: minmax(0, 4.5fr) minmax(0, 5.5fr);
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+}
+
+.wa-registration-mail-inputs > .wa-registration-email-select {
+    grid-column: 2;
+}
+
+.wa-registration-mail-inputs.direct {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 116px;
+}
+
+.wa-registration-mail-inputs.direct > .wa-registration-email-select {
+    grid-column: auto;
+}
+
+.wa-registration-mail-inputs input,
+.wa-registration-mail-inputs .wa-registration-email-trigger {
+    width: 100%;
+    min-width: 0;
+    height: 36px;
+    padding: 0 8px;
+    border: 1px solid #bac6d6;
+    border-radius: 4px;
+    box-sizing: border-box;
+    background: #fff;
+    color: #243044;
+    font: inherit;
+    font-size: 13px;
+}
+
+.wa-registration-mail-inputs .wa-registration-email-text input {
+    padding-left: 26px;
+}
+
+.wa-registration-mail-modal .common-popup-footer {
+    border-radius: 0 0 5px 5px;
+}
+
+.wa-registration-mail-modal .wa-registration-mail-close {
+    border: 1px solid #b8c4d4;
+    background: #fff;
+    color: #243044;
+}
+
+.wa-registration-mail-modal button:disabled,
+.wa-registration-mail-modal input:disabled {
+    opacity: .6;
+    cursor: default;
+}
+
+@media (max-width: 640px) {
+    .wa-registration-mail-custom > .wa-registration-mail-inputs {
+        grid-column: 1 / -1;
+        margin-left: 22px;
+    }
+}
+
+@media (max-width: 440px) {
+    .wa-registration-mail-inputs.direct {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    }
+
+    .wa-registration-mail-inputs.direct > .wa-registration-email-select {
+        grid-column: 2;
+    }
+}
+
+.wa-registration-mail-notice {
+    color: #946200;
+}
+
+.wa-registration-mail-content .wa-registration-mail-error {
+    margin-top: 12px;
+    color: #c62828;
+}
+
 .wa-detail-desc{
     margin-left:8px;
     color:#9aa3b2;

@@ -1459,6 +1459,12 @@
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
+	<select id="getRegistrationMailCompanyName" resultType="string">
+	    SELECT COMPANY_NM
+	      FROM TM_COMPANY
+	     WHERE COMPANY_ID = #{COMPANY_ID}
+	</select>
+
 	<update id="updateRegistrationMailSent">
 	    UPDATE TR_NEWCAR
 	       SET CARP_SEND_YN = 'Y', UPD_DATE = SYSDATE

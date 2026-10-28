@@ -51,7 +51,7 @@ import OwnerRent from './owner/OwnerRent';
 // 상세 조회 화면
 import WaNewcarDetail from './WaNewcarDetail';
 import WaNoticeModal from '../common/WaNoticeModal';
-import { isPolestarWooriLease, registrationMailGuide } from './registrationMail';
+import { isPolestarWooriLease, registrationMailGuide, registrationMailInputError } from './registrationMail';
 
 // Style
 import '../../styles/wa.css';
@@ -680,12 +680,13 @@ const WaNewcarRequest = ({
 
 		const loadCodes = async () => {
 			// 일반 화면코드와 공채 할인율 상세코드를 함께 가져옴.
+			// EMAIL 그룹은 신규등록 이메일 선택 목록의 도메인으로 사용한다.
 			const [codeData, detailCodeData] = await Promise.all([
 				gf.getCodes(['SGB', 'PR_ST', 'JG_ST', 'NEWGB', 'DELIV', 'TASK', 
 				'BOND', 'NTTCD', 'NTTGR', 'NTACD', 'NTWHO', 'STAGB', 'DLVGB', 'DLADD', 'REGGB', 
 				'NUMGB', 'CARM', 'FRTAX', 'GOVT', 'PAYME', 'PAYGB', 'INSUR', 'NUMST', 'IMPST',
 				'PAYKD', 'PAYME', 'PAYOP', 'PAYST', 'PAYTP', 'BANK', 'FUEL', 'CARUS', 'NHOLE', 
-				'NSEAL' 
+				'NSEAL', 'EMAIL'
 			]),
 				gf.getCodeDetails(['TUSE', 'DEAL'])
 			]);
@@ -1770,6 +1771,12 @@ const WaNewcarRequest = ({
 	 * 프런트의 임시값이 아니라 서버에서 확정된 값이 표시된다.
 	 */
 	const processService = async (newDataSet, proc, silent) => {
+		// 단계 이동 검증 외에 실제 저장 요청 직전에도 주소 형식과 합산 길이를 확인한다.
+		const mailError = registrationMailInputError(newDataSet.dsNewCar);
+		if (mailError) {
+			gf.alert(mailError);
+			return false;
+		}
 
 	    try {
 			
@@ -2497,8 +2504,10 @@ const WaNewcarRequest = ({
 
 		if (!message) {
 			// 등록증 이메일은 증빙 종류와 무관하게 TR_NEWCAR.CARP_MAIL에 저장한다.
+			// 이메일 입력 대상은 첫 주소가 필수이며, 리스사 주소는 입력한 경우에만 검증한다.
 			message =
-			    (carpMailRequired ? requireValue(dsNewCar.CARP_MAIL, '등록증 이메일 주소') : '')
+			    (carpMailRequired ? requireValue(String(dsNewCar.CARP_MAIL || '').split(',')[0], '등록증 이메일 주소') : '')
+			    || registrationMailInputError(dsNewCar)
 			    || requireValue(dsNewCar.RETURN_NM, '환불 예금주')
 			    || requireValue(dsNewCar.RT_BANK_CD, '환불 계좌 은행')
 			    || requireValue(dsNewCar.RETURN_NO, '환불 계좌번호');
@@ -2663,6 +2672,7 @@ const WaNewcarRequest = ({
 				)}
 				carpScanYn={carpScanYn}
 				carpMailYn={carpMailYn}
+				emailDomainOptions={codes.EMAIL || []}
 			/>
 	    );
 	}
@@ -3002,6 +3012,7 @@ const WaNewcarRequest = ({
 								dsBaseList={dsBaseList}
 								dsPaymentList={dsPaymentList}
 								carpPostYn={carpPostYn}
+								carpMailRequired={carpMailRequired}
 								carStepVisible={!skipVehicleStep}
 								onAttachClose={() => reloadProcess(dsService.SERVICE_ID)}
 								onMoveStep={setStep}

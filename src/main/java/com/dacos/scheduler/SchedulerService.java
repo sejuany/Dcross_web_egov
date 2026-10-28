@@ -54,12 +54,12 @@ public class SchedulerService {
 
     /** 한 건의 실패가 다음 대상의 발송을 막지 않도록 건별로 처리한다. */
     public int processRegistrationMails() {
-        List<String> serviceIds = schedulerMapper.selectRegistrationMailTargets();
-        if (serviceIds == null || serviceIds.isEmpty()) return 0;
+        List<SchedulerDto> targets = schedulerMapper.selectRegistrationMailTargets();
+        if (targets == null || targets.isEmpty()) return 0;
 
         int sentCount = 0;
-        for (String serviceId : serviceIds) {
-            if (registrationMailService.sendScheduled(serviceId)) sentCount++;
+        for (SchedulerDto target : targets) {
+            if (registrationMailService.sendScheduled(target.getSERVICE_ID())) sentCount++;
         }
         return sentCount;
     }

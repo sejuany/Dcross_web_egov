@@ -19,7 +19,7 @@ public interface SchedulerMapper {
 
     List<SchedulerDto> selectNewcarCardNonPayedServices();
 
-    List<String> selectRegistrationMailTargets();
+    List<SchedulerDto> selectRegistrationMailTargets();
 
     List<SchedulerDto> selectNewcarNumplateReminderTargets();
 

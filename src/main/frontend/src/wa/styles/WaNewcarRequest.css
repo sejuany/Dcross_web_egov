@@ -431,6 +431,38 @@
     width:100%;
 }
 
+/* 도메인 선택/직접입력 모두 같은 열을 사용해 아이디 입력칸 너비를 유지한다. */
+.wa-registration-email {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) 128px;
+    align-items: start;
+    gap: 10px;
+    min-width: 0;
+}
+
+/* 직접입력도 아이디·도메인·선택 목록을 한 줄에 배치해 행 높이를 유지한다. */
+.wa-registration-email-domain {
+    display: flex;
+    grid-column: 2 / -1;
+    gap: 8px;
+    min-width: 0;
+}
+
+.wa-registration-email .wa-input,
+.wa-registration-email .wa-select {
+    width: 100%;
+    min-width: 0;
+}
+
+.wa-registration-email-direct .wa-registration-email-domain {
+    display: contents;
+}
+
+.wa-registration-email-direct .wa-select {
+    padding-left: 10px;
+    padding-right: 10px;
+}
+
 .wa-inline-group{
     display:flex;
 
@@ -950,6 +982,21 @@ hr.wa-divider.hr2 {
     font-weight: 500;
 }
 
+.wa-confirm-mail-item > strong {
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+@media (min-width: 761px) {
+    .wa-confirm-mail-item {
+        grid-template-columns: 190px minmax(0, 1fr);
+    }
+
+    .wa-confirm-mail-item > span {
+        white-space: nowrap;
+    }
+}
+
 .wa-owner-wrap{
     display:flex;
     gap: 24px;
@@ -1152,6 +1199,24 @@ hr.wa-divider.hr2 {
 
 .wa-newcar-info-body {
     padding-bottom: 4px;
+}
+
+.wa-newcar-info-body > .wa-info-section > .wa-form-row {
+    grid-template-columns: 190px minmax(0, 1fr);
+}
+
+.wa-newcar-info-body > .wa-info-section > .wa-form-row > .wa-form-label {
+    white-space: nowrap;
+}
+
+.wa-newcar-info-body > .wa-info-section > .wa-form-row > .wa-form-control {
+    min-width: 0;
+}
+
+@media (max-width: 760px) {
+    .wa-newcar-info-body > .wa-info-section > .wa-form-row {
+        grid-template-columns: minmax(0, 1fr);
+    }
 }
 
 .wa-info-section {

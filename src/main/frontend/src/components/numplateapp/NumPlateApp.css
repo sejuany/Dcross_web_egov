@@ -155,8 +155,9 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-page-title button,
 .numplate-secondary-button { min-height: 40px; padding: 0 13px; border: 1px solid #bdc9d8; border-radius: 10px; background: #fff; color: #29435f; font-weight: 700; }
 .numplate-process-types { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 14px; }
-.numplate-process-types button { min-height: 44px; border: 1px solid #1e66b3; border-radius: 10px; background: #fff; color: #174f8c; font: inherit; font-weight: 800; }
-.numplate-process-types button.active { background: #1e66b3; color: #fff; }
+.numplate-process-types button { min-height: 44px; border: 1px solid #1e66b3; border-radius: 10px; background: linear-gradient(#fff, #edf5fd); box-shadow: 0 3px 0 #14528f, 0 6px 10px rgba(23, 79, 140, .18); color: #174f8c; font: inherit; font-weight: 800; transition: transform .12s ease, box-shadow .12s ease; }
+.numplate-process-types button.active { transform: translateY(2px); background: linear-gradient(#2d7ac8, #185da5); box-shadow: inset 0 1px 0 rgba(255, 255, 255, .3), 0 1px 0 #0e477f, 0 3px 7px rgba(23, 79, 140, .24); color: #fff; }
+.numplate-process-types button:active:not(:disabled) { transform: translateY(2px); box-shadow: 0 1px 0 #0e477f, 0 3px 7px rgba(23, 79, 140, .2); }
 .numplate-process-types button:disabled { opacity: .6; }
 
 .numplate-search-form { display: grid; grid-template-columns: 105px 1fr auto; gap: 8px; padding: 12px; border: 1px solid #dce3ec; border-radius: 14px; background: #fff; }

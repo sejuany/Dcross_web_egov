@@ -4,6 +4,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -12,6 +13,7 @@ import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
 import jakarta.annotation.PreDestroy;
+import jakarta.mail.internet.AddressException;
 import jakarta.mail.internet.InternetAddress;
 import jakarta.mail.internet.MimeMessage;
 import org.apache.pdfbox.Loader;
@@ -28,6 +30,7 @@ import org.springframework.stereotype.Service;
 import com.dacos.attach.AttachService;
 import com.dacos.code.CodeService;
 import com.dacos.common.CommonRepository;
+import com.dacos.common.BusinessException;
 import com.dacos.mortgage.mapper.MortgageMapper;
 import com.dacos.newcar.mapper.NewcarMapper;
 import com.dacos.payment.mapper.PaymentMapper;
@@ -78,16 +81,22 @@ public class RegistrationMailService {
         executor.execute(() -> send(serviceId));
     }
 
+    // 수동 선택 주소는 작업 대기열에 넣기 전에 단일 이메일 형식을 검증한다.
+    public void submitSelected(String serviceId, String recipient) {
+        String selectedRecipient = validateRecipient(recipient);
+        executor.execute(() -> send(serviceId, false, selectedRecipient));
+    }
+
     // DB 조회부터 발송까지 작업 스레드에서 실행한다. 실패는 해당 건만 로그로 남긴다.
     public boolean send(String serviceId) {
-        return send(serviceId, false);
+        return send(serviceId, false, null);
     }
 
     public boolean sendScheduled(String serviceId) {
-        return send(serviceId, true);
+        return send(serviceId, true, null);
     }
 
-    private boolean send(String serviceId, boolean scheduled) {
+    private boolean send(String serviceId, boolean scheduled, String selectedRecipient) {
         String stage = "대상조회";
         try {
             Map<String, Object> service = mortgageMapper.getTrService(serviceId);
@@ -98,19 +107,18 @@ public class RegistrationMailService {
             require(car != null && !car.isEmpty(), "신규등록정보_없음");
 
             stage = "수신주소확인";
-            String recipient = text(car, "CARP_MAIL");
-            require(!recipient.isEmpty(), "수신이메일_없음");
-            InternetAddress address = new InternetAddress(recipient, true);
-            address.validate();
-            require(!recipient.contains("\r") && !recipient.contains("\n"), "수신이메일_형식오류");
+            // 수동 선택 발송은 한 주소, 스케줄·내부 연계 발송은 저장된 유효 대상 주소를 사용한다.
+            InternetAddress[] addresses = selectedRecipient == null ? storedRecipients(car)
+                    : new InternetAddress[]{new InternetAddress(validateRecipient(selectedRecipient), true)};
+            for (InternetAddress address : addresses) address.validate();
 
             stage = "등록증조회";
             String carNo = text(car, "CAR_NO");
             require(!carNo.isEmpty(), "차량번호_없음");
             String judgeDate = text(service, "JUDGE_DT");
             require(!judgeDate.isEmpty(), "심사일자_없음");
-            String folder = LocalDate.parse(judgeDate, DateTimeFormatter.BASIC_ISO_DATE)
-                    .format(DateTimeFormatter.ofPattern("yyMMdd"));
+            LocalDate registrationDate = LocalDate.parse(judgeDate, DateTimeFormatter.BASIC_ISO_DATE);
+            String folder = registrationDate.format(DateTimeFormatter.ofPattern("yyMMdd"));
             Path paper = CarPaperFiles.resolve(attachService.getServerAddress("IP"), folder, carNo);
             require(Files.isRegularFile(paper), "등록증_PDF_없음");
             require(Files.isReadable(paper) && Files.size(paper) > 0, "등록증_PDF_읽기불가");
@@ -128,31 +136,50 @@ public class RegistrationMailService {
                     bond == null ? Map.of() : bond, company == null ? Map.of() : company,
                     codeService.getCodesByGroupId("BANK"));
 
+            stage = "회원사조회";
+            // 회원의 현재 소속이 아닌 접수건의 COMPANY_ID로 제목에 표시할 회원사명을 조회한다.
+            String companyName = Objects.toString(newcarMapper.getRegistrationMailCompanyName(
+                    text(service, "COMPANY_ID")), "").trim();
+            require(!companyName.isEmpty(), "회원사명_없음");
+
+            stage = "계약자조회";
+            Map<String, Object> carNoDetach = newcarMapper.getTrCarNoDetach(Map.of("SERVICE_ID", serviceId));
+            String customerName = carNoDetach == null ? "" : text(carNoDetach, "CUSTOMER_NM");
+
             stage = "메일발송";
             require(!sender.getHost().isBlank() && !from.isBlank()
                     && !sender.getUsername().isBlank() && !sender.getPassword().isBlank(), "SMTP_설정없음");
             MimeMessage message = sender.createMimeMessage();
             MimeMessageHelper mail = new MimeMessageHelper(message, true, "UTF-8");
             mail.setFrom(from);
-            mail.setTo(address);
-            if (scheduled && "WA001".equals(text(service, "COMPANY_ID"))
-                    && "LEASE".equals(text(car, "TASK_CD")) && "I".equals(text(car, "PROC_CD"))
-                    && isWooriLeaseBase(text(car, "BASE_BRANCH_ID"),
-                            newcarMapper.getBaseList(Map.of("COMPANY_ID", "WA001")))
-                    && !recipient.equalsIgnoreCase("woncar@woorifcapital.com")) {
-                mail.addTo("woncar@woorifcapital.com");
-            }
-            mail.setSubject("[다코스] " + carNo + " 자동차등록증 및 통합납부영수증");
-            mail.setText("안녕하세요.\n자동차 온라인등록센터 주식회사 다코스입니다.\n\n"
-                    + carNo + " 차량의 신규등록이 완료되어\n자동차등록증과 통합납부영수증을 보내드립니다.\n\n"
-                    + "첨부파일을 확인해 주시기 바랍니다.\n\n본 메일은 발신 전용입니다.\n"
-                    + "문의사항은 자동차 온라인 등록센터 1844-0801로 연락해 주시기 바랍니다.\n감사합니다.");
+            // 우리금융 주소도 CARP_MAIL에 저장된 값만 사용하며 별도로 추가하지 않는다.
+            mail.setTo(addresses);
+            mail.setSubject("[다코스] " + companyName + " " + carNo + " 자동차등록증 및 통합납부영수증");
+            
+            mail.setText("안녕하세요.\n"
+            		+"자동차 온라인등록센터 주식회사 다코스입니다.\n\n"
+            		
+                    + carNo + " 차량의 신규등록이 완료되어\n"
+                    + "자동차등록증과 통합납부영수증을 보내드립니다.\n\n"
+                    
+                    + "- 주문번호 : " + text(service, "LINK_ID") + "\n"
+                    + "- 등록일 : " + registrationDate.format(DateTimeFormatter.ISO_LOCAL_DATE) + "\n"
+                    + "- 계약자 : " + customerName + "\n\n"
+                    
+                    + "첨부파일을 확인해 주시기 바랍니다.\n\n"
+                    + "본 메일은 발신 전용입니다.\n"
+                    + "문의사항은 자동차 온라인 등록센터 1844-0801로 연락해 주시기 바랍니다.\n"
+                    + "감사합니다.");
+            
             mail.addAttachment(carNo + "_자동차등록증.pdf", new FileSystemResource(paper));
             mail.addAttachment(carNo + "_통합납부영수증.pdf", new ByteArrayResource(receipt), "application/pdf");
             sender.send(message);
 
-            stage = "발송완료처리";
-            require(newcarMapper.updateRegistrationMailSent(serviceId) == 1, "발송완료_저장실패");
+            // 수동 재발송은 스케줄의 자동발송 완료 여부를 변경하지 않는다.
+            if (scheduled) {
+                stage = "발송완료처리";
+                require(newcarMapper.updateRegistrationMailSent(serviceId) == 1, "발송완료_저장실패");
+            }
             return true;
         } catch (Exception e) {
             // 원문 예외에는 이메일·SQL 값이 포함될 수 있으므로 인증서 오류만 상세 메시지를 기록한다.
@@ -169,15 +196,49 @@ public class RegistrationMailService {
         }
     }
 
-    static String text(Map<String, Object> data, String key) {
-        return Objects.toString(data.get(key), "").trim();
+    // 리스·이용자명의 리스 외에는 저장값에 쉼표가 남아 있어도 첫 주소로만 발송한다.
+    static InternetAddress[] storedRecipients(Map<String, Object> car) throws AddressException {
+        String recipient = text(car, "CARP_MAIL");
+        require(!recipient.isEmpty(), "수신이메일_없음");
+        if (!"LEASE".equals(text(car, "TASK_CD"))
+                || !List.of("I", "C").contains(text(car, "PROC_CD"))) {
+            recipient = recipient.split(",", -1)[0].trim();
+        }
+        return scheduledRecipients(recipient);
     }
 
-    static boolean isWooriLeaseBase(String baseId, List<Map<String, Object>> bases) {
-        return !baseId.isEmpty() && bases != null && bases.stream().anyMatch(base ->
-                baseId.equals(text(base, "BASE_ID"))
-                        && "우리금융캐피탈".equals(text(base, "BASE_NM")
-                                .replace("주식회사", "").replaceAll("\\(.*?\\)", "").trim()));
+    // 쉼표로 주소를 분리하고 대소문자만 다른 중복 수신자는 한 번만 포함한다.
+    static InternetAddress[] scheduledRecipients(String recipient) throws AddressException {
+        List<InternetAddress> addresses = new ArrayList<>();
+        for (String part : recipient.split(",", -1)) {
+            String cleanRecipient = validateRecipient(part);
+            if (addresses.stream().noneMatch(address -> address.getAddress().equalsIgnoreCase(cleanRecipient))) {
+                addresses.add(new InternetAddress(cleanRecipient, true));
+            }
+        }
+        return addresses.toArray(InternetAddress[]::new);
+    }
+
+    static String validateRecipient(String recipient) {
+        if (recipient == null || recipient.isBlank() || recipient.length() > 254
+                || recipient.contains("\r") || recipient.contains("\n")) {
+            throw new BusinessException("이메일 주소를 확인해주세요.", 400);
+        }
+        String cleanRecipient = recipient.trim();
+        try {
+            InternetAddress address = new InternetAddress(cleanRecipient, true);
+            address.validate();
+            if (address.isGroup() || !cleanRecipient.equals(address.getAddress())) {
+                throw new AddressException();
+            }
+        } catch (AddressException e) {
+            throw new BusinessException("이메일 주소를 확인해주세요.", 400);
+        }
+        return cleanRecipient;
+    }
+
+    static String text(Map<String, Object> data, String key) {
+        return Objects.toString(data.get(key), "").trim();
     }
 
     private static void require(boolean valid, String reason) {

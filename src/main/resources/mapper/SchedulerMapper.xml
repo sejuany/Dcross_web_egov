@@ -88,7 +88,7 @@
     </select>
 
     <!-- 오늘 처리완료된 WA 신규등록 중 등록증 메일 발송 지점의 미발송 건 -->
-    <select id="selectRegistrationMailTargets" resultType="string">
+    <select id="selectRegistrationMailTargets" resultType="com.dacos.scheduler.dto.SchedulerDto">
         SELECT TS.SERVICE_ID
           FROM TR_SERVICE TS
                JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID

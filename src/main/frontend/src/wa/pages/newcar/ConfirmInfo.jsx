@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { ChevronRight, FileText, X } from 'lucide-react';
 import { gf } from '../../../utils/utils';
+import { registrationMailAddresses } from './registrationMail';
 
 // 첨부서류 모달
 import WaNewcarAttachModal from './WaNewcarAttachModal';
@@ -34,6 +35,7 @@ const ConfirmInfo = ({
 	onAttachClose,
 	onMoveStep,
 	carpPostYn,
+	carpMailRequired = false,
 	carStepVisible = true
 }) => {
 	// 첨부서류 모달
@@ -96,6 +98,8 @@ const ConfirmInfo = ({
 		: selectedLeaseName;
 	const carName = String(dsNewCar.CAR_NM ?? '').trim();
 	const carPackage = String(dsNewCar.CAR_PACKAGE ?? '').trim();
+	// 입력 화면과 같은 등록구분 조건으로 고객/리스사 이메일을 나눠 표시한다.
+	const [primaryCarpMail = '', leaseCarpMail = ''] = registrationMailAddresses(dsNewCar);
 
 	const displayCarName = carName && carPackage.toUpperCase().includes('PERFORMANCE') && !carName.toUpperCase().includes('PERFORMANCE')
 	        ? `${carName} Performance` : carName;
@@ -457,9 +461,13 @@ const ConfirmInfo = ({
 		                <strong>{gf.formatPhoneNo(dsNewCar.PAY_HP_NO)}</strong>
 		            </div>
 		
-		            {carpPostYn === 'Y' && <div className="wa-confirm-item">
+		            {carpMailRequired && <div className="wa-confirm-item wa-confirm-mail-item">
 		                <span>등록증 이메일 주소</span>
-		                <strong>{dsNewCar.CARP_MAIL?.trim() || '-'}</strong>
+		                <strong>{primaryCarpMail || '-'}</strong>
+		            </div>}
+		            {carpMailRequired && leaseCarpMail && <div className="wa-confirm-item wa-confirm-mail-item">
+		                <span>등록증 이메일 주소(리스사)</span>
+		                <strong>{leaseCarpMail}</strong>
 		            </div>}
 		
 		            <div className="wa-confirm-item">

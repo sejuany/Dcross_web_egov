@@ -6,11 +6,13 @@ import { CalendarDays, CarFront, Download, Eye, EyeOff, FileText, History, Loade
 import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
+import '../../../components/common/CommonPopup.css';
+import RegistrationEmailDomainSelect from './RegistrationEmailDomainSelect';
 import '../../styles/WaNewcarDetail.css';
 // 첨부서류 모달
 import WaNewcarAttachModal from './WaNewcarAttachModal';
 import WaTaxReceiptModal from './WaTaxReceiptModal';
-import { registrationPaperUrl } from './registrationMail';
+import { registrationMailAddresses, registrationPaperUrl } from './registrationMail';
 
 // 결제관리 코드명 변환
 const paymentInfo = {
@@ -88,6 +90,7 @@ const WaNewcarDetail = ({
 	dsBANK,
 	dsNTTCD,
 	dsNTTGR,
+	emailDomainOptions = [],
 	carpScanYn,
 	carpMailYn
 }) => {
@@ -99,6 +102,12 @@ const WaNewcarDetail = ({
 	const [isCancelRequested, setIsCancelRequested] = useState(false);
 	const [certificatePreviewUrl, setCertificatePreviewUrl] = useState(null);
 	const [mailSending, setMailSending] = useState(false);
+	const [mailModal, setMailModal] = useState({ open: false, error: '' });
+	const [selectedMailOption, setSelectedMailOption] = useState('0');
+	const [directMail, setDirectMail] = useState('');
+	const [directMailDomain, setDirectMailDomain] = useState('');
+	const [directMailDomainOption, setDirectMailDomainOption] = useState('');
+	const directMailInputRef = useRef(null);
 	const [actionHistoryModal, setActionHistoryModal] = useState({
 		open: false,
 		tab: 'history',
@@ -292,34 +301,43 @@ const WaNewcarDetail = ({
 		setCertificatePreviewUrl(null);
 	};
 
+	const closeMailModal = () => {
+		if (!mailSending) setMailModal({ open: false, error: '' });
+	};
+
 	const handleRegistrationMail = async () => {
 		if (mailSending) return;
+		// 저장된 주소 또는 직접 입력한 주소 중 라디오로 선택한 한 곳에만 수동발송한다.
+		const recipient = selectedMailOption === 'CUSTOM'
+			? `${directMail.trim()}@${directMailDomain.trim()}` : storedMailAddresses[Number(selectedMailOption)] || '';
 
 		if (!dsService.JUDGE_DT || !dsNewCar.CAR_NO) {
-			gf.alert('등록증이 아직 올라오지 않았습니다.');
+			setMailModal({ open: true, error: '등록증이 아직 올라오지 않았습니다.' });
 			return;
 		}
-		if (!await gf.confirm('입력하신 메일주소로 등록증과 영수증을 보내시겠습니까?')) return;
-		if (!String(dsNewCar.CARP_MAIL || '').trim()) {
-			gf.alert('이메일 주소를 확인해주세요.');
+		if (!recipient || (selectedMailOption === 'CUSTOM' && (recipient.length > 254
+			|| !/^[\x21-\x7e]+$/.test(recipient) || !/^[^\s@,]+@[^\s@,]+\.[^\s@,]+$/.test(recipient)))) {
+			setMailModal({ open: true, error: '이메일 주소를 확인해주세요.' });
 			return;
 		}
 
 		setMailSending(true);
+		setMailModal({ open: true, error: '' });
 		try {
+			// 수신주소 최종 확인에서 동의한 뒤 등록증 확인과 발송 요청을 진행한다.
+			if (!await gf.confirm(`'${recipient}'으로 전송하시겠습니까?`, '메일 발송 확인', { okText: '네', cancelText: '아니오' })) return;
 			// 파일을 내려받지 않고 등록증 존재 여부만 먼저 확인한다.
 			await axios.head(registrationPaperUrl(dsService.JUDGE_DT, dsNewCar.CAR_NO));
-			if ((mailRequested || String(dsNewCar.CARP_SEND_YN || '').toUpperCase() === 'Y')
-					&& !await gf.confirm('이미 보냈던 건입니다. 추가 발송하시겠습니까?')) return;
-			await axios.post(`/api/internal/registration-mail/${encodeURIComponent(dsService.SERVICE_ID)}`);
+			await axios.post(`/api/newcar/registration-mail/${encodeURIComponent(dsService.SERVICE_ID)}`, { RECIPIENT: recipient });
 			setMailRequested(true);
+			setMailModal({ open: false, error: '' });
 			gf.alert('등록증 메일 발송을 요청했습니다.');
 		} catch (error) {
 			if (error.response?.status === 404) {
-				gf.alert('등록증이 아직 올라오지 않았습니다.');
+				setMailModal({ open: true, error: '등록증이 아직 올라오지 않았습니다.' });
 				return;
 			}
-			gf.alert('메일 발송 요청 중 오류가 발생했습니다.');
+			setMailModal({ open: true, error: error.response?.data?.message || '메일 발송 요청 중 오류가 발생했습니다.' });
 		} finally {
 			setMailSending(false);
 		}
@@ -435,6 +453,11 @@ const WaNewcarDetail = ({
 	
 	const carName = String(dsNewCar.CAR_NM ?? '').trim();
 	const carPackage = String(dsNewCar.CAR_PACKAGE ?? '').trim();
+	// 리스 조건과 쉼표 유무에 따라 상세 표시 및 수동발송 선택 목록을 구성한다.
+	const mailAddresses = registrationMailAddresses(dsNewCar);
+	const storedMailAddresses = mailAddresses.filter(Boolean);
+	const showLeaseMail = mailAddresses.length > 1;
+	const [primaryCarpMail = '', leaseCarpMail = ''] = mailAddresses;
 
 	const displayCarName = carName && carPackage.toUpperCase().includes('PERFORMANCE') && !carName.toUpperCase().includes('PERFORMANCE')
 	        ? `${carName} Performance` : carName;
@@ -903,16 +926,29 @@ const WaNewcarDetail = ({
 				    {carpMailYn === 'Y' && (
 				        <div className="wa-detail-row wa-detail-mail-row">
 				            <span className="wa-detail-name">등록증 이메일</span>
-				            <span>{dsNewCar.CARP_MAIL?.trim() || '-'}</span>
+				            <span>{primaryCarpMail.trim() || '-'}</span>
 				            <button
 				                type="button"
 				                className="wa-detail-delivery-btn wa-detail-mail-btn"
-				                onClick={handleRegistrationMail}
+				                onClick={() => {
+									// 주소가 한 개여도 수신자 선택 창을 먼저 연다.
+									setSelectedMailOption(storedMailAddresses.length ? '0' : 'CUSTOM');
+									setDirectMail('');
+									setDirectMailDomain('');
+									setDirectMailDomainOption('');
+									setMailModal({ open: true, error: '' });
+								}}
 				                disabled={mailSending}
 				            >
 				                <Mail size={20} strokeWidth={2.5} />
 				                <span>{mailSending ? '요청 중' : '메일 발송'}</span>
 				            </button>
+				        </div>
+				    )}
+				    {carpMailYn === 'Y' && showLeaseMail && (
+				        <div className="wa-detail-row">
+				            <span className="wa-detail-name">등록증 이메일(리스사)</span>
+				            <span>{leaseCarpMail.trim() || '-'}</span>
 				        </div>
 				    )}
 
@@ -1058,6 +1094,89 @@ const WaNewcarDetail = ({
 				
 			</div>
 			
+			{mailModal.open && createPortal(
+				<div className="common-popup-overlay wa-registration-mail-backdrop" role="presentation" onMouseDown={closeMailModal}>
+					<section
+						className="common-popup-box wa-registration-mail-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="wa-registration-mail-title"
+						aria-busy={mailSending}
+						onMouseDown={event => event.stopPropagation()}
+						onKeyDown={event => {
+							if (event.key === 'Escape') {
+								event.stopPropagation();
+								closeMailModal();
+							}
+						}}
+					>
+						<header className="common-popup-header">
+							<strong id="wa-registration-mail-title">등록증 메일 발송</strong>
+							<button type="button" className="wa-request-modal-close" onClick={closeMailModal} disabled={mailSending} aria-label="메일 발송 창 닫기">
+								<X size={18} />
+							</button>
+						</header>
+						<div className="common-popup-body wa-registration-mail-content">
+							{storedMailAddresses.map((address, index) => {
+								const label = index === 0 ? '이메일 주소' : '리스 이메일 주소';
+								return (
+									<div className="wa-registration-mail-row" key={index}>
+										<label>
+											<input id={`registration-mail-recipient-${index}`} type="radio" name="registration-mail-recipient" aria-label={`${label} 선택`}
+												value={String(index)} checked={selectedMailOption === String(index)} disabled={mailSending}
+												onChange={event => setSelectedMailOption(event.target.value)} />
+											<span>{label}</span>
+										</label>
+										<label className="wa-registration-mail-address" htmlFor={`registration-mail-recipient-${index}`}>{address}</label>
+									</div>
+								);
+							})}
+							<div className="wa-registration-mail-row wa-registration-mail-custom">
+								<label>
+									<input type="radio" name="registration-mail-recipient" aria-label="직접 입력 선택"
+										value="CUSTOM" checked={selectedMailOption === 'CUSTOM'} disabled={mailSending}
+										onChange={() => { setSelectedMailOption('CUSTOM'); directMailInputRef.current.focus(); }} />
+									<span>직접 입력</span>
+								</label>
+								{/* 수동 수신자는 아이디와 도메인을 합쳐 발송하며 저장된 주소는 변경하지 않는다. */}
+								<div className={`wa-registration-mail-inputs${directMailDomainOption === '__DIRECT_EMAIL__' ? ' direct' : ''}`}>
+									<input ref={directMailInputRef} type="text" aria-label="직접 입력 이메일 아이디" maxLength={254}
+										placeholder="이메일 아이디" value={directMail} disabled={mailSending}
+										onChange={event => { setDirectMail(event.target.value); setSelectedMailOption('CUSTOM'); }} />
+									{directMailDomainOption === '__DIRECT_EMAIL__' && <div className="wa-registration-email-text">
+										<span className="wa-registration-email-at" aria-hidden="true">@</span>
+										<input type="text" aria-label="직접 입력 이메일 도메인" maxLength={253}
+											placeholder="company.com" value={directMailDomain} disabled={mailSending}
+											onChange={event => { setDirectMailDomain(event.target.value); setSelectedMailOption('CUSTOM'); }} />
+									</div>}
+									<RegistrationEmailDomainSelect id="registration-mail-domain" label="직접 입력 이메일"
+										value={directMailDomainOption} disabled={mailSending}
+										options={[...emailDomainOptions.map(option => ({ ...option, LABEL: `@${option.CODE_NM}` })),
+											{ CODE_ID: '__DIRECT_EMAIL__', LABEL: '@직접입력' }]}
+										onChange={event => {
+											const code = event.target.value;
+											setDirectMailDomainOption(code);
+											setDirectMailDomain(code === '__DIRECT_EMAIL__' ? '' : emailDomainOptions.find(option => option.CODE_ID === code)?.CODE_NM || '');
+											setSelectedMailOption('CUSTOM');
+										}} />
+								</div>
+							</div>
+							{(mailRequested || String(dsNewCar.CARP_SEND_YN || '').toUpperCase() === 'Y') && (
+								<p className="wa-registration-mail-notice">이미 보냈던 건입니다. 전송을 누르면 다시 발송합니다.</p>
+							)}
+							{mailModal.error && <p className="wa-registration-mail-error" role="alert">{mailModal.error}</p>}
+						</div>
+						<footer className="common-popup-footer">
+							<button type="button" className="common-popup-btn wa-registration-mail-close" onClick={closeMailModal} disabled={mailSending} autoFocus>닫기</button>
+							<button type="button" className="common-popup-btn ok" onClick={handleRegistrationMail} disabled={mailSending}>
+								{mailSending ? '요청 중' : '전송'}
+							</button>
+						</footer>
+					</section>
+				</div>,
+				document.body
+			)}
+
 			{actionHistoryModal.open && createPortal(
 				<div
 					className="wa-request-modal-backdrop wa-numplate-history-backdrop"

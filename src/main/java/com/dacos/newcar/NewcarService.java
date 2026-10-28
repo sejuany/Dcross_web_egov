@@ -6,6 +6,7 @@ import java.io.FileNotFoundException;
 import java.io.OutputStream;
 import java.net.URI;
 import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
@@ -2290,13 +2291,14 @@ public class NewcarService {
 	public Map<String, Object> processNewCar(Map<String, Object> request, UserDto user) {
 	    // 성공 반환
 	    Map<String, Object> result = new HashMap<>();
+	    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
+	    validateRegistrationMailLength(Objects.toString(mNewCar.get("CARP_MAIL"), ""));
 
 		try {
 			logger.info("[NewcarService] 신규등록 저장 및 신청 프로세스");
 
 			 // 데이터 파싱
 		    Map<String, Object> mService = commonUtil.getMap(request, "dsService");
-		    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
 		    Map<String, Object> mCarNoDetach = commonUtil.getMap(request, "dsCarNoDetach");
             Map<String, Object> mTaxReceipt = commonUtil.getMap(request, "dsTaxReceipt");
             // 감면 신청서 정보
@@ -2512,6 +2514,13 @@ public class NewcarService {
 		return ApiResponse.withKey("data", result);
 	}
 	
+	// 화면 검증을 우회한 요청도 DB 저장 전에 쉼표 포함 100Byte 한도를 검사한다.
+	static void validateRegistrationMailLength(String mail) {
+	    if (mail != null && mail.getBytes(StandardCharsets.UTF_8).length > 100) {
+	        throw new BusinessException("등록증 이메일 주소는 쉼표를 포함하여 총 100Byte 이내로 입력해주세요.", 400);
+	    }
+	}
+
 	// 값이 비어 있는 경우 이곳을 타게 한다.
 	private void normalizeNewCar(Map<String, Object> mNewCar) {
 

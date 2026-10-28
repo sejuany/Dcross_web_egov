@@ -114,7 +114,7 @@ export const NTAX_ATTACH_DOC = {
 
     RESIDENT_CERT: {
         code: 'RESIDENT_CERT',
-        name: '주민등록등본',
+        name: '주민등록등본(상세)',
         seq: 120,
         gubun: 'MERGE'
     },
@@ -344,7 +344,7 @@ export const NTAX_POLICY = {
 		// 대표 또는 공동소유자가 미성년자 일 때 제출서류
 		MINOR: [
 			    NTAX_ATTACH_DOC.DISABILITY_CERT, // 장애인증명서(복지카드)
-			    NTAX_ATTACH_DOC.RESIDENT_CERT,	// 주민등록등본
+			    NTAX_ATTACH_DOC.RESIDENT_CERT,	// 주민등록등본(상세)
 			    NTAX_ATTACH_DOC.FAMILY_CERT,	// 가족관계증명서(상세)
 			    NTAX_ATTACH_DOC.BASIC_CERT,		// 기본증명서(상세)
 			    NTAX_ATTACH_DOC.MINOR_AGREEMENT, // (보호자)법정대리인 동의서
@@ -410,7 +410,7 @@ export const NTAX_POLICY = {
 		// 미성년자 제출서류
 		MINOR: [
 			    ATTACH_DOC.DISABILITY_CERT, // 장애인증명서(복지카드)
-			    ATTACH_DOC.RESIDENT_CERT,	// 주민등록등본
+			    ATTACH_DOC.RESIDENT_CERT,	// 주민등록등본(상세)
 			    ATTACH_DOC.FAMILY_CERT,	// 가족관계증명서(상세)
 			    ATTACH_DOC.BASIC_CERT,		// 기본증명서(상세)
 			    ATTACH_DOC.MINOR_AGREEMENT, // (보호자)법정대리인 동의서

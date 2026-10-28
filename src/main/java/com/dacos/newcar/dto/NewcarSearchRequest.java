@@ -5,6 +5,7 @@ import java.util.List;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import lombok.Data;
+import lombok.Getter;
 
 /**
  * 신차 등록 목록 검색 요청 DTO
@@ -70,17 +71,24 @@ public class NewcarSearchRequest {
 
     /** 아래 필드는 로그인 세션으로만 생성하며 요청 JSON에서는 받지 않는다. */
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private String AUTH_SCOPE;
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private String AUTH_COMPANY_ID;
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private String AUTH_BRANCH_ID;
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private String AUTH_SANGSA_ID;
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private String AUTH_MEMBER_ID;
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private String AUTH_GOVT_ID;
     @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
     private List<String> AUTH_COMPANY_IDS;
 }
