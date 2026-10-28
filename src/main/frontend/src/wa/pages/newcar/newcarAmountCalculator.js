@@ -72,7 +72,7 @@ const DEFAULT_TAX_RATES = {
 // 지역/관청/업체별 요율이 확인되면 codes.NEWCAR_AMOUNT_CONFIG로 내려서 덮어쓰면 됨.
 const DEFAULT_CALC_CONFIG = {
     bondRate: 0.2,
-    bondDiscountRate: 0.1,
+    bondDiscountRate: 0.2,
     bondFeeRate: 0.003,
     bondFeeBaseAmount: 0,
     stampAmount: 2500,
@@ -527,6 +527,8 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     const fmName = String(dsNewCar.FM_NM ?? '').trim();
     const fomName = String(dsNewCar.FOM_NM ?? '').trim();
     const carName = normalizeCarName(dsNewCar.CAR_NM);
+    const performanceExcluded = carName.replace(/\s+/g, '').includes('POLESTAR4')
+        && (carName.includes('PERFORMANCE') || normalizeCarName(dsNewCar.CAR_PACKAGE).includes('PERFORMANCE'));
     const hasEcoConfig = hasValue(fmExclusions) || hasValue(enginePatterns);
     const fmExcluded = pipeContains(fmExclusions, fmName);
     const originalNameExcluded = carName === ORIGINAL_ECO_EXCLUDED_CAR_NAME;
@@ -539,8 +541,9 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     return {
         acquisitionEligible: baseEligible
             && !originalNameExcluded
+            && !performanceExcluded
             && String(dsNewCar.ECO_YN ?? '').trim().toUpperCase() !== 'N',
-        bondEligible: baseEligible
+        bondEligible: baseEligible && !performanceExcluded
     };
 };
 

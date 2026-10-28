@@ -84,6 +84,7 @@ docs/
 *.md
 !/UPDATE_GUIDE.md
 config/dcross.env
+config/dcross-dev.env
 .gitignore
 src/main/resources/application-real.yml
 *test.jsx
@@ -92,3 +93,5 @@ src/main/resources/application-real.yml
 UPDATE_GUIDE.md
 *test.java
 *.test.jsx
+*.spec.js
+

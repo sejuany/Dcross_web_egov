@@ -57,7 +57,7 @@ const resolveUploadedEcoYn = (carName, carPackage, engine) => {
     const normalizedEngine = String(engine ?? '').toUpperCase();
 
     if (normalizedCarName.includes('POLESTAR4')) {
-        return normalizedPackage.includes('PERFORMANCE') ? 'N' : 'Y';
+        return normalizedCarName.includes('PERFORMANCE') || normalizedPackage.includes('PERFORMANCE') ? 'N' : 'Y';
     }
     if (normalizedCarName.includes('POLESTAR3')) {
         return normalizedEngine.includes('REAR') ? 'Y' : 'N';
