@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import axios from 'axios';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { PUSH_RECEIVED_EVENT } from './firebasePush';
 
 /** TR_PUSH_MESSAGE의 최근 15일 알림을 읽음 상태와 함께 표시한다. */
 export default function NotificationCenter() {
@@ -22,7 +23,16 @@ export default function NotificationCenter() {
     }
   }, []);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    const onVisible = () => { if (document.visibilityState === 'visible') load(); };
+    window.addEventListener(PUSH_RECEIVED_EVENT, load);
+    document.addEventListener('visibilitychange', onVisible);
+    return () => {
+      window.removeEventListener(PUSH_RECEIVED_EVENT, load);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+  }, [load]);
 
   const open = async (item) => {
     try {
@@ -40,7 +50,10 @@ export default function NotificationCenter() {
     <section className="numplate-process-page">
       <div className="numplate-page-title">
         <div><h1>알림센터</h1><span>최근 15일 동안 받은 알림입니다.</span></div>
-        <button type="button" onClick={load} disabled={loading}>새로고침</button>
+        <div className="numplate-notification-actions">
+          <Link to="/numplateapp/push-test">푸시 테스트</Link>
+          <button type="button" onClick={load} disabled={loading}>새로고침</button>
+        </div>
       </div>
       {message && <p className="numplate-inline-message" role="alert">{message}</p>}
       <div className="numplate-notification-list">

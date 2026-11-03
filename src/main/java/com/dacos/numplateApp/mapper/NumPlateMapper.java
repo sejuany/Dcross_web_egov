@@ -31,6 +31,12 @@ public interface NumPlateMapper {
 
     int updateManagerPushToken(Map<String, Object> request);
 
+    String getManagerPushToken(Map<String, Object> request);
+
+    Map<String, Object> getRelayPushTarget(Map<String, Object> request);
+
+    int countRecentTestPush(Map<String, Object> request);
+
     int updateManagerPassword(Map<String, Object> request);
 
     int clearInvalidPushToken(String token);
@@ -55,6 +61,8 @@ public interface NumPlateMapper {
 
     /** 세션 휴대폰 번호에 배정된 기존 처리목록을 조회한다. */
     List<Map<String, Object>> getProcessList(Map<String, Object> request);
+
+    String selectDealerManager(Map<String, Object> request);
 
     List<Map<String, Object>> getOfflineList(Map<String, Object> request);
 

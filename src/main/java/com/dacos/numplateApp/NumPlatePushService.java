@@ -52,8 +52,8 @@ public class NumPlatePushService {
     public NumPlatePushService(
             NumPlateMapper numPlateMapper,
             @Value("${firebase.push.enabled:true}") boolean enabled,
-            @Value("${firebase.push.credentials:C:/GoogleFirebase/dcross-no-dcrossWeb.json}") String credentialsPath,
-            @Value("${firebase.push.project-id:dcross-no}") String projectId,
+            @Value("${firebase.push.credentials:C:/GoogleFirebase/dcross-web-firebase-adminsdk.json}") String credentialsPath,
+            @Value("${firebase.push.project-id:dcross-web}") String projectId,
             @Value("${firebase.push.public-base-url:https://no.dcross.kr}") String publicBaseUrl,
             @Value("${firebase.push.internal-api-key:}") String internalApiKey) {
         this.numPlateMapper = numPlateMapper;
@@ -117,6 +117,81 @@ public class NumPlatePushService {
         return numPlateMapper.getPushNotifications(Map.of("TEL_NO", managerPhone(user)));
     }
 
+    public Map<String, Object> getStatus(UserDto user) {
+        String token = numPlateMapper.getManagerPushToken(Map.of("TEL_NO", managerPhone(user)));
+        return Map.of("enabled", enabled, "firebaseReady", firebaseMessaging != null,
+                "projectId", projectId, "publicBaseUrl", publicBaseUrl,
+                "tokenRegistered", token != null && !token.isBlank());
+    }
+
+    /** 토큰은 반드시 현재 세션 담당자에게 등록된 값이어야 한다. */
+    public Map<String, Object> sendTest(UserDto user, String rawToken) {
+        String phone = managerPhone(user);
+        if (firebaseMessaging == null) {
+            throw new BusinessException("Firebase가 준비되지 않았습니다. 서버의 푸시 활성화 설정과 서비스 계정 파일을 확인해 주세요.", 503);
+        }
+        String token = Objects.toString(rawToken, "").trim();
+        Map<String, Object> param = Map.of("TEL_NO", phone);
+        if (token.isEmpty() || token.length() > 512
+                || !token.equals(numPlateMapper.getManagerPushToken(param))) {
+            throw new BusinessException("현재 기기의 알림을 먼저 등록해 주세요.", 409);
+        }
+        if (numPlateMapper.countRecentTestPush(param) > 0) {
+            throw new BusinessException("테스트 알림은 30초 간격으로 보낼 수 있습니다.", 429);
+        }
+        String title = "번호판 푸시 테스트";
+        String body = "Java 21 서버에서 보낸 테스트 알림입니다. 알림센터에서 확인해 주세요.";
+        Map<String, Object> history = new HashMap<>();
+        history.put("SERVICE_ID", null);
+        history.put("TEL_NO", phone);
+        history.put("TITLE", title);
+        history.put("MESSAGE", body);
+        history.put("TOKEN", token);
+        history.put("INS_USER", "NUMPLATE_TEST");
+        // 수신 직후 알림센터가 조회해도 이력이 보이도록 발송 전에 INSERT를 커밋한다.
+        if (numPlateMapper.insertPushMessage(history) != 1) {
+            throw new BusinessException("테스트 알림 이력을 저장하지 못했습니다.", 409);
+        }
+        String result = send(token, title, body, "", "/numplateapp/notifications");
+        return Map.of("pushSent", "SENT".equals(result), "historySaved", true, "resultCode", result);
+    }
+
+    /** 기존 Java 7 공통 메소드의 알림 내용을 받아 최신 토큰으로 대신 발송한다. */
+    public Map<String, Object> sendRelay(Map<String, Object> request) {
+        String phone = Objects.toString(request.get("telNo"), "").replaceAll("[^0-9]", "");
+        String title = Objects.toString(request.get("title"), "").trim();
+        String body = Objects.toString(request.get("message"), "").trim();
+        String serviceId = Objects.toString(request.get("serviceId"), "").trim();
+        String insUser = Objects.toString(request.get("insUser"), "DCROSS_RELAY").trim();
+        if (phone.length() < 8 || phone.length() > 15) {
+            throw new BusinessException("올바른 수신 휴대폰 번호가 필요합니다.");
+        }
+        if (title.isEmpty() || title.length() > 100 || body.isEmpty() || body.length() > 1000) {
+            throw new BusinessException("푸시 제목은 1~100자, 내용은 1~1000자로 입력해 주세요.");
+        }
+        if (!serviceId.isEmpty() && !SERVICE_ID.matcher(serviceId).matches()) {
+            throw new BusinessException("올바른 접수번호가 아닙니다.");
+        }
+        if (insUser.length() > 50) throw new BusinessException("발송자 식별값은 50자 이하로 입력해 주세요.");
+
+        Map<String, Object> target = numPlateMapper.getRelayPushTarget(Map.of("TEL_NO", phone));
+        if (target == null) throw new BusinessException("등록된 번호판 담당자를 찾을 수 없습니다.", 404);
+        String token = Objects.toString(target.get("TOKEN"), "").trim();
+        Map<String, Object> history = new HashMap<>();
+        history.put("TEL_NO", Objects.toString(target.get("TEL_NO"), "").replaceAll("[^0-9]", ""));
+        history.put("TITLE", title);
+        history.put("MESSAGE", body);
+        history.put("TOKEN", token);
+        history.put("SERVICE_ID", serviceId.isEmpty() ? null : serviceId);
+        history.put("INS_USER", insUser.isEmpty() ? "DCROSS_RELAY" : insUser);
+        if (numPlateMapper.insertPushMessage(history) != 1) {
+            throw new BusinessException("푸시 알림 이력을 저장하지 못했습니다.", 409);
+        }
+        String clickPath = serviceId.isEmpty() ? "/numplateapp/notifications" : "/numplateapp/request/" + serviceId;
+        String result = token.isEmpty() ? "NO_TOKEN" : send(token, title, body, serviceId, clickPath);
+        return Map.of("pushSent", "SENT".equals(result), "historySaved", true, "resultCode", result);
+    }
+
     public void markRead(UserDto user, long idx) {
         if (idx < 1 || numPlateMapper.markPushNotificationRead(
                 Map.of("TEL_NO", managerPhone(user), "IDX", idx)) != 1) {
@@ -157,14 +232,14 @@ public class NumPlatePushService {
         }
         numPlateMapper.insertPushMessage(history);
 
-        boolean sent = !token.isEmpty() && send(token, title, body, serviceId, clickPath);
+        boolean sent = !token.isEmpty() && "SENT".equals(send(token, title, body, serviceId, clickPath));
         return Map.of("serviceId", serviceId, "pushSent", sent, "historySaved", true);
     }
 
-    private boolean send(String token, String title, String body, String serviceId, String clickPath) {
+    private String send(String token, String title, String body, String serviceId, String clickPath) {
         if (firebaseMessaging == null) {
             logger.warn("[NumPlatePush] Message stored but Firebase is not initialized: {}", serviceId);
-            return false;
+            return "NOT_INITIALIZED";
         }
         try {
             Message message = Message.builder()
@@ -177,15 +252,15 @@ public class NumPlatePushService {
                             .build())
                     .build();
             String messageId = firebaseMessaging.send(message);
-            logger.info("[NumPlatePush] Assignment sent: serviceId={}, messageId={}", serviceId, messageId);
-            return true;
+            logger.info("[NumPlatePush] Message sent: serviceId={}, messageId={}", serviceId, messageId);
+            return "SENT";
         } catch (FirebaseMessagingException exception) {
             logger.warn("[NumPlatePush] FCM send failed: serviceId={}, code={}",
                     serviceId, exception.getMessagingErrorCode());
             if (exception.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
                 numPlateMapper.clearInvalidPushToken(token);
             }
-            return false;
+            return exception.getMessagingErrorCode() == null ? "FCM_ERROR" : exception.getMessagingErrorCode().name();
         }
     }
 

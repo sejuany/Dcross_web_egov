@@ -103,6 +103,14 @@ export default function ProcessList() {
               <dt>고객명</dt><dd>{row.BUY_NM || '-'}</dd>
               <dt>방문일시</dt><dd>{[row.INSTALL_DT, row.INSTALL_TM].filter(Boolean).join(' ') || '-'}</dd>
               <dt>장소</dt><dd>{row.LAST_DELIVERY_ADDR || '-'}</dd>
+              <dt>만기일자</dt><dd>{row.EXPIRE_DT || '-'}</dd>
+              <dt>방문확정</dt><dd>{row.INSTALL_CHECK || '-'}</dd>
+              {row.DEALER_MANAGER_YN === 'Y' && (
+                <>
+                  <dt>주문번호</dt><dd>{row.LINK_ID || '-'}</dd>
+                  <dt>담당 SP명</dt><dd>{row.MEMBER_NM || '-'}</dd>
+                </>
+              )}
             </dl>
           </button>
         ))}

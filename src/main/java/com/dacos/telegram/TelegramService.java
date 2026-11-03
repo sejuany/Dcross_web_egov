@@ -1,9 +1,12 @@
 package com.dacos.telegram;
 
+import java.io.IOException;
 import java.net.URI;
 import java.util.HashMap;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
@@ -11,14 +14,18 @@ import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClientException;
+import org.springframework.web.client.RestClientResponseException;
 import org.springframework.web.client.RestTemplate;
 
 import com.dacos.code.CodeService;
 import com.dacos.common.BusinessException;
 import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 @Service
 public class TelegramService {
+
+    private static final Logger logger = LoggerFactory.getLogger(TelegramService.class);
 
     private final String botToken;
     private final CodeService codeService;
@@ -57,6 +64,8 @@ public class TelegramService {
             throw new BusinessException("message 길이를 확인해 주세요. 텍스트는 1~4096자, 이미지 설명은 0~1024자입니다.");
         }
         String targetChatId = resolveChatId(channel);
+        logger.info("[Telegram] 발송 설정 확인 - channel: {}, 토큰형식정상: {}, 채팅방설정있음: {}",
+                channel, botToken.matches("[0-9]+:[A-Za-z0-9_-]+"), !targetChatId.isBlank());
         if (!botToken.matches("[0-9]+:[A-Za-z0-9_-]+") || targetChatId.isBlank()) {
             throw new BusinessException("텔레그램 BOT_TOKEN 또는 TM_CODE의 채팅방 ID 설정을 확인해 주세요.", 503);
         }
@@ -75,6 +84,7 @@ public class TelegramService {
             }
             HttpHeaders headers = new HttpHeaders();
             headers.setContentType(MediaType.APPLICATION_JSON);
+            logger.info("[Telegram] 외부 API 호출 시작 - 유형: {}", photo == null ? "text" : "photo");
             JsonNode response = restTemplate.postForObject(
                     "https://api.telegram.org/bot" + botToken + (photo == null ? "/sendMessage" : "/sendPhoto"),
                     new HttpEntity<>(body, headers), JsonNode.class);
@@ -82,9 +92,31 @@ public class TelegramService {
                     || !response.path("result").path("message_id").isIntegralNumber()) {
                 throw new BusinessException("텔레그램 메시지 전송에 실패했습니다.", 502);
             }
+            logger.info("[Telegram] 외부 API 전송 성공 - 메시지ID: {}", response.path("result").path("message_id").asLong());
             return response.path("result").path("message_id").asLong();
+        } catch (RestClientResponseException e) {
+            String reason = "OTHER";
+            // 응답 본문에는 요청 값이 포함될 수 있어 알려진 오류의 고정 진단 코드만 기록한다.
+            try {
+                JsonNode error = new ObjectMapper().readTree(e.getResponseBodyAsByteArray());
+                String description = error == null ? "" : error.path("description").asText("");
+                if (error != null && error.path("parameters").has("migrate_to_chat_id")) {
+                    reason = "CHAT_MIGRATED";
+                } else if (description.contains("chat not found")) {
+                    reason = "CHAT_NOT_FOUND";
+                } else if (description.contains("not enough rights") || description.contains("CHAT_WRITE_FORBIDDEN")) {
+                    reason = "CHAT_PERMISSION";
+                } else if (description.contains("can't parse entities")) {
+                    reason = "MESSAGE_FORMAT";
+                }
+            } catch (IOException ignored) {
+                reason = "UNREADABLE_ERROR_BODY";
+            }
+            logger.warn("텔레그램 외부 API 전송 실패 - HTTP 상태: {}, 진단: {}", e.getStatusCode().value(), reason);
+            throw new BusinessException("텔레그램 메시지 전송에 실패했습니다.", 502);
         } catch (RestClientException e) {
             // 통신 예외에는 BOT_TOKEN이 포함된 URL이 들어갈 수 있어 전달하거나 기록하지 않는다.
+            logger.warn("텔레그램 외부 API 통신 실패 - 오류 유형: {}", e.getMostSpecificCause().getClass().getSimpleName());
             throw new BusinessException("텔레그램 메시지 전송에 실패했습니다.", 502);
         }
     }

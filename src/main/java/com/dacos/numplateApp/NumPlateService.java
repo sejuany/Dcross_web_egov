@@ -203,9 +203,14 @@ public class NumPlateService {
         param.put("CONDITION", keyword);
         param.put("TODAY", Boolean.TRUE.equals(request.get("todayOnly")) ? "Y" : "");
         param.put("PROCESS_TYPE", processType);
+        String dealerManager = "Y".equals(numPlateMapper.selectDealerManager(param)) ? "Y" : "N";
+        param.put("DEALER_MANAGER_YN", dealerManager);
         return numPlateMapper.getProcessList(param).stream().map(row -> {
             Map<String, Object> item = new HashMap<>(row);
             item.put("PROC_ST_NM", processStatusName(item));
+            item.put("INSTALL_CHECK", Objects.toString(item.get("SERVICE_ID"), "").startsWith("N")
+                    || !Objects.toString(item.get("INSTALL_TM"), "").isBlank() ? "○" : "✘");
+            item.put("DEALER_MANAGER_YN", dealerManager);
             return item;
         }).toList();
     }

@@ -64,6 +64,9 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/status",
                         "/api/log/login-enter",
                         "/api/telegram/send",
+                        // 이 두 서버 간 API는 Controller에서 X-Push-Api-Key를 검증한다.
+                        "/api/internal/numplate/push/message",
+                        "/api/internal/numplate/push/assignment",
                         // Existing server-to-server caller must be migrated to internal authentication.
                         "/api/internal/registration-mail/**");
 

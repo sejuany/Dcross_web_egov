@@ -9,6 +9,7 @@ import ProcessStatus from './ProcessStatus';
 import ReturnList from './ReturnList';
 import ReturnDetail from './ReturnDetail';
 import NotificationCenter from './NotificationCenter';
+import PushDiagnostics from './PushDiagnostics';
 import MyPage from './MyPage';
 import IdCardUpload from './IdCardUpload';
 
@@ -36,6 +37,7 @@ export default function NumPlateAppRoutes() {
         <Route path="returns/:serviceId" element={<ReturnDetail />} />
         {/* 아직 이관하지 않은 하단 메뉴는 안내 화면을 표시한다. */}
         <Route path="notifications" element={<NotificationCenter />} />
+        <Route path="push-test" element={<PushDiagnostics />} />
         <Route path="mypage" element={<MyPage />} />
         <Route path="plates" element={<NumPlateInventory />} />
       </Route>

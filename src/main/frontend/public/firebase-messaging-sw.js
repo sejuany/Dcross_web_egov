@@ -3,12 +3,12 @@ importScripts('https://www.gstatic.com/firebasejs/12.18.0/firebase-app-compat.js
 importScripts('https://www.gstatic.com/firebasejs/12.18.0/firebase-messaging-compat.js');
 
 firebase.initializeApp({
-  apiKey: 'AIzaSyBIna2IqKRZwsJ0yFonWdOzFKWQ4TES42c',
-  authDomain: 'dcross-no.firebaseapp.com',
-  projectId: 'dcross-no',
-  storageBucket: 'dcross-no.firebasestorage.app',
-  messagingSenderId: '253936722169',
-  appId: '1:253936722169:web:fb26fc41cc808027338228',
+  apiKey: 'AIzaSyDGHCTqvWNNRVEd8dHv3wgVDkm6rKX3dP8',
+  authDomain: 'dcross-web.firebaseapp.com',
+  projectId: 'dcross-web',
+  storageBucket: 'dcross-web.firebasestorage.app',
+  messagingSenderId: '583946147446',
+  appId: '1:583946147446:web:276daa5573ccaae691b157',
 });
 
 firebase.messaging();

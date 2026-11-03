@@ -106,6 +106,19 @@ public class NumPlateController {
         return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
     }
 
+    @GetMapping("/numplateapp/push/status")
+    public ResponseEntity<Map<String, Object>> getPushStatus(HttpSession session) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.withKey(
+                "data", pushService.getStatus(AuthUtil.getLoginUser(session))));
+    }
+
+    @PostMapping("/numplateapp/push/test")
+    public ResponseEntity<Map<String, Object>> sendTestPush(
+            @RequestBody Map<String, Object> request, HttpSession session) {
+        return ResponseEntity.ok(ApiResponse.withKey("data", pushService.sendTest(
+                AuthUtil.getLoginUser(session), Objects.toString(request.get("token"), ""))));
+    }
+
     /** 현재 담당자의 최근 15일 알림 이력을 반환한다. */
     @GetMapping("/numplateapp/notifications")
     public ResponseEntity<Map<String, Object>> getPushNotifications(HttpSession session) {
@@ -119,6 +132,15 @@ public class NumPlateController {
         UserDto user = AuthUtil.getLoginUser(session);
         pushService.markRead(user, idx);
         return ResponseEntity.ok(ApiResponse.withKey("result", "OK"));
+    }
+
+    @PostMapping("/internal/numplate/push/message")
+    public ResponseEntity<Map<String, Object>> relayPushMessage(
+            @RequestHeader(value = "X-Push-Api-Key", required = false) String apiKey,
+            @RequestBody Map<String, Object> request) {
+        pushService.requireInternalApiKey(apiKey);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(ApiResponse.withKey("data", pushService.sendRelay(request)));
     }
 
     /** Java 7 이전 프로젝트가 담당자 배정 저장 성공 후 호출하는 내부 전용 API. */

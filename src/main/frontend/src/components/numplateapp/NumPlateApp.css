@@ -210,6 +210,15 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-notification-list strong { font-size: 16px; }
 .numplate-notification-list span { line-height: 1.45; }
 .numplate-notification-list small { color: #718096; }
+.numplate-notification-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 8px; }
+.numplate-push-link,
+.numplate-notification-actions a { color: #174f8c; font-weight: 700; }
+.numplate-push-notice { box-sizing: border-box; display: flex; align-items: center; gap: 12px; width: min(calc(100% - 28px), 732px); margin: 12px auto 0; padding: 12px; border: 1px solid #b9d4f0; border-radius: 12px; background: #e8f1fb; }
+.numplate-push-notice a { flex: 1; min-width: 0; color: #174f8c; text-decoration: none; overflow-wrap: anywhere; }
+.numplate-push-notice strong,
+.numplate-push-notice span { display: block; }
+.numplate-push-notice button { min-height: 40px; border: 1px solid #bdc9d8; border-radius: 8px; background: #fff; color: #174f8c; }
+.numplate-push-result { padding: 12px; border-radius: 10px; background: #e8f1fb; color: #174f8c; }
 
 .numplate-detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 .numplate-detail-grid > div { min-width: 0; padding: 13px; border: 1px solid #dce3ec; border-radius: 12px; background: #fff; }
