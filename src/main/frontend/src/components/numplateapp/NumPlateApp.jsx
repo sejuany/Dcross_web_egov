@@ -1,9 +1,10 @@
-import React, { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { NavLink, Outlet } from 'react-router-dom';
 import { Bell, BellRing, ClipboardList, PackageCheck, UserRound } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import NumPlateSimpleList from './NumPlateSimpleList';
-import { enablePushNotifications, pushStatus, PUSH_RECEIVED_EVENT, subscribeToPushMessages } from './firebasePush';
+import PushNotice from './PushNotice';
+import { enablePushNotifications, pushStatus, PUSH_RECEIVED_EVENT, showForegroundPushNotification, subscribeToPushMessages } from './firebasePush';
 import './NumPlateApp.css';
 
 // 모든 인증 화면 하단에 고정되는 모바일 주 메뉴.
@@ -78,23 +79,49 @@ function PushPermissionButton() {
 export default function NumPlateApp() {
   const { user, logout } = useAuth();
   const [pushNotice, setPushNotice] = useState(null);
+  const noticeId = useRef(0);
+  const headerRef = useRef(null);
+  const [headerHeight, setHeaderHeight] = useState(58);
+  const dismissPushNotice = useCallback(() => setPushNotice(null), []);
+
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    const measure = () => setHeaderHeight(header.getBoundingClientRect().height || 58);
+    measure();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(measure);
+      observer.observe(header);
+      return () => observer.disconnect();
+    }
+    window.addEventListener('resize', measure);
+    return () => window.removeEventListener('resize', measure);
+  }, []);
 
   useEffect(() => {
     let disposed = false;
     let unsubscribe;
+    const showNotice = (notification) => setPushNotice({
+      title: notification?.title || '새 알림',
+      body: notification?.body || '알림센터에서 확인해 주세요.',
+      id: ++noticeId.current,
+    });
     subscribeToPushMessages((payload) => {
-      setPushNotice(payload.notification || { title: '새 알림', body: '알림센터에서 확인해 주세요.' });
+      if (disposed) return;
+      showNotice(payload.notification);
       window.dispatchEvent(new CustomEvent(PUSH_RECEIVED_EVENT, { detail: payload }));
+      showForegroundPushNotification(payload);
     }).then((stop) => {
       if (disposed) stop();
       else unsubscribe = stop;
-    }).catch(() => setPushNotice({ title: '알림 수신 연결 실패', body: '알림센터의 푸시 테스트에서 설정을 확인해 주세요.' }));
+    }).catch(() => {
+      if (!disposed) showNotice({ title: '알림 수신 연결 실패', body: '알림센터의 푸시 테스트에서 설정을 확인해 주세요.' });
+    });
     return () => { disposed = true; unsubscribe?.(); };
   }, []);
 
   return (
     <main className="numplate-app-shell">
-      <header className="numplate-app-header">
+      <header className="numplate-app-header" ref={headerRef}>
         <div>
           <strong>DACOS</strong>
           <span>{user?.member_NM || user?.MEMBER_NM || user?.login_ID || user?.LOGIN_ID}님</span>
@@ -105,12 +132,7 @@ export default function NumPlateApp() {
         </div>
       </header>
       {pushNotice && (
-        <div className="numplate-push-notice" role="status">
-          <Link to="/numplateapp/notifications" onClick={() => setPushNotice(null)}>
-            <strong>{pushNotice.title}</strong><span>{pushNotice.body}</span>
-          </Link>
-          <button type="button" onClick={() => setPushNotice(null)} aria-label="알림 닫기">닫기</button>
-        </div>
+        <PushNotice key={pushNotice.id} notice={pushNotice} headerHeight={headerHeight} onDismiss={dismissPushNotice} />
       )}
       {/* 현재 하위 라우트의 목록·상세·결과 화면이 이 위치에 렌더링된다. */}
       <Outlet />

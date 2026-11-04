@@ -255,8 +255,10 @@ public class NumPlatePushService {
             logger.info("[NumPlatePush] Message sent: serviceId={}, messageId={}", serviceId, messageId);
             return "SENT";
         } catch (FirebaseMessagingException exception) {
-            logger.warn("[NumPlatePush] FCM send failed: serviceId={}, code={}",
-                    serviceId, exception.getMessagingErrorCode());
+            logger.warn("[NumPlatePush] FCM send failed: serviceId={}, code={}, errorCode={}, httpStatus={}, cause={}",
+                    serviceId, exception.getMessagingErrorCode(), exception.getErrorCode(),
+                    exception.getHttpResponse() == null ? null : exception.getHttpResponse().getStatusCode(),
+                    exception.getCause() == null ? null : exception.getCause().getClass().getName());
             if (exception.getMessagingErrorCode() == MessagingErrorCode.UNREGISTERED) {
                 numPlateMapper.clearInvalidPushToken(token);
             }

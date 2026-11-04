@@ -89,6 +89,6 @@ spring:
       on-profile: real
 firebase:
   push:
-    credentials: ${FIREBASE_CREDENTIALS:/config/firebase/dcross-web-firebase-adminsdk.json}
+    credentials: ${FIREBASE_CREDENTIALS:/web/config/firebase/dcross-web-firebase-adminsdk.json}
 self-newcar:
   upload-dir: ${SELF_NEWCAR_UPLOAD_DIR:/web/upload}

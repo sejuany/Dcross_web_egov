@@ -97,3 +97,4 @@ UPDATE_GUIDE.md
 config/firebase-push-setup.txt
 postman/collections/DcrossPushRelay.postman_collection.json
 .gitignore
+*.spec.jsx

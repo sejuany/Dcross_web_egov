@@ -52,3 +52,23 @@ export async function subscribeToPushMessages(callback) {
   if (pushStatus() === 'unsupported' || !(await isSupported())) return () => {};
   return onMessage(getPushMessaging(), callback);
 }
+
+export async function showForegroundPushNotification(payload) {
+  if (pushStatus() !== 'granted') return false;
+  try {
+    const registration = await navigator.serviceWorker.getRegistration('/');
+    if (!registration?.active || typeof registration.showNotification !== 'function') return false;
+    await registration.showNotification(payload.notification?.title || '새 알림', {
+      body: payload.notification?.body || '알림센터에서 확인해 주세요.',
+      icon: '/dacos_white_only_logo192.png',
+      ...(payload.messageId ? { tag: payload.messageId } : {}),
+      data: {
+        numplateForeground: true,
+        url: payload.data?.url || payload.fcmOptions?.link || '/numplateapp/notifications',
+      },
+    });
+    return true;
+  } catch {
+    return false;
+  }
+}
