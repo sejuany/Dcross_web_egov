@@ -10,6 +10,7 @@ import '../../../styles/owner/OwnerNormal.css';
 import AddressSearch from '../../common/AddressSearch'; // 주소 입력
 
 import JointOwner from './JointOwner';
+import PrivateBusinessChoice from './PrivateBusinessChoice';
 
 // 셀프등록 버튼을 숨길 회사는 여기에서 추가/제거한다.
 const SELF_REGISTRATION_HIDDEN_COMPANY_IDS = new Set(['WA001']);
@@ -23,6 +24,8 @@ const OwnerPersonal = ({
 	setDsNewCar,
 	dsOwnerInfo,
 	setDsOwnerInfo,
+    ownerType,
+    onOwnerTypeChange,
     handleChange,
 	saveProcess,
 	address
@@ -219,7 +222,10 @@ const OwnerPersonal = ({
 			    </div>
 			</div>
 	
+            <PrivateBusinessChoice value={ownerType} onChange={onOwnerTypeChange} />
+
 			{/* 등록번호 */}
+			{ownerType && (
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
 			        등록번호
@@ -234,9 +240,9 @@ const OwnerPersonal = ({
 						    onChange={handleChange}
 						>
 						    <option value="">선택</option>
-						    <option value="R">주민등록번호</option>
-						    <option value="B">법인등록번호</option>
-						    <option value="F">외국인등록번호</option>
+						    {ownerType !== 'CORPORATE' && <option value="R">주민등록번호</option>}
+						    {(!ownerType || ownerType === 'CORPORATE') && <option value="B">법인등록번호</option>}
+						    {ownerType !== 'CORPORATE' && <option value="F">외국인등록번호</option>}
 						</select>
 	
 						<SplitInput
@@ -261,8 +267,9 @@ const OwnerPersonal = ({
 			    </div>
 			</div>
 			
+			)}
 			{/* 사업자등록번호 */}
-			{isCorporate && (
+			{ownerType === 'CORPORATE' && isCorporate && (
 			    <div className="wa-form-row">
 			        <label className="wa-form-label">
 			            사업자등록번호

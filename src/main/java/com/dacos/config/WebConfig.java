@@ -61,6 +61,7 @@ public class WebConfig implements WebMvcConfigurer {
                         "/api/member/check-id",
                         "/api/member/signup",
                         "/api/customer/**",
+                        "/api/attach/form",
                         "/api/status",
                         "/api/log/login-enter",
                         "/api/telegram/send",

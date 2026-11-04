@@ -229,6 +229,54 @@
     background: var(--wa-blue-dark);
 }
 
+.wa-form-row.wa-lease-address-row {
+    align-items: start;
+}
+
+@media (min-width: 761px) {
+    .wa-lease-address-row > .wa-form-label,
+    .wa-lease-address-row > .wa-form-label-wrap {
+        padding-top: 10px;
+    }
+}
+
+.wa-lease-address-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 2fr) minmax(0, 1fr);
+    gap: 8px 10px;
+}
+
+.wa-lease-address-fields > :first-child {
+    grid-column: 1 / -1;
+}
+
+.wa-input.wa-lease-address:disabled {
+    background: #f4f6fa;
+    color: #526074;
+    opacity: 1;
+}
+
+.wa-lease-address-request {
+    margin-top: 7px;
+    padding: 5px 8px;
+    border: 1px solid #d4dee8;
+    border-radius: 6px;
+    background: #fdfeff;
+    color: #334e68;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+}
+
+.wa-lease-address-request:hover:not(:disabled) {
+    background: #e6edf5;
+}
+
+.wa-lease-address-request:disabled {
+    opacity: .5;
+    cursor: default;
+}
+
 /* =========================================================
  * Divider
  * ========================================================= */
@@ -2452,12 +2500,29 @@ hr.wa-divider.hr2 {
 
 .wa-private-business-options {
     display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
+    grid-template-columns: repeat(3, minmax(0, 1fr));
     gap: 10px;
 }
 
 .wa-private-business-options .wa-option-btn {
     width: 100%;
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    box-sizing: border-box;
+}
+
+.wa-owner-type-radio {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    opacity: 0;
+}
+
+.wa-private-business-options .wa-option-btn:focus-within {
+    outline: 2px solid var(--wa-blue);
+    outline-offset: 2px;
 }
 
 .wa-reject-summary {
@@ -2852,6 +2917,16 @@ hr.wa-divider.hr2 {
 
     .wa-request-page .wa-form-label-wrap {
         gap: 5px;
+    }
+
+    .wa-request-page .wa-lease-address-row > .wa-form-label-wrap {
+        flex-direction: row;
+        align-items: center;
+        gap: 8px;
+    }
+
+    .wa-request-page .wa-lease-address-row .wa-lease-address-request {
+        margin-top: 0;
     }
 
     .wa-request-page .wa-form-sub-label {

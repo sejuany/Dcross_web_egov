@@ -101,6 +101,9 @@ const AddressSearch = ({
 	handleChange,
 	onSelect,
 	onClear,
+	onAddressFocus,
+	addressLabel,
+	confirmMissingDetail = true,
 	showSameCheckbox = false,
 	showBaseAddressCheckbox = false,
 	onSameChange,
@@ -142,7 +145,7 @@ const AddressSearch = ({
 	const handleDetailBlur = async () => {
 	    detailInput.onBlur(); // 기존 commit
 
-	    if (addressInput.value && !detailInput.value.trim()) {
+	    if (confirmMissingDetail && addressInput.value && !detailInput.value.trim()) {
 
 			const ok = await gf.confirm(
 			    '상세주소가 입력되지 않았습니다.\n상세주소 없이 진행하시겠습니까?',
@@ -160,7 +163,7 @@ const AddressSearch = ({
 			style={{ alignItems: 'flex-start' }}
 		>
 
-            <label className="wa-form-label"
+            {label && <label className="wa-form-label"
 				   style={{ marginTop: '10px' }}
 			>
                 {label}
@@ -184,7 +187,7 @@ const AddressSearch = ({
 				        />
 				    </label>
 				)}
-            </label>
+            </label>}
 			
 
             <div className="wa-form-control">
@@ -197,11 +200,13 @@ const AddressSearch = ({
 						autoComplete="off"
 						name={type}
 						data-type={dataType}
+						aria-label={addressLabel}
 						value={addressInput.value}
 						onChange={addressInput.onChange}
 						onCompositionStart={addressInput.onCompositionStart}
 						onCompositionEnd={addressInput.onCompositionEnd}
 						onBlur={addressInput.onBlur}
+						onFocus={onAddressFocus}
 						onKeyDown={address.handleKeyDown}
 						placeholder={placeholder}
 						maxLength={addressMaxLength}
@@ -211,6 +216,7 @@ const AddressSearch = ({
 				        <button
 				            type="button"
 				            className="wa-clear-btn"
+				            aria-label="주소 지우기"
 							onClick={() => onClear?.(type)}
 				        >
 				            ×
@@ -220,6 +226,7 @@ const AddressSearch = ({
 				    <button
 				        type="button"
 				        className="wa-search-btn"
+				        aria-label="주소 검색"
 						onClick={address.handleSearch}
 				    >
 				        <Search size={18} />

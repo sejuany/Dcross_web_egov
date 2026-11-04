@@ -7,6 +7,7 @@ import AddressSearch from '../../common/AddressSearch';
 
 // 분리 입력 (주민번호, 사업자번호, 휴대폰 등)
 import SplitInput from '../../common/SplitInput';
+import PrivateBusinessChoice from './PrivateBusinessChoice';
 
 const OwnerUserLease = ({
 	dsService,
@@ -16,6 +17,8 @@ const OwnerUserLease = ({
 	dsCarNoDetach,
 	dsBaseList,
 	setDsOwnerInfo,
+    ownerType,
+    onOwnerTypeChange,
 	handleChange,
 	onSave,
 	address
@@ -311,7 +314,10 @@ const OwnerUserLease = ({
                 </div>
             </div>
 
+            <PrivateBusinessChoice value={ownerType} onChange={onOwnerTypeChange} />
+
 			{/* 등록번호 */}
+			{ownerType && (
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
 			        등록번호
@@ -326,9 +332,9 @@ const OwnerUserLease = ({
 						    onChange={handleChange}
 						>
 						    <option value="">선택</option>
-						    <option value="R">주민등록번호</option>
-						    <option value="F">외국인등록번호</option>
-						    <option value="B">법인등록번호</option>
+						    {ownerType !== 'CORPORATE' && <option value="R">주민등록번호</option>}
+						    {ownerType !== 'CORPORATE' && <option value="F">외국인등록번호</option>}
+						    {(!ownerType || ownerType === 'CORPORATE') && <option value="B">법인등록번호</option>}
 						</select>
 
 						<SplitInput
@@ -353,8 +359,9 @@ const OwnerUserLease = ({
 			    </div>
 			</div>
 			
+			)}
 			{/* 사업자등록번호 */}
-			{isCorporate && (
+			{ownerType === 'CORPORATE' && isCorporate && (
 			    <div className="wa-form-row">
 			        <label className="wa-form-label">
 			            사업자등록번호

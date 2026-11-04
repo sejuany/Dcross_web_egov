@@ -562,6 +562,7 @@
 	        SELECT CAR_NO
 	        FROM TM_NUMPLATE_LIST
 	        WHERE USE_YN = 'N'
+	          AND NUM_KIND = #{NUM_KIND}
 	          AND CAR_NO IN
 	          <foreach collection="NUM_LIST"
 	                   item="carNo"
@@ -728,7 +729,7 @@
 	</select>
 
 	<!-- 공개 링크의 서비스 정보와 조회 횟수/조회 시각을 가져온다. 화면 조회 자체는 행을 잠그지 않는다. -->
-	<!-- 법인 판단은 리스/이용자명의 리스의 대표 계약자(DEBTOR_GB), 그 외에는 차량 등록구분(REG_GB)을 따른다. -->
+	<!-- 일반 리스는 계약자(DEBTOR_GB), 현금/할부·이용자명의 리스는 대표소유자(REG_GB)를 따른다. -->
 	<select id="selectCustomerNumplateAccess" parameterType="map" resultType="map">
 	    SELECT D.SERVICE_ID, D.CONFIRM_NO, D.NUMPLATE_MSG_TOKEN,
 	           NVL(D.NUMPLATE_SELECT_COUNT, 0) AS NUMPLATE_SELECT_COUNT,
@@ -742,7 +743,7 @@
 	           N.BUY_AMT, N.NUMPLATE_GB AS SAVED_NUMPLATE_GB,
 	           CASE
 	               WHEN (CASE
-	                         WHEN N.TASK_CD = 'LEASE' AND N.PROC_CD IN ('I', 'C')
+	                         WHEN N.TASK_CD = 'LEASE' AND N.PROC_CD = 'I'
 	                         THEN O.DEBTOR_GB
 	                         ELSE N.REG_GB
 	                     END) = 'B'
@@ -776,7 +777,7 @@
 	                WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
 	           )
 	       AND (CASE
-	                WHEN N.TASK_CD = 'LEASE' AND N.PROC_CD IN ('I', 'C')
+	                WHEN N.TASK_CD = 'LEASE' AND N.PROC_CD = 'I'
 	                THEN (SELECT O.DEBTOR_GB
 	                        FROM TR_OWNERINFO O
 	                       WHERE O.SERVICE_ID = N.SERVICE_ID AND O.SEQ = 0)

@@ -1234,13 +1234,6 @@ const NewcarInfo = ({
         });
     }, [isWooriLease, dsNewCar.BASE_BRANCH_ID, dsService.SERVICE_ID, setDsNewCar]);
 
-    const isPrivateBusinessEligible = (
-        (
-            (dsNewCar.TASK_CD === 'NORML' && dsNewCar.PROC_CD === 'I')
-            || (dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'C')
-        )
-        && ['R', 'F'].includes(dsNewCar.REG_GB)
-    );
     const isJsaEligibleAddress = ['대성동길', '조산리'].some(
         keyword => String(dsNewCar.BASE_ADDRESS ?? '').includes(keyword)
     );
@@ -1442,16 +1435,6 @@ const NewcarInfo = ({
 
         setDsTaxReceipt(prev => (typeof updater === 'function' ? updater(prev) : { ...prev, ...updater }));
     }, [setDsTaxReceipt]);
-
-    useEffect(() => {
-        const nextPrivateBusinessYn = (
-            isPrivateBusinessEligible && dsTaxReceipt.ETC1 === 'Y'
-        ) ? 'Y' : 'N';
-
-        if (dsTaxReceipt.ETC1 !== nextPrivateBusinessYn) {
-            updateTaxReceipt({ ETC1: nextPrivateBusinessYn });
-        }
-    }, [dsTaxReceipt.ETC1, isPrivateBusinessEligible, updateTaxReceipt]);
 
     // CommonSelect의 표준 change event를 dsNewCar 필드 갱신으로 변환한다.
     // 기존 값과 같으면 이전 객체를 그대로 반환해 불필요한 부모 렌더를 막는다.
@@ -1869,7 +1852,7 @@ const NewcarInfo = ({
         setReceiptType('');
         setTaxReceiptSameOwner(false);
         setCashReceiptPhoneSource('');
-        updateTaxReceipt({ GUBUN: '', ETC1: 'N' });
+        updateTaxReceipt({ GUBUN: '' });
     };
 
     const handleCashReceiptPhoneSource = (source, checked) => {
@@ -2135,31 +2118,6 @@ const NewcarInfo = ({
 											    />
 											)}
 										</div>
-                                        {isPrivateBusinessEligible && (
-                                            <div className="wa-form-row compact wa-private-business-row">
-                                                <label className="wa-form-label">개인사업자 여부</label>
-                                                <div className="wa-form-control">
-                                                    <div className="wa-private-business-options">
-                                                        <button
-                                                            type="button"
-                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 === 'Y' ? 'active' : ''}`}
-                                                            aria-pressed={dsTaxReceipt.ETC1 === 'Y'}
-                                                            onClick={() => updateTaxReceipt({ ETC1: 'Y' })}
-                                                        >
-                                                            예
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 !== 'Y' ? 'active' : ''}`}
-                                                            aria-pressed={dsTaxReceipt.ETC1 !== 'Y'}
-                                                            onClick={() => updateTaxReceipt({ ETC1: 'N' })}
-                                                        >
-                                                            아니오
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
                                     </>
                                 ) : (
                                     <>
@@ -2271,31 +2229,6 @@ const NewcarInfo = ({
                                             </div>
                                         </div>
 
-                                        {isPrivateBusinessEligible && (
-                                            <div className="wa-form-row compact wa-private-business-row">
-                                                <label className="wa-form-label">개인사업자 여부</label>
-                                                <div className="wa-form-control">
-                                                    <div className="wa-private-business-options">
-                                                        <button
-                                                            type="button"
-                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 === 'Y' ? 'active' : ''}`}
-                                                            aria-pressed={dsTaxReceipt.ETC1 === 'Y'}
-                                                            onClick={() => updateTaxReceipt({ ETC1: 'Y' })}
-                                                        >
-                                                            예
-                                                        </button>
-                                                        <button
-                                                            type="button"
-                                                            className={`wa-option-btn ${dsTaxReceipt.ETC1 !== 'Y' ? 'active' : ''}`}
-                                                            aria-pressed={dsTaxReceipt.ETC1 !== 'Y'}
-                                                            onClick={() => updateTaxReceipt({ ETC1: 'N' })}
-                                                        >
-                                                            아니오
-                                                        </button>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                        )}
 											
 											{/* MAIL1/2는 세금계산서 선택 시에만 입력한다. */}
                                             <div className="wa-form-row compact">

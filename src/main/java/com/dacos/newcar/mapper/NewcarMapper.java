@@ -38,6 +38,13 @@ public interface NewcarMapper {
      * @return 상세 정보 (Map으로 반환하여 모든 컬럼 포함)
      */
     Map<String, Object> getNewCarDetail(String serviceId);
+
+    Map<String, Object> getLeaseAddressNotificationTarget(@Param("serviceId") String serviceId);
+
+    int appendLeaseAddressRequestMemo(@Param("serviceId") String serviceId,
+            @Param("baseBranchId") String baseBranchId, @Param("memo") String memo);
+
+    String getLeaseAddressRequestMemo(@Param("serviceId") String serviceId);
     /** 회사별 Maker와 차량명 기준 차량제원 조회함 */
     Map<String, Object> getCarSpec(
             @Param("maker") String maker,

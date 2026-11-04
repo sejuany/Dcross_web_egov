@@ -258,7 +258,7 @@ const ConfirmInfo = ({
 								<div className="wa-confirm-item">
 									<span>리스 계약자 등록번호</span>
 									<strong>
-										{dsOwnerInfo.DEBTOR_GB === 'C'
+										{dsOwnerInfo.DEBTOR_GB === 'B'
 											? formatBusinessNo(dsOwnerInfo.DEBTOR_BIZ_NO)
 											: gf.formatRegNo(dsOwnerInfo.DEBTOR_REG_NO)}
 									</strong>

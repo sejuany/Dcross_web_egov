@@ -89,8 +89,8 @@ const CarInfo = ({
 	const errorReportRows = actionHistoryModal.rows.filter(row => row.EVENT_CD === 'ERROR_REPORT');
 	// 번호판 배송 지점 목록
 	const [deliveryList, setDeliveryList] = useState([]);
-	// 법인 번호판 (리스/이용자명의 리스는 소유자정보의 등록구분, 8,000만원 이상)
-	const isLease = dsNewCar.TASK_CD === 'LEASE' && ['I', 'C'].includes(dsNewCar.PROC_CD);
+	// 일반 리스는 계약자 구분, 현금/할부·이용자명의 리스는 대표소유자 구분으로 판단한다.
+	const isLease = dsNewCar.TASK_CD === 'LEASE' && dsNewCar.PROC_CD === 'I';
 	const registrationGb = isLease ? dsOwnerInfo.DEBTOR_GB : dsNewCar.REG_GB;
 	const isCorpNumplate = registrationGb === 'B' && Number(dsNewCar.BUY_AMT) >= 80000000;
 	// 하이브리드 차량 여부
@@ -274,6 +274,10 @@ const CarInfo = ({
 		    gf.alert('차대번호 확인 필요');
 		    return;
 		}
+		if (isCorpNumplate && !['FG', '2G'].includes(dsNewCar.NUMPLATE_GB)) {
+			gf.alert('법인 번호판 종류를 먼저 선택해 주세요.');
+			return;
+		}
 		
 	    // SERVICE_ID 체크
 	    if (!dsService.SERVICE_ID) {
@@ -346,7 +350,7 @@ const CarInfo = ({
 				)}
 				
 				{/* 하이브리드 번호판(폴스타 제외) */}
-				{!isPostNumplate && isHybrid && (
+				{!isPostNumplate && isHybrid && !isCorpNumplate && (
 					<div className="wa-form-row">
 					    <label className="wa-form-label">
 					        번호판 종류

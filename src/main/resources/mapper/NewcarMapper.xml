@@ -674,6 +674,31 @@
         WHERE SERVICE_ID = #{serviceId}
 	</select>
 
+	<select id="getLeaseAddressNotificationTarget" resultType="map">
+	    SELECT TN.SERVICE_ID, TN.CARID_NO, TN.BASE_BRANCH_ID, TN.OWNER_NM, TB.BRANCH_NM, TMD.MEMBER_NM,
+	           (SELECT CODE_NM FROM TM_CODE WHERE GROUP_ID = 'TEAMS' AND CODE_ID = 'NEWC') AS CODE_NM
+	      FROM TR_NEWCAR TN
+	      JOIN TR_SERVICE TS ON TS.SERVICE_ID = TN.SERVICE_ID
+	      LEFT JOIN TM_BRANCH TB ON TB.COMPANY_ID = TS.COMPANY_ID AND TB.BRANCH_ID = TS.BRANCH_ID
+	      LEFT JOIN TM_MEMBER_DT TMD ON TMD.LOGIN_ID = TS.MEMBER_ID
+	     WHERE TN.SERVICE_ID = #{serviceId}
+	       AND TN.TASK_CD = 'LEASE'
+	       AND TN.PROC_CD = 'I'
+	</select>
+
+	<update id="appendLeaseAddressRequestMemo">
+	    UPDATE TR_NEWCAR
+	       SET MEMO_TX = CASE WHEN MEMO_TX IS NULL THEN #{memo} ELSE MEMO_TX || CHR(10) || #{memo} END
+	     WHERE SERVICE_ID = #{serviceId}
+	       AND BASE_BRANCH_ID = #{baseBranchId}
+	       AND TASK_CD = 'LEASE'
+	       AND PROC_CD = 'I'
+	</update>
+
+	<select id="getLeaseAddressRequestMemo" resultType="string">
+	    SELECT MEMO_TX FROM TR_NEWCAR WHERE SERVICE_ID = #{serviceId}
+	</select>
+
 	<!-- 신청건 중 차대번호 조회 -->
 	<select id="selectDuplicateCarIdNO" parameterType="map" resultType="java.util.Map">
 	    SELECT SV.SERVICE_ID

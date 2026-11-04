@@ -549,7 +549,9 @@ const WaNewcarRequest = ({
 	const carpMailRequired = companyId === 'WA001' || carpMailYn === 'Y';
 	const carpMailGuide = registrationMailGuide(companyId, carpMailYn);
 	useEffect(() => {
-		if (skipFeeReceipt && dsTaxReceipt.GUBUN) setDsTaxReceipt({ ...initialDsTaxReceipt });
+		if (skipFeeReceipt && dsTaxReceipt.GUBUN) {
+			setDsTaxReceipt(prev => ({ ...initialDsTaxReceipt, ETC1: prev.ETC1 }));
+		}
 	}, [skipFeeReceipt, dsTaxReceipt.GUBUN]);
 	// 공통코드 그룹별 목록. CommonSelect와 코드명 표시에서 사용한다.
 	const [codes, setCodes] = useState({});
@@ -1374,8 +1376,34 @@ const WaNewcarRequest = ({
 	        : [];
 	};
 	
+	const ownerRegistrationGb = purchaseType === 'LEASE' ? dsOwnerInfo.DEBTOR_GB : dsNewCar.REG_GB;
+	const ownerType = dsTaxReceipt.ETC1 === 'Y' ? 'PRIVATE'
+		: dsTaxReceipt.ETC1 === 'N'
+			? (['B', 'C'].includes(ownerRegistrationGb) ? 'CORPORATE' : 'PERSONAL') : '';
+
+	const handleOwnerTypeChange = (value) => {
+		setDsTaxReceipt(prev => ({ ...prev, ETC1: value === 'PRIVATE' ? 'Y' : value ? 'N' : '' }));
+		if (!value) return;
+		const corporate = value === 'CORPORATE';
+
+		if (purchaseType === 'LEASE') {
+			setDsOwnerInfo(prev => {
+				const registrationGb = corporate ? 'B' : ['B', 'C'].includes(prev.DEBTOR_GB) ? '' : prev.DEBTOR_GB;
+				return registrationGb === prev.DEBTOR_GB ? prev
+					: { ...prev, DEBTOR_GB: registrationGb, DEBTOR_REG_NO: '', DEBTOR_BIZ_NO: '' };
+			});
+		} else {
+			setDsNewCar(prev => {
+				const registrationGb = corporate ? 'B' : prev.REG_GB === 'B' ? '' : prev.REG_GB;
+				return registrationGb === prev.REG_GB ? prev
+					: { ...prev, REG_GB: registrationGb, REG_NO: '', BIZ_NO: '' };
+			});
+		}
+	};
+
 	// 차량 구매 방식 정보 저장
 	const handlePurchaseTypeSelect = async (option) => {
+		if (purchaseType === option.value) return;
 		console.log(purchaseType);
 		
 		// 업무 구분 변경시 초기화 될 정보 (공동명의 테이블)		
@@ -1437,6 +1465,7 @@ const WaNewcarRequest = ({
             PROC_CD: option.procCd
         }));
 
+		setDsTaxReceipt(prev => ({ ...prev, ETC1: '' }));
 	    setOwnerType(option.value);
 	};
 
@@ -1734,7 +1763,7 @@ const WaNewcarRequest = ({
 			dsOwnerInfo: newDsOwnerInfo ? { ...newDsOwnerInfo } : { ...dsOwnerInfo },
 		    dsOwnerInfo1,
 			dsCarNoDetach: newDsCarNoDetach ? { ...newDsCarNoDetach } : { ...dsCarNoDetach },
-            dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt } : dsTaxReceipt,
+            dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt, ETC1: dsTaxReceipt.ETC1 } : dsTaxReceipt,
 
 		    dsPaymentList: newDsPaymentList ? [...newDsPaymentList] : [...dsPaymentList]
 		};
@@ -2130,7 +2159,7 @@ const WaNewcarRequest = ({
 	        dsOwnerInfo,
 	        dsOwnerInfo1,
 	        dsCarNoDetach,
-			dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt } : dsTaxReceipt,
+			dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt, ETC1: dsTaxReceipt.ETC1 } : dsTaxReceipt,
 	        dsPaymentList: [...dsPaymentList]
 	    };
 
@@ -2367,6 +2396,10 @@ const WaNewcarRequest = ({
 	const validateOwnerStep = () => {
 		let message = requireValue(purchaseType, '차량 구매 방식')
 			|| requireValue(dsNewCar.TASK_CD, '업무구분');
+		const registrationGb = purchaseType === 'LEASE' ? dsOwnerInfo.DEBTOR_GB : dsNewCar.REG_GB;
+		if (dsTaxReceipt.ETC1 === 'Y' && !['R', 'F'].includes(registrationGb)) {
+			return '개인사업자는 주민등록번호 / 외국인등록번호만 입력 가능합니다. (법인등록번호 입력 불가)';
+		}
 		const selectedLeaseBase = dsBaseList.find(item => (
 			String(item.BASE_ID) === String(dsNewCar.BASE_BRANCH_ID)
 		));
@@ -2380,7 +2413,7 @@ const WaNewcarRequest = ({
 		}
 
 		if (purchaseType === 'LEASE') {
-			const debtorRegistrationNo = dsOwnerInfo.DEBTOR_GB === 'C'
+			const debtorRegistrationNo = dsOwnerInfo.DEBTOR_GB === 'B'
 				? dsOwnerInfo.DEBTOR_BIZ_NO
 				: dsOwnerInfo.DEBTOR_REG_NO;
 
@@ -2869,6 +2902,8 @@ const WaNewcarRequest = ({
 											setDsNewCar={setDsNewCar}
 											dsOwnerInfo={dsOwnerInfo}
 											setDsOwnerInfo={setDsOwnerInfo}
+											ownerType={ownerType}
+											onOwnerTypeChange={handleOwnerTypeChange}
 											handleChange={handleChange}
 											saveProcess={saveProcess}
 											
@@ -2886,6 +2921,8 @@ const WaNewcarRequest = ({
 											dsCarNoDetach={dsCarNoDetach}
 											dsBaseList={dsBaseList}
 											setDsOwnerInfo={setDsOwnerInfo}
+											ownerType={ownerType}
+											onOwnerTypeChange={handleOwnerTypeChange}
 											handleChange={handleChange}
 											onSave={saveProcess}
 										/>
@@ -2901,6 +2938,8 @@ const WaNewcarRequest = ({
 											dsBaseList={dsBaseList}
 											dsOwnerInfo={dsOwnerInfo}
 											setDsOwnerInfo={setDsOwnerInfo}
+											ownerType={ownerType}
+											onOwnerTypeChange={handleOwnerTypeChange}
 											handleChange={handleChange}
 											onSave={saveProcess}
 											

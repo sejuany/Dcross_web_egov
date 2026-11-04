@@ -151,6 +151,64 @@ public class NewcarService {
         return newcarMapper.getNewCarList(request);
     }
 
+    @Transactional
+    public String notifyLeaseAddressChange(Map<String, Object> request, UserDto user) {
+        String serviceId = requestValue(request, "SERVICE_ID", "신청번호가 없습니다.");
+        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
+
+        String addressType = switch (requestValue(request, "TARGET", "변경할 주소 종류를 선택해 주세요.")) {
+            case "head" -> "본점주소";
+            case "base" -> "사용본거지";
+            default -> throw new BusinessException("변경할 주소 종류를 확인해 주세요.", 400);
+        };
+        String address = requestValue(request, "ADDRESS", "변경할 주소를 입력해 주세요.");
+        String detail = Objects.toString(request.get("ADDRESS_DT"), "").trim();
+        String postNo = Objects.toString(request.get("POST_NO"), "").trim();
+        if (address.length() > 70 || detail.length() > 70
+                || address.chars().anyMatch(Character::isISOControl)
+                || detail.chars().anyMatch(Character::isISOControl)
+                || (!postNo.isEmpty() && !postNo.matches("[0-9]{5,6}|[0-9]{3}-[0-9]{3}"))) {
+            throw new BusinessException("변경할 주소, 상세주소 또는 우편번호를 확인해 주세요.", 400);
+        }
+
+        Map<String, Object> target = newcarMapper.getLeaseAddressNotificationTarget(serviceId);
+        String carIdNo = target == null ? "" : Objects.toString(target.get("CARID_NO"), "");
+        if (carIdNo.isBlank()) {
+            throw new BusinessException("저장된 리스 신청건의 차대번호를 확인해 주세요.", 400);
+        }
+        String baseBranchId = requestValue(request, "BASE_BRANCH_ID", "리스사를 선택해 주세요.");
+        if (!baseBranchId.equals(Objects.toString(target.get("BASE_BRANCH_ID"), ""))) {
+            throw new BusinessException("리스사 선택을 저장한 후 다시 요청해 주세요.", 400);
+        }
+
+        String team = Objects.toString(target.get("CODE_NM"), "");
+        if (team.isBlank()) {
+            throw new BusinessException("신차사업팀 알림 수신 대상이 설정되지 않았습니다.", 500);
+        }
+
+        String branch = Objects.toString(target.get("BRANCH_NM"), "").trim();
+        String specialist = Objects.toString(target.get("MEMBER_NM"), "").trim();
+        String leaseCompany = Objects.toString(target.get("OWNER_NM"), "").trim();
+        if (branch.isEmpty() || specialist.isEmpty() || leaseCompany.isEmpty()) {
+            throw new BusinessException("신청건의 지점, SP명 또는 리스사 정보를 확인해 주세요.", 400);
+        }
+        String memo = "%s %s : %s %s 수정 요청 => %s / %s / %s"
+                .formatted(branch, specialist, leaseCompany, addressType, address, detail, postNo);
+
+        Map<String, Object> board = new HashMap<>();
+        board.put("SERVICE_ID", serviceId);
+        board.put("CAR_NO", carIdNo);
+        board.put("CONTENT_TX", "[신차사업] 리스 사용본거지 수정 요청");
+        board.put("COMPANY_ID", team + ",call04,call15,call02");
+        if (common.insert(board, "insertTmBoard") != 1) {
+            throw new BusinessException("리스 주소 수정 요청 알림을 등록하지 못했습니다.", 500);
+        }
+        if (newcarMapper.appendLeaseAddressRequestMemo(serviceId, baseBranchId, memo) != 1) {
+            throw new BusinessException("리스 주소 수정 요청 메모를 추가하지 못했습니다.", 500);
+        }
+        return newcarMapper.getLeaseAddressRequestMemo(serviceId);
+    }
+
     /**
      * 신규등록 업무 화면의 문자 발송.
      * 수신 번호와 문구는 화면 용도상 변경할 수 있지만, 발송 대상 업무에 대한 수정 권한을 먼저 확인한다.
@@ -2339,7 +2397,7 @@ public class NewcarService {
 
 			// 공동소유자 데이터 정리 (하이픈, 공백, 줄바꿈, 쉼표 제거)
 		    normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
-		    normalizeTaxReceipt(mTaxReceipt, mNewCar);
+		    normalizeTaxReceipt(mTaxReceipt, mNewCar, lOwnerInfoList);
 
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
@@ -2619,7 +2677,8 @@ public class NewcarService {
 
     private void normalizeTaxReceipt(
             Map<String, Object> taxReceipt,
-            Map<String, Object> newCar) {
+            Map<String, Object> newCar,
+            List<Map<String, Object>> ownerInfo) {
         if (taxReceipt == null) {
             return;
         }
@@ -2650,7 +2709,11 @@ public class NewcarService {
         String procCd = Objects.toString(newCar != null ? newCar.get("PROC_CD") : null, "")
                 .trim()
                 .toUpperCase();
-        String regGb = Objects.toString(newCar != null ? newCar.get("REG_GB") : null, "")
+        boolean isLease = "LEASE".equals(taskCd) && "I".equals(procCd);
+        Object registrationGb = isLease
+                ? (ownerInfo == null || ownerInfo.isEmpty() ? null : ownerInfo.get(0).get("DEBTOR_GB"))
+                : (newCar != null ? newCar.get("REG_GB") : null);
+        String regGb = Objects.toString(registrationGb, "")
                 .trim()
                 .toUpperCase();
         String privateBusinessYn = Objects.toString(taxReceipt.get("ETC1"), "")
@@ -2659,18 +2722,24 @@ public class NewcarService {
         boolean isEligibleTask = (
                 "NORML".equals(taskCd) && "I".equals(procCd)
         ) || (
-                "LEASE".equals(taskCd) && "C".equals(procCd)
+                "LEASE".equals(taskCd) && ("I".equals(procCd) || "C".equals(procCd))
         );
         boolean isPersonalOwner = "R".equals(regGb) || "F".equals(regGb);
+        if (isEligibleTask && "Y".equals(privateBusinessYn) && !regGb.isEmpty() && !isPersonalOwner) {
+            throw new BusinessException("개인사업자는 주민등록번호 / 외국인등록번호만 입력 가능합니다. (법인등록번호 입력 불가)");
+        }
 
         taxReceipt.put(
                 "ETC1",
-                isEligibleTask && isPersonalOwner && "Y".equals(privateBusinessYn) ? "Y" : "N"
+                isEligibleTask && ("Y".equals(privateBusinessYn) || "N".equals(privateBusinessYn))
+                        ? privateBusinessYn : null
         );
     }
     
+    // 소유자 단계의 개인사업자 선택은 영수증 종류를 선택하기 전에도 보존한다.
     private boolean hasTaxReceipt(Map<String, Object> taxReceipt) {
-        return taxReceipt != null && !isEmpty(taxReceipt.get("GUBUN"));
+        return taxReceipt != null && (!isEmpty(taxReceipt.get("GUBUN"))
+                || "Y".equals(taxReceipt.get("ETC1")) || "N".equals(taxReceipt.get("ETC1")));
     }
 
     private void replaceTaxReceipt(String serviceId, Map<String, Object> taxReceipt) {
@@ -2720,7 +2789,7 @@ public class NewcarService {
 			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
 
 			normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
-            normalizeTaxReceipt(mTaxReceipt, mNewCar);
+            normalizeTaxReceipt(mTaxReceipt, mNewCar, lOwnerInfoList);
 
 		    logger.info("lOwnerInfoList >>> " + lOwnerInfoList);
 		    logger.info("lOwnerInfoList1 >>> " + lOwnerInfoList1);

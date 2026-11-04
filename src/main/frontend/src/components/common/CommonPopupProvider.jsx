@@ -110,6 +110,9 @@ const CommonPopupProvider = ({ children }) => {
                                 <button
                                     type="button"
                                     className="common-popup-btn cancel"
+                                    onKeyDown={event => {
+                                        if (event.key === 'Enter') event.stopPropagation();
+                                    }}
                                     onClick={() => close(false)}
                                 >
                                     {popupState.cancelText}

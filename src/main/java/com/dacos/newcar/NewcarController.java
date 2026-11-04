@@ -155,6 +155,14 @@ public class NewcarController {
         // 프론트엔드 호환: { "success": true, "data": {...} }
         return ResponseEntity.ok(ApiResponse.withKey("data", detail));
     }
+
+    @PostMapping("/lease-address-change/notify")
+    public ApiResponse<Map<String, String>> notifyLeaseAddressChange(
+            @RequestBody Map<String, Object> request, HttpSession session) {
+        UserDto user = AuthUtil.getLoginUser(session);
+        String memo = newcarService.notifyLeaseAddressChange(request, user);
+        return ApiResponse.ok(Map.of("MEMO_TX", memo));
+    }
     
     /**
      * 다건 상태 변경

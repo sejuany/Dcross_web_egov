@@ -486,6 +486,24 @@ public class NumplateSelectionService {
 	    String serviceId = Objects.toString(param.get("SERVICE_ID"), "").trim();
 	    serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
 
+	    Map<String, Object> target = newcarMapper.getNewCarDetail(serviceId);
+	    if (target == null) {
+	        throw new BusinessException("신차 정보를 찾을 수 없습니다.", 404);
+	    }
+	    if ("LEASE".equals(target.get("TASK_CD")) && "I".equals(target.get("PROC_CD"))) {
+	        target = new HashMap<>(target);
+	        List<Map<String, Object>> owners = newcarMapper.getOwnerInfoList(
+	                Map.of("SERVICE_ID", serviceId, "SEQ", "0"));
+	        target.put("DEBTOR_GB", owners == null || owners.isEmpty() ? null : owners.get(0).get("DEBTOR_GB"));
+	    }
+	    if (isPremiumCorporateNumplateTarget(target)) {
+	        String numKind = Objects.toString(param.get("NUM_KIND"), "").trim().toUpperCase();
+	        if (!List.of("FG", "2G").contains(numKind)) {
+	            throw new BusinessException("법인 번호판 종류를 먼저 선택해 주세요.", 400);
+	        }
+	        param.put("NUM_KIND", numKind);
+	    }
+
 	    List<String> sessionList =
 	        getNumplateSession(session, serviceId);
 
@@ -988,6 +1006,10 @@ public class NumplateSelectionService {
 		if (assignment == null) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
+		if (isPremiumCorporateNumplateTarget(assignment)
+				&& !hasSelectedNumplateType(Objects.toString(assignment.get("SAVED_NUMPLATE_GB"), ""))) {
+			throw new BusinessException("법인 번호판 종류를 먼저 선택해 주세요.");
+		}
 
 		Map<String, Object> originalAssignment = assignment;
 		// COUNT는 안 봄. 시작 시각이 없는 요청 중 UPDATE에 성공한 요청만 후보를 새로 추출한다.
@@ -1094,9 +1116,9 @@ public class NumplateSelectionService {
 				buyAmt = 0L;
 			}
 		}
-		// 리스/이용자명의 리스는 계약자 구분을 사용해 내부 입력 화면 및 매퍼의 법인 판단과 맞춘다.
+		// 일반 리스는 계약자, 이용자명의 리스를 포함한 나머지는 대표소유자로 판단한다.
 		boolean isLease = "LEASE".equals(assignment.get("TASK_CD"))
-				&& ("I".equals(assignment.get("PROC_CD")) || "C".equals(assignment.get("PROC_CD")));
+				&& "I".equals(assignment.get("PROC_CD"));
 		Object registrationGb = assignment.get(isLease ? "DEBTOR_GB" : "REG_GB");
 		return "B".equals(registrationGb) && buyAmt >= 80_000_000L;
 	}

@@ -658,7 +658,7 @@ const WaNewcarDetail = ({
 					            </div>
 			            <div className="wa-detail-row">
 			                <span className="wa-detail-name">리스 계약자 등록번호</span>
-			                <span>{dsOwnerInfo.DEBTOR_GB === 'C'
+			                <span>{dsOwnerInfo.DEBTOR_GB === 'B'
 						            ? (dsOwnerInfo.DEBTOR_BIZ_NO ? gf.mask(dsOwnerInfo.DEBTOR_BIZ_NO, 'BIZNO') : '-')
 						            : <MaskedRegNo value={dsOwnerInfo.DEBTOR_REG_NO} />}</span>
 			            </div>

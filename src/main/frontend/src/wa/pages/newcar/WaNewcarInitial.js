@@ -255,7 +255,7 @@ export const initialDsBaseList = [
 export const initialDsTaxReceipt = {
     SERVICE_ID: '',
     GUBUN: '',
-    ETC1: 'N',
+    ETC1: '',
     REG_NO: '',
     NAME: '',
     COMPANY_NM: '',
