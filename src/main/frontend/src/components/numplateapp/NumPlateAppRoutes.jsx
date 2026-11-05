@@ -3,6 +3,7 @@ import { Navigate, Route, Routes, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import NumPlateApp, { NumPlateInventory } from './NumPlateApp';
 import NumPlateAppLogin from './NumPlateAppLogin';
+import NumPlateSessionStatus from './NumPlateSessionStatus';
 import ProcessList from './ProcessList';
 import NReqDetail from './NReqDetail';
 import ProcessStatus from './ProcessStatus';
@@ -15,8 +16,11 @@ import IdCardUpload from './IdCardUpload';
 
 // 번호판 앱 전용 로그인으로 만든 세션만 하위 업무 화면에 접근할 수 있다.
 function NumPlateAppGuard({ children }) {
-  const { user } = useAuth();
+  const { user, numPlateSessionLoading, numPlateSessionError, retryNumPlateSession } = useAuth();
   const location = useLocation();
+  if (numPlateSessionLoading || numPlateSessionError) {
+    return <NumPlateSessionStatus loading={numPlateSessionLoading} error={numPlateSessionError} onRetry={retryNumPlateSession} />;
+  }
   const loginType = user?.login_GB || user?.LOGIN_GB;
   return loginType === 'NUMPLATE_APP'
     ? children

@@ -16,10 +16,12 @@ import Policy from './components/member/Policy';
 import NumPlateAppRoutes from './components/numplateapp/NumPlateAppRoutes';
 import WaNewcarGuide from './guide/WaNewcarGuide';
 import DacosRoutes from './dacos/DacosRoutes';
+import PwaManifest from './components/common/PwaManifest';
 
 function App() {
   return (
     <Router>
+      <PwaManifest />
       <AuthProvider>
         <CommonPopupProvider>
           <Routes>

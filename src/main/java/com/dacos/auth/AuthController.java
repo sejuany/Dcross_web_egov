@@ -16,8 +16,10 @@ import com.dacos.auth.dto.LoginRequest;
 import com.dacos.auth.dto.LoginResult;
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
+import com.dacos.config.LoginSessionPolicy;
 
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.servlet.http.HttpSession;
 
 @RestController
@@ -35,24 +37,29 @@ public class AuthController {
     private final AuthService authService;
     private final MobileOkService mobileOkService;
     private final WithAuthService withAuthService;
+    private final LoginSessionPolicy sessionPolicy;
 
-    AuthController(AuthService authService, MobileOkService mobileOkService, WithAuthService withAuthService) {
+    AuthController(AuthService authService, MobileOkService mobileOkService, WithAuthService withAuthService,
+            LoginSessionPolicy sessionPolicy) {
         this.authService = authService;
         this.mobileOkService = mobileOkService;
         this.withAuthService = withAuthService;
+        this.sessionPolicy = sessionPolicy;
     }
 
     @PostMapping("/login")
     public ResponseEntity<Map<String, Object>> login(
             @RequestBody LoginRequest request,
             HttpSession session,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         logger.info("[AuthController] login request - userId: {}", request.getUserId());
         String loginIp = getClientIp(httpRequest);
         LoginResult loginResult = authService.authenticateForLogin(request, loginIp);
 
         if (loginResult.isRequiresMobileAuth()) {
+            sessionPolicy.resetForErp(httpRequest, httpResponse, session);
             String pendingAuthToken = loginResult.getPendingAuthToken();
             session.removeAttribute(SESSION_USER);
             session.setAttribute(PENDING_LOGIN_USER, loginResult.getUser());
@@ -65,6 +72,7 @@ public class AuthController {
         session.removeAttribute(PENDING_LOGIN_USER);
         session.removeAttribute(PENDING_LOGIN_IP);
         session.removeAttribute(PENDING_AUTH_TOKEN);
+        sessionPolicy.resetForErp(httpRequest, httpResponse, session);
         session.setAttribute(SESSION_USER, loginResult.getUser());
         logger.info("[AuthController] login completed - userId: {}", request.getUserId());
 
@@ -100,15 +108,18 @@ public class AuthController {
     }
 
     @PostMapping("/logout")
-    public ResponseEntity<Map<String, Object>> logout(HttpSession session) {
+    public ResponseEntity<Map<String, Object>> logout(
+            HttpSession session, HttpServletRequest request, HttpServletResponse httpResponse) {
         UserDto user = (UserDto) session.getAttribute(SESSION_USER);
 
-        if (user != null) {
-            authService.logout(user.getLOGIN_ID(), user.getLOGIN_DT());
-            logger.info("[AuthController] logout - userId: {}", user.getLOGIN_ID());
+        try {
+            if (user != null) {
+                authService.logout(user.getLOGIN_ID(), user.getLOGIN_DT());
+                logger.info("[AuthController] logout - userId: {}", user.getLOGIN_ID());
+            }
+        } finally {
+            sessionPolicy.invalidate(request, httpResponse, session);
         }
-
-        session.invalidate();
 
         Map<String, Object> response = new HashMap<>();
         response.put("success", true);
@@ -139,7 +150,8 @@ public class AuthController {
     public ResponseEntity<Map<String, Object>> verifyWithAuth(
             @RequestBody Map<String, Object> request,
             HttpSession session,
-            HttpServletRequest httpRequest) {
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         Map<String, Object> response = new HashMap<>();
         Object startedAt = session.getAttribute(WITHAUTH_STARTED_AT);
@@ -163,6 +175,7 @@ public class AuthController {
             session.removeAttribute(PENDING_LOGIN_USER);
             session.removeAttribute(PENDING_LOGIN_IP);
             session.removeAttribute(PENDING_AUTH_TOKEN);
+            sessionPolicy.resetForErp(httpRequest, httpResponse, session);
             session.setAttribute(SESSION_USER, user);
 
             response.put("success", true);
@@ -215,7 +228,9 @@ public class AuthController {
     @PostMapping("/auth/mobile/verify")
     public ResponseEntity<Map<String, Object>> verifyMobileAuth(
             @RequestBody Map<String, Object> request,
-            HttpSession session) {
+            HttpSession session,
+            HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse) {
 
         // Complete login only after Mobile-OK confirms the pending user.
         Map<String, Object> response = new HashMap<>();
@@ -243,6 +258,7 @@ public class AuthController {
                 session.removeAttribute(MobileOkService.SESSION_CLIENT_TX_ID);
                 session.removeAttribute(MobileOkService.SESSION_PUBLIC_KEY);
                 session.removeAttribute(MobileOkService.SESSION_AUTH_TOKEN);
+                sessionPolicy.resetForErp(httpRequest, httpResponse, session);
                 session.setAttribute(SESSION_USER, user);
 
                 response.put("user", user);

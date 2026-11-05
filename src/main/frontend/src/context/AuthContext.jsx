@@ -26,16 +26,28 @@
  * };
  *
  * [세션 만료]
- * - 30분 동안 아무 활동이 없으면 자동으로 로그아웃됩니다.
+ * - ERP는 1시간, 번호판 앱은 유지 미선택 시 30분 미사용 후 로그아웃됩니다.
  * - 마우스 이동, 클릭, 키보드 입력이 있으면 타이머가 초기화됩니다.
  * - 세션 만료 시간은 TIMEOUT_MS 값을 조정하세요.
  */
-import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
+import { useLocation } from 'react-router-dom';
 
 // Context 생성 (초기값: undefined)
 const AuthContext = createContext();
+
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
+const NUMPLATE_TIMEOUT_MS = 30 * 60 * 1000;
+const MAX_TIMEOUT_MS = 2_147_483_647;
+const isNumPlateUser = (user) => (user?.login_GB || user?.LOGIN_GB) === 'NUMPLATE_APP';
+const readStoredUser = () => {
+    try {
+        return JSON.parse(sessionStorage.getItem('user') || 'null');
+    } catch {
+        return null;
+    }
+};
 
 const getDefaultLogoutRedirect = () => {
     const pathname = window.location.pathname || '';
@@ -56,16 +68,75 @@ export const useAuth = () => useContext(AuthContext);
  * App.js에서 <AuthProvider>로 감싸서 사용합니다.
  */
 export const AuthProvider = ({ children }) => {
-    // user 상태: 새로고침해도 유지되도록 localStorage에서 초기값 로드
-	const [sessionWarningOpen, setSessionWarningOpen] = useState(false);
-    const [user, setUser] = useState(() => {
-		//const savedUser = localStorage.getItem('user'); 기존 localStorage로 로그인정보저장
-        const savedUser = sessionStorage.getItem('user');
-        return savedUser ? JSON.parse(savedUser) : null;
-    });
 
-    // 세션 만료 시간: 30분 (밀리초)
-    // 변경하려면 이 값을 수정하세요 (예: 60 * 60 * 1000 = 1시간)
+    const { pathname } = useLocation();
+    const inNumPlateApp = pathname === '/numplateapp' || pathname.startsWith('/numplateapp/');
+    const [sessionWarningOpen, setSessionWarningOpen] = useState(false);
+    const [user, setUser] = useState(() => {
+        const savedUser = readStoredUser();
+        // 번호판 앱은 캐시 대신 서버에서 확인된 세션으로 복원한다.
+        return isNumPlateUser(savedUser) ? null : savedUser;
+    });
+    const [numPlateSession, setNumPlateSession] = useState(null);
+    const [numPlateSessionChecked, setNumPlateSessionChecked] = useState(false);
+    const [numPlateSessionError, setNumPlateSessionError] = useState('');
+    const sessionRequest = useRef(0);
+    const loggingOut = useRef(false);
+    const numPlateSessionLoading = inNumPlateApp && !numPlateSessionChecked;
+    const hasNumPlateUser = isNumPlateUser(user);
+
+    const saveUser = useCallback((userData, sessionPolicy = null) => {
+        setUser(userData);
+        setSessionWarningOpen(false);
+        setNumPlateSession(isNumPlateUser(userData) ? sessionPolicy : null);
+        sessionStorage.setItem('user', JSON.stringify(userData));
+    }, []);
+
+    const refreshNumPlateSession = useCallback(async () => {
+        if (loggingOut.current) return;
+        const requestId = ++sessionRequest.current;
+        try {
+            const response = await fetch('/api/numplateapp/session', {
+                credentials: 'same-origin', cache: 'no-store',
+            });
+            if (requestId !== sessionRequest.current) return;
+            if (response.status === 401) {
+                setUser((current) => isNumPlateUser(current) ? null : current);
+                setNumPlateSession(null);
+                if (isNumPlateUser(readStoredUser())) sessionStorage.removeItem('user');
+                setNumPlateSessionError('');
+                return;
+            }
+            if (!response.ok) throw new Error('Session check failed');
+            const data = await response.json();
+            if (requestId !== sessionRequest.current) return;
+            if (!isNumPlateUser(data.user) || typeof data.session?.rememberMe !== 'boolean'
+                    || (data.session.rememberMe && !Number.isFinite(Date.parse(data.session.expiresAt)))) {
+                throw new Error('Invalid session response');
+            }
+            saveUser(data.user, data.session);
+            setNumPlateSessionError('');
+        } catch {
+            if (requestId === sessionRequest.current) {
+                setNumPlateSessionError('로그인 상태를 확인하지 못했습니다. 연결을 확인한 후 다시 시도해 주세요.');
+            }
+        } finally {
+            if (requestId === sessionRequest.current) setNumPlateSessionChecked(true);
+        }
+    }, [saveUser]);
+
+    const retryNumPlateSession = useCallback(() => {
+        setNumPlateSessionChecked(false);
+        setNumPlateSessionError('');
+        refreshNumPlateSession();
+    }, [refreshNumPlateSession]);
+
+    useEffect(() => {
+        setNumPlateSessionChecked(false);
+        setNumPlateSessionError('');
+        if (inNumPlateApp) refreshNumPlateSession();
+        return () => { sessionRequest.current += 1; };
+    }, [inNumPlateApp, refreshNumPlateSession]);
 
     /**
      * logout - 로그아웃 처리
@@ -74,6 +145,9 @@ export const AuthProvider = ({ children }) => {
      * - 로그인 페이지로 이동
      */
 	const logout = useCallback(async (options = {}) => {
+        if (loggingOut.current) return;
+        loggingOut.current = true;
+        sessionRequest.current += 1;
         try {
             await axios.post('/api/logout', {});
         } catch (error) {
@@ -81,6 +155,7 @@ export const AuthProvider = ({ children }) => {
         }
 
 	    setUser(null);
+        setNumPlateSession(null);
 
 	    // 로그인 정보 제거
 	    sessionStorage.removeItem('user');
@@ -123,7 +198,10 @@ export const AuthProvider = ({ children }) => {
         const interceptorId = axios.interceptors.response.use(
             response => response,
             async error => {
-                if (error.response?.status === 401 && !handled) {
+                const path = (error.config?.url || '').split('?')[0];
+                const isNumPlateAuthAttempt = path === '/api/numplateapp/login'
+                    || path.startsWith('/api/numplateapp/passkeys/');
+                if (error.response?.status === 401 && !handled && !isNumPlateAuthAttempt) {
                     handled = true;
                     window.alert('로그인 세션이 만료되었습니다. 다시 로그인해 주세요.');
                     await logout();
@@ -140,15 +218,13 @@ export const AuthProvider = ({ children }) => {
      * login - 로그인 성공 시 호출
      * @param {object} userData - 서버에서 받은 사용자 정보
      */
-    const login = (userData) => {
-        console.log('AuthContext: Setting user data', userData);
-        setUser(userData);
-        // 새로고침해도 로그인 상태 유지를 위해 localStorage에 저장
-        //localStorage.setItem('user', JSON.stringify(userData));
-		// 로그인세션이 저절로 지워지게 하기 위해 local이 아닌 sessionStorage에 저장
-		sessionStorage.setItem('user', JSON.stringify(userData));
-        resetTimer(); // 세션 타이머 시작
-    };
+
+    const login = useCallback((userData, sessionPolicy = null) => {
+        sessionRequest.current += 1;
+        saveUser(userData, sessionPolicy);
+        setNumPlateSessionChecked(true);
+        setNumPlateSessionError('');
+    }, [saveUser]);
 
     /**
      * resetTimer - 세션 만료 타이머 초기화
@@ -158,25 +234,28 @@ export const AuthProvider = ({ children }) => {
 	    if (window.sessionWarningTimeout) clearTimeout(window.sessionWarningTimeout);
 	    if (window.sessionTimeout) clearTimeout(window.sessionTimeout);
 
+
 	    setSessionWarningOpen(false);
+        if (isNumPlateUser(user) && numPlateSession?.rememberMe) return;
+        const timeout = isNumPlateUser(user) ? NUMPLATE_TIMEOUT_MS : SESSION_TIMEOUT_MS;
 
 	    window.sessionWarningTimeout = setTimeout(() => {
 	        setSessionWarningOpen(true);
-	    }, SESSION_TIMEOUT_MS - 60 * 1000);
+	    }, timeout - 60 * 1000);
 
 	    window.sessionTimeout = setTimeout(() => {
 	        setSessionWarningOpen(false);
 	        alert('세션이 만료되었습니다. 다시 로그인해 주세요.');
 	        logout();
-	    }, SESSION_TIMEOUT_MS);
-	}, [logout]);
+	    }, timeout);
+	}, [logout, user, numPlateSession?.rememberMe]);
 
     /**
      * useEffect - 로그인 상태일 때 사용자 활동 감지 이벤트 등록
      * 로그아웃 시 이벤트 리스너 자동 제거
      */
     useEffect(() => {
-        if (user) {
+        if (user && !(isNumPlateUser(user) && numPlateSession?.rememberMe)) {
             // 이 이벤트들이 발생하면 세션 타이머를 초기화합니다
             const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart'];
             const handleActivity = () => resetTimer();
@@ -191,11 +270,41 @@ export const AuthProvider = ({ children }) => {
 			    if (window.sessionTimeout) clearTimeout(window.sessionTimeout);
 			};
         }
-    }, [user, resetTimer]);
+
+    }, [user, numPlateSession?.rememberMe, resetTimer]);
+
+    useEffect(() => {
+        if (!inNumPlateApp || !hasNumPlateUser) return undefined;
+        const checkVisibleSession = () => {
+            if (document.visibilityState !== 'hidden') refreshNumPlateSession();
+        };
+        window.addEventListener('focus', checkVisibleSession);
+        document.addEventListener('visibilitychange', checkVisibleSession);
+        return () => {
+            window.removeEventListener('focus', checkVisibleSession);
+            document.removeEventListener('visibilitychange', checkVisibleSession);
+        };
+    }, [inNumPlateApp, hasNumPlateUser, refreshNumPlateSession]);
+
+    useEffect(() => {
+        if (!inNumPlateApp || !hasNumPlateUser || !numPlateSession?.rememberMe) return undefined;
+        let timer;
+        const checkDeadline = () => {
+            const remaining = Date.parse(numPlateSession.expiresAt) - Date.now();
+            if (remaining <= 0) {
+                refreshNumPlateSession();
+            } else {
+                timer = setTimeout(checkDeadline, Math.min(remaining, MAX_TIMEOUT_MS));
+            }
+        };
+        checkDeadline();
+        return () => clearTimeout(timer);
+    }, [inNumPlateApp, hasNumPlateUser, numPlateSession?.rememberMe, numPlateSession?.expiresAt, refreshNumPlateSession]);
 
     // Context로 제공할 값: user(사용자 정보), login(로그인), logout(로그아웃)
     return (
-        <AuthContext.Provider value={{ user, login, logout, sessionWarningOpen, setSessionWarningOpen }}>
+        <AuthContext.Provider value={{ user, login, logout, sessionWarningOpen, setSessionWarningOpen,
+            numPlateSessionLoading, numPlateSessionError, retryNumPlateSession }}>
             {children}
         </AuthContext.Provider>
     );

@@ -134,13 +134,19 @@ public class NumPlatePasskeyService {
         }
     }
 
-    public String startLogin(HttpSession session) {
+    public boolean hasRegisteredPasskey(UserDto user) {
+        requireNumPlateUser(user);
+        String phoneHash = repository.phoneHash(normalizePhone(user.getMPHONE_NO()));
+        return !repository.getCredentialIdsForUsername(phoneHash).isEmpty();
+    }
+
+    public String startLogin(HttpSession session, boolean rememberMe) {
         // 휴대폰 번호를 묻지 않고 기기에 등록된 discoverable credential을 선택하게 한다.
         AssertionRequest request = relyingParty.startAssertion(
                 StartAssertionOptions.builder()
                         .userVerification(UserVerificationRequirement.REQUIRED)
                         .timeout(CEREMONY_TIMEOUT_MS).build());
-        session.setAttribute(LOGIN_STATE, new LoginState(request, System.currentTimeMillis()));
+        session.setAttribute(LOGIN_STATE, new LoginState(request, rememberMe, System.currentTimeMillis()));
         try {
             return request.toCredentialsGetJson();
         } catch (Exception exception) {
@@ -150,7 +156,7 @@ public class NumPlatePasskeyService {
     }
 
     @Transactional
-    public UserDto finishLogin(String responseJson, HttpSession session) {
+    public VerifiedLogin finishLogin(String responseJson, HttpSession session) {
         LoginState state = takeState(session, LOGIN_STATE, LoginState.class);
         try {
             AssertionResult result = relyingParty.finishAssertion(
@@ -170,7 +176,7 @@ public class NumPlatePasskeyService {
             if (repository.updateCounter(update) != 1) {
                 throw new BusinessException("등록된 생체 로그인 정보를 찾을 수 없습니다.", 401);
             }
-            return numPlateService.loginManagerByPasskeyHash(phoneHash);
+            return new VerifiedLogin(numPlateService.loginManagerByPasskeyHash(phoneHash), state.rememberMe());
         } catch (BusinessException exception) {
             throw exception;
         } catch (Exception exception) {
@@ -209,5 +215,7 @@ public class NumPlatePasskeyService {
             PublicKeyCredentialCreationOptions request, String phoneHash,
             ByteArray userHandle, long createdAt) { }
 
-    private record LoginState(AssertionRequest request, long createdAt) { }
+    public record VerifiedLogin(UserDto user, boolean rememberMe) { }
+
+    private record LoginState(AssertionRequest request, boolean rememberMe, long createdAt) { }
 }

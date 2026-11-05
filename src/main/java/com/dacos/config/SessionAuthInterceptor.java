@@ -20,6 +20,12 @@ import jakarta.servlet.http.HttpSession;
 @Component
 public class SessionAuthInterceptor implements HandlerInterceptor {
 
+    private final LoginSessionPolicy sessionPolicy;
+
+    public SessionAuthInterceptor(LoginSessionPolicy sessionPolicy) {
+        this.sessionPolicy = sessionPolicy;
+    }
+
     @Override
     public boolean preHandle(
             HttpServletRequest request,
@@ -31,6 +37,10 @@ public class SessionAuthInterceptor implements HandlerInterceptor {
         }
 
         HttpSession session = request.getSession(false);
+        if (sessionPolicy.isExpired(session)) {
+            sessionPolicy.invalidate(request, response, session);
+            session = null;
+        }
         Object loginUser = session == null ? null : session.getAttribute(AuthController.SESSION_USER);
 
         if (loginUser instanceof UserDto) {

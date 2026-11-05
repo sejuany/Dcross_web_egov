@@ -21,12 +21,15 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.auth.dto.UserDto;
 import com.dacos.common.ApiResponse;
+import com.dacos.common.BusinessException;
 import com.dacos.common.util.AuthUtil;
+import com.dacos.config.LoginSessionPolicy;
 import com.dacos.numplateApp.dto.NumPlateSearchRequest;
 import com.fasterxml.jackson.databind.JsonNode;
 
 import jakarta.servlet.http.HttpSession;
 import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpServletResponse;
 import jakarta.validation.Valid;
 
 /**
@@ -45,12 +48,14 @@ public class NumPlateController {
     private final NumPlateService numPlateService;
     private final NumPlatePasskeyService passkeyService;
     private final NumPlatePushService pushService;
+    private final LoginSessionPolicy loginSessionPolicy;
 
     public NumPlateController(NumPlateService numPlateService, NumPlatePasskeyService passkeyService,
-            NumPlatePushService pushService) {
+            NumPlatePushService pushService, LoginSessionPolicy loginSessionPolicy) {
         this.numPlateService = numPlateService;
         this.passkeyService = passkeyService;
         this.pushService = pushService;
+        this.loginSessionPolicy = loginSessionPolicy;
     }
 
     /** 담당자 휴대폰 번호와 비밀번호를 확인하고 번호판 앱 전용 세션을 생성한다. */
@@ -58,10 +63,31 @@ public class NumPlateController {
     public ResponseEntity<Map<String, Object>> loginManager(
             @RequestBody Map<String, Object> request,
             HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse,
             HttpSession session) {
+        boolean rememberMe = rememberMe(request);
         UserDto user = numPlateService.loginManager(request);
-        establishNumPlateSession(user, httpRequest, session);
-        return ResponseEntity.ok(ApiResponse.withKey("user", user));
+        boolean passkeyRegistered = passkeyService.hasRegisteredPasskey(user);
+        loginSessionPolicy.establishNumPlate(user, rememberMe, httpRequest, httpResponse, session);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(loginResponse(user, passkeyRegistered, session));
+    }
+
+    /** 앱을 다시 열 때 브라우저 저장값 대신 현재 서버 세션을 확인한다. */
+    @GetMapping("/numplateapp/session")
+    public ResponseEntity<Map<String, Object>> getNumPlateSession(
+            HttpServletRequest request, HttpServletResponse response) {
+        HttpSession session = request.getSession(false);
+        if (session == null || !(session.getAttribute("user") instanceof UserDto user)
+                || !"NUMPLATE_APP".equals(user.getLOGIN_GB())) {
+            throw new BusinessException("번호판 앱 로그인이 필요합니다.", 401);
+        }
+        if (loginSessionPolicy.isExpired(session)) {
+            loginSessionPolicy.invalidate(request, response, session);
+            throw new BusinessException("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.", 401);
+        }
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(loginResponse(user, passkeyService.hasRegisteredPasskey(user), session));
     }
 
     /** 비밀번호 로그인된 계정에 현재 기기의 Face ID/Touch ID 패스키를 등록한다. */
@@ -82,19 +108,23 @@ public class NumPlateController {
 
     /** 기기에 등록된 검색 가능한 패스키 challenge를 발급한다. */
     @PostMapping(value = "/numplateapp/passkeys/login/options", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<String> startPasskeyLogin(HttpSession session) {
+    public ResponseEntity<String> startPasskeyLogin(
+            @RequestBody(required = false) Map<String, Object> request, HttpSession session) {
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(passkeyService.startLogin(session));
+                .body(passkeyService.startLogin(session, rememberMe(request)));
     }
 
     @PostMapping("/numplateapp/passkeys/login/verify")
     public ResponseEntity<Map<String, Object>> finishPasskeyLogin(
             @RequestBody JsonNode response,
             HttpServletRequest httpRequest,
+            HttpServletResponse httpResponse,
             HttpSession session) {
-        UserDto user = passkeyService.finishLogin(response.toString(), session);
-        establishNumPlateSession(user, httpRequest, session);
-        return ResponseEntity.ok(ApiResponse.withKey("user", user));
+        NumPlatePasskeyService.VerifiedLogin verified = passkeyService.finishLogin(response.toString(), session);
+        UserDto user = verified.user();
+        loginSessionPolicy.establishNumPlate(user, verified.rememberMe(), httpRequest, httpResponse, session);
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore())
+                .body(loginResponse(user, true, session));
     }
 
     /** 로그인 후 사용자가 알림을 허용했을 때 현재 브라우저 토큰을 담당자에게 연결한다. */
@@ -414,12 +444,20 @@ public class NumPlateController {
         }
     }
 
-    private void establishNumPlateSession(
-            UserDto user, HttpServletRequest request, HttpSession session) {
-        // 비밀번호/패스키 어느 방식이든 로그인 직후 세션 ID를 교체한다.
-        request.changeSessionId();
-        session.setMaxInactiveInterval(30 * 60);
-        session.setAttribute("user", user);
+    private Map<String, Object> loginResponse(UserDto user, boolean passkeyRegistered, HttpSession session) {
+        Map<String, Object> response = ApiResponse.withKey("user", user);
+        response.put("passkeyRegistered", passkeyRegistered);
+        response.put("session", loginSessionPolicy.describe(session));
+        return response;
+    }
+
+    private boolean rememberMe(Map<String, Object> request) {
+        Object value = request == null ? null : request.get("rememberMe");
+        if (value == null) return false;
+        if (!(value instanceof Boolean rememberMe)) {
+            throw new BusinessException("로그인 상태 유지 설정을 확인해 주세요.");
+        }
+        return rememberMe;
     }
 
 }
