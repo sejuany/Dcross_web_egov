@@ -16,6 +16,9 @@
  */
 const ROUND_UNIT = 10;
 
+// 폴스타4 친환경 인증 승인 대기: 2026-11-06 등록예정 건부터 취득세 감면 중단. 승인 후 false로 변경.
+const POLESTAR4_ECO_SUSPENDED = true;
+
 export const AUTO_APPLY_EXEMPTION_TARGET_CODES = new Set(['06', '09', '12', '13', '15']);
 export const EXEMPTION_GRADE_CODES_BY_TARGET = {
     '01': ['1', '2', '3', '4', '5', '6', '7'],
@@ -527,6 +530,9 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
     const fmName = String(dsNewCar.FM_NM ?? '').trim();
     const fomName = String(dsNewCar.FOM_NM ?? '').trim();
     const carName = normalizeCarName(dsNewCar.CAR_NM);
+    const polestar4EcoSuspended = POLESTAR4_ECO_SUSPENDED
+        && carName.replace(/\s+/g, '').includes('POLESTAR4')
+        && String(dsNewCar.REGIST_DATE ?? '').replace(/\D/g, '') >= '20261106';
     const performanceExcluded = carName.replace(/\s+/g, '').includes('POLESTAR4')
         && (carName.includes('PERFORMANCE') || normalizeCarName(dsNewCar.CAR_PACKAGE).includes('PERFORMANCE'));
     const polestar3Excluded = carName.replace(/\s+/g, '').includes('POLESTAR3') && !carName.includes('REAR');
@@ -541,6 +547,7 @@ const resolveEcoEligibility = ({ dsNewCar = {}, codes = {} }) => {
 
     return {
         acquisitionEligible: baseEligible
+            && !polestar4EcoSuspended
             && !originalNameExcluded
             && !performanceExcluded
             && !polestar3Excluded
@@ -904,6 +911,7 @@ export const buildNewcarEstimateKey = ({ dsNewCar = {}, dsWorkCp = {} }) => [
     dsNewCar.NTAX_TRGET_GR_CD ?? '',
     dsNewCar.CAR_NM ?? '',
     dsNewCar.ECO_YN ?? '',
+    dsNewCar.REGIST_DATE ?? '',
     dsNewCar.MADE_YY ?? '',
     dsNewCar.VHCTY_ASORT_CODE ?? '',
     dsNewCar.CAR_KD ?? '',
