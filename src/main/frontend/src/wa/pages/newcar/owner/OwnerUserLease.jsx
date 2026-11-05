@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { gf, log } from '../../../../utils/utils';
 
 import LeaseCompanyModal from './LeaseCompanyModal';
+import LeaseAddressSection from './LeaseAddressSection';
 import AddressSearch from '../../common/AddressSearch';
 
 // 분리 입력 (주민번호, 사업자번호, 휴대폰 등)
@@ -29,9 +30,9 @@ const OwnerUserLease = ({
 	const [showLeaseModal, setShowLeaseModal] = useState(false);
 	// 법인 등록번호 선택 시 화면 변경 
 	const isCorporate = dsNewCar.REG_GB === 'B';
-	// 등록번호 종류를 선택한 경우에만 주소 입력을 표시한다.
+	// 대표소유자 구분과 등록번호 종류를 선택한 경우에만 주소 입력을 표시한다.
 	// 초기 화면에서는 구매 방식 선택과 기본 정보 입력에 집중할 수 있도록 주소를 숨긴다.
-	const showAddress = Boolean(dsNewCar.REG_GB);
+	const showAddress = Boolean(ownerType && dsNewCar.REG_GB);
 	// 자주 사용하는 리스사
 	const LEASE_COMPANIES = [
 	    '우리금융캐피탈', '산은캐피탈', '비엔케이캐피탈', '엔에이치농협캐피탈', '케이비캐피탈', '오릭스캐피탈', '하나캐피탈'
@@ -178,6 +179,15 @@ const OwnerUserLease = ({
 
 			</div>
 			
+			{currentCompany?.BASE_NM !== '직접입력' && (
+				<LeaseAddressSection
+					dsService={dsService}
+					dsNewCar={dsNewCar}
+					dsOwnerInfo={dsOwnerInfo}
+					setDsNewCar={setDsNewCar}
+				/>
+			)}
+
 			{/* 직접입력 리스사는 TR_OWNERINFO의 기존 리스사 정보 컬럼만 사용한다. */}
 			{currentCompany?.BASE_NM === '직접입력' && (
 				<>
@@ -435,7 +445,7 @@ const OwnerUserLease = ({
 				/>
 			)}
 
-			{isCorporate && (
+			{showAddress && isCorporate && (
 				<AddressSearch
 				    label="사용본거지"
 					sameLabel="본점소재지"

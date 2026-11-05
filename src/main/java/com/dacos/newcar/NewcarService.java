@@ -176,6 +176,10 @@ public class NewcarService {
         if (carIdNo.isBlank()) {
             throw new BusinessException("저장된 리스 신청건의 차대번호를 확인해 주세요.", 400);
         }
+        String procCd = Objects.toString(target.get("PROC_CD"), "");
+        if ("C".equals(procCd) && !"본점주소".equals(addressType)) {
+            throw new BusinessException("이용자명의 리스는 본점주소만 수정 요청할 수 있습니다.", 400);
+        }
         String baseBranchId = requestValue(request, "BASE_BRANCH_ID", "리스사를 선택해 주세요.");
         if (!baseBranchId.equals(Objects.toString(target.get("BASE_BRANCH_ID"), ""))) {
             throw new BusinessException("리스사 선택을 저장한 후 다시 요청해 주세요.", 400);
@@ -198,12 +202,13 @@ public class NewcarService {
         Map<String, Object> board = new HashMap<>();
         board.put("SERVICE_ID", serviceId);
         board.put("CAR_NO", carIdNo);
-        board.put("CONTENT_TX", "[신차사업] 리스 사용본거지 수정 요청");
+        board.put("CONTENT_TX", "C".equals(procCd)
+                ? "[신차사업] 리스 본점주소 수정 요청" : "[신차사업] 리스 사용본거지 수정 요청");
         board.put("COMPANY_ID", team + ",call04,call15,call02");
         if (common.insert(board, "insertTmBoard") != 1) {
             throw new BusinessException("리스 주소 수정 요청 알림을 등록하지 못했습니다.", 500);
         }
-        if (newcarMapper.appendLeaseAddressRequestMemo(serviceId, baseBranchId, memo) != 1) {
+        if (newcarMapper.appendLeaseAddressRequestMemo(serviceId, baseBranchId, procCd, memo) != 1) {
             throw new BusinessException("리스 주소 수정 요청 메모를 추가하지 못했습니다.", 500);
         }
         return newcarMapper.getLeaseAddressRequestMemo(serviceId);

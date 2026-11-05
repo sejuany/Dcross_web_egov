@@ -11,7 +11,7 @@ const CHANGE_REASONS = {
 	other: '기타'
 };
 
-const LeaseAddressEditModal = ({ dsNewCar, onClose, onConfirm }) => {
+const LeaseAddressEditModal = ({ dsNewCar, dsOwnerInfo, onClose, onConfirm }) => {
 	const id = useId();
 	const closeButtonRef = useRef(null);
 	const [target, setTarget] = useState('head');
@@ -19,7 +19,16 @@ const LeaseAddressEditModal = ({ dsNewCar, onClose, onConfirm }) => {
 	const [reason, setReason] = useState('');
 	const [otherReason, setOtherReason] = useState('');
 	const [confirming, setConfirming] = useState(false);
-	const addresses = [
+	const isUserLease = dsNewCar.PROC_CD === 'C';
+	const addresses = isUserLease ? [
+		{
+			key: 'head',
+			label: '본점 소재지',
+			address: dsOwnerInfo.DEBTOR_ADDR,
+			detail: dsOwnerInfo.DEBTOR_ADDR_DT,
+			postNo: dsOwnerInfo.DEBTOR_ROAD_CD
+		}
+	] : [
 		{
 			key: 'head',
 			label: '본점 소재지',
@@ -119,27 +128,33 @@ const LeaseAddressEditModal = ({ dsNewCar, onClose, onConfirm }) => {
 				<div className="wa-lease-modal-body">
 					<div className="wa-lease-address-guide">
 						<strong>입력하신 주소는 확인을 거쳐 변경됩니다.</strong>
-						<p>사용본거지의 경우, 기존 주소와 동일한 지점의 변경된 주소를 입력해 주세요.</p>
+						{!isUserLease && (
+							<p>사용본거지의 경우, 기존 주소와 동일한 지점의 변경된 주소를 입력해 주세요.</p>
+						)}
 						<p>※ 다른 지점의 주소를 입력한 경우, 반영되지 않습니다.</p>
 					</div>
 
-					<div role="radiogroup" aria-label="변경할 주소">
+					<div role={isUserLease ? 'group' : 'radiogroup'} aria-label="변경할 주소">
 						{addresses.map(({ key, label, ...savedAddress }) => {
 							const selected = target === key;
 							return (
 								<div className="wa-lease-edit-address" key={key}>
-									<label className="wa-lease-edit-target">
-										<input
-											type="radio"
-											name={`${id}-target`}
-											checked={selected}
-											onChange={() => {
-												setTarget(key);
-												setDraft(null);
-											}}
-										/>
-										{label}
-									</label>
+									{isUserLease ? (
+										<span className="wa-lease-edit-target">{label}</span>
+									) : (
+										<label className="wa-lease-edit-target">
+											<input
+												type="radio"
+												name={`${id}-target`}
+												checked={selected}
+												onChange={() => {
+													setTarget(key);
+													setDraft(null);
+												}}
+											/>
+											{label}
+										</label>
+									)}
 									<fieldset className="wa-lease-edit-fields" disabled={!selected}>
 										<AddressSearch
 											key={selected ? 'editing' : 'saved'}

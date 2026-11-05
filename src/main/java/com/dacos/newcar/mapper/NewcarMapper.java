@@ -42,7 +42,7 @@ public interface NewcarMapper {
     Map<String, Object> getLeaseAddressNotificationTarget(@Param("serviceId") String serviceId);
 
     int appendLeaseAddressRequestMemo(@Param("serviceId") String serviceId,
-            @Param("baseBranchId") String baseBranchId, @Param("memo") String memo);
+            @Param("baseBranchId") String baseBranchId, @Param("procCd") String procCd, @Param("memo") String memo);
 
     String getLeaseAddressRequestMemo(@Param("serviceId") String serviceId);
     /** 회사별 Maker와 차량명 기준 차량제원 조회함 */

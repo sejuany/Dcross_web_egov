@@ -2929,6 +2929,11 @@ hr.wa-divider.hr2 {
         margin-top: 0;
     }
 
+    .wa-request-page .wa-lease-user-address-row > .wa-form-label-wrap {
+        flex-direction: column;
+        align-items: flex-start;
+    }
+
     .wa-request-page .wa-form-sub-label {
         margin-top: 0;
         font-size: 13px;

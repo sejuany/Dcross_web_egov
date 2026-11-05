@@ -1,8 +1,9 @@
-import React, { useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useAuth } from '../../context/AuthContext';
 import NumPlateSessionStatus from './NumPlateSessionStatus';
+import NumPlateLoginGuide from './NumPlateLoginGuide';
 import './NumPlateApp.css';
 
 const isNumPlateUser = (user) => (user?.login_GB || user?.LOGIN_GB) === 'NUMPLATE_APP';
@@ -67,16 +68,39 @@ export default function NumPlateAppLogin() {
   const [busy, setBusy] = useState(false);
   const [passkeySupported, setPasskeySupported] = useState(false);
   const [rememberMe, setRememberMe] = useState(false);
+  const [guide, setGuide] = useState({ active: false, target: null });
+  const [practiceForm, setPracticeForm] = useState({ phone: '', password: '' });
+  const [practiceRememberMe, setPracticeRememberMe] = useState(false);
+  const [guideLoginPreview, setGuideLoginPreview] = useState(false);
+  const guideTargets = useRef({});
+  const displayedForm = guide.active ? practiceForm : form;
+
+  const resetPractice = useCallback(() => {
+    setPracticeForm({ phone: '', password: '' });
+    setPracticeRememberMe(false);
+    setGuideLoginPreview(false);
+  }, []);
+
+  const guideChanged = useCallback((state) => {
+    setGuide(state);
+    if (!state.active) resetPractice();
+  }, [resetPractice]);
+
+  const fillExample = useCallback((target) => {
+    if (target === 'phone' || target === 'password') {
+      setPracticeForm((current) => ({ ...current, [target]: target === 'phone' ? '01000000000' : '1234' }));
+    }
+  }, []);
   const requestedPath = location.state?.from;
   const nextPath = typeof requestedPath === 'string' && requestedPath.startsWith('/numplateapp/')
     ? requestedPath : '/numplateapp';
 
   useEffect(() => {
     // 이미 전용 세션이 있으면 로그인 화면을 다시 보여주지 않는다.
-    if (!numPlateSessionLoading && !numPlateSessionError && isNumPlateUser(user)) {
+    if (!guide.active && !numPlateSessionLoading && !numPlateSessionError && isNumPlateUser(user)) {
       navigate(nextPath, { replace: true });
     }
-  }, [navigate, nextPath, numPlateSessionError, numPlateSessionLoading, user]);
+  }, [guide.active, navigate, nextPath, numPlateSessionError, numPlateSessionLoading, user]);
 
   useEffect(() => {
     if (!window.isSecureContext || !window.PublicKeyCredential) return;
@@ -87,6 +111,7 @@ export default function NumPlateAppLogin() {
   }, []);
 
   const registerBiometricLogin = async () => {
+    if (guide.active) return;
     const { data: options } = await axios.post('/api/numplateapp/passkeys/register/options');
     const credential = await navigator.credentials.create({ publicKey: decodeCredentialOptions(options) });
     await axios.post('/api/numplateapp/passkeys/register/verify', encodeCredential(credential));
@@ -94,12 +119,17 @@ export default function NumPlateAppLogin() {
 
   const change = ({ target }) => {
     const value = target.value.replace(/\D/g, '').slice(0, target.name === 'phone' ? 11 : 100);
-    setForm((current) => ({ ...current, [target.name]: value }));
-    setMessage('');
+    const update = guide.active ? setPracticeForm : setForm;
+    update((current) => ({ ...current, [target.name]: value }));
+    if (!guide.active) setMessage('');
   };
 
   const submit = async (event) => {
     event.preventDefault();
+    if (guide.active) {
+      if (guide.target === 'login') setGuideLoginPreview(true);
+      return;
+    }
     if (busy) return;
     setBusy(true);
     setMessage('');
@@ -124,7 +154,7 @@ export default function NumPlateAppLogin() {
   };
 
   const biometricLogin = async () => {
-    if (busy) return;
+    if (guide.active || busy) return;
     setBusy(true);
     setMessage('');
     try {
@@ -147,44 +177,75 @@ export default function NumPlateAppLogin() {
   }
 
   return (
-    <main className="numplate-login-page">
+    <main className={`numplate-login-page${guide.active ? ' numplate-practice-active' : ''}`}>
       <section className="numplate-login-card">
-        <Link className="numplate-login-logo" to="/login" aria-label="일반 로그인으로 이동">
+        <Link className="numplate-login-logo" to="/login" aria-label="일반 로그인으로 이동"
+          onClick={(event) => { if (guide.active) event.preventDefault(); }}>
           <img src="/logo_navy_horizontal.png" alt="DACOS" />
         </Link>
         <h1>번호판 탈부착</h1>
         <p className="numplate-login-guide">등록된 담당자 휴대폰 번호로 로그인해 주세요.</p>
 
-        <form onSubmit={submit}>
-          <label>
+        <form onSubmit={submit} autoComplete={guide.active ? 'off' : undefined}>
+          <div ref={(node) => { guideTargets.current.phone = node; }} data-guide-target="phone"
+            className={`numplate-practice-field${guide.target === 'phone' ? ' is-current' : ''}`}>
+            <label>
             <span>휴대폰 번호</span>
             <input
               name="phone"
               type="tel"
-              value={form.phone}
+              value={displayedForm.phone}
               onChange={change}
               inputMode="numeric"
-              autoComplete="tel"
+              autoComplete={guide.active ? 'off' : 'tel'}
+              aria-describedby={guide.target === 'phone' ? 'numplate-guide-description' : undefined}
               minLength={8}
               maxLength={11}
               placeholder="01012345678"
-              required
-              disabled={busy}
+              required={!guide.active}
+              disabled={busy || (guide.active && guide.target !== 'phone')}
             />
-          </label>
-          <label>
+            </label>
+            <div data-guide-coach />
+          </div>
+          <div ref={(node) => { guideTargets.current.password = node; }} data-guide-target="password"
+            className={`numplate-practice-field${guide.target === 'password' ? ' is-current' : ''}`}>
+            <label>
             <span>비밀번호</span>
-            <input name="password" type="password" inputMode="numeric" pattern="[0-9]*" value={form.password} onChange={change} autoComplete="current-password" maxLength={100} required disabled={busy} />
-          </label>
-          <label className="numplate-login-remember">
-            <input type="checkbox" checked={rememberMe} onChange={(event) => setRememberMe(event.target.checked)} disabled={busy} />
-            <span>로그인 상태 유지</span>
-          </label>
-          <button className="numplate-primary-button" type="submit" disabled={busy}>{busy ? '로그인 중…' : '로그인'}</button>
-          {passkeySupported && <button className="numplate-passkey-button" type="button" onClick={biometricLogin} disabled={busy}>Face ID·지문으로 로그인</button>}
+            <input name="password" type="password" inputMode="numeric" pattern="[0-9]*" value={displayedForm.password} onChange={change}
+              autoComplete={guide.active ? 'off' : 'current-password'} maxLength={100} required={!guide.active}
+              aria-describedby={guide.target === 'password' ? 'numplate-guide-description' : undefined}
+              disabled={busy || (guide.active && guide.target !== 'password')} />
+            </label>
+            <div data-guide-coach />
+          </div>
+          <div ref={(node) => { guideTargets.current.remember = node; }} data-guide-target="remember"
+            className={`numplate-practice-field${guide.target === 'remember' ? ' is-current' : ''}`}>
+            <div className="numplate-login-options">
+            <label className="numplate-login-remember">
+              <input type="checkbox" checked={guide.active ? practiceRememberMe : rememberMe}
+                onChange={(event) => (guide.active ? setPracticeRememberMe : setRememberMe)(event.target.checked)}
+                aria-describedby={guide.target === 'remember' ? 'numplate-guide-description' : undefined}
+                disabled={busy || (guide.active && guide.target !== 'remember')} />
+              <span>로그인 상태 유지</span>
+            </label>
+            {!isNumPlateUser(user) && <NumPlateLoginGuide disabled={busy} targets={guideTargets}
+              onGuideChange={guideChanged} onFillExample={fillExample} onResetPractice={resetPractice} loginPreview={guideLoginPreview} />}
+            </div>
+            <div data-guide-coach />
+          </div>
+          <div ref={(node) => { guideTargets.current.login = node; }} data-guide-target="login"
+            className={`numplate-practice-field${guide.target === 'login' ? ' is-current' : ''}`}>
+            <button className="numplate-primary-button" type={guide.active ? 'button' : 'submit'}
+              onClick={guide.active ? () => setGuideLoginPreview(true) : undefined}
+              aria-describedby={guide.target === 'login' ? 'numplate-guide-description' : undefined}
+              disabled={busy || (guide.active && guide.target !== 'login')}>{busy ? '로그인 중…' : '로그인'}</button>
+            <div data-guide-coach />
+          </div>
+          {passkeySupported && <button className="numplate-passkey-button" type="button" onClick={biometricLogin} disabled={busy || guide.active}>Face ID·지문으로 로그인</button>}
         </form>
 
-        {message && <p className="numplate-login-message" role="alert">{message}</p>}
+        {!guide.active && message && <p className="numplate-login-message" role="alert">{message}</p>}
       </section>
     </main>
   );

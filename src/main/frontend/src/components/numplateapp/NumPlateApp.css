@@ -110,13 +110,182 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 
 .numplate-primary-button:disabled { opacity: .55; }
 .numplate-login-card .numplate-login-remember { display: flex; align-items: center; gap: 9px; color: #42566e; font-size: 14px; }
-.numplate-login-card .numplate-login-remember input { width: 22px; min-height: 22px; margin: 0; }
-.numplate-login-card .numplate-login-remember span { margin: 0; }
+.numplate-login-card .numplate-login-remember input { flex: 0 0 22px; width: 22px; min-height: 22px; margin: 0; padding: 0; }
+.numplate-login-card .numplate-login-remember span { margin: 0; word-break: keep-all; }
+.numplate-login-options { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 16px; }
+.numplate-login-card .numplate-login-options .numplate-login-remember { min-width: 0; min-height: 44px; margin: 0; white-space: normal; }
+.numplate-login-guide-button { display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; gap: 5px; min-height: 44px; padding: 0 4px; border: 0; border-radius: 8px; background: transparent; color: #1e66b3; font: inherit; font-size: 13px; font-weight: 700; white-space: nowrap; cursor: pointer; }
+.numplate-login-guide-button svg { width: 16px; height: 16px; }
+.numplate-login-guide-button:hover { background: #f0f6fd; }
+.numplate-login-guide-button:focus-visible { outline: 3px solid #7bb6f2; outline-offset: 2px; }
+.numplate-login-guide-button:disabled { opacity: .5; cursor: default; }
 .numplate-passkey-button { width: 100%; min-height: 52px; margin-top: 10px; border: 1px solid #1e66b3; border-radius: 12px; background: #fff; color: #174f8c; font-weight: 800; }
 .numplate-passkey-button:disabled { opacity: .5; }
 .numplate-mobile-auth { display: grid; gap: 12px; margin-top: 10px; }
 .numplate-text-button { border: 0; background: none; color: #52647a; text-decoration: underline; }
 .numplate-login-message { margin: 18px 0 0; color: #b42318; font-size: 14px; text-align: center; }
+
+/* 최초 로그인 안내는 본문을 밀지 않고 안내 본문만 스크롤한다. */
+.numplate-login-tutorial {
+  box-sizing: border-box;
+  width: min(520px, calc(100% - 24px));
+  max-height: calc(100dvh - 24px);
+  margin: auto;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid #dce7f4;
+  border-radius: 28px;
+  background: #fff;
+  color: #152238;
+  font-family: "Pretendard", "Malgun Gothic", sans-serif;
+  box-shadow: 0 28px 90px rgba(8, 30, 58, .3);
+}
+.numplate-login-tutorial::backdrop { background: rgba(12, 29, 50, .58); backdrop-filter: blur(5px); }
+.numplate-guide-content { display: flex; flex-direction: column; min-height: 0; max-height: calc(100dvh - 26px); }
+.numplate-guide-header { display: flex; flex-shrink: 0; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 22px; border-bottom: 1px solid #e3ebf5; background: #fff; }
+.numplate-guide-header > span { color: #174f8c; font-size: 16px; font-weight: 800; }
+.numplate-guide-header > span span { color: #52647a; font-size: 16px; font-weight: 500; }
+.numplate-guide-body { min-height: 0; padding: 22px; overflow-y: auto; overscroll-behavior: contain; }
+.numplate-login-tutorial button,
+.numplate-practice-coach button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 52px; border: 0; font: inherit; font-size: 18px; font-weight: 700; cursor: pointer; }
+.numplate-login-tutorial button:focus-visible,
+.numplate-practice-coach button:focus-visible { outline: 3px solid #1767ba; outline-offset: 3px; }
+.numplate-login-tutorial button:disabled,
+.numplate-practice-coach button:disabled { opacity: .5; cursor: default; }
+.numplate-login-guide-button { min-height: 52px; font-size: 16px; }
+.numplate-guide-skip { padding: 0 4px; background: transparent; color: #52647a; }
+.numplate-guide-step { margin: 0 0 10px; color: #174f8c; font-size: 16px; font-weight: 800; }
+.numplate-guide-step span { margin-left: 5px; color: #52647a; font-weight: 500; }
+.numplate-login-tutorial h2,
+.numplate-guide-title,
+.numplate-practice-coach h2 { margin: 0; color: #163b68; font-size: 26px; line-height: 1.4; letter-spacing: -.03em; word-break: keep-all; }
+.numplate-login-tutorial h2:focus,
+.numplate-practice-coach h2:focus { outline: none; }
+.numplate-guide-description { margin: 14px 0 18px; color: #354b64; font-size: 18px; line-height: 1.75; word-break: keep-all; overflow-wrap: anywhere; }
+.numplate-guide-hint { margin: 0; padding: 14px; border: 1px solid #dce7f4; border-radius: 12px; background: #f2f7fd; color: #425a74; font-size: 16px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+.numplate-guide-platform { margin: 12px 0 0; color: #52647a; font-size: 16px; line-height: 1.6; }
+.numplate-guide-safety { margin: 18px 0 0; padding: 12px 14px; border-left: 3px solid #7ba5d4; border-radius: 0 10px 10px 0; background: #f4f7fb; color: #425a74; font-size: 16px; line-height: 1.65; }
+.numplate-guide-progress { display: flex; gap: 6px; margin: 18px 0 0; }
+.numplate-guide-progress span { flex: 1; height: 5px; border-radius: 4px; background: #e1e9f3; }
+.numplate-guide-progress span.complete { background: #1e66b3; }
+.numplate-guide-actions { display: flex; flex-shrink: 0; gap: 10px; padding: 16px 22px max(16px, env(safe-area-inset-bottom)); border-top: 1px solid #e3ebf5; background: #fff; }
+.numplate-guide-actions svg { width: 20px; height: 20px; flex-shrink: 0; }
+.numplate-guide-previous { padding: 0 14px; border: 1px solid #ccd9e8 !important; border-radius: 12px; background: #fff; color: #294e75; }
+.numplate-guide-actions .numplate-guide-next { flex: 1; min-width: 0; padding: 10px 16px; border-radius: 12px; background: #1e66b3; color: #fff; }
+.numplate-guide-menu { min-width: 0; padding: 10px 12px; border: 1px solid #ccd9e8 !important; border-radius: 12px; background: #f4f7fb; color: #294e75; }
+.numplate-guide-actions.is-last { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.numplate-guide-actions.is-last .numplate-guide-next { grid-column: 1 / -1; }
+.numplate-guide-topics { display: grid; gap: 12px; margin-top: 20px; }
+.numplate-guide-topics .numplate-guide-topic { display: grid; grid-template-columns: 32px minmax(0, 1fr) 20px; justify-content: stretch; gap: 4px 10px; width: 100%; padding: 16px; border: 1px solid #cedff2; border-radius: 16px; background: #f7faff; color: #163b68; text-align: left; }
+.numplate-guide-topic > svg:first-child,
+.numplate-guide-topic-icon { grid-column: 1; grid-row: 1 / span 2; width: 30px; height: 30px; align-self: center; color: #1e66b3; }
+.numplate-guide-topic > span { grid-column: 2; min-width: 0; }
+.numplate-guide-topic > svg:last-child:not(:first-child) { grid-column: 3; grid-row: 1 / span 2; width: 20px; height: 20px; color: #52647a; }
+.numplate-guide-topic strong,
+.numplate-guide-topic-title { display: block; grid-column: 2; font-size: 18px; line-height: 1.5; }
+.numplate-guide-topic small { display: block; grid-column: 2; margin-top: 4px; color: #52647a; font-size: 16px; font-weight: 500; line-height: 1.55; }
+
+/* 실습은 실제 입력칸 바로 아래에 안내를 두어 키보드가 떠도 읽을 수 있게 한다. */
+.numplate-practice-active { align-content: start; overflow: visible; }
+.numplate-practice-field { min-width: 0; scroll-margin-top: 24px; }
+.numplate-practice-field.is-current { position: relative; margin: 8px -8px; padding: 10px 8px; border-radius: 16px; background: #f0f7ff; }
+.numplate-practice-field.is-current > label > input,
+.numplate-practice-field.is-current > .numplate-login-options > .numplate-login-remember,
+.numplate-practice-field.is-current > button { border-radius: 12px; outline: 3px solid #1e66b3; outline-offset: 2px; }
+.numplate-practice-field.is-current label { color: #163b68; }
+.numplate-login-card .numplate-practice-field.is-current label > span { font-size: 18px; }
+.numplate-practice-field.is-current input,
+.numplate-practice-field.is-current button { scroll-margin-top: 24px; }
+[data-guide-coach] { min-width: 0; }
+.numplate-practice-coach { box-sizing: border-box; width: 100%; margin: 14px 0 18px; padding: 18px 16px; border: 1px solid #a9c9eb; border-radius: 18px; background: #fff; box-shadow: 0 8px 24px rgba(22, 59, 104, .1); color: #152238; font-family: "Pretendard", "Malgun Gothic", sans-serif; overflow-wrap: anywhere; }
+.numplate-practice-coach .numplate-guide-header { padding: 0 0 10px; }
+.numplate-practice-coach .numplate-guide-body { padding: 14px 0; overflow: visible; }
+.numplate-practice-coach h2 { font-size: 23px; }
+.numplate-practice-coach .numplate-guide-actions { flex-wrap: wrap; padding: 14px 0 0; }
+.numplate-practice-coach .numplate-guide-description { margin: 12px 0; }
+.numplate-practice-coach .numplate-guide-skip { min-height: 52px; font-size: 16px; }
+.numplate-guide-fill { width: 100%; margin-top: 12px; padding: 10px 12px; border: 1px solid #1e66b3 !important; border-radius: 12px; background: #eaf4ff; color: #174f8c; }
+
+/* 직접 그린 안내 화면은 조작할 수 없으며 실제 계정이나 고객 정보를 사용하지 않는다. */
+.numplate-guide-example { min-width: 0; margin: 18px 0; padding: 14px; border: 1px solid #d8e5f4; border-radius: 18px; background: linear-gradient(145deg, #f1f7ff, #e7f0fe 65%, #f6faff); }
+.numplate-guide-example figcaption { margin-bottom: 12px; color: #425a74; font-size: 16px; font-weight: 800; }
+.numplate-example-screen { min-width: 0; overflow: hidden; border: 1px solid #c9d7e7; border-radius: 14px; background: #fff; color: #1e324b; font-size: 16px; line-height: 1.5; }
+.numplate-example-screen * { box-sizing: border-box; }
+.numplate-example-screen svg { width: 24px; height: 24px; flex-shrink: 0; }
+.numplate-example-screen strong { font-weight: 800; }
+.numplate-example-caption { margin: 12px 0 0; color: #425a74; font-size: 16px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
+.numplate-example-target { position: relative; display: flex; align-items: center; justify-content: center; gap: 10px; min-width: 0; min-height: 52px; padding: 10px 14px; border: 2px dashed #164d88; border-radius: 12px; background: #eaf4ff; color: #163b68; }
+.numplate-example-target > div { min-width: 0; }
+.numplate-example-number { position: absolute; top: -12px; right: -8px; display: grid; place-items: center; width: 28px; height: 28px; border: 2px solid #fff; border-radius: 50%; background: #163b68; color: #fff; font-size: 16px; font-weight: 800; box-shadow: 0 1px 3px rgba(22, 59, 104, .2); }
+.numplate-example-primary { min-height: 52px; border: 2px dashed #fff; outline: 2px solid #163b68; outline-offset: 2px; background: #1e66b3; color: #fff; font-size: 18px; font-weight: 800; text-align: center; }
+.numplate-example-app-icon { display: block; width: 48px; height: 48px; flex-shrink: 0; border-radius: 12px; background: #163b68; }
+.numplate-example-browser-bar { display: flex; align-items: center; gap: 10px; padding: 18px 10px 12px; border-bottom: 1px solid #dce5ef; background: #f4f7fb; }
+.numplate-example-browser-bar > svg { width: 20px; }
+.numplate-example-browser-bar > span { flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.numplate-example-browser-bar small { display: block; font-size: 16px; }
+.numplate-example-browser-bar .numplate-example-target { width: 44px; flex-shrink: 0; padding: 6px; }
+.numplate-example-login { display: grid; justify-items: stretch; gap: 14px; padding: 22px 18px; }
+.numplate-example-login > .numplate-example-app-icon { justify-self: center; }
+.numplate-example-login > strong { text-align: center; }
+.numplate-example-line { display: block; height: 30px; border: 1px solid #dce5ef; border-radius: 8px; background: #f4f7fb; }
+.numplate-example-field { display: block; padding: 12px; border: 1px solid #ccd8e5; border-radius: 9px; background: #f7f9fc; }
+.numplate-example-menu { display: grid; gap: 14px; padding: 22px 16px; }
+.numplate-example-menu > span { padding: 2px 8px; }
+.numplate-example-menu .numplate-example-target { justify-content: flex-start; }
+.numplate-example-menu .numplate-example-target > div > span,
+.numplate-example-menu-row > div > span { display: block; margin-top: 3px; }
+.numplate-example-scroll-cue { display: flex; align-items: center; gap: 8px; color: #52647a; }
+.numplate-example-menu-row { display: flex; align-items: center; gap: 10px; padding: 10px 14px; }
+.numplate-example-system-card { display: grid; gap: 18px; padding: 24px 18px; }
+.numplate-example-system-card > strong { font-size: 18px; }
+.numplate-example-app-name { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.numplate-example-app-name > div > span { display: block; margin-top: 4px; }
+.numplate-example-dialog-actions { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); align-items: center; gap: 16px; margin-top: 6px; text-align: center; }
+.numplate-example-home { display: grid; justify-items: center; gap: 26px; padding: 24px 16px; background: linear-gradient(155deg, #e8f1fc, #f7fbff); }
+.numplate-example-home .numplate-example-target { display: grid; justify-items: center; padding: 18px; background: #fff; }
+.numplate-example-home .numplate-example-app-icon { width: 68px; height: 68px; border-radius: 17px; }
+.numplate-example-home-label { color: #425a74; }
+.numplate-example-home-dots { display: flex; gap: 6px; }
+.numplate-example-home-dots i { width: 6px; height: 6px; border-radius: 50%; background: #7b95b4; }
+.numplate-example-process { background: #f4f7fb; }
+.numplate-example-process-header { display: grid; gap: 2px; padding: 14px 16px; background: #163b68; color: #fff; }
+.numplate-example-tabs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 5px; padding: 12px; color: #174f8c; text-align: center; }
+.numplate-example-tabs > * { padding: 8px 0; border: 1px solid #b8cee6; border-radius: 8px; background: #fff; }
+.numplate-example-tabs > strong { background: #1e66b3; color: #fff; }
+.numplate-example-process-card { display: grid; gap: 8px; margin: 0 12px 16px; padding: 16px 12px; border: 1px solid #d6e2ef; border-radius: 12px; background: #fff; }
+.numplate-example-process-card > strong { color: #174f8c; font-size: 20px; }
+.numplate-example-key { color: #1e66b3; }
+.numplate-example-account { display: flex; align-items: center; gap: 12px; width: 100%; min-width: 0; padding: 12px; border: 1px solid #dae5f0; border-radius: 12px; background: #f7faff; }
+.numplate-example-account > div { display: grid; gap: 2px; min-width: 0; overflow-wrap: anywhere; }
+.numplate-example-account > svg { color: #1e66b3; }
+.numplate-example-target .numplate-example-account { padding: 2px 0; border: 0; background: transparent; }
+.numplate-example-unlock { display: grid; justify-items: center; gap: 16px; padding: 28px 12px; text-align: center; }
+.numplate-example-fingerprint { display: grid; place-items: center; width: 90px; height: 90px; border: 1px solid #bcd4ee; border-radius: 50%; background: #edf6ff; color: #1e66b3; }
+.numplate-example-fingerprint svg { width: 56px; height: 56px; stroke-width: 1.5; }
+.numplate-example-pin { padding: 10px 14px; border: 2px dashed #809cbb; border-radius: 12px; color: #52647a; }
+.numplate-example-follow { display: flex; align-items: center; justify-content: center; gap: 8px; color: #174f8c; font-weight: 700; }
+
+@media (max-width: 360px) {
+  .numplate-guide-header { flex-wrap: wrap; gap: 0 8px; padding-right: 14px; padding-left: 14px; }
+  .numplate-guide-body { padding: 18px 14px; }
+  .numplate-guide-actions { gap: 8px; padding-right: 14px; padding-left: 14px; }
+  .numplate-login-tutorial h2 { font-size: 24px; }
+  .numplate-practice-coach { padding: 16px 12px; }
+  .numplate-practice-coach .numplate-guide-header { flex-wrap: nowrap; }
+  .numplate-practice-coach .numplate-guide-header > span { flex-basis: auto; }
+  .numplate-guide-example { padding: 12px 10px; }
+  .numplate-example-system-card,
+  .numplate-example-menu { padding-right: 12px; padding-left: 12px; }
+  .numplate-example-account { gap: 8px; padding: 10px 8px; }
+  .numplate-example-account > svg { width: 20px; }
+  .numplate-example-browser-bar { gap: 6px; }
+  .numplate-example-browser-bar > svg { display: none; }
+}
+@media (max-height: 650px) {
+  .numplate-guide-header { padding-top: 6px; padding-bottom: 6px; }
+  .numplate-guide-actions { padding-top: 10px; padding-bottom: max(10px, env(safe-area-inset-bottom)); }
+  .numplate-guide-example { margin-top: 14px; margin-bottom: 14px; }
+}
 
 /* 인증 후 상단 사용자 정보 영역 */
 .numplate-app-header {

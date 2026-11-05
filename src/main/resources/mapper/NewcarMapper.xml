@@ -675,15 +675,18 @@
 	</select>
 
 	<select id="getLeaseAddressNotificationTarget" resultType="map">
-	    SELECT TN.SERVICE_ID, TN.CARID_NO, TN.BASE_BRANCH_ID, TN.OWNER_NM, TB.BRANCH_NM, TMD.MEMBER_NM,
+	    SELECT TN.SERVICE_ID, TN.CARID_NO, TN.BASE_BRANCH_ID, TN.PROC_CD,
+	           CASE WHEN TN.PROC_CD = 'C' THEN TOI.DEBTOR_NM ELSE TN.OWNER_NM END AS OWNER_NM,
+	           TB.BRANCH_NM, TMD.MEMBER_NM,
 	           (SELECT CODE_NM FROM TM_CODE WHERE GROUP_ID = 'TEAMS' AND CODE_ID = 'NEWC') AS CODE_NM
 	      FROM TR_NEWCAR TN
 	      JOIN TR_SERVICE TS ON TS.SERVICE_ID = TN.SERVICE_ID
 	      LEFT JOIN TM_BRANCH TB ON TB.COMPANY_ID = TS.COMPANY_ID AND TB.BRANCH_ID = TS.BRANCH_ID
 	      LEFT JOIN TM_MEMBER_DT TMD ON TMD.LOGIN_ID = TS.MEMBER_ID
+	      LEFT JOIN TR_OWNERINFO TOI ON TOI.SERVICE_ID = TN.SERVICE_ID AND TOI.SEQ = 0 AND TN.PROC_CD = 'C'
 	     WHERE TN.SERVICE_ID = #{serviceId}
 	       AND TN.TASK_CD = 'LEASE'
-	       AND TN.PROC_CD = 'I'
+	       AND TN.PROC_CD IN ('I', 'C')
 	</select>
 
 	<update id="appendLeaseAddressRequestMemo">
@@ -692,7 +695,7 @@
 	     WHERE SERVICE_ID = #{serviceId}
 	       AND BASE_BRANCH_ID = #{baseBranchId}
 	       AND TASK_CD = 'LEASE'
-	       AND PROC_CD = 'I'
+	       AND PROC_CD = #{procCd}
 	</update>
 
 	<select id="getLeaseAddressRequestMemo" resultType="string">
