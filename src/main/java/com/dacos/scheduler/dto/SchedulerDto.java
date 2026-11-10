@@ -38,4 +38,5 @@ public class SchedulerDto {
     private Object TOTAL_AMT;
     private String VBANK_NO;
     private String NUMPLATE_MSG_TOKEN;
+    private boolean REFUND_INFO_REQUIRED;
 }

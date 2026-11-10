@@ -858,12 +858,13 @@ public class NewcarService {
         Map<String, Object> owner0 = new HashMap<>();
         Map<String, Object> owner1 = new HashMap<>();
 
-        if (ownerList != null && ownerList.size() > 0) {
-            owner0 = ownerList.get(0);
-        }
-
-        if (ownerList != null && ownerList.size() > 1) {
-            owner1 = ownerList.get(1);
+        if (ownerList != null) {
+            for (Map<String, Object> owner : ownerList) {
+                switch (getVal(owner, "SEQ")) {
+                    case "0" -> owner0 = owner;
+                    case "1" -> owner1 = owner;
+                }
+            }
         }
 
         // 결과 세팅
@@ -2368,12 +2369,8 @@ public class NewcarService {
             Map<String, Object> mExemption = commonUtil.getMap(request, "dsExemption");
 
 		    List<Map<String, Object>> lPaymentList = commonUtil.getList(request, "dsPaymentList");
-		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(request, "dsOwnerInfo");
-		    List<Map<String, Object>> lOwnerInfoList1 = commonUtil.getList(request, "dsOwnerInfo1");
-	    	
-			// 공동동소유자 컬럼명 변환
-			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
-			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
+		    List<Map<String, Object>> lOwnerInfoList = prepareOwnerInfo(request, "dsOwnerInfo", 0);
+		    List<Map<String, Object>> lOwnerInfoList1 = prepareOwnerInfo(request, "dsOwnerInfo1", 1);
 
 			// 기본값 보정
 			normalizeNewCar(mNewCar);
@@ -2400,8 +2397,6 @@ public class NewcarService {
 		        beforeProcSt = (String) resultProc.get("PROC_ST");
 		    }
 
-			// 공동소유자 데이터 정리 (하이픈, 공백, 줄바꿈, 쉼표 제거)
-		    normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
 		    normalizeTaxReceipt(mTaxReceipt, mNewCar, lOwnerInfoList);
 
 		    // insert
@@ -2487,41 +2482,7 @@ public class NewcarService {
 
 		        logger.info("linkData >>" + linkData);
 
-		        // 공동소유자 정보
-		        StringBuilder ownerInfo = new StringBuilder();
-
-		        for (Map<String, Object> owner : lOwnerInfoList) {
-		            StringJoiner joiner = new StringJoiner("ß");
-
-		            joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
-		            joiner.add("SEQ»"         + getVal(owner, "SEQ"));
-		            joiner.add("DEBTOR_NM»"   + (owner.get("DEBTOR_NM") == null ? "null" : owner.get("DEBTOR_NM")));
-		            joiner.add("DEBTOR_GB»"   + (owner.get("DEBTOR_GB") == null ? "null" : owner.get("DEBTOR_GB")));
-		            joiner.add("REG_NO»"      + (owner.get("REG_NO") == null ? "null" : owner.get("REG_NO")));
-		            joiner.add("DEBTOR_RATIO»"+ (owner.get("DEBTOR_RATIO") == null ? "null" : owner.get("DEBTOR_RATIO")));
-		            joiner.add("DEBTOR_ADDR»" + (owner.get("DEBTOR_ADDR") == null ? "null" : owner.get("DEBTOR_ADDR")) + " "
-								  + (owner.get("DEBTOR_ADDR_DT") == null ? "null" : owner.get("DEBTOR_ADDR_DT")));
-		            joiner.add("DSIGN_GB»"    + (owner.get("DSIGN_GB") == null ? "null" : owner.get("DSIGN_GB")));
-		            joiner.add("DSIGN_HP_NO»" + (owner.get("DSIGN_HP_NO") == null ? "null" : owner.get("DSIGN_HP_NO")));
-		            joiner.add("DSIGN_TX»"    + (owner.get("DSIGN_TX") == null ? "null" : owner.get("DSIGN_TX")));
-		            joiner.add("CONFIRM_NO»"  + (owner.get("CONFIRM_NO") == null ? "null" : owner.get("CONFIRM_NO")));
-		            joiner.add("DSIGN_ST»"    + (owner.get("DSIGN_ST") == null ? "null" : owner.get("DSIGN_ST")));
-		            joiner.add("IDEN_ST»"     + (owner.get("IDEN_ST") == null ? "null" : owner.get("IDEN_ST")));
-
-		            // 관청별 마감 분기 처리
-		            if ("BUSAN".equals(input.get("GOVT_ID"))) {
-		                ownerInfo.append(joiner.toString()).append("þ");
-		            } else {
-		            	// date 타입 : 값이 없을 땐 null
-						joiner.add("DSIGN_DT»" + (owner.get("DSIGN_DT") == null ? "null" : owner.get("DSIGN_DT")));
-						joiner.add("IDEN_DT»" + (owner.get("IDEN_DT") == null ? "null" : owner.get("IDEN_DT")));
-		                ownerInfo.append(joiner.toString()).append("þ");
-		            }
-		        }
-
-		        logger.info("ownerInfo 공동소유자 >>> " + ownerInfo);
-
-		        linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
+		        linkData.put("OWNER_INFO", buildLinkOwnerInfo(input, lOwnerInfoList, lOwnerInfoList1));
 		        linkData.put("SID", "신규등록신청");
 
 		        // 원부 조회 처리
@@ -2668,16 +2629,17 @@ public class NewcarService {
 	        owner.put(field, value.isEmpty() ? null : value);
 	    }
 	}
-	@SafeVarargs
-	private void normalizeOwnerInfoList(List<Map<String, Object>>... lists) {
+	private List<Map<String, Object>> prepareOwnerInfo(Map<String, Object> data, String dataset, int seq) {
+	    Map<String, Object> owner = commonUtil.getList(data, dataset).stream()
+	            .filter(Objects::nonNull)
+	            .findFirst()
+	            .map(row -> FieldMapper.convert(row, FieldMaps.OWNER_INFO))
+	            .orElseGet(HashMap::new);
 
-	    for (List<Map<String, Object>> list : lists) {
-	        if (list == null) {
-	            continue;
-	        }
-
-	        list.forEach(this::normalizeOwnerInfo);
-	    }
+	    // 신규등록은 공동소유자 정보가 비어 있어도 두 SEQ 행을 유지한다.
+	    owner.put("SEQ", seq);
+	    normalizeOwnerInfo(owner);
+	    return List.of(owner);
 	}
 
     private void normalizeTaxReceipt(
@@ -2786,14 +2748,8 @@ public class NewcarService {
             Map<String, Object> mTaxReceipt = commonUtil.getMap(mNewCarDetail, "dsTaxReceipt");
 
 		    List<Map<String, Object>> lPaymentList = commonUtil.getList(mNewCarDetail, "dsPaymentList");
-		    List<Map<String, Object>> lOwnerInfoList = commonUtil.getList(mNewCarDetail, "dsOwnerInfo");
-		    List<Map<String, Object>> lOwnerInfoList1 = commonUtil.getList(mNewCarDetail, "dsOwnerInfo1");
-
-			// 공동동소유자 컬럼명 변환
-			lOwnerInfoList = FieldMapper.convert(lOwnerInfoList, FieldMaps.OWNER_INFO);
-			lOwnerInfoList1 = FieldMapper.convert(lOwnerInfoList1, FieldMaps.OWNER_INFO);
-
-			normalizeOwnerInfoList(lOwnerInfoList, lOwnerInfoList1);
+		    List<Map<String, Object>> lOwnerInfoList = prepareOwnerInfo(mNewCarDetail, "dsOwnerInfo", 0);
+		    List<Map<String, Object>> lOwnerInfoList1 = prepareOwnerInfo(mNewCarDetail, "dsOwnerInfo1", 1);
             normalizeTaxReceipt(mTaxReceipt, mNewCar, lOwnerInfoList);
 
 		    logger.info("lOwnerInfoList >>> " + lOwnerInfoList);
@@ -2957,49 +2913,17 @@ public class NewcarService {
 	        // 관청 전송정보를 초기화하기 전에 문자 수신번호를 별도로 보관한다.
 	        String numplatePhoneNo = numplateService.getNumplateSelectPhoneNo(mNewCar, lOwnerInfoList);
 
-	        // 공동소유자 정보
-	        StringBuilder ownerInfo = new StringBuilder();
-
-	        for (Map<String, Object> owner : lOwnerInfoList) {
-	        	// 리스건은 계약자 정보 관청 DB에 안 들어가게 초기화
-	            if ("LEASE".equals(input.get("TASK_CD")) && !"C".equals(input.get("PROC_CD"))) {
-	            	owner.put("DEBTOR_NM", null);
+	        // 리스건은 계약자 정보 관청 DB에 안 들어가게 초기화
+	        if ("LEASE".equals(input.get("TASK_CD")) && !"C".equals(input.get("PROC_CD"))) {
+	            for (Map<String, Object> owner : lOwnerInfoList) {
+	                owner.put("DEBTOR_NM", null);
 	                owner.put("DEBTOR_GB", null);
 	                owner.put("REG_NO", null);
 	                owner.put("DSIGN_HP_NO", null);
 	            }
-	            
-	            StringJoiner joiner = new StringJoiner("ß");
-
-	            joiner.add("SERVICE_ID»"  + getVal(mService, "SERVICE_ID"));
-	            joiner.add("SEQ»"         + getVal(owner, "SEQ"));
-	            joiner.add("DEBTOR_NM»"   + (owner.get("DEBTOR_NM") == null ? "null" : owner.get("DEBTOR_NM")));
-	            joiner.add("DEBTOR_GB»"   + (owner.get("DEBTOR_GB") == null ? "null" : owner.get("DEBTOR_GB")));
-	            joiner.add("REG_NO»"      + (owner.get("REG_NO") == null ? "null" : owner.get("REG_NO")));
-	            joiner.add("DEBTOR_RATIO»"+ (owner.get("DEBTOR_RATIO") == null ? "null" : owner.get("DEBTOR_RATIO")));
-	            joiner.add("DEBTOR_ADDR»" + (owner.get("DEBTOR_ADDR") == null ? "null" : owner.get("DEBTOR_ADDR")) + " "
-							  + (owner.get("DEBTOR_ADDR_DT") == null ? "null" : owner.get("DEBTOR_ADDR_DT")));
-	            joiner.add("DSIGN_GB»"    + (owner.get("DSIGN_GB") == null ? "null" : owner.get("DSIGN_GB")));
-	            joiner.add("DSIGN_HP_NO»" + (owner.get("DSIGN_HP_NO") == null ? "null" : owner.get("DSIGN_HP_NO")));
-	            joiner.add("DSIGN_TX»"    + (owner.get("DSIGN_TX") == null ? "null" : owner.get("DSIGN_TX")));
-	            joiner.add("CONFIRM_NO»"  + (owner.get("CONFIRM_NO") == null ? "null" : owner.get("CONFIRM_NO")));
-	            joiner.add("DSIGN_ST»"    + (owner.get("DSIGN_ST") == null ? "null" : owner.get("DSIGN_ST")));
-	            joiner.add("IDEN_ST»"     + (owner.get("IDEN_ST") == null ? "null" : owner.get("IDEN_ST")));
-
-	            // 관청별 마감 분기 처리
-	            if ("BUSAN".equals(input.get("GOVT_ID"))) {
-	                ownerInfo.append(joiner.toString()).append("þ");
-	            } else {
-	            	// date 타입 : 값이 없을 땐 null
-					joiner.add("DSIGN_DT»" + (owner.get("DSIGN_DT") == null ? "null" : owner.get("DSIGN_DT")));
-					joiner.add("IDEN_DT»" + (owner.get("IDEN_DT") == null ? "null" : owner.get("IDEN_DT")));
-	                ownerInfo.append(joiner.toString()).append("þ");
-	            }
 	        }
 
-	        logger.info("ownerInfo 공동소유자 >>> " + ownerInfo);
-
-	        linkData.put("OWNER_INFO", ownerInfo.toString()); // 공동소유데이터
+	        linkData.put("OWNER_INFO", buildLinkOwnerInfo(input, lOwnerInfoList, lOwnerInfoList1));
 	        linkData.put("SID", "신규등록신청");
 
 	        // 원부 조회 처리
@@ -3189,6 +3113,43 @@ public class NewcarService {
 		}
 	}
 
+	private String buildLinkOwnerInfo(Map<String, Object> input,
+			List<Map<String, Object>> owners, List<Map<String, Object>> secondOwners) {
+		StringBuilder ownerInfo = new StringBuilder();
+		boolean isBusan = "BUSAN".equals(input.get("GOVT_ID"));
+		String serviceId = getVal(input, "SERVICE_ID");
+
+		appendLinkOwnerInfo(ownerInfo, serviceId, owners.getFirst(), isBusan);
+		boolean isNormal = "NORML".equals(input.get("TASK_CD")) && "I".equals(input.get("PROC_CD"));
+		appendLinkOwnerInfo(ownerInfo, serviceId, isNormal ? secondOwners.getFirst() : Map.of("SEQ", 1), isBusan);
+
+		return ownerInfo.toString();
+	}
+
+	private void appendLinkOwnerInfo(StringBuilder ownerInfo, String serviceId, Map<String, Object> owner,
+			boolean isBusan) {
+		StringJoiner joiner = new StringJoiner("ß");
+		joiner.add("SERVICE_ID»" + serviceId);
+		joiner.add("SEQ»" + getVal(owner, "SEQ"));
+		joiner.add("DEBTOR_NM»" + owner.get("DEBTOR_NM"));
+		joiner.add("DEBTOR_GB»" + owner.get("DEBTOR_GB"));
+		joiner.add("REG_NO»" + owner.get("REG_NO"));
+		joiner.add("DEBTOR_RATIO»" + owner.get("DEBTOR_RATIO"));
+		joiner.add("DEBTOR_ADDR»" + owner.get("DEBTOR_ADDR") + " " + owner.get("DEBTOR_ADDR_DT"));
+		joiner.add("DSIGN_GB»" + owner.get("DSIGN_GB"));
+		joiner.add("DSIGN_HP_NO»" + owner.get("DSIGN_HP_NO"));
+		joiner.add("DSIGN_TX»" + owner.get("DSIGN_TX"));
+		joiner.add("CONFIRM_NO»" + owner.get("CONFIRM_NO"));
+		joiner.add("DSIGN_ST»" + owner.get("DSIGN_ST"));
+		joiner.add("IDEN_ST»" + owner.get("IDEN_ST"));
+
+		if (!isBusan) {
+			joiner.add("DSIGN_DT»" + owner.get("DSIGN_DT"));
+			joiner.add("IDEN_DT»" + owner.get("IDEN_DT"));
+		}
+		ownerInfo.append(joiner).append("þ");
+	}
+
 	/**
 	 * Map에서 값을 꺼내 문자열로 반환 (null이면 빈 값)
 	 */
@@ -3218,9 +3179,9 @@ public class NewcarService {
 	    logger.info("insertNewCar >>> " + lOwnerInfoList);
 	    logger.info("insertNewCar1 >>> " + lOwnerInfoList1);
 	    // 공동소유(1)
-	    common.insertList(lOwnerInfoList, "insertTrOwnerInfo", serviceId, true);
+	    common.insertList(lOwnerInfoList, "insertTrOwnerInfo", serviceId, false);
 	    // 공동소유(2)
-	    common.insertList(lOwnerInfoList1, "insertTrOwnerInfo", serviceId, true);
+	    common.insertList(lOwnerInfoList1, "insertTrOwnerInfo", serviceId, false);
 	    // 결제정보
 	    common.insertList(paymentList, "insertTrPayment", serviceId, true);
         replaceTaxReceipt(serviceId, mTaxReceipt);
@@ -3256,7 +3217,7 @@ public class NewcarService {
 
 
 		// 기존 데이터 전체 삭제
-		common.delete(input, "deleteTrOwnerInfo");
+		common.delete(Map.of("SERVICE_ID", serviceId), "deleteTrOwnerInfo");
 		 // 공동소유1
 		common.insertList(lOwnerInfoList, "insertTrOwnerInfo", serviceId, false);
 		 // 공동소유2

@@ -164,6 +164,13 @@ export const initialOwnerInfo1 = {
 	EXPIRE_DT: ''
 };
 
+export const hasJointOwnerInfo = (owner) => (
+	['DEBTOR_NM', 'DEBTOR_GB', 'DEBTOR_REG_NO', 'DEBTOR_BIZ_NO', 'DEBTOR_TEL_NO',
+	 'DEBTOR_MPHONE_NO', 'DEBTOR_ADDR', 'DEBTOR_ADDR_DT', 'DEBTOR_ROAD_CD', 'EXPIRE_DT']
+		.some(field => String(owner?.[field] ?? '').trim() !== '')
+	|| Number(owner?.DEBTOR_RATIO || 0) !== 0
+);
+
 export const initialCarNoDetach = {
 	DELIVERY_GB: '',
 	DELIVERY_ADDR: '',

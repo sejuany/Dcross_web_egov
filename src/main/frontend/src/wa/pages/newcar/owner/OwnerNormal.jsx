@@ -11,6 +11,7 @@ import AddressSearch from '../../common/AddressSearch'; // 주소 입력
 
 import JointOwner from './JointOwner';
 import PrivateBusinessChoice from './PrivateBusinessChoice';
+import { initialOwnerInfo1, hasJointOwnerInfo } from '../WaNewcarInitial';
 
 // 셀프등록 버튼을 숨길 회사는 여기에서 추가/제거한다.
 const SELF_REGISTRATION_HIDDEN_COMPANY_IDS = new Set(['WA001']);
@@ -23,7 +24,11 @@ const OwnerPersonal = ({
 	dsCarNoDetach,
 	setDsNewCar,
 	dsOwnerInfo,
+	dsOwnerInfo1,
+	isMultiOwner,
+	setIsMultiOwner,
 	setDsOwnerInfo,
+	setDsOwnerInfo1,
     ownerType,
     onOwnerTypeChange,
     handleChange,
@@ -43,8 +48,10 @@ const OwnerPersonal = ({
 	const showAddress = Boolean(dsNewCar.REG_GB);
 	// 공동명의 버튼 클릭
 	const [showJointOwner, setShowJointOwner] = useState(false);
+	const [changingMultiOwner, setChangingMultiOwner] = useState(false);
 	// 공동명의 입력 여부 (강제 표시)
 	const forceOpen =
+	    isMultiOwner ||
 	    Number(dsNewCar.RATIO_NO || 100) !== 100 ||
 	    Number(dsOwnerInfo.DEBTOR_RATIO || 0) > 0;
 
@@ -93,6 +100,52 @@ const OwnerPersonal = ({
 	    }));
 	};
 	
+	const handleMultiOwnerChange = async (e) => {
+		if (changingMultiOwner) return;
+		const checked = e.target.checked;
+		if (checked) {
+			setIsMultiOwner(true);
+			return;
+		}
+
+		const nextNewCar = { ...dsNewCar, RATIO_NO: '100' };
+		const nextOwnerInfo1 = { ...initialOwnerInfo1 };
+		if (!hasJointOwnerInfo(dsOwnerInfo1)) {
+			setDsNewCar(nextNewCar);
+			setDsOwnerInfo1(nextOwnerInfo1);
+			setIsMultiOwner(false);
+			setShowJointOwner(true);
+			return;
+		}
+
+		setChangingMultiOwner(true);
+		let restoreOnFailure = false;
+		try {
+			if (!await gf.confirm(
+				'2번째 공동소유자의 정보를 삭제하시겠습니까?',
+				'공동소유자 정보',
+				{ okText: '예', cancelText: '아니오' }
+			)) return;
+
+			restoreOnFailure = true;
+			setDsNewCar(nextNewCar);
+			setDsOwnerInfo1(nextOwnerInfo1);
+			setIsMultiOwner(false);
+			setShowJointOwner(true);
+			const saved = await saveProcess(nextNewCar, 'SAV', null, null, null, false, null, nextOwnerInfo1);
+			restoreOnFailure = !saved;
+		} catch {
+			await gf.alert('공동소유자 정보 저장 중 오류가 발생했습니다.');
+		} finally {
+			if (restoreOnFailure) {
+				setDsNewCar(dsNewCar);
+				setDsOwnerInfo1(dsOwnerInfo1);
+				setIsMultiOwner(isMultiOwner);
+			}
+			setChangingMultiOwner(false);
+		}
+	};
+
 	const handleToggleJointOwner = async () => {
 
 	    // 현재 열려있으면 삭제 여부 확인
@@ -128,14 +181,26 @@ const OwnerPersonal = ({
 	        setDsNewCar(nextNewCar);
 	        setDsOwnerInfo(nextOwnerInfo);
 
-	        await saveProcess(
+	        const nextOwnerInfo1 = { ...initialOwnerInfo1 };
+	        const saved = await saveProcess(
 	            nextNewCar,
 	            "SAV",
 	            null,
-	            nextOwnerInfo
+	            nextOwnerInfo,
+	            null,
+	            false,
+	            null,
+	            nextOwnerInfo1
 	        );
 
-	        setShowJointOwner(false);
+	        if (saved) {
+	            setDsOwnerInfo1(nextOwnerInfo1);
+	            setIsMultiOwner(false);
+	            setShowJointOwner(false);
+	        } else {
+	            setDsNewCar(dsNewCar);
+	            setDsOwnerInfo(dsOwnerInfo);
+	        }
 
 	    } else {
 
@@ -365,6 +430,7 @@ const OwnerPersonal = ({
 				    type="button"
 				    className={`wa-joint-btn ${isJointOwnerOpen ? 'active' : ''}`}
 				    onClick={handleToggleJointOwner}
+				    disabled={changingMultiOwner}
 				>
 				    <CheckCircle2
 				        size={16}
@@ -380,11 +446,22 @@ const OwnerPersonal = ({
 			
 			{isJointOwnerOpen && (
 			    <div className="wa-joint-owner">
+			        <div className="wa-form-row">
+			            <div className="wa-form-label-wrap">
+			                <label className="wa-form-sub-label" style={{ fontSize: '14px', fontWeight: 600 }}>
+			                    공동소유자 2명
+			                    <input type="checkbox" checked={isMultiOwner} onChange={handleMultiOwnerChange} disabled={changingMultiOwner} />
+			                </label>
+			            </div>
+			        </div>
 			        <JointOwner
 						dsNewCar={dsNewCar}
 			            dsOwnerInfo={dsOwnerInfo}
+			            dsOwnerInfo1={dsOwnerInfo1}
+			            isMultiOwner={isMultiOwner}
 						setDsNewCar={setDsNewCar}
 			            setDsOwnerInfo={setDsOwnerInfo}
+			            setDsOwnerInfo1={setDsOwnerInfo1}
 			            handleChange={handleChange}
 			            SplitInput={SplitInput}
 			            onSelect={handleAddressSelect}

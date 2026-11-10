@@ -359,12 +359,18 @@ public class NumplateSelectionService {
 	        sms.put("SUBJECT", "번호 선택 안내");
 	        sms.put("PAY_HP_NO", phoneNo);
 
+	        boolean includeRefundNotice = hasBond(mNewcar);
+	        String linkPurpose = includeRefundNotice ? "환불정보 입력 및 차량번호 선택" : "차량번호 선택";
+	        String selectionInstructions = includeRefundNotice
+	                ? "※ 환불금액은 등록 당일 오후 5시 이후에 입금됩니다.\r\n\r\n" : "";
+
 	        sms.put("TEXT",
-	        	    "안녕하세요. 폴스타 오토모티브코리아 차량번호 선택을 위한 링크를 안내해 드립니다.\r\n\r\n"
+	        	    "안녕하세요. 폴스타 오토모티브코리아 " + linkPurpose + "을 위한 링크를 안내해 드립니다.\r\n\r\n"
 	        	    + "주문번호 : " + orderNo + "\r\n"
 	        	    + "차대번호 : " + carIdNo + "\r\n"
 	        	    + url + "\r\n\r\n"
 	        	    + "오늘 중으로 위 링크에 접속하셔서 번호를 선택해 주세요.\r\n\r\n"
+	        	    + selectionInstructions
 	        	    + "※ 번호 조회 후 5분 내로 선택을 완료해 주세요. (시간 초과 시 재선택 불가)\r\n\r\n"
 	        	    + "■ 아래 항목이 " + selectLimitDate + "까지 완료되어야 원활한 등록이 가능합니다.\r\n"
 	        	    + "차량대금 납부\r\n"
@@ -950,6 +956,63 @@ public class NumplateSelectionService {
 		return buildCustomerNumplateSelectionResult(work, assignment);
 	}
 
+	private boolean hasBond(Map<String, Object> newcar) {
+		return newcar.get("BOND_AMT") instanceof Number bondAmount && bondAmount.doubleValue() >= 0;
+	}
+
+	private boolean requiresCustomerRefundInfo(Map<String, Object> assignment) {
+		return hasBond(assignment)
+				&& List.of("RETURN_NM", "RT_BANK_CD", "RETURN_NO").stream()
+						.anyMatch(field -> Objects.toString(assignment.get(field), "").isBlank());
+	}
+
+	private void requireCustomerRefundInfo(Map<String, Object> assignment) {
+		if (requiresCustomerRefundInfo(assignment)) {
+			throw new BusinessException("환불정보를 먼저 입력해 주세요.", 400);
+		}
+	}
+
+	/** 토큰으로 신청건을 정하고, 완성된 환불정보는 재요청으로 덮어쓰지 않는다. */
+	@Transactional
+	public Map<String, Object> saveCustomerRefundInfo(Map<String, Object> param) {
+		String token = normalizeCustomerNumplateToken(Objects.toString(param.get("TOKEN"), ""));
+		Map<String, Object> work = new HashMap<>();
+		work.put("TOKEN", token);
+		work.put("LOCK_YN", "Y");
+		Map<String, Object> assignment = common.select(work, "selectNumplateMessageForUpdate");
+		if (assignment == null) {
+			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
+		}
+
+		if (requiresCustomerRefundInfo(assignment)) {
+			String returnName = Objects.toString(param.get("RETURN_NM"), "").trim();
+			String bankCode = Objects.toString(param.get("RT_BANK_CD"), "").trim();
+			String returnNo = Objects.toString(param.get("RETURN_NO"), "").trim();
+			if (returnName.isEmpty() || returnName.length() > 50
+					|| returnName.chars().anyMatch(Character::isISOControl)) {
+				throw new BusinessException("환불 예금주를 50자 이내로 입력해 주세요.", 400);
+			}
+			if (!returnNo.matches("[0-9]+(?:-[0-9]+)*") || returnNo.replace("-", "").length() > 30) {
+				throw new BusinessException("환불 계좌번호를 숫자 30자리 이내로 입력해 주세요.", 400);
+			}
+			List<Map<String, Object>> banks = common.selectList(Map.of("groupId", "BANK"), "findCodesByGroupId");
+			if (bankCode.isEmpty() || banks.stream().noneMatch(bank ->
+					bankCode.equals(Objects.toString(bank.get("CODE_ID"), "")))) {
+				throw new BusinessException("환불 은행을 선택해 주세요.", 400);
+			}
+			work.put("RETURN_NM", returnName);
+			work.put("RT_BANK_CD", bankCode);
+			work.put("RETURN_NO", returnNo.replace("-", ""));
+			common.update(work, "updateCustomerNumplateRefundInfo");
+		}
+
+		Map<String, Object> saved = common.select(Map.of("TOKEN", token), "selectCustomerNumplateAccess");
+		if (saved == null || requiresCustomerRefundInfo(saved)) {
+			throw new BusinessException("환불정보 저장에 실패했습니다. 다시 입력해 주세요.", 409);
+		}
+		return buildCustomerNumplateSelectionResult(Map.of("TOKEN", token), saved);
+	}
+
 	/** 8천만원 이상 법인 차량의 번호판 종류를 번호 조회 시작 전에 한 번만 저장한다. */
 	@Transactional
 	public Map<String, Object> selectCustomerNumplateType(Map<String, Object> param) {
@@ -967,6 +1030,7 @@ public class NumplateSelectionService {
 		if (assignment == null) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
+		requireCustomerRefundInfo(assignment);
 		if (!isPremiumCorporateNumplateTarget(assignment)) {
 			throw new BusinessException("번호판 종류 선택 대상이 아닙니다.");
 		}
@@ -1006,6 +1070,7 @@ public class NumplateSelectionService {
 		if (assignment == null) {
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
+		requireCustomerRefundInfo(assignment);
 		if (isPremiumCorporateNumplateTarget(assignment)
 				&& !hasSelectedNumplateType(Objects.toString(assignment.get("SAVED_NUMPLATE_GB"), ""))) {
 			throw new BusinessException("법인 번호판 종류를 먼저 선택해 주세요.");
@@ -1069,12 +1134,22 @@ public class NumplateSelectionService {
 		
 		Map<String, Object> listParam = new HashMap<>(work);
 		listParam.put("CONFIRM_NO", assignment.get("CONFIRM_NO"));
-		List<Map<String, Object>> rows = common.selectList(listParam, "selectNumplateMessageList");
+		boolean requiresRefundInfo = requiresCustomerRefundInfo(assignment);
+		List<Map<String, Object>> rows = requiresRefundInfo
+				? List.of() : common.selectList(listParam, "selectNumplateMessageList");
 		int selectCount = getNumplateSelectCount(assignment);
 		boolean canStart = Objects.toString(assignment.get("REQ_CAR_NO"), "").isBlank()
 				&& assignment.get("NUMPLATE_SELECT_TIME") == null;
 
 		Map<String, Object> result = new HashMap<>();
+		result.put("requiresRefundInfo", requiresRefundInfo);
+		if (requiresRefundInfo) {
+			result.put("refundInfo", Map.of(
+					"RETURN_NM", Objects.toString(assignment.get("RETURN_NM"), ""),
+					"RT_BANK_CD", Objects.toString(assignment.get("RT_BANK_CD"), ""),
+					"RETURN_NO", Objects.toString(assignment.get("RETURN_NO"), "")));
+			result.put("refundBanks", common.selectList(Map.of("groupId", "BANK"), "findCodesByGroupId"));
+		}
 		result.put("serviceId", Objects.toString(assignment.get("SERVICE_ID"), ""));
 		result.put("carNos", rows);
 		result.put("selectedCarNo", Objects.toString(assignment.get("REQ_CAR_NO"), ""));
@@ -1167,6 +1242,7 @@ public class NumplateSelectionService {
 			logger.warn("[번호판확정] 배정 정보 없음 - SERVICE_ID=확인불가");
 			throw new BusinessException("유효하지 않은 번호판 선택 링크입니다.");
 		}
+		requireCustomerRefundInfo(assignment);
 		String serviceId = Objects.toString(assignment.get("SERVICE_ID"), "확인불가");
 		int selectCount = getNumplateSelectCount(assignment);
 		Object selectedAt = assignment.get("NUMPLATE_SELECT_TIME");

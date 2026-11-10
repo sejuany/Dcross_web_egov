@@ -1,14 +1,17 @@
 import { useRef } from 'react';
 
-import { Search } from 'lucide-react';
+import { UserRound } from 'lucide-react';
 
 import AddressSearch from '../../common/AddressSearch';
 
 const JointOwner = ({
 	dsNewCar,
 	dsOwnerInfo,
+	dsOwnerInfo1,
+	isMultiOwner,
 	setDsNewCar,
 	setDsOwnerInfo,
+	setDsOwnerInfo1,
 	handleChange,
 	SplitInput,
 	onSelect,
@@ -47,7 +50,7 @@ const JointOwner = ({
 			    </label>
 	
 			    <div className="wa-form-control">
-			        <div className="wa-inline-group">
+			        <div className={`wa-inline-group wa-joint-ratio-group${isMultiOwner ? ' wa-joint-ratios-three' : ''}`}>
 
 						<div className="wa-ratio-input">
 				            <input
@@ -59,11 +62,29 @@ const JointOwner = ({
 								onChange={(e) => {
 								    handleChange(e);
 								}}
-				                placeholder="공동"
+				                placeholder={isMultiOwner ? '공동1' : '공동'}
 				            />
-							<span>공동소유자 비율</span>
+							<span>{isMultiOwner ? '공동소유자1 비율' : '공동소유자 비율'}</span>
 						</div>
 			            <span>%</span>
+
+			            {isMultiOwner && (
+			                <>
+			                    <div className="wa-ratio-input">
+			                        <input
+			                            className="wa-input"
+			                            autoComplete="off"
+			                            data-type="owner1"
+			                            name="DEBTOR_RATIO"
+			                            value={dsOwnerInfo1.DEBTOR_RATIO ?? ''}
+			                            onChange={handleChange}
+			                            placeholder="공동2"
+			                        />
+			                        <span>공동소유자2 비율</span>
+			                    </div>
+			                    <span>%</span>
+			                </>
+			            )}
 
 						<div className="wa-ratio-input">
 						    <input
@@ -73,7 +94,8 @@ const JointOwner = ({
 				                data-type="newcar"
 				                value={dsNewCar.RATIO_NO ?? ''}
 				                onChange={handleChange}
-						        readOnly 
+				                placeholder="100"
+						        readOnly={!isMultiOwner}
 						    />
 						    <span>대표소유자 비율</span>
 						</div>
@@ -83,10 +105,21 @@ const JointOwner = ({
 			    </div>
 			</div>
 			
+			<hr className="wa-joint-owner-divider" />
+			<div className="wa-joint-owner-card">
+			    <header className="wa-joint-owner-card-header">
+			        <h3 className="wa-joint-owner-title">
+			            <UserRound size={18} className="wa-joint-owner-icon" aria-hidden="true" />
+			            {isMultiOwner ? '공동소유자1 정보' : '공동소유자 정보'}
+			        </h3>
+			        <span className="wa-joint-owner-number" aria-hidden="true">01</span>
+			    </header>
+			<div className="wa-joint-owner-card-body">
+
 			{/* 공동소유자 성명 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
-			        공동소유자 성명
+			        {isMultiOwner ? '공동소유자1 성명' : '공동소유자 성명'}
 			    </label>
 	
 			    <div className="wa-form-control">
@@ -105,11 +138,11 @@ const JointOwner = ({
 			{/* 공동소유자 등록번호 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
-			        공동소유자 등록번호
+			        {isMultiOwner ? '공동소유자1 등록번호' : '공동소유자 등록번호'}
 			    </label>
 
 			    <div className="wa-form-control">
-			        <div className="wa-inline-group">
+			        <div className="wa-inline-group wa-joint-registration-group">
 
 			            <select
 			                className="wa-select"
@@ -125,6 +158,8 @@ const JointOwner = ({
 			            </select>
 
 						<SplitInput
+						    name="DEBTOR_REG_NO"
+						    data-type="owner"
 						    value={dsOwnerInfo.DEBTOR_REG_NO}
 						    lengths={[6, 7]}
 							maskLast={['R', 'F'].includes(dsOwnerInfo.DEBTOR_GB)}
@@ -176,11 +211,13 @@ const JointOwner = ({
 			{/* 휴대폰번호 */}
 			<div className="wa-form-row">
 			    <label className="wa-form-label">
-			        공동소유자 휴대폰번호
+			        {isMultiOwner ? '공동소유자1 휴대폰번호' : '공동소유자 휴대폰번호'}
 			    </label>
 			    <div className="wa-form-control">
 			        <div className="wa-inline-group">
 						<SplitInput
+						    name="DEBTOR_TEL_NO"
+						    data-type="owner"
 						    value={dsOwnerInfo.DEBTOR_TEL_NO}
 						    lengths={[3, 4, 4]}
 							fixedValues={['010']}
@@ -216,6 +253,111 @@ const JointOwner = ({
 					onSameChange={handleSameAddress}
 					sameLabel='대표소유자 주소'
 				/>
+			)}
+			</div>
+			</div>
+
+			{isMultiOwner && (
+			    <div className="wa-joint-owner-card wa-joint-owner-card-secondary">
+			        <header className="wa-joint-owner-card-header">
+			        <h3 className="wa-joint-owner-title">
+			            <UserRound size={18} className="wa-joint-owner-icon" aria-hidden="true" />
+			            공동소유자2 정보
+			        </h3>
+			            <span className="wa-joint-owner-number" aria-hidden="true">02</span>
+			        </header>
+			        <div className="wa-joint-owner-card-body">
+
+			        <div className="wa-form-row">
+			            <label className="wa-form-label">공동소유자2 성명</label>
+			            <div className="wa-form-control">
+			                <input
+			                    className="wa-input"
+			                    autoComplete="off"
+			                    name="DEBTOR_NM"
+			                    data-type="owner1"
+			                    value={dsOwnerInfo1.DEBTOR_NM ?? ''}
+			                    onChange={handleChange}
+			                    placeholder="이름을 입력하세요"
+			                />
+			            </div>
+			        </div>
+
+			        <div className="wa-form-row">
+			            <label className="wa-form-label">공동소유자2 등록번호</label>
+			            <div className="wa-form-control">
+			                <div className="wa-inline-group wa-joint-registration-group">
+			                    <select
+			                        className="wa-select"
+			                        name="DEBTOR_GB"
+			                        data-type="owner1"
+			                        value={dsOwnerInfo1.DEBTOR_GB ?? ''}
+			                        onChange={handleChange}
+			                    >
+			                        <option value="">선택</option>
+			                        <option value="R">주민등록번호</option>
+			                        <option value="B">법인등록번호</option>
+			                        <option value="F">외국인등록번호</option>
+			                    </select>
+			                    <SplitInput
+			                        name="DEBTOR_REG_NO"
+			                        data-type="owner1"
+			                        value={dsOwnerInfo1.DEBTOR_REG_NO}
+			                        lengths={[6, 7]}
+			                        maskLast={['R', 'F'].includes(dsOwnerInfo1.DEBTOR_GB)}
+			                        onChange={value =>
+			                            setDsOwnerInfo1(prev => ({ ...prev, DEBTOR_REG_NO: value }))
+			                        }
+			                    />
+			                </div>
+			                {dsOwnerInfo1.DEBTOR_GB === 'F' && (
+			                    <div className="wa-guide-text">
+			                        *최종확인 페이지에서 외국인 등록증을 첨부하여 주십시오.
+			                    </div>
+			                )}
+			            </div>
+			        </div>
+
+			        {dsOwnerInfo1.DEBTOR_GB === 'B' && (
+			            <div className="wa-form-row">
+			                <label className="wa-form-label">공동소유자2 사업자등록번호</label>
+			                <div className="wa-form-control">
+			                    <div className="wa-inline-group">
+			                        <SplitInput
+			                            name="DEBTOR_BIZ_NO"
+			                            data-type="owner1"
+			                            value={dsOwnerInfo1.DEBTOR_BIZ_NO}
+			                            lengths={[3, 2, 5]}
+			                            placeholders={['000', '00', '00000']}
+			                            onChange={value =>
+			                                setDsOwnerInfo1(prev => ({ ...prev, DEBTOR_BIZ_NO: value }))
+			                            }
+			                        />
+			                    </div>
+			                </div>
+			            </div>
+			        )}
+
+			        <div className="wa-form-row">
+			            <label className="wa-form-label">공동소유자2 휴대폰번호</label>
+			            <div className="wa-form-control">
+			                <div className="wa-inline-group">
+			                    <SplitInput
+			                        name="DEBTOR_TEL_NO"
+			                        data-type="owner1"
+			                        value={dsOwnerInfo1.DEBTOR_TEL_NO}
+			                        lengths={[3, 4, 4]}
+			                        fixedValues={['010']}
+			                        placeholders={['010', '0000', '0000']}
+			                        onChange={value =>
+			                            setDsOwnerInfo1(prev => ({ ...prev, DEBTOR_TEL_NO: value }))
+			                        }
+			                    />
+			                </div>
+			            </div>
+			        </div>
+			        </div>
+			    </div>
 			)}
 			
 			

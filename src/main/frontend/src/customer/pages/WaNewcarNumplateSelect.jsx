@@ -50,6 +50,9 @@ const WaNewcarNumplateSelect = () => {
     const [selected, setSelected] = useState('');
     const [message, setMessage] = useState('');
     const [loading, setLoading] = useState(true);
+    const [refundInfo, setRefundInfo] = useState({ RETURN_NM: '', RT_BANK_CD: '', RETURN_NO: '' });
+    const [showRefundConfirm, setShowRefundConfirm] = useState(false);
+    const [savingRefund, setSavingRefund] = useState(false);
     const [remainingSeconds, setRemainingSeconds] = useState(null);
     const [wobblingIndex, setWobblingIndex] = useState(-1);
     const [showLookupConsent, setShowLookupConsent] = useState(false);
@@ -72,13 +75,27 @@ const WaNewcarNumplateSelect = () => {
 
 	// URL의 공개 토큰만 서버로 보내며, 고객/차량/번호 목록과 서버 기준 만료 시각을 조회한다.
 	useEffect(() => {
+        let active = true;
+        setLoading(true);
+        setData(null);
+        setMessage('');
+        setShowRefundConfirm(false);
         axios({ method: 'get', url: '/api/customer/numplate-selection', params: { token } })
             .then(({ data: response }) => {
+                if (!active) return;
                 setData(response.result);
                 setSelected(response.result.selectedCarNo || '');
+                setRefundInfo({
+                    RETURN_NM: response.result.refundInfo?.RETURN_NM || '',
+                    RT_BANK_CD: response.result.refundInfo?.RT_BANK_CD || '',
+                    RETURN_NO: response.result.refundInfo?.RETURN_NO || ''
+                });
             })
-            .catch(e => setMessage(e.response?.data?.message || '번호판 선택 링크를 확인할 수 없습니다.'))
-            .finally(() => setLoading(false));
+            .catch(e => {
+                if (active) setMessage(e.response?.data?.message || '번호판 선택 링크를 확인할 수 없습니다.');
+            })
+            .finally(() => { if (active) setLoading(false); });
+        return () => { active = false; };
     }, [token]);
 
 	// WAS가 계산한 남은 시간을 사용해 고객 기기 시계 변경이 카운트다운에 영향을 주지 않게 한다.
@@ -116,6 +133,44 @@ const WaNewcarNumplateSelect = () => {
 
 		return () => window.clearInterval(timer);
 	}, [data?.carNos, data?.selectionStarted]);
+
+    const openRefundConfirm = event => {
+        event.preventDefault();
+        const bankExists = data?.refundBanks?.some(bank => bank.CODE_ID === refundInfo.RT_BANK_CD);
+        if (!refundInfo.RETURN_NM.trim() || !bankExists
+            || !/^[0-9]+(?:-[0-9]+)*$/.test(refundInfo.RETURN_NO.trim())
+            || refundInfo.RETURN_NO.replace(/-/g, '').length > 30) {
+            setMessage('환불 예금주, 은행, 계좌번호를 확인해 주세요.');
+            return;
+        }
+        setMessage('');
+        setShowRefundConfirm(true);
+    };
+
+    const saveRefundInfo = async () => {
+        if (savingRefund) return;
+        setSavingRefund(true);
+        setMessage('');
+        try {
+            const { data: response } = await axios({
+                method: 'post', url: '/api/customer/numplate-selection/refund-info',
+                data: {
+                    TOKEN: token,
+                    RETURN_NM: refundInfo.RETURN_NM.trim(),
+                    RT_BANK_CD: refundInfo.RT_BANK_CD,
+                    RETURN_NO: refundInfo.RETURN_NO.trim()
+                }
+            });
+            setData(response.result);
+            setSelected(response.result.selectedCarNo || '');
+            setShowRefundConfirm(false);
+            setRefundInfo({ RETURN_NM: '', RT_BANK_CD: '', RETURN_NO: '' });
+        } catch (error) {
+            setMessage(error.response?.data?.message || '환불정보를 저장하지 못했습니다. 다시 확인해 주세요.');
+        } finally {
+            setSavingRefund(false);
+        }
+    };
 
 	// 실제 조회 버튼을 누른 시점에만 서버가 조회 횟수와 조회 시작 시각을 기록한다.
 	const startSelection = async () => {
@@ -247,6 +302,8 @@ const WaNewcarNumplateSelect = () => {
 		: remainingSeconds != null && remainingSeconds > 30 && remainingSeconds <= 120
 			? 'warning'
 			: 'active';
+    const requiresRefundInfo = Boolean(data?.requiresRefundInfo);
+    const refundBankName = data?.refundBanks?.find(bank => bank.CODE_ID === refundInfo.RT_BANK_CD)?.CODE_NM || '';
 	const requiresNumplateTypeSelection = Boolean(data?.requiresNumplateTypeSelection);
 	const selectedNumplateTypeLabel = numplateTypeOptions.find(
 		option => option.value === selectedNumplateType
@@ -261,6 +318,7 @@ const WaNewcarNumplateSelect = () => {
 
     const isSelectingNumber = Boolean(data?.selectionStarted)
         && !data.selectedCarNo
+        && !requiresRefundInfo
         && !requiresNumplateTypeSelection
         && !data.lookupFailed
         && !selectionUnavailable;
@@ -312,18 +370,20 @@ const WaNewcarNumplateSelect = () => {
                     <span className="numplate-heading-icon"><CarFront size={26} /></span>
                     <div className="numplate-heading-text">
 						<h3>
-							{requiresNumplateTypeSelection ? '번호판 종류 선택' : '차량 번호 선택'}
-							{!requiresNumplateTypeSelection && savedNumplateTypeLabel
+							{requiresRefundInfo ? '환불정보입력' : requiresNumplateTypeSelection ? '번호판 종류 선택' : '차량 번호 선택'}
+							{!requiresRefundInfo && !requiresNumplateTypeSelection && savedNumplateTypeLabel
 								&& <span className="numplate-heading-type">{savedNumplateTypeLabel}</span>}
 						</h3>
-						<p>{requiresNumplateTypeSelection
-							? '원하시는 번호판 종류를 먼저 선택해 주세요.'
-							: '번호 조회 후 5분이 지나면 오늘은 다시 조회할 수 없습니다.'}</p>
+						<p>{requiresRefundInfo
+                            ? '차량 등록 완료 후 환불 금액 발생 시, 해당 정보로 환불됩니다.'
+                            : requiresNumplateTypeSelection
+                                ? '원하시는 번호판 종류를 먼저 선택해 주세요.'
+                                : '번호 조회 후 5분이 지나면 오늘은 다시 조회할 수 없습니다.'}</p>
 					</div>
-					{token && <button type="button" className="numplate-report-btn" onClick={openErrorReport}>오류제출</button>}
+					{token && !requiresRefundInfo && <button type="button" className="numplate-report-btn" onClick={openErrorReport}>오류제출</button>}
                 </div>
 
-                {data && (
+                {data && !requiresRefundInfo && (
                     <div className="numplate-car-summary">
                         <div><UserRound size={18} /><span>고객명<strong>{data.customerName || '-'}</strong></span></div>
                         <div><ScanLine size={18} /><span>차대번호<strong>{data.carIdNo || '-'}</strong></span></div>
@@ -332,7 +392,68 @@ const WaNewcarNumplateSelect = () => {
                     </div>
                 )}
 
-                {data?.selectedCarNo ? (
+                {requiresRefundInfo ? (
+                    <form className="numplate-refund-form" onSubmit={openRefundConfirm}>
+                        <fieldset disabled={savingRefund}>
+                            <div className="numplate-refund-row">
+                                <label htmlFor="numplate-refund-name">환불 예금주</label>
+                                <input id="numplate-refund-name" className="customer-input" required
+                                    maxLength={50} autoComplete="name" value={refundInfo.RETURN_NM}
+                                    onChange={event => setRefundInfo(prev => ({ ...prev, RETURN_NM: event.target.value }))} />
+                            </div>
+                            <div className="numplate-refund-row">
+                                <label htmlFor="numplate-refund-bank">환불 계좌</label>
+                                <div className="numplate-refund-account">
+                                    <select id="numplate-refund-bank" className="customer-input" required
+                                        aria-label="환불 은행" value={refundInfo.RT_BANK_CD}
+                                        onChange={event => setRefundInfo(prev => ({ ...prev, RT_BANK_CD: event.target.value }))}>
+                                        <option value="">은행 선택</option>
+                                        {data.refundBanks?.map(bank => (
+                                            <option key={bank.CODE_ID} value={bank.CODE_ID}>{bank.CODE_NM}</option>
+                                        ))}
+                                    </select>
+                                    <input className="customer-input" required inputMode="numeric"
+                                        aria-label="환불 계좌번호" maxLength={40} autoComplete="off"
+                                        placeholder="계좌번호 입력" value={refundInfo.RETURN_NO}
+                                        onChange={event => setRefundInfo(prev => ({
+                                            ...prev, RETURN_NO: event.target.value.replace(/[^0-9-]/g, '')
+                                        }))} />
+                                </div>
+                            </div>
+                        </fieldset>
+                        {!showRefundConfirm && message && <p className="numplate-customer-message" role="alert">{message}</p>}
+                        <div className="customer-btn-group numplate-refund-submit">
+                            <button type="submit" className="customer-btn customer-btn-primary"
+                                disabled={savingRefund || !refundInfo.RETURN_NM.trim()
+                                    || !refundInfo.RT_BANK_CD || !refundInfo.RETURN_NO.trim()}>입력완료</button>
+                        </div>
+                        {showRefundConfirm && createPortal(
+                            <div className="numplate-consent-backdrop">
+                                <section className="numplate-consent-modal numplate-refund-confirm" role="dialog"
+                                    aria-modal="true" aria-labelledby="numplate-refund-confirm-title">
+                                    <h4 id="numplate-refund-confirm-title">환불 정보 확인</h4>
+                                    <p><strong>입력하신 환불 정보로 환불이 진행됩니다.</strong></p>
+                                    <p>입력하신 환불정보를 확인하시고<br />
+                                        [확인]을 눌러 차량 번호를 선택해 주세요.</p>
+                                    <p className="numplate-refund-edit-note">(환불정보 수정 시, [닫기] 클릭하여 재입력)</p>
+                                    <ul className="numplate-refund-summary">
+                                        <li>환불 예금주 : {refundInfo.RETURN_NM.trim()}</li>
+                                        <li>환불 은행 : {refundBankName}</li>
+                                        <li>환불 계좌 : {refundInfo.RETURN_NO.trim()}</li>
+                                    </ul>
+                                    {message && <p className="numplate-customer-message" role="alert">{message}</p>}
+                                    <div className="numplate-consent-actions">
+                                        <button type="button" className="no" disabled={savingRefund}
+                                            onClick={() => { setShowRefundConfirm(false); setMessage(''); }}>닫기</button>
+                                        <button type="button" className="yes" disabled={savingRefund} onClick={saveRefundInfo}>
+                                            {savingRefund ? '저장 중' : '확인'}
+                                        </button>
+                                    </div>
+                                </section>
+                            </div>, cardRef.current
+                        )}
+                    </form>
+                ) : data?.selectedCarNo ? (
                     <div className="numplate-complete" role="status">
                         <CheckCircle2 size={58} />
                         <h4>차량 번호 선택이 완료되었습니다</h4>

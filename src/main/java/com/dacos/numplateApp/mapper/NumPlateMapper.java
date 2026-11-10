@@ -84,6 +84,22 @@ public interface NumPlateMapper {
 
     int appendPlateMemo(Map<String, Object> request);
 
+    Map<String, Object> getManagerPlateMessageStatus(Map<String, Object> request);
+
+    Map<String, Object> lockManagerPlateMessage(Map<String, Object> request);
+
+    List<Map<String, Object>> lockManagerPlateCandidates(Map<String, Object> request);
+
+    List<String> getPendingManagerPlateNumbers(Map<String, Object> request);
+
+    int markManagerPlateCandidatesRequested(Map<String, Object> request);
+
+    int updateManagerPlateMessageState(Map<String, Object> request);
+
+    int insertManagerPlateMessageHistory(Map<String, Object> request);
+
+    int releaseManagerPlateMessageCandidates(Map<String, Object> request);
+
     int updateProcessInput(Map<String, Object> request);
 
     /** 상세화면에서 방문 예정일과 시간을 즉시 저장한다. */

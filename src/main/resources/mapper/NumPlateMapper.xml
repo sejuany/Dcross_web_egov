@@ -715,6 +715,7 @@
 	           D.NUMPLATE_SELECT_TIME,
 	           NVL(D.CUSTOMER_NM, N.OWNER_NM) AS CUSTOMER_NM,
 	           N.CARID_NO, N.CAR_NM, N.REQ_CAR_NO,
+	           N.RETURN_NM, N.RT_BANK_CD, N.RETURN_NO, N.BOND_AMT,
 	           NVL(N.NUMPLATE_GB, D.TASK_CD) AS NUMPLATE_GB,
 	           S.LINK_ID,
 	           (SELECT MAX(P.APPEAR_DT) FROM TM_NUMPLATE_LIST P
@@ -737,6 +738,7 @@
 	           TO_CHAR(D.NUMPLATE_SELECT_TIME + (5 / 1440), 'YYYY-MM-DD HH24:MI:SS') AS EXPIRES_AT,
 	           NVL(D.CUSTOMER_NM, N.OWNER_NM) AS CUSTOMER_NM,
 	           N.CARID_NO, N.CAR_NM, N.CAR_KD, N.REQ_CAR_NO,
+	           N.RETURN_NM, N.RT_BANK_CD, N.RETURN_NO, N.BOND_AMT,
 	           TO_CHAR(N.REGIST_DATE - 3, 'YYYY-MM-DD') AS INSURANCE_DEADLINE,
 	           TO_CHAR(N.REGIST_DATE, 'YYYY-MM-DD') AS INSURANCE_START_DATE,
 	           N.REG_GB, N.TASK_CD, N.PROC_CD, O.DEBTOR_GB,
@@ -764,6 +766,23 @@
 	       AND B.BRANCH_ID = S.BRANCH_ID
 	     WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
 	</select>
+
+	<!-- 고객 토큰에 연결된 신청건의 누락된 환불정보만 저장한다. -->
+	<update id="updateCustomerNumplateRefundInfo" parameterType="map">
+	    UPDATE TR_NEWCAR N
+	       SET RETURN_NM = #{RETURN_NM},
+	           RT_BANK_CD = #{RT_BANK_CD},
+	           RETURN_NO = #{RETURN_NO},
+	           UPD_USER = 'CUSTOMER',
+	           UPD_DATE = SYSDATE
+	     WHERE N.SERVICE_ID = (
+	               SELECT D.SERVICE_ID
+	                 FROM TR_CARNO_DETACH D
+	                WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
+	           )
+	       AND N.BOND_AMT &gt;= 0
+	       AND (TRIM(N.RETURN_NM) IS NULL OR TRIM(N.RT_BANK_CD) IS NULL OR TRIM(N.RETURN_NO) IS NULL)
+	</update>
 
 	<!-- 8천만원 이상 법인 차량의 번호판 종류를 실제 번호 조회 전에 저장한다. -->
 	<update id="updateCustomerNumplateType" parameterType="map">
@@ -807,6 +826,11 @@
 	                 FROM TR_NEWCAR N
 	                WHERE N.SERVICE_ID = TR_CARNO_DETACH.SERVICE_ID
 	                  AND N.REQ_CAR_NO IS NULL
+	                  AND (N.BOND_AMT IS NULL OR N.BOND_AMT &lt; 0 OR (
+	                      TRIM(N.RETURN_NM) IS NOT NULL
+	                      AND TRIM(N.RT_BANK_CD) IS NOT NULL
+	                      AND TRIM(N.RETURN_NO) IS NOT NULL
+	                  ))
 	           )
 	</update>
 
@@ -1078,7 +1102,7 @@
         SELECT TS.SERVICE_ID AS SERVICE_ID, TC.CAR_NO AS CAR_NO, TC.POST_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
                CASE WHEN #{DEALER_MANAGER_YN} = 'Y' AND TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN TS.LINK_ID END AS LINK_ID,
                CASE WHEN #{DEALER_MANAGER_YN} = 'Y' AND TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN TMD.MEMBER_NM END AS MEMBER_NM,
-               TB.BUY_NM AS BUY_NM, TS.PROC_ST AS PROC_ST,
+               TB.BUY_NM AS BUY_NM, TS.PROC_ST AS PROC_ST, NULL AS OWNER_NM,
                TO_CHAR(TL.EXPIRE_DT + 14,'YYYY-MM-DD') AS EXPIRE_DT,
                CASE WHEN TNI.IMAGE1 IS NULL THEN '' ELSE 'Y' END AS IMAGE1,
                CASE WHEN TNI.IMAGE2 IS NULL THEN '' ELSE 'Y' END AS IMAGE2,
@@ -1157,7 +1181,7 @@
         SELECT TS.SERVICE_ID AS SERVICE_ID, TC.CAR_NO AS CAR_NO, TC.POST_CAR_NO AS POST_CAR_NO, TS.COMPANY_ID,
                CASE WHEN #{DEALER_MANAGER_YN} = 'Y' AND TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN TS.LINK_ID END AS LINK_ID,
                CASE WHEN #{DEALER_MANAGER_YN} = 'Y' AND TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN TMD.MEMBER_NM END AS MEMBER_NM,
-               TM.BUY_NM AS BUY_NM, TS.PROC_ST AS PROC_ST,
+               TM.BUY_NM AS BUY_NM, TS.PROC_ST AS PROC_ST, NULL AS OWNER_NM,
                '' AS EXPIRE_DT,
                CASE WHEN TNI.IMAGE1 IS NULL THEN '' ELSE 'Y' END AS IMAGE1,
                CASE WHEN TNI.IMAGE2 IS NULL THEN '' ELSE 'Y' END AS IMAGE2,
@@ -1208,6 +1232,14 @@
             CASE WHEN #{DEALER_MANAGER_YN} = 'Y' AND TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN TS.LINK_ID END AS LINK_ID,
             CASE WHEN #{DEALER_MANAGER_YN} = 'Y' AND TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN TMD.MEMBER_NM END AS MEMBER_NM,
             (SELECT COMPANY_NM FROM TM_COMPANY WHERE COMPANY_ID = TS.COMPANY_ID) AS BUY_NM, TS.PROC_ST AS PROC_ST,
+            CASE WHEN TS.WORK_CD = '010' AND TS.COMPANY_ID LIKE 'W%' THEN
+                CASE WHEN (TN.TASK_CD = 'NORML' AND TN.PROC_CD = 'I')
+                       OR (TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'C') THEN TN.OWNER_NM
+                     WHEN TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'I' THEN
+                         (SELECT OI.DEBTOR_NM FROM TR_OWNERINFO OI
+                           WHERE OI.SERVICE_ID = TS.SERVICE_ID AND OI.SEQ = 0)
+                END
+            END AS OWNER_NM,
             TO_CHAR(TRUNC(SYSDATE), 'YYYY-MM-DD') AS EXPIRE_DT,
             CASE WHEN TNI.IMAGE1 IS NULL THEN '' ELSE 'Y' END AS IMAGE1,
             CASE WHEN TNI.IMAGE2 IS NULL THEN '' ELSE 'Y' END AS IMAGE2,
@@ -1761,4 +1793,77 @@
           ) H
          ORDER BY H.ACTION_ID
     </select>
+    <select id="getManagerPlateMessageStatus" parameterType="map" resultType="map">
+        SELECT DECODE(TC.NUM_SELECT_ST, 'REQ', '번호 선택 중', 'END', '배정 완료',
+                      'CAN', '요청 취소', 'FAIL', '재시도 중', 'N_END', '배정 완료',
+                      'N_FAIL', '재시도 중', 'EXP', '요청시간 만료', 'N_EXP', '요청시간 만료', '-') AS NUM_SELECT_ST,
+               (SELECT CONFIRM_NO FROM (
+                   SELECT D.CONFIRM_NO
+                     FROM TR_DSIGN D
+                    WHERE D.SERVICE_ID = #{SERVICE_ID}
+                      AND D.DSIGN_GB = 'NUM' AND D.DSIGN_ST IN ('END', 'FAIL')
+                    ORDER BY D.DSIGN_SEQ DESC
+               ) WHERE ROWNUM = 1) AS CONFIRM_NO
+          FROM TR_CARNO_DETACH TC
+         WHERE TC.SERVICE_ID = #{SERVICE_ID}
+    </select>
+
+    <select id="lockManagerPlateMessage" parameterType="map" resultType="map">
+        SELECT NVL(NUM_SELECT_ST, '-') AS NUM_SELECT_ST
+          FROM TR_CARNO_DETACH
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           AND SUBSTR(REPLACE(PKG_COMMON.FN_DECRYPT(INSTALL_TEL_NO), '-', ''), -8)
+               = SUBSTR(REPLACE(#{TEL_NO}, '-', ''), -8)
+         FOR UPDATE
+    </select>
+
+    <select id="lockManagerPlateCandidates" parameterType="map" resultType="map">
+        SELECT CAR_NO, USE_YN, SERVICE_ID
+          FROM TM_NUMPLATE_LIST
+         WHERE CAR_NO IN
+         <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
+             #{carNo}
+         </foreach>
+         ORDER BY CAR_NO
+         FOR UPDATE
+    </select>
+
+    <select id="getPendingManagerPlateNumbers" parameterType="map" resultType="string">
+        SELECT CAR_NO FROM TM_NUMPLATE_LIST
+         WHERE SERVICE_ID = #{SERVICE_ID} AND USE_YN = 'P'
+         ORDER BY CAR_NO
+    </select>
+
+    <update id="markManagerPlateCandidatesRequested" parameterType="map">
+        UPDATE TM_NUMPLATE_LIST
+           SET APPEAR_DT = SYSDATE, UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID} AND USE_YN = 'P'
+           AND CAR_NO IN
+         <foreach collection="NUM_LIST" item="carNo" open="(" separator="," close=")">
+             #{carNo}
+         </foreach>
+    </update>
+
+    <update id="updateManagerPlateMessageState" parameterType="map">
+        UPDATE TR_CARNO_DETACH
+           SET NUM_SELECT_ST = #{NUM_SELECT_ST}, CONFIRM_NO = #{CONFIRM_NO, jdbcType=VARCHAR}
+         WHERE SERVICE_ID = #{SERVICE_ID}
+    </update>
+
+    <insert id="insertManagerPlateMessageHistory" parameterType="map">
+        INSERT INTO TR_DSIGN
+            (SERVICE_ID, DSIGN_SEQ, DSIGN_GB, DSIGN_HP_GB, DSIGN_HP_NO, CONFIRM_NO,
+             DSIGN_ST, DSIGN_DT, INS_USER, DSIGN_TX, DSIGN_CD)
+        VALUES
+            (#{SERVICE_ID},
+             (SELECT NVL(MAX(DSIGN_SEQ) + 1, 1) FROM TR_DSIGN WHERE SERVICE_ID = #{SERVICE_ID}),
+             'NUM', 'NUM', PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}), #{CONFIRM_NO},
+             'REQ', SYSDATE, #{MEMBER_ID}, #{TEXT}, 'NUM')
+    </insert>
+
+    <update id="releaseManagerPlateMessageCandidates" parameterType="map">
+        UPDATE TM_NUMPLATE_LIST
+           SET USE_YN = 'N', SERVICE_ID = NULL, APPEAR_DT = NULL, UPD_DATE = SYSDATE
+         WHERE SERVICE_ID = #{SERVICE_ID} AND USE_YN = 'P'
+    </update>
 </mapper>

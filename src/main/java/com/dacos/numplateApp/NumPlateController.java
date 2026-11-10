@@ -310,6 +310,28 @@ public class NumPlateController {
                 "data", numPlateService.savePlate(serviceId, request, user)));
     }
 
+    @GetMapping("/numplateapp/process/{serviceId}/plate-message")
+    public ResponseEntity<Map<String, Object>> getPlateMessageStatus(
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
+        return ResponseEntity.ok().cacheControl(CacheControl.noStore()).body(ApiResponse.withKey(
+                "data", numPlateService.getPlateMessageStatus(serviceId, AuthUtil.getLoginUser(session))));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/plate-message")
+    public ResponseEntity<Map<String, Object>> sendPlateMessage(
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request, HttpSession session) {
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.sendPlateMessage(serviceId, request, AuthUtil.getLoginUser(session))));
+    }
+
+    @PostMapping("/numplateapp/process/{serviceId}/plate-message/cancel")
+    public ResponseEntity<Map<String, Object>> cancelPlateMessage(
+            @PathVariable("serviceId") String serviceId, HttpSession session) {
+        return ResponseEntity.ok(ApiResponse.withKey(
+                "data", numPlateService.cancelPlateMessage(serviceId, AuthUtil.getLoginUser(session))));
+    }
+
     /** 확인된 입력값을 저장한 뒤 건 유형에 따라 배송 완료 또는 심사요청으로 상태를 변경한다. */
     @PostMapping("/numplateapp/process/{serviceId}/request")
     public ResponseEntity<Map<String, Object>> requestProcess(

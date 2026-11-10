@@ -124,6 +124,11 @@
                TN.PAY_ST,
                TN.TOTAL_AMT,
                TN.VBANK_NO,
+               CASE
+                   WHEN TN.BOND_AMT &gt;= 0
+                    AND (TRIM(TN.RETURN_NM) IS NULL OR TRIM(TN.RT_BANK_CD) IS NULL OR TRIM(TN.RETURN_NO) IS NULL)
+                   THEN 1 ELSE 0
+               END AS REFUND_INFO_REQUIRED,
                PKG_COMMON.FN_DECRYPT(TN.MPHONE_NO) AS MPHONE_NO,
                PKG_COMMON.FN_DECRYPT(TOI.DSIGN_HP_NO) AS LEASE_HP_NO,
                TCD.NUMPLATE_MSG_TOKEN

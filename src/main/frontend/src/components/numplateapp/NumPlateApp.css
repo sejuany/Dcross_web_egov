@@ -471,9 +471,15 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-image-empty { display: grid; height: 128px; place-items: center; border-radius: 9px; background: #eef2f7; color: #718096; }
 .numplate-status-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 9px; margin-top: 14px; }
 .numplate-status-actions button:last-child { color: #29435f; font-weight: 800; }
-.numplate-cancel-review { display: grid; grid-template-columns: auto 1fr auto; gap: 9px; align-items: center; margin-top: 14px; padding: 14px; border: 1px solid #f1b5b1; border-radius: 14px; background: #fff5f4; }
+.numplate-cancel-review { display: grid; gap: 12px; margin-top: 14px; padding: 14px; border: 1px solid #f1b5b1; border-radius: 14px; background: #fff5f4; }
 .numplate-cancel-review h2 { margin: 0; color: #b42318; font-size: 16px; }
+.numplate-cancel-review label { display: grid; min-width: 0; gap: 6px; }
+.numplate-cancel-review label > span { color: #55657b; font-size: 14px; font-weight: 700; }
+.numplate-cancel-review input,
+.numplate-cancel-review select { box-sizing: border-box; min-width: 0; width: 100%; min-height: 46px; padding: 9px 10px; border: 1px solid #d7b6b2; border-radius: 9px; background: #fff; font: inherit; }
+.numplate-revisit-fields { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .numplate-cancel-review button { border-color: #b42318; background: #b42318; color: #fff; font-weight: 800; }
+.numplate-signature-guide { margin: 0; color: #b42318; font-size: 14px; line-height: 1.6; overflow-wrap: anywhere; }
 .numplate-image-modal { position: fixed; inset: 0; z-index: 200; display: grid; width: 100%; height: 100%; padding: 18px; place-items: center; border: 0; background: rgba(0,0,0,.86); }
 .numplate-image-modal img { max-width: 100%; max-height: 100%; object-fit: contain; }
 .numplate-signature-pad { display: grid; gap: 7px; }
@@ -505,6 +511,18 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-plate-modal footer button { min-height: 48px; border: 1px solid #bdc9d8; border-radius: 11px; background: #fff; color: #29435f; font-weight: 800; }
 .numplate-plate-modal footer .save { border-color: #1e66b3; background: #1e66b3; color: #fff; }
 .numplate-plate-modal button:disabled { opacity: .55; }
+.numplate-tracking-link { display: inline-flex; align-items: center; justify-content: center; align-self: start; min-height: 40px; box-sizing: border-box; width: fit-content; padding: 0 14px; border: 1px solid #1e66b3; border-radius: 9px; background: #fff; color: #174f8c; font: inherit; font-weight: 700; text-decoration: none; }
+.numplate-tracking-link:disabled { opacity: .5; }
+.numplate-request-id-card .numplate-image-preview { width: min(100%, 260px); height: 150px; }
+.numplate-plate-message { display: grid; gap: 10px; margin-top: 14px; padding: 12px; border: 1px solid #c9d4e0; border-radius: 12px; background: #f3f7fc; }
+.numplate-plate-message h3 { margin: 0; color: #174f8c; font-size: 16px; }
+.numplate-plate-message dl { display: grid; grid-template-columns: 80px minmax(0, 1fr); gap: 7px; margin: 0; }
+.numplate-plate-message dt { color: #66758a; }
+.numplate-plate-message dd { margin: 0; overflow-wrap: anywhere; }
+.numplate-plate-message > div { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 7px; }
+.numplate-plate-message button { min-height: 44px; padding: 4px; border: 1px solid #aabbd0; border-radius: 9px; background: #fff; color: #174f8c; font: inherit; font-weight: 700; }
+.numplate-plate-message button:last-child { background: #1e66b3; border-color: #1e66b3; color: #fff; }
+.numplate-plate-message p { margin: 0; color: #b42318; font-size: 14px; }
 
 @media (max-width: 768px) {
   .numplate-app-shell .status-toolbar { padding: 8px 12px; }
@@ -523,6 +541,7 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
   .numplate-memo-row,
   .numplate-action-form,
   .numplate-cancel-review { grid-template-columns: 1fr; }
+  .numplate-revisit-fields { grid-template-columns: 1fr; }
   .numplate-sub-panel-choice { grid-template-columns: 1fr 1fr; }
   .numplate-sub-panel-choice strong,
   .numplate-sub-panel-choice button { grid-column: 1 / -1; }

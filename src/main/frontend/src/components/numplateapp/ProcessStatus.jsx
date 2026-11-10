@@ -2,15 +2,17 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import axios from 'axios';
 import { useNavigate, useParams } from 'react-router-dom';
 import SignatureCanvas from 'react-signature-canvas';
+import { getProcessPath } from './processNavigation';
 
 const show = (value) => value || '-';
-const requestStates = new Set(['N_REQ', 'N_INS', 'N_DLV']);
+const visitTimes = [9, 10, 11, 13, 14, 15, 16, 17]
+  .flatMap((hour) => Array.from({ length: 6 }, (_, index) => `${String(hour).padStart(2, '0')}:${index}0`));
 const photoStates = new Set([
   '번호판사진등록요청', '번호판 사진을 다시 등록해 주세요.',
   '신분증사진등록요청', '서명 진행 전 신분증사진등록요청',
   '서명 진행 요청', '번호판사진등록완료',
 ]);
-const slots = [[1, '기존 번호판'], [2, '신규 번호판'], [3, '차대번호'], [4, '신분증'], [6, '서명']];
+const slots = [[1, '기존 번호판'], [2, '신규 앞 번호판'], [3, '신규 뒤 번호판'], [4, '신분증'], [6, '서명']];
 
 /** 기존 processStatus.jsp의 상태별 조회·사진·요청 기능을 모바일 웹으로 제공한다. */
 export default function ProcessStatus() {
@@ -25,37 +27,48 @@ export default function ProcessStatus() {
   const [preview, setPreview] = useState(null);
   const [paper, setPaper] = useState({ type: '', destination: '' });
   const [cancelReason, setCancelReason] = useState('');
+  const [revisit, setRevisit] = useState({ installDate: '', installTime: '', customerPaid: true });
   const [subPanelUsed, setSubPanelUsed] = useState('');
   const [subPanelSaved, setSubPanelSaved] = useState(false);
   const signatureRef = useRef(null);
+  const loadRequest = useRef(null);
 
   const load = useCallback(async () => {
+    loadRequest.current?.abort();
+    const controller = new AbortController();
+    loadRequest.current = controller;
     setLoading(true);
     setMessage('');
+    setDetail(null);
     try {
-      const { data } = await axios.get(`/api/numplateapp/process/${encodeURIComponent(serviceId)}`);
+      const { data } = await axios.get(`/api/numplateapp/process/${encodeURIComponent(serviceId)}`, { signal: controller.signal });
+      if (controller.signal.aborted) return;
       const item = data.data;
-      if (serviceId.startsWith('N')) {
-        navigate(item.INSTALL_YN === 'Y' ? '/numplateapp' : `/numplateapp/request/${encodeURIComponent(serviceId)}`, { replace: true });
-        return;
-      }
-      // 기존 컨트롤러처럼 아직 심사요청 전 상태이면 입력 화면으로 돌려보낸다.
-      if (requestStates.has(item.PROC_ST)) {
-        navigate(`/numplateapp/request/${encodeURIComponent(serviceId)}`, { replace: true });
+      const path = getProcessPath({ ...item, SERVICE_ID: serviceId });
+      if (path !== `/numplateapp/status/${encodeURIComponent(serviceId)}`) {
+        navigate(path, { replace: true });
         return;
       }
       setDetail(item);
       setMemo(item.NUM_MEMO_TX || '');
+      setRevisit({
+        installDate: item.INSTALL_DT || '',
+        installTime: item.INSTALL_TIME && item.INSTALL_MINUTES ? `${item.INSTALL_TIME}:${item.INSTALL_MINUTES}` : '',
+        customerPaid: true,
+      });
       setSubPanelUsed('');
       setSubPanelSaved(false);
     } catch (error) {
-      setMessage(error.response?.data?.message || '처리결과를 불러오지 못했습니다.');
+      if (!controller.signal.aborted) setMessage(error.response?.data?.message || '처리결과를 불러오지 못했습니다.');
     } finally {
-      setLoading(false);
+      if (!controller.signal.aborted) setLoading(false);
     }
   }, [navigate, serviceId]);
 
-  useEffect(() => { load(); }, [load]);
+  useEffect(() => {
+    load();
+    return () => loadRequest.current?.abort();
+  }, [load]);
 
   const run = async (name, action, successMessage) => {
     setWorking(name);
@@ -118,7 +131,13 @@ export default function ProcessStatus() {
     if (!window.confirm('심사요청을 취소하시겠습니까?')) return;
     const ok = await run(
       'cancel',
-      () => axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/cancel-review`, { reason: cancelReason }),
+      () => axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/cancel-review`, {
+        reason: cancelReason,
+        customerPaid: revisit.customerPaid,
+        ...(revisit.installDate || revisit.installTime ? {
+          installDate: revisit.installDate, installTime: revisit.installTime,
+        } : {}),
+      }),
       '심사취소를 요청했습니다.',
     );
     if (ok) setCancelReason('');
@@ -169,8 +188,17 @@ export default function ProcessStatus() {
     && detail.BOND_YN !== 'N' && ![1, 2, 3].every((slot) => hasImage(slot));
 
   if (!detail) {
-    return <section className="numplate-process-page"><p className="numplate-inline-message" role="alert">{message || (loading ? '불러오는 중입니다.' : '처리 건이 없습니다.')}</p></section>;
+    return <section className="numplate-process-page"><p className="numplate-inline-message" role="alert">{message || (loading ? '불러오는 중입니다.' : '처리 건이 없습니다.')}</p>{!loading && <button type="button" className="numplate-secondary-button" onClick={load}>다시 시도</button>}</section>;
   }
+
+  const now = new Date();
+  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  const unchangedRevisit = revisit.installDate === detail.INSTALL_DT
+    && revisit.installTime === `${detail.INSTALL_TIME}:${detail.INSTALL_MINUTES}`;
+  const earliestVisit = detail.INSU_START_DT > today ? detail.INSU_START_DT : today;
+  const revisitMin = unchangedRevisit && detail.INSTALL_DT < today
+    && (!detail.INSU_START_DT || detail.INSTALL_DT >= detail.INSU_START_DT)
+    ? detail.INSTALL_DT : earliestVisit;
 
   return (
     <section className="numplate-process-page">
@@ -214,7 +242,7 @@ export default function ProcessStatus() {
       {showPhotos && (
         <section className="numplate-status-section">
           <h2>번호판 사진 등록</h2>
-          <p className="numplate-photo-guide">사진을 누르면 크게 볼 수 있습니다. 신분증 사진은 필요한 부분만 보이도록 촬영하고 완료 후 휴대폰에서도 삭제해 주세요.</p>
+          <p className="numplate-photo-guide">기존 앞·뒤 번호판은 한 장에 함께, 신규 앞 번호판과 신규 뒤 번호판은 각각 한 장씩 촬영해 주세요. 사진을 누르면 크게 볼 수 있습니다. 신분증 사진은 필요한 부분만 보이도록 촬영하고 완료 후 휴대폰에서도 삭제해 주세요.</p>
           {needsSubPanelChoice && <div className="numplate-sub-panel-choice">
             <strong>보조판 사용 여부</strong>
             <label><input type="radio" name="subPanelUsed" value="Y" checked={subPanelUsed === 'Y'} onChange={(event) => { setSubPanelUsed(event.target.value); setSubPanelSaved(false); }} /> 사용</label>
@@ -227,6 +255,7 @@ export default function ProcessStatus() {
                 <strong>{label}</strong>
                 {hasImage(slot) ? <button type="button" className="numplate-image-preview" onClick={() => setPreview(slot)}><img src={imageUrl(slot)} alt={`${label} 등록 사진`} /></button> : <span className="numplate-image-empty">미등록</span>}
                 {canEditPhotos && slot === 6 && <div className="numplate-signature-pad">
+                  <p className="numplate-signature-guide">{detail.TASK_CD === 'UTRNS' ? '양도인(딜러)' : '렌트계약자(실 운전자)'}의 성함을 정자로 기입해 주세요.<br />명함과 서명하는 분의 이름이 반드시 일치해야 합니다.</p>
                   <SignatureCanvas ref={signatureRef} canvasProps={{ className: 'numplate-signature-canvas' }} />
                   <div><button type="button" onClick={() => signatureRef.current?.clear()}>지우기</button><button type="button" onClick={saveSignature} disabled={Boolean(working)}>{working === 'image-6' ? '등록 중' : '서명 등록'}</button></div>
                 </div>}
@@ -244,7 +273,16 @@ export default function ProcessStatus() {
       </div>
 
       {detail.PROC_ST === 'S_REQ' && (
-        <form className="numplate-cancel-review" onSubmit={cancelReview}><h2>심사취소</h2><input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} minLength={2} maxLength={500} placeholder="심사취소 사유" required /><button type="submit" disabled={Boolean(working)}>{working === 'cancel' ? '취소 처리 중' : '심사취소'}</button></form>
+        <form className="numplate-cancel-review" onSubmit={cancelReview}>
+          <h2>심사취소</h2>
+          <label><span>심사취소 사유</span><input value={cancelReason} onChange={(event) => setCancelReason(event.target.value)} minLength={2} maxLength={500} required disabled={Boolean(working)} /></label>
+          <div className="numplate-revisit-fields">
+            <label><span>재방문 일자</span><input type="date" min={revisitMin} value={revisit.installDate} onChange={(event) => setRevisit({ ...revisit, installDate: event.target.value })} required={Boolean(revisit.installDate || revisit.installTime)} disabled={Boolean(working)} /></label>
+            <label><span>재방문 시간</span><select value={revisit.installTime} onChange={(event) => setRevisit({ ...revisit, installTime: event.target.value })} required={Boolean(revisit.installDate || revisit.installTime)} disabled={Boolean(working)}><option value="">시간 선택</option>{visitTimes.map((time) => <option key={time} value={time}>{time}</option>)}</select></label>
+            <label><span>고객 부담 여부</span><select value={String(revisit.customerPaid)} onChange={(event) => setRevisit({ ...revisit, customerPaid: event.target.value === 'true' })} disabled={Boolean(working)}><option value="true">고객 부담</option><option value="false">고객 미부담</option></select></label>
+          </div>
+          <button type="submit" disabled={Boolean(working)}>{working === 'cancel' ? '취소 처리 중' : '심사취소'}</button>
+        </form>
       )}
 
       {message && <p className="numplate-inline-message" role="status">{message}</p>}

@@ -18,6 +18,7 @@ import {
     initialDsNewCar,
     initialOwnerInfo,
     initialOwnerInfo1,
+    hasJointOwnerInfo,
     initialDsPaymentList,
     initialDsBranchList,
     initialDsBaseList,
@@ -39,11 +40,11 @@ import {
 } from '../../../policy/attachPolicy';
 
 // 화면
-import CarInfo from './CarInfo';
+// import CarInfo from './CarInfo';
 import ConfirmInfo from './ConfirmInfo';
 import NewcarInfo from './NewcarInfo';
 import { calculateTotalFromRows } from './newcarAmountCalculator';
-import { REQUEST_STEPS, getAdjacentRequestStep, getVisibleRequestSteps, isDealCompany } from './requestSteps';
+import { REQUEST_STEPS, getAdjacentRequestStep, isDealCompany } from './requestSteps';
 import OwnerNormal from './owner/OwnerNormal';
 import OwnerLease from './owner/OwnerLease';
 import OwnerUserLease from './owner/OwnerUserLease';
@@ -135,8 +136,8 @@ const REQUIRED_FOCUS_LABELS = {
 	'차량번호': '번호 선택',
 	'채권 처리 방식': '채권 처리 선택',
 	'현금영수증 또는 세금계산서': '수수료 증빙 선택',
-	'환불 계좌 은행': '환불 계좌',
-	'환불 계좌번호': '환불 계좌',
+	// '환불 계좌 은행': '환불 계좌',
+	// '환불 계좌번호': '환불 계좌',
 	'감면 대상자': '감면 대상 정보',
 	'감면 등급': '감면 대상 정보',
 	'세금계산서 등록번호': '등록번호',
@@ -155,8 +156,8 @@ const REQUIRED_FOCUS_LABELS = {
 	'공동소유자1 등록구분': '공동소유자 등록번호',
 	'공동소유자1 등록번호': '공동소유자 등록번호',
 	'공동소유자1 비율': '공동소유자 비율',
-	'대표소유자와 공동소유자 비율의 합': '공동소유자 비율',
-	'예상납부금액': '예상납부금액 확인'
+	'대표소유자와 공동소유자 비율의 합': '공동소유자 비율'
+	// '예상납부금액': '예상납부금액 확인'
 };
 
 const getRequiredFocusLabel = (message) => {
@@ -524,6 +525,7 @@ const WaNewcarRequest = ({
 	// 공동소유자 1, 2 정보. 대표소유자 비율과 합계가 100인지 최종 요청 전에 검증한다.
 	const [dsOwnerInfo, setDsOwnerInfo] = useState(initialOwnerInfo);
 	const [dsOwnerInfo1, setDsOwnerInfo1] = useState(initialOwnerInfo1);
+	const [isMultiOwner, setIsMultiOwner] = useState(false);
 	// 번호판 탈부착/배송 관련 정보와 세금계산서 발행정보를 각각 독립 state로 관리한다.
 	const [dsCarNoDetach, setDsCarNoDetach] = useState(initialDsCarNoDetach);
 	const [dsTaxReceipt, setDsTaxReceipt] = useState(initialDsTaxReceipt);
@@ -626,17 +628,15 @@ const WaNewcarRequest = ({
  * State로부터 계산된 값
  * ========================================================= */
 
-	// DEAL 설정은 신청 회사 기준으로 번호판 후처리와 금액 후처리를 각각 판단한다.
+	// DEAL 설정으로 신청 회사의 번호판 후처리 여부를 판단한다.
 	const requestCompanyId = dsService.COMPANY_ID || dsUserInfo.COMPANY_ID;
 	const isPostNumplate = isDealCompany(codes.DEAL, 'NUMPL', requestCompanyId);
-	const skipEstimateCheck = isDealCompany(codes.DEAL, 'AMOUNT', requestCompanyId);
-	// 번호판과 등록증 수령지를 모두 입력하지 않는 신청은 빈 자동차 정보 단계를 생략한다.
-	const skipVehicleStep = isPostNumplate && carpPostYn !== 'Y';
-	const visibleSteps = useMemo(() => getVisibleRequestSteps(skipVehicleStep), [skipVehicleStep]);
+	// const skipEstimateCheck = isDealCompany(codes.DEAL, 'AMOUNT', requestCompanyId);
+
 	// 화면에는 연속된 단계 번호를 표시하지만 내부 단계 번호(1, 3, 4)는 그대로 유지한다.
 	const current = hoverStep ?? step;
-	const currentVisibleIndex = Math.max(visibleSteps.findIndex(({ no }) => no === current), 0);
-	const stepVisibleIndex = Math.max(visibleSteps.findIndex(({ no }) => no === step), 0);
+	const currentVisibleIndex = Math.max(REQUEST_STEPS.findIndex(({ no }) => no === current), 0);
+	const stepVisibleIndex = Math.max(REQUEST_STEPS.findIndex(({ no }) => no === step), 0);
 	// 처리상태가 '입력'이고, 신규등록 구분이 '렌트'인 경우 특정 화면을 보여줌  
 	const isRentInput = dsService.PROC_ST === 'INPUT' && dsNewCar.TASK_CD === 'ADD';
 	// 반려건은 조회 전용 화면이 아니라 4단계 수정/재요청 화면으로 연다.
@@ -704,10 +704,7 @@ const WaNewcarRequest = ({
 		loadCodes();
 	}, [setCodes]);
 
-	// 저장된 마지막 단계가 2번이어도 현재 정책상 빈 단계라면 다음 유효 단계로 이동한다.
-	useEffect(() => {
-		if (skipVehicleStep && step === 2) setStep(3);
-	}, [skipVehicleStep, step]);
+
 	
 	// 부모 목록에서 다른 신청건을 선택하면 전달받은 SERVICE_ID를 상세조회 기준값으로 반영한다.
 	useEffect(() => {
@@ -752,11 +749,8 @@ const WaNewcarRequest = ({
 	    const savedStep =
 	        stepMemory?.get(dsService.SERVICE_ID);
 
-	    if (savedStep) {
-	        setStep(savedStep);
-	    } else {
-	        setStep(1);
-	    }
+	    // 비활성화된 자동차 정보 단계에서 다시 열면 신규등록 정보로 이동한다.
+	    setStep(savedStep === 2 ? 3 : (savedStep || 1));
  
 	}, [
 	    dsService.SERVICE_ID,
@@ -900,14 +894,32 @@ const WaNewcarRequest = ({
 				element.classList.remove('wa-required-error')
 			));
 
-			let errorArea = focusLabel === '차량 구매 방식'
+			const jointOwnerField = String(message || '').match(/^공동소유자([12])\s+(성명|등록구분|등록번호|사업자등록번호|휴대폰번호|비율)/);
+			let jointOwnerTarget = null;
+			if (jointOwnerField) {
+				const fieldNames = {
+					성명: 'DEBTOR_NM', 등록구분: 'DEBTOR_GB', 등록번호: 'DEBTOR_REG_NO',
+					사업자등록번호: 'DEBTOR_BIZ_NO', 휴대폰번호: 'DEBTOR_TEL_NO', 비율: 'DEBTOR_RATIO'
+				};
+				const ownerType = jointOwnerField[1] === '1' ? 'owner' : 'owner1';
+				const controls = [...page.querySelectorAll(
+					`[data-type="${ownerType}"][name="${fieldNames[jointOwnerField[2]]}"]`
+				)].filter(control => !control.readOnly && !control.disabled);
+				jointOwnerTarget = controls.find(control => (
+					!control.value.trim()
+					|| (control.maxLength > 0 && control.value.length < control.maxLength)
+				)) || controls[0];
+			}
+
+			let errorArea = jointOwnerTarget?.closest('.wa-form-row') || (focusLabel === '차량 구매 방식'
 				? page.querySelector('.wa-owner-tabs')
-				: null;
+				: null);
 				
-			// 예상납부금액 확인 버튼
+			/* 예상납부금액 확인 버튼
 			if (!errorArea && focusLabel === '예상납부금액 확인') {
 			    errorArea = page.querySelector('.wa-check-btn');
 			}
+			*/
 			
 			if (!errorArea && focusLabel === '현금영수증 입력정보') {
 			    errorArea = page.querySelector('.wa-cash-receipt-input');
@@ -947,7 +959,7 @@ const WaNewcarRequest = ({
 			
 			errorArea.scrollIntoView({ behavior: 'smooth', block: 'center' });
 
-			const focusTarget = errorArea.querySelector(
+			const focusTarget = jointOwnerTarget || errorArea.querySelector(
 				'input:not([readonly]):not([disabled]), select:not([disabled]), button:not([disabled])'
 			);
 			focusTarget?.focus({ preventScroll: true });
@@ -1037,13 +1049,13 @@ const WaNewcarRequest = ({
 			return;
 	    }
 
-		const nextRequestStep = getAdjacentRequestStep(visibleSteps, step, 1);
+		const nextRequestStep = getAdjacentRequestStep(REQUEST_STEPS, step, 1);
 		if (nextRequestStep) changeStep(nextRequestStep);
 	};
 	
 	const handlePrev = async (e) => {
 		e.preventDefault();
-		const previousRequestStep = getAdjacentRequestStep(visibleSteps, step, -1);
+		const previousRequestStep = getAdjacentRequestStep(REQUEST_STEPS, step, -1);
 		if (previousRequestStep) changeStep(previousRequestStep);
 	};
 
@@ -1136,7 +1148,6 @@ const WaNewcarRequest = ({
 	 * - openNotice()가 안내 대상을 찾으면 실제 이동을 중단하고 모달을 먼저 연다.
 	 * - 앞으로 이동할 때 현재 탭부터 이동 직전 탭까지 단계별 필수값을 검사한다.
 	 * - 3 -> 4 이동은 검증 통과 후 채권은행 파생값을 계산한다.
-	 *   SP 계정은 예상납부금액 확인 여부만 검증에서 제외한다.
 	 * - 파생값을 합친 newCarForSave를 saveProcess()에 직접 넘겨 React state의
 	 *   비동기 갱신 시점과 관계없이 같은 값이 DB에 저장되도록 한다.
 	 * - 상세조회 화면이 아니면 stepMemory에 마지막 작업 단계를 보관한다.
@@ -1172,16 +1183,7 @@ const WaNewcarRequest = ({
 
 				// 사용본거지/등록관청에 따른 인지세 금액 변경
 				updatedPaymentList = updateStampAmount();
-				
-				//console.log("1에서 다음을 눌렀나요???");
 			}
-			else if (step === 2) {
-				//console.log("2에서 다음을 눌렀나요???");
-			}
-			else if (step === 3) {
-
-			}
-
 		}
 		
 		// 안내 서류 띄우기		
@@ -1193,8 +1195,6 @@ const WaNewcarRequest = ({
 		
 		let newCarForSave = null;
 		// 3 -> 4로 넘어갈 때 주소와 채권 처리방식에 맞는 채권은행 값을 저장한다.
-		// 이때 NewcarInfo의 예상금액 확인 버튼이 갱신한 dsPaymentList도 saveProcess() 요청에 포함되어
-		// TR_PAYMENT의 PRE_PAY_AMT/PAY_AMT/REAL_ALOAN으로 함께 저장된다.
 	    if (step === 3 && nextStep === 4) {
 			const busanBond = (
 				dsNewCar.BUSAN_BOND
@@ -1260,7 +1260,7 @@ const WaNewcarRequest = ({
 	// 서류안내 모달창
 	const openNotice = async (currentStep, nextStep) => {
 
-	    // 2번 단계가 생략되어도 소유자 단계의 첨부서류 안내는 그대로 실행한다.
+	    // 소유자 정보에서 다음 단계로 이동할 때 첨부서류를 안내한다.
 	    if (currentStep === 1 && nextStep > 1) {
 
 	        if (notice.items.length || notice.checks.length) {
@@ -1547,6 +1547,7 @@ const WaNewcarRequest = ({
 		} else if (dataset.type === 'owner') {
 		    // 공동소유자 비율 변경 시
 			if (name === 'DEBTOR_RATIO') {
+				const autoCalculateRatio = purchaseType !== 'NORMAL' || !isMultiOwner;
 
 			    if (v === '') {
 			        setDsOwnerInfo(prev => ({
@@ -1554,10 +1555,12 @@ const WaNewcarRequest = ({
 			            DEBTOR_RATIO: ''
 			        }));
 
-			        setDsNewCar(prev => ({
-			            ...prev,
-			            RATIO_NO: '100'
-			        }));
+			        if (autoCalculateRatio) {
+			            setDsNewCar(prev => ({
+			                ...prev,
+			                RATIO_NO: '100'
+			            }));
+			        }
 			        return;
 			    }
 
@@ -1581,10 +1584,14 @@ const WaNewcarRequest = ({
 			        DEBTOR_RATIO: String(ratio)
 			    }));
 
-			    setDsNewCar(prev => ({
-			        ...prev,
-			        RATIO_NO: String(100 - ratio)
-			    }));
+			    if (autoCalculateRatio) {
+			        setDsNewCar(prev => ({
+			            ...prev,
+			            RATIO_NO: String(100 - ratio)
+			        }));
+			    } else {
+			        updateMultiOwnerRatio(ratio, dsOwnerInfo1.DEBTOR_RATIO);
+			    }
 				
 				return;
 			} 
@@ -1594,8 +1601,29 @@ const WaNewcarRequest = ({
 	            [name]: v
 	        }));
 		} else if (dataset.type === 'owner1') {
-			setDsOwnerInfo1(prev => ({ ...prev, [name]: v }));
+			setDsOwnerInfo1(prev => ({
+				...prev,
+				[name]: v,
+				...(name === 'DEBTOR_GB' && v !== 'B' ? { DEBTOR_BIZ_NO: '' } : {})
+			}));
+			if (name === 'DEBTOR_RATIO' && purchaseType === 'NORMAL' && isMultiOwner) {
+				updateMultiOwnerRatio(dsOwnerInfo.DEBTOR_RATIO, v);
+			}
 		} 
+	};
+
+	const updateMultiOwnerRatio = (first, second) => {
+		const firstRatio = Number(first);
+		const secondRatio = Number(second);
+
+		if (!Number.isFinite(firstRatio) || firstRatio <= 0 || !Number.isFinite(secondRatio) || secondRatio <= 0) {
+			return;
+		}
+
+		setDsNewCar(prev => ({
+			...prev,
+			RATIO_NO: String(Math.max(0, 100 - (firstRatio + secondRatio)))
+		}));
 	};
 
 	/**
@@ -1674,9 +1702,9 @@ const WaNewcarRequest = ({
 				    mapData(initialOwnerInfo, dbData.dsOwnerInfo || {}, ownerMap)
 				);
 
-				setDsOwnerInfo1(
-				    mapData(initialOwnerInfo1, dbData.dsOwnerInfo1 || {}, ownerMap)
-				);
+				const mappedOwnerInfo1 = mapData(initialOwnerInfo1, dbData.dsOwnerInfo1 || {}, ownerMap);
+				setDsOwnerInfo1(mappedOwnerInfo1);
+				setIsMultiOwner(hasJointOwnerInfo(mappedOwnerInfo1));
 
                 setDsTaxReceipt(
                     mapData(initialDsTaxReceipt, dbData.dsTaxReceipt || {}, taxReceiptMap)
@@ -1728,7 +1756,7 @@ const WaNewcarRequest = ({
 	 * 현재 화면 state를 /api/newcar/process 요청 데이터셋으로 조립한다.
 	 *
 	 * 인자로 최신 계산 결과가 전달되면 state보다 인자값을 우선 사용한다.
-	 * 이 방식은 예상금액 계산이나 단계 이동 직후처럼 setState 반영을 기다리지 않고
+	 * 이 방식은 단계 이동 직후처럼 setState 반영을 기다리지 않고
 	 * 즉시 저장해야 할 때 사용한다.
 	 *
 	 * 처리 순서:
@@ -1744,7 +1772,8 @@ const WaNewcarRequest = ({
 		newDsOwnerInfo = null, 	// 공동소유자 정보 저장용
 		newDsService = null,
 		silent = false,  // alert 안 띄우기 위해
-		newDsCarNoDetach = null
+		newDsCarNoDetach = null,
+		newDsOwnerInfo1 = null
 	) => {
 		
 		const targetNewCar = newDsNewCar || dsNewCar;
@@ -1761,7 +1790,7 @@ const WaNewcarRequest = ({
 		    dsService: newDsService ? { ...newDsService } : { ...dsService },
 		    dsNewCar: normalizePaymentOptionFields(newDsNewCar ? { ...newDsNewCar } : { ...dsNewCar }),
 			dsOwnerInfo: newDsOwnerInfo ? { ...newDsOwnerInfo } : { ...dsOwnerInfo },
-		    dsOwnerInfo1,
+		    dsOwnerInfo1: newDsOwnerInfo1 ? { ...newDsOwnerInfo1 } : { ...dsOwnerInfo1 },
 			dsCarNoDetach: newDsCarNoDetach ? { ...newDsCarNoDetach } : { ...dsCarNoDetach },
             dsTaxReceipt: skipFeeReceipt ? { ...initialDsTaxReceipt, ETC1: dsTaxReceipt.ETC1 } : dsTaxReceipt,
 
@@ -1949,6 +1978,7 @@ const WaNewcarRequest = ({
 	    setDsNewCar(initialDsNewCar);
 	    setDsOwnerInfo(initialOwnerInfo);
 	    setDsOwnerInfo1(initialOwnerInfo1);
+	    setIsMultiOwner(false);
         setDsTaxReceipt(initialDsTaxReceipt);
 	    setDsPaymentList([]);
 	    setDsBranchList(initialDsBranchList);
@@ -2040,6 +2070,7 @@ const WaNewcarRequest = ({
 			setDsNewCar(result.dsNewCar);
 	        setDsOwnerInfo(mergedOwnerInfo);
 	        setDsOwnerInfo1(mergedOwnerInfo1);
+	        setIsMultiOwner(hasJointOwnerInfo(mergedOwnerInfo1));
             setDsTaxReceipt(mergedTaxReceipt);
 	        setDsCarNoDetach(mergedCarNoDetach);
 
@@ -2203,7 +2234,7 @@ const WaNewcarRequest = ({
 	const validateRequest = async (moveToInvalidStep = false) => {
 		
 		// 최종 요청에서는 1~3단계를 처음부터 다시 검사한다.
-		const requiredValidation = validateRequiredSteps(1, 3, false);
+		const requiredValidation = validateRequiredSteps();
 
 		if (requiredValidation.message) {
 		    if (moveToInvalidStep && requiredValidation.step) {
@@ -2355,6 +2386,25 @@ const WaNewcarRequest = ({
 			return '대표소유자 비율을 확인해주세요.';
 		}
 
+		if (isMultiOwner) {
+			if (!Number.isFinite(firstRatio) || firstRatio <= 0) {
+				return '공동소유자1 비율을 입력해주세요.';
+			}
+			if (!Number.isFinite(secondRatio) || secondRatio <= 0) {
+				return '공동소유자2 비율을 입력해주세요.';
+			}
+			const totalRatio = representativeRatio + firstRatio + secondRatio;
+			if (!Number.isFinite(totalRatio)) {
+				return '공동소유자 비율을 확인해주세요.';
+			}
+			if (totalRatio < 100) {
+				return `대표소유자와 공동소유자 비율의 합계가 ${totalRatio}%로, 100%보다 ${100 - totalRatio}% 부족합니다.`;
+			}
+			if (totalRatio > 100) {
+				return `대표소유자와 공동소유자 비율의 합계가 ${totalRatio}%로, 100%보다 ${totalRatio - 100}% 초과했습니다.`;
+			}
+		}
+
 		if (representativeRatio === 100) {
 			return hasFirstOwnerInfo || hasSecondOwnerInfo
 				? '대표소유자 비율이 100%인 경우 공동소유자 정보를 입력할 수 없습니다.'
@@ -2378,8 +2428,10 @@ const WaNewcarRequest = ({
 			const ownerMessage = (
 				requireValue(owner.DEBTOR_NM, `공동소유자${ownerNo} 성명`)
 					|| requireValue(owner.DEBTOR_GB, `공동소유자${ownerNo} 등록구분`)
-					|| requireValue(registrationNo, `공동소유자${ownerNo} 등록번호`)
-					|| requirePhoneNumber(owner.DEBTOR_TEL_NO, '공동소유자 휴대폰번호')
+					|| requireDigitLength(registrationNo, owner.DEBTOR_GB === 'C' ? 10 : 13, `공동소유자${ownerNo} 등록번호`)
+					|| (ownerNo === 2 && owner.DEBTOR_GB === 'B'
+						? requireDigitLength(owner.DEBTOR_BIZ_NO, 10, '공동소유자2 사업자등록번호') : '')
+					|| requirePhoneNumber(owner.DEBTOR_TEL_NO, `공동소유자${ownerNo} 휴대폰번호`)
 					//|| requireValue(owner.DEBTOR_ADDR, `공동소유자${ownerNo} 주소`)
 			);
 
@@ -2459,40 +2511,22 @@ const WaNewcarRequest = ({
 		return message || validateJointOwner();
 	};
 
-	const validateCarStep = () => {
-		const message = requireTextLength(dsNewCar.CARID_NO, 17, '차대번호')
-			|| requireValue(dsNewCar.CAR_NM, '차량명')
-			|| requireValue(dsNewCar.NUMPLATE_GB, '번호판 종류')
-			// || requireValue(dsNewCar.REQ_CAR_NO, '차량번호')
-			|| requireValue(dsCarNoDetach.DELIVERY_GB, '번호판 배송지')
-			|| (carpPostYn === 'Y' ? requireValue(dsNewCar.CARP_ADDRESS, '등록증 수령지') : '');
-			// || (isEmptyRequiredValue(dsNewCar.BUY_AMT) ? '공급가액을 입력해주세요.' : '')
-
-		if (message) {
-			return message;
-		}
-
-		return dsCarNoDetach.DELIVERY_GB === 'INPUT'
-			? requireValue(dsCarNoDetach.DELIVERY_ADDR, '번호판 배송지 주소')
+	// 신규등록 정보 필수값 검증
+	const validateRegistrationStep = () => {
+		// 기존 자동차 정보 단계에서 확인하던 차량 식별값을 검사한다.
+		const vehicleMessage = !isPostNumplate || carpPostYn === 'Y'
+			? requireTextLength(dsNewCar.CARID_NO, 17, '차대번호') || requireValue(dsNewCar.CAR_NM, '차량명')
 			: '';
-	};
 
-	// 신규등록 정보(3단계) 필수값 검증
-	// DEAL/AMOUNT 대상 회사는 셀프등록에서 금액을 처리하므로 예상납부금액 확인을 생략한다.
-	// - 3단계 → 4단계 이동: true
-	// - 최종 요청: false
-	const validateRegistrationStep = (checkEstimate = true) => {
-		
-		console.log("dsNewCar.PAY_HP_NO : " + dsNewCar.PAY_HP_NO);
-		console.log("dsNewCar.STANDARD_AMT : " + dsNewCar.STANDARD_AMT);
-
-		let message =
-		    requireValue(dsNewCar.PAY_GB, '결제구분')
+		let message = vehicleMessage
+		    || requireValue(dsNewCar.PAY_GB, '결제구분')
 		    || requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
-		    || requirePayPhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처')
+		    || requirePayPhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처');
+		/* 공급가액이 확정되기 전에도 최종 확인으로 이동할 수 있도록 검사하지 않는다.
 			|| (checkEstimate && !skipEstimateCheck && dsUserInfo.MEMBER_GB !== 'SU' && Number(dsNewCar.STANDARD_AMT || 0) <= 0
 			    ? '예상납부금액을 확인해주세요.'
 			    : '');
+		*/
 				
 		const exemptionTargetCode = String(dsNewCar.NTAX_TRGET_CD || '');
 
@@ -2541,50 +2575,40 @@ const WaNewcarRequest = ({
 			message =
 			    (carpMailRequired ? requireValue(String(dsNewCar.CARP_MAIL || '').split(',')[0], '등록증 이메일 주소') : '')
 			    || registrationMailInputError(dsNewCar)
+			    || (carpPostYn === 'Y' ? requireValue(dsNewCar.CARP_ADDRESS, '등록증 수령지') : '');
+			/* 고객이 번호 선택 링크에서 입력하는 환불정보는 단계 이동 시 확인하지 않는다.
 			    || requireValue(dsNewCar.RETURN_NM, '환불 예금주')
 			    || requireValue(dsNewCar.RT_BANK_CD, '환불 계좌 은행')
 			    || requireValue(dsNewCar.RETURN_NO, '환불 계좌번호');
+			*/
 		}
 		
 		return message;
 	};
 
 	// 단계별 필수값 검증
-	// checkEstimate는 3단계 예상납부금액 검사 여부를 결정한다.
-	const validateStepRequiredFields = (targetStep, checkEstimate = true) => {
+	const validateStepRequiredFields = (targetStep) => {
 		
 		let message = '';
 
 		if (targetStep === 1) {
 		    // 소유자 정보
 		    message = validateOwnerStep();
-		} else if (targetStep === 2) {
-		    // 자동차 정보
-		    message = validateCarStep();
 		} else if (targetStep === 3) {
 		    // 신규등록 정보
-		    message = validateRegistrationStep(checkEstimate);
+		    message = validateRegistrationStep();
 		}
 
 		return { step: targetStep, message };
 	};
 
 	// 지정한 단계 범위의 필수값을 순서대로 검사한다.
-	// checkEstimate = false인 경우
-	// 3단계의 예상납부금액 확인 여부만 검사에서 제외한다.
-	const validateRequiredSteps = (
-	    fromStep = 1,
-	    toStep = 3,
-	    checkEstimate = true
-	) => {
+	const validateRequiredSteps = (fromStep = 1, toStep = 3) => {
 
-	    for (const { no: targetStep } of visibleSteps) {
+	    for (const { no: targetStep } of REQUEST_STEPS) {
 			if (targetStep < fromStep || targetStep > toStep) continue;
 
-	        const result = validateStepRequiredFields(
-	            targetStep,
-	            checkEstimate
-	        );
+	        const result = validateStepRequiredFields(targetStep);
 
 	        // 첫 번째 오류가 발견되면 해당 단계와 메시지를 반환
 	        if (result.message) {
@@ -2712,7 +2736,7 @@ const WaNewcarRequest = ({
 	
 	/**
 	 * 입력 화면 렌더링.
-	 * step에 따라 Owner 계열 컴포넌트, CarInfo, NewcarInfo, ConfirmInfo 중 하나를 보여준다.
+	 * step에 따라 Owner 계열 컴포넌트, NewcarInfo, ConfirmInfo 중 하나를 보여준다.
 	 * 각 자식은 현재 데이터셋과 setter/handleChange를 받아 값을 수정하며,
 	 * 실제 서버 저장은 하단 버튼의 saveProcess() 또는 changeStep()에서 수행한다.
 	 */
@@ -2739,12 +2763,12 @@ const WaNewcarRequest = ({
 					role="progressbar"
 					aria-label={`신규등록 ${stepVisibleIndex + 1}단계`}
 					aria-valuemin={1}
-					aria-valuemax={visibleSteps.length}
+					aria-valuemax={REQUEST_STEPS.length}
 					aria-valuenow={stepVisibleIndex + 1}
 				>
 					<div className="wa-mobile-request-progress-heading">
-						<span>{stepVisibleIndex + 1} / {visibleSteps.length}</span>
-						<strong>{REQUEST_STEPS[step - 1].title}</strong>
+						<span>{stepVisibleIndex + 1} / {REQUEST_STEPS.length}</span>
+						<strong>{REQUEST_STEPS[stepVisibleIndex].title}</strong>
 						<button
 							type="button"
 							className="wa-mobile-request-close"
@@ -2755,13 +2779,13 @@ const WaNewcarRequest = ({
 						</button>
 					</div>
 					<div className="wa-mobile-request-progress-track" aria-hidden="true">
-						<span style={{ width: `${((stepVisibleIndex + 1) / visibleSteps.length) * 100}%` }} />
+						<span style={{ width: `${((stepVisibleIndex + 1) / REQUEST_STEPS.length) * 100}%` }} />
 					</div>
 				</div>
 
 				{/* 진행 단계 */}
 				<div className="simple-step-wrap">
-					{visibleSteps.map(({ no, label }, index) => (
+					{REQUEST_STEPS.map(({ no, label }, index) => (
 					    <button
 					        key={no}
 							type="button"
@@ -2779,7 +2803,7 @@ const WaNewcarRequest = ({
 					<div
 						className="step-indicator"
 						style={{
-							width: `${100 / visibleSteps.length}%`,
+							width: `${100 / REQUEST_STEPS.length}%`,
 							transform: `translateX(${currentVisibleIndex * 100}%)`
 						}}
 					/>
@@ -2868,7 +2892,7 @@ const WaNewcarRequest = ({
 					    <>
 						{/* 현재 단계 제목 */}
 						<h2 className="wa-title">
-						    {REQUEST_STEPS[step - 1].title} 
+						    {REQUEST_STEPS[stepVisibleIndex].title}
 						</h2>
 	
 						{/* 단계별 내용 */}
@@ -2901,7 +2925,11 @@ const WaNewcarRequest = ({
 										    dsCarNoDetach={dsCarNoDetach}
 											setDsNewCar={setDsNewCar}
 											dsOwnerInfo={dsOwnerInfo}
+											dsOwnerInfo1={dsOwnerInfo1}
+											isMultiOwner={isMultiOwner}
+											setIsMultiOwner={setIsMultiOwner}
 											setDsOwnerInfo={setDsOwnerInfo}
+											setDsOwnerInfo1={setDsOwnerInfo1}
 											ownerType={ownerType}
 											onOwnerTypeChange={handleOwnerTypeChange}
 											handleChange={handleChange}
@@ -2958,7 +2986,7 @@ const WaNewcarRequest = ({
 							</>
 						)}
 	
-						{/* 자동차 정보 입력 */}
+						{/* 자동차 정보 입력 단계는 재사용 시까지 비활성화
 						{step === 2 &&
 							<CarInfo
 								dsService={dsService}
@@ -2984,6 +3012,7 @@ const WaNewcarRequest = ({
 								address={address}
 							/>
 						}
+						*/}
 	
 						{/* 신규등록 정보 */}
 						{step === 3 &&
@@ -2991,7 +3020,6 @@ const WaNewcarRequest = ({
 							dsService={dsService}
 							dsNewCar={dsNewCar}
 							dsPaymentList={dsPaymentList}
-							dsWorkCp={dsWorkCp}
 							codes={codes}
 							handleChange={handleChange}
 							setDsNewCar={setDsNewCar}
@@ -2999,10 +3027,12 @@ const WaNewcarRequest = ({
 							setDsTaxReceipt={setDsTaxReceipt}
 							onTaxReceiptAddressSelect={handleTaxReceiptAddressSelect}
 							onTaxReceiptAddressClear={handleClearTaxReceiptAddress}
-							setDsPaymentList={setDsPaymentList}
 							dsBaseList={dsBaseList}
 							carpMailRequired={carpMailRequired}
 							carpMailGuide={carpMailGuide}
+							carpPostYn={carpPostYn}
+							onRegistrationAddressSelect={address.handleAddressSelect}
+							onRegistrationAddressClear={address.handleClearAddress}
 							skipFeeReceipt={skipFeeReceipt}
 							/>
 						}
@@ -3052,7 +3082,7 @@ const WaNewcarRequest = ({
 								dsPaymentList={dsPaymentList}
 								carpPostYn={carpPostYn}
 								carpMailRequired={carpMailRequired}
-								carStepVisible={!skipVehicleStep}
+								carStepVisible={false}
 								onAttachClose={() => reloadProcess(dsService.SERVICE_ID)}
 								onMoveStep={setStep}
 						    />

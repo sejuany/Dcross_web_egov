@@ -300,18 +300,22 @@ public class NumPlateService {
         String status = Objects.toString(row.get("PROC_ST"), "");
         String task = Objects.toString(row.get("TASK_CD"), "");
         boolean transfer = Set.of("UTRNS", "RTRNS").contains(task);
+        String fixedStatus = switch (status) {
+            case "SAV" -> "저장";
+            case "RET" -> "반려";
+            case "DEL" -> "삭제";
+            case "S_RET" -> "심사취소";
+            case "S_REQ" -> "심사요청";
+            default -> null;
+        };
+        if (fixedStatus != null) return fixedStatus;
         String name;
 
         if (imageMissing(row, "IMAGE1")) {
             name = switch (status) {
-                case "SAV" -> "저장";
-                case "RET" -> "반려";
-                case "S_RET" -> "심사취소";
-                case "DEL" -> "삭제";
                 case "N_REQ", "N_INS", "N_DLV" -> "번호판처리요청";
                 case "P_REQ", "P_END", "PREND", "PBEND" -> "배송요청";
-                case "S_REQ" -> "심사요청";
-                case "J_END", "P_RET", "A_RET", "END" -> "번호판사진등록요청";
+                case "J_ING", "J_END", "P_RET", "A_RET", "END" -> "번호판사진등록요청";
                 case "S_END", "D_MAN", "D_ING", "D_PAY", "D_REQ", "D_END", "D_DAC", "D_CON", "J_REQ" ->
                         "Y".equals(Objects.toString(row.get("CARD_YN"), ""))
                                 && "N".equals(Objects.toString(row.get("CARD_PAY_YN"), ""))
@@ -325,16 +329,11 @@ public class NumPlateService {
 
         if (imageMissing(row, "IMAGE4")) {
             if (imageMissing(row, "IMAGE3")) return "번호판사진등록요청";
-            if ("RET".equals(status)) return "반려";
             if (Set.of("N_REQ", "N_INS", "N_DLV").contains(status)) return "번호판처리요청";
             return transfer ? "서명 진행 전 신분증사진등록요청" : "신분증사진등록요청";
         }
 
-        if ("SAV".equals(status)) return "저장";
-        if ("RET".equals(status)) return "반려";
-        if ("S_RET".equals(status)) return "심사취소";
-        if ("DEL".equals(status)) return "삭제";
-        if (Set.of("S_END", "D_ING", "D_MAN", "D_PAY", "D_CON", "J_REQ", "J_ING", "J_END", "P_RET", "A_RET", "END")
+        if (Set.of("S_END", "D_REQ", "D_ING", "D_MAN", "D_PAY", "D_CON", "J_REQ", "J_ING", "J_END", "P_RET", "A_RET", "END")
                 .contains(status)) {
             if (transfer) return imageMissing(row, "IMAGE6") ? "서명 진행 요청" : "번호판사진등록완료";
             return "번호판사진등록완료";
@@ -354,12 +353,19 @@ public class NumPlateService {
     @Transactional
     public List<String> getAvailablePlates(String serviceId, Map<String, Object> request, UserDto user) {
         Map<String, Object> detail = getSelectablePlateDetail(serviceId, user);
+        Map<String, Object> message = lockPlateMessage(serviceId, user);
         String search = Objects.toString(request.get("searchCarNo"), "").trim();
         if (!search.isEmpty() && !canSearchPlate(user)) {
             throw new BusinessException("번호판 검색 권한이 없습니다.", 403);
         }
         if (!search.matches("[0-9가-힣]{0,12}")) {
             throw new BusinessException("검색할 번호판을 확인해 주세요.");
+        }
+        if (plateMessageActive(message)) {
+            if (!search.isEmpty()) throw new BusinessException("번호 선택 요청을 취소한 후 검색해 주세요.", 409);
+            Map<String, Object> param = managerParam(user);
+            param.put("SERVICE_ID", serviceId);
+            return numPlateMapper.getPendingManagerPlateNumbers(param);
         }
 
         Map<String, Object> param = plateProcedureParam(detail, user, request, "", 10, search);
@@ -379,7 +385,18 @@ public class NumPlateService {
     @Transactional
     public Map<String, Object> savePlate(String serviceId, Map<String, Object> request, UserDto user) {
         Map<String, Object> detail = getSelectablePlateDetail(serviceId, user);
+        Map<String, Object> message = lockPlateMessage(serviceId, user);
         String selected = Objects.toString(request.get("selectedPlate"), "").trim();
+        if (selected.isEmpty() && "CAN".equals(Objects.toString(message.get("NUM_SELECT_ST"), ""))) {
+            Map<String, Object> param = managerParam(user);
+            param.put("SERVICE_ID", validateServiceId(serviceId));
+            numPlateMapper.releaseManagerPlateMessageCandidates(param);
+            return getProcessDetail(serviceId, user);
+        }
+        if (plateMessageActive(message)) {
+            if (selected.isEmpty()) return detail;
+            throw new BusinessException("번호 선택 요청을 취소한 후 직접 선택해 주세요.", 409);
+        }
         List<String> displayed = plateList(request.get("displayedPlates"));
         if (!selected.isEmpty() && (!selected.matches("[0-9가-힣]{4,12}") || !displayed.contains(selected))) {
             throw new BusinessException("조회한 번호판 중 하나를 선택해 주세요.");
@@ -413,6 +430,113 @@ public class NumPlateService {
             numPlateMapper.appendPlateMemo(param);
         }
         return getProcessDetail(serviceId, user);
+    }
+
+    public Map<String, Object> getPlateMessageStatus(String serviceId, UserDto user) {
+        requirePlateMessageDetail(serviceId, user);
+        return plateMessageStatus(serviceId, user);
+    }
+
+    @Transactional
+    public Map<String, Object> sendPlateMessage(String serviceId, Map<String, Object> request, UserDto user) {
+        Map<String, Object> detail = requirePlateMessageDetail(serviceId, user);
+        Map<String, Object> locked = lockPlateMessage(serviceId, user);
+        if (plateMessageActive(locked)) {
+            throw new BusinessException("이미 번호 선택을 요청한 건입니다. 요청취소 후 다시 발송해 주세요.", 409);
+        }
+        Object supplied = request.get("displayedPlates");
+        if (!(supplied instanceof List<?> values) || values.isEmpty() || values.size() > 10) {
+            throw new BusinessException("조회한 번호판 1~10개를 확인해 주세요.");
+        }
+        if (values.stream().anyMatch(value -> !(value instanceof String))) {
+            throw new BusinessException("조회한 번호판 목록을 확인해 주세요.");
+        }
+        List<String> plates = plateList(values);
+        if (plates.size() != values.size()) throw new BusinessException("조회한 번호판 목록을 확인해 주세요.");
+        String phone = Objects.toString(detail.get("TEL_NO"), "").replaceAll("[^0-9]", "");
+        if (!phone.matches("[0-9]{10,11}")) throw new BusinessException("고객 휴대폰 번호를 확인해 주세요.");
+
+        Map<String, Object> param = managerParam(user);
+        param.put("SERVICE_ID", validateServiceId(serviceId));
+        param.put("NUM_LIST", plates);
+        List<Map<String, Object>> candidates = numPlateMapper.lockManagerPlateCandidates(param);
+        if (candidates.size() != plates.size() || candidates.stream().anyMatch(row ->
+                !"P".equals(Objects.toString(row.get("USE_YN"), ""))
+                        || !serviceId.equals(Objects.toString(row.get("SERVICE_ID"), "")))) {
+            throw new BusinessException("번호판 배정 상태가 변경되었습니다. 다시 조회해 주세요.", 409);
+        }
+        String managerPhone = Objects.toString(user.getMPHONE_NO(), "").replaceAll("[^0-9]", "");
+        String text = "[" + Objects.toString(detail.get("CAR_NO"), "") + "] 안녕하세요. 자동차온라인등록센터 다코스입니다.\r\n"
+                + "신규 번호 선택을 위해 아래 번호목록 중 원하시는 번호를 문자로 회신해 주세요.\r\n\r\n"
+                + String.join("\r\n", plates) + "\r\n\r\n"
+                + "원하시는 차량번호만 입력해 주세요. 번호 외 다른 글자를 넣으면 선택이 실패할 수 있습니다.\r\n"
+                + "발송 후 20분 이내에 결정하여 회신해 주세요. 시간이 지나면 배정되지 않습니다.\r\n"
+                + "번호 선택 재요청은 " + Objects.toString(detail.get("INSTALL_NM"), user.getMEMBER_NM())
+                + " 매니저 " + managerPhone + "으로 문의해 주세요.\r\n"
+                + "재요청 시 원하시는 번호가 다른 고객에게 배정될 수 있습니다. 감사합니다.";
+        param.put("CONFIRM_NO", String.join(",", plates) + ",");
+        param.put("NUM_SELECT_ST", "REQ");
+        param.put("PAY_HP_NO", phone);
+        param.put("MSG_TYPE", "3");
+        param.put("SUBJECT", "차량 번호 선택");
+        param.put("MEMBER_ID", user.getMEMBER_NM());
+        param.put("TEXT", text);
+        if (numPlateMapper.markManagerPlateCandidatesRequested(param) != plates.size()
+                || numPlateMapper.updateManagerPlateMessageState(param) != 1
+                || numPlateMapper.insertManagerPlateMessageHistory(param) != 1) {
+            throw new BusinessException("번호 선택 요청을 저장하지 못했습니다.", 409);
+        }
+        Map<String, Object> result = plateMessageStatus(serviceId, user);
+        // 회신 배정에 사용하는 기존 발신번호를 보존하고 모든 상태 저장 뒤 같은 트랜잭션에 적재한다.
+        if (commonService.sendNumPlateSelectionSms(param) != 1) {
+            throw new BusinessException("번호 선택 문자를 발송 대기열에 저장하지 못했습니다.", 409);
+        }
+        return result;
+    }
+
+    @Transactional
+    public Map<String, Object> cancelPlateMessage(String serviceId, UserDto user) {
+        requirePlateMessageDetail(serviceId, user);
+        Map<String, Object> locked = lockPlateMessage(serviceId, user);
+        String state = Objects.toString(locked.get("NUM_SELECT_ST"), "");
+        if (state.isBlank() || "-".equals(state)) throw new BusinessException("번호 선택 문자 요청 이력이 없습니다.", 409);
+        if ("CAN".equals(state)) return plateMessageStatus(serviceId, user);
+        Map<String, Object> param = managerParam(user);
+        param.put("SERVICE_ID", validateServiceId(serviceId));
+        param.put("NUM_SELECT_ST", "CAN");
+        param.put("CONFIRM_NO", "");
+        numPlateMapper.releaseManagerPlateMessageCandidates(param);
+        if (numPlateMapper.updateManagerPlateMessageState(param) != 1) {
+            throw new BusinessException("번호 선택 요청을 취소하지 못했습니다.", 409);
+        }
+        return plateMessageStatus(serviceId, user);
+    }
+
+    private Map<String, Object> requirePlateMessageDetail(String serviceId, UserDto user) {
+        managerParam(user);
+        if (!canSearchPlate(user)) throw new BusinessException("번호 선택 문자 권한이 없습니다.", 403);
+        return getSelectablePlateDetail(serviceId, user);
+    }
+
+    private Map<String, Object> plateMessageStatus(String serviceId, UserDto user) {
+        Map<String, Object> param = managerParam(user);
+        param.put("SERVICE_ID", validateServiceId(serviceId));
+        Map<String, Object> status = numPlateMapper.getManagerPlateMessageStatus(param);
+        if (status == null) throw new BusinessException("번호 선택 상태를 찾을 수 없습니다.", 404);
+        return Map.of("NUM_SELECT_ST", Objects.toString(status.get("NUM_SELECT_ST"), "-"),
+                "CONFIRM_NO", Objects.toString(status.get("CONFIRM_NO"), ""));
+    }
+
+    private Map<String, Object> lockPlateMessage(String serviceId, UserDto user) {
+        Map<String, Object> param = managerParam(user);
+        param.put("SERVICE_ID", validateServiceId(serviceId));
+        Map<String, Object> state = numPlateMapper.lockManagerPlateMessage(param);
+        if (state == null) throw new BusinessException("번호판 배정 정보를 찾을 수 없습니다.", 409);
+        return state;
+    }
+
+    private boolean plateMessageActive(Map<String, Object> state) {
+        return Set.of("REQ", "END", "N_END").contains(Objects.toString(state.get("NUM_SELECT_ST"), ""));
     }
 
     private Map<String, Object> getSelectablePlateDetail(String serviceId, UserDto user) {
@@ -492,9 +616,12 @@ public class NumPlateService {
             throw new BusinessException("보험 관련 요청사항을 먼저 확인해 주세요.", 409);
         }
         if (!delivery && !"CB407".equals(Objects.toString(detail.get("COMPANY_ID"), ""))) {
+            if (!"Y".equals(Objects.toString(detail.get("READY_YN"), ""))) {
+                throw new BusinessException("출발 문자 전송 후 심사요청이 가능합니다.", 409);
+            }
             String installDate = Objects.toString(request.get("installDate"), "");
             String installTime = Objects.toString(request.get("installTime"), "");
-            validateSchedule(installDate, installTime);
+            validateVisitSchedule(detail, installDate, installTime);
             param.put("INSTALL_DT", installDate);
             param.put("INSTALL_TM", toInstallTime(installTime));
             LocalDateTime scheduled = LocalDateTime.parse(installDate + "T" + installTime);
@@ -546,7 +673,7 @@ public class NumPlateService {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
         String installDate = Objects.toString(request.get("installDate"), "");
         String installTime = Objects.toString(request.get("installTime"), "");
-        validateSchedule(installDate, installTime);
+        validateVisitSchedule(detail, installDate, installTime);
 
         Map<String, Object> param = managerParam(user);
         param.put("SERVICE_ID", validateServiceId(serviceId));
@@ -647,13 +774,7 @@ public class NumPlateService {
     public Map<String, Object> uploadProcessImage(
             String serviceId, int slot, MultipartFile file, UserDto user) {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
-        String screenStatus = Objects.toString(detail.get("PROC_ST_NM"), "")
-                .replace("(임시판)", "").replace("(임시)", "").replace("(전시장)", "");
-        if (!Set.of("번호판사진등록요청", "번호판 사진을 다시 등록해 주세요.",
-                "신분증사진등록요청", "서명 진행 전 신분증사진등록요청",
-                "서명 진행 요청", "번호판사진등록완료").contains(screenStatus)) {
-            throw new BusinessException("현재 처리상태에서는 사진을 등록할 수 없습니다.", 409);
-        }
+        requirePhotoEditing(detail);
         // 번호판 사진(1~3), 신분증(4), 서명(6) 외의 DB 컬럼 접근을 차단한다.
         if (slot == 6 && !Set.of("UTRNS", "RTRNS").contains(Objects.toString(detail.get("TASK_CD"), ""))) {
             throw new BusinessException("서명 사진을 등록할 수 없는 처리 건입니다.", 409);
@@ -661,6 +782,16 @@ public class NumPlateService {
         managerParam(user);
         saveProcessImage(serviceId, slot, file);
         return getProcessDetail(serviceId, user);
+    }
+
+    private void requirePhotoEditing(Map<String, Object> detail) {
+        String screenStatus = Objects.toString(detail.get("PROC_ST_NM"), "")
+                .replace("(임시판)", "").replace("(임시)", "").replace("(전시장)", "");
+        if (!Set.of("번호판사진등록요청", "번호판 사진을 다시 등록해 주세요.",
+                "신분증사진등록요청", "서명 진행 전 신분증사진등록요청",
+                "서명 진행 요청", "번호판사진등록완료").contains(screenStatus)) {
+            throw new BusinessException("현재 처리상태에서는 사진을 등록할 수 없습니다.", 409);
+        }
     }
 
     public Map<String, Object> getIdCardUpload(String token) {
@@ -884,18 +1015,29 @@ public class NumPlateService {
         }
         String reason = Objects.toString(request.get("reason"), "").trim();
         if (reason.length() < 2 || reason.length() > 500) throw new BusinessException("심사취소 사유를 2~500자로 입력해 주세요.");
+        boolean hasDate = request.containsKey("installDate");
+        boolean hasTime = request.containsKey("installTime");
+        if (hasDate != hasTime) throw new BusinessException("재방문 일자와 시간을 함께 입력해 주세요.");
+        String date = hasDate ? Objects.toString(request.get("installDate"), "")
+                : Objects.toString(detail.get("INSTALL_DT"), "");
+        String time = hasTime ? Objects.toString(request.get("installTime"), "") : savedInstallTime(detail);
+        if (hasDate) validateVisitSchedule(detail, date, time);
+        Object customerPaid = request.getOrDefault("customerPaid", Boolean.TRUE);
+        if (!(customerPaid instanceof Boolean)) throw new BusinessException("고객 부담 여부를 선택해 주세요.");
         Map<String, Object> param = managerParam(user);
         param.put("SERVICE_ID", validateServiceId(serviceId));
         param.put("MEMO_TX", "\n" + user.getMEMBER_NM() + " 매니저 "
                 + LocalDateTime.now().format(DateTimeFormatter.ofPattern("MM-dd HH:mm"))
-                + " > 심사취소 요청 // 반려사유 : " + reason);
+                + " > 심사취소 요청 " + (Boolean.TRUE.equals(customerPaid) ? "고객 부담" : "고객 미부담")
+                + " // 반려사유 : " + reason);
         if (numPlateMapper.cancelReview(param) != 1) throw new BusinessException("심사취소 처리에 실패했습니다.", 409);
         numPlateMapper.appendReviewCancelMemo(param);
         numPlateMapper.appendReviewCancelTrnsMemo(param);
-        param.put("INSTALL_DT", Objects.toString(detail.get("INSTALL_DT"), ""));
-        param.put("INSTALL_TM", toInstallTime(Objects.toString(detail.get("INSTALL_TIME"), "")
-                + ":" + Objects.toString(detail.get("INSTALL_MINUTES"), "")));
-        numPlateMapper.updateCancelSchedule(param);
+        param.put("INSTALL_DT", date);
+        param.put("INSTALL_TM", toInstallTime(time));
+        if (numPlateMapper.updateCancelSchedule(param) != 1) {
+            throw new BusinessException("재방문 일정을 저장하지 못했습니다.", 409);
+        }
         param.put("CONTENT_TX", "번호변경건 심사취소 - 관청에 반려 요청 필요");
         param.put("GUBUN", "RENT");
         numPlateMapper.insertBoard(param);
@@ -905,6 +1047,7 @@ public class NumPlateService {
     @Transactional
     public void completePhotos(String serviceId, UserDto user) {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
+        requirePhotoEditing(detail);
         if (imageMissing(detail, "IMAGE1") || imageMissing(detail, "IMAGE2")
                 || imageMissing(detail, "IMAGE3") || imageMissing(detail, "IMAGE4")) {
             throw new BusinessException("필수 사진을 모두 등록해 주세요.");
@@ -1032,6 +1175,34 @@ public class NumPlateService {
             throw new BusinessException("잘못된 접수번호입니다.");
         }
         return serviceId;
+    }
+
+    private String savedInstallTime(Map<String, Object> detail) {
+        String hour = Objects.toString(detail.get("INSTALL_TIME"), "");
+        String minutes = Objects.toString(detail.get("INSTALL_MINUTES"), "");
+        return hour.isBlank() || minutes.isBlank() ? "" : hour + ":" + minutes;
+    }
+
+    private void validateVisitSchedule(Map<String, Object> detail, String date, String time) {
+        validateSchedule(date, time);
+        LocalDate selected = LocalDate.parse(date);
+        boolean unchanged = date.equals(Objects.toString(detail.get("INSTALL_DT"), ""))
+                && time.equals(savedInstallTime(detail));
+        if (!unchanged && selected.isBefore(LocalDate.now())) {
+            throw new BusinessException("새 방문 예정일은 오늘 이후로 선택해 주세요.");
+        }
+        String insuranceStart = Objects.toString(detail.get("INSU_START_DT"), "");
+        if (!insuranceStart.isBlank()) {
+            LocalDate insuranceDate;
+            try {
+                insuranceDate = LocalDate.parse(insuranceStart);
+            } catch (DateTimeParseException exception) {
+                throw new BusinessException("보험 시작일자를 확인해 주세요.", 409);
+            }
+            if (selected.isBefore(insuranceDate)) {
+                throw new BusinessException("보험 시작일자부터 방문 가능합니다.");
+            }
+        }
     }
 
     private void validateSchedule(String date, String time) {

@@ -61,6 +61,16 @@ public class CustomerController {
 						"result", numplateService.getCustomerNumplateSelection(token)));
 	}
 
+	/** 공개 토큰에 연결된 신청건의 누락된 환불정보를 저장한다. */
+	@PostMapping("/numplate-selection/refund-info")
+	public ResponseEntity<Map<String, Object>> saveNumplateRefundInfo(
+			@RequestBody Map<String, Object> param) {
+		return ResponseEntity.ok()
+				.header(HttpHeaders.CACHE_CONTROL, "no-store")
+				.body(ApiResponse.withKey(
+						"result", numplateService.saveCustomerRefundInfo(param)));
+	}
+
 	/** 고객이 번호판 조회 버튼을 누른 시점부터 5분 조회 시간을 시작한다. */
 	@PostMapping("/numplate-selection/start")
 	public ResponseEntity<Map<String, Object>> startNumplateSelection(

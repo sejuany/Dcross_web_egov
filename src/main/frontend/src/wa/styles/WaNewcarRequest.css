@@ -668,6 +668,7 @@
     height: 14px;
 
     margin: 0;
+    padding: 0 14px 15px 0;
 
     border: 1px solid var(--wa-blue);
     border-radius: 4px;
@@ -904,12 +905,18 @@ hr.wa-divider.hr2 {
 }
 
 .wa-sub-btn {
-    background: #f6f8fb;
-    color: var(--wa-blue);
+    background: #f3f6fb;
+    color: #334b68;
 }
 
 .wa-sub-btn:hover {
-    background: #edf4ff;
+    background: #edf2f9;
+}
+
+.wa-sub-btn.active {
+    border-color: #2b4872;
+    background: #2b4872;
+    color: #fff;
 }
 
 .wa-number-btn {
@@ -1270,12 +1277,6 @@ hr.wa-divider.hr2 {
 .wa-info-section {
     display: flex;
     flex-direction: column;
-}
-
-.wa-sub-btn.active {
-    border-color: var(--wa-blue);
-    background: #edf4ff;
-    color: var(--wa-blue);
 }
 
 .wa-conditional-panel {

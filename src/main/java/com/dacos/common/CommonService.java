@@ -64,6 +64,15 @@ public class CommonService {
     private static final String ALGORITHM = "AES/CBC/PKCS5Padding";
 
     public int sendSms(Map<String, Object> param) {
+        return enqueueSms(param, "18440801");
+    }
+
+    /** 번호 선택 회신을 받는 기존 발신번호는 일반 안내 문자와 다르다. */
+    public int sendNumPlateSelectionSms(Map<String, Object> param) {
+        return enqueueSms(param, "16886112");
+    }
+
+    private int enqueueSms(Map<String, Object> param, String callback) {
         Map<String, Object> smsParam = new HashMap<>();
 
         if (param != null) {
@@ -89,6 +98,7 @@ public class CommonService {
         smsParam.put("PAY_HP_NO", dstaddr);
         smsParam.put("TEXT", text);
         smsParam.put("MSG_TYPE", msgType);
+        smsParam.put("CALLBACK", callback);
         
         if (!"10.109.111.40".equals(getServerAddress("IP"))) {
         	// 개발에선 문자가 안나가니 운영에 넣어보기
@@ -311,7 +321,12 @@ public class CommonService {
     
 	// 여러줄의 데이터를 보내야 할 때 사용, 관청도 추가
     public JsonNode linkServer(Map<String, Object> hmRequestData) {
-    	logger.info("linkServer로 넘어옴 >>" + hmRequestData);
+        if (hmRequestData.containsKey("OWNER_INFO")) {
+            logger.info("[LINK] 공동소유자 포함 요청 - SID: {}, 관청: {}",
+                    hmRequestData.get("SID"), hmRequestData.get("GOVT_ID"));
+        } else {
+            logger.info("linkServer로 넘어옴 >>" + hmRequestData);
+        }
         JsonNode jsonData =
             objectMapper.valueToTree(hmRequestData);
         
@@ -345,6 +360,7 @@ public class CommonService {
     // 관청서버로 데이터 송 수신
     public JsonNode connectLinkServer(JsonNode jSendData) {
     	logger.info("[LINK] 연계 시작");
+        boolean hasOwnerInfo = jSendData.has("OWNER_INFO");
         InetAddress ip = null; 
         int iTimeout = 300000; // 기본 5분
 
@@ -457,7 +473,9 @@ public class CommonService {
                     logger.info("[LINK] 요청 데이터 생성 완료");
 
                     sSendData = sSendData.replace("&", "ø").replace("%", "‰");
-                    logger.debug("https 보낼데이터 > : " + sSendData);
+                    if (!hasOwnerInfo) {
+                        logger.debug("https 보낼데이터 > : " + sSendData);
+                    }
                     
                     // 최대 10회 재시도 루프
                     int iCnt = 0;
@@ -541,7 +559,9 @@ public class CommonService {
                 	logger.info("[LINK] URL : {}", sGLinkUrl);
                     
                     String sSendData = jSendData.toString();
-                    logger.debug("보낼데이터 : " + sSendData);
+                    if (!hasOwnerInfo) {
+                        logger.debug("보낼데이터 : " + sSendData);
+                    }
                     
                     // 데이터 암호화 및 특수문자 치환
                     sSendData = encrypt(sSendData);

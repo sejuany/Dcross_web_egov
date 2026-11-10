@@ -52,6 +52,99 @@
     border-top:1px solid #e6eaf2;
 }
 
+@media (min-width: 761px){
+    .wa-joint-owner .wa-form-row{
+        grid-template-columns:180px minmax(0, 1fr);
+    }
+}
+
+.wa-joint-owner-card{
+    margin-bottom:24px;
+    border:1px solid #cbd8e9;
+    border-radius:14px;
+    background:#fff;
+    box-shadow:0 3px 12px rgba(15,45,83,.04);
+}
+
+.wa-joint-owner-card-header{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    padding:18px 24px;
+    border-bottom:1px solid #dce5f0;
+    border-radius:13px 13px 0 0;
+    background:#f0f5fc;
+}
+
+.wa-joint-owner-card-secondary .wa-joint-owner-card-header{
+    background:#f5f7fa;
+}
+
+.wa-joint-owner-card-body{
+    padding:24px;
+}
+
+.wa-joint-owner-card-body > :last-child{
+    margin-bottom:0;
+}
+
+.wa-joint-owner-title{
+    display:flex;
+    align-items:center;
+    gap:10px;
+    margin:0;
+    color:#173b72;
+    font-size:16px;
+    font-weight:600;
+}
+
+.wa-joint-owner-icon{
+    flex-shrink:0;
+    box-sizing:border-box;
+    width:30px;
+    height:30px;
+    padding:6px;
+    border-radius:8px;
+    background:#fff;
+    color:#244d85;
+}
+
+.wa-joint-owner-number{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    flex-shrink:0;
+    width:34px;
+    height:28px;
+    border:1px solid #d5dfec;
+    border-radius:8px;
+    background:#fff;
+    color:#527095;
+    font-size:13px;
+    font-weight:700;
+}
+
+.wa-joint-owner-divider{
+    margin:24px 0;
+    border:0;
+    border-top:1px solid #d6dbe6;
+}
+
+@media (max-width: 760px){
+    .wa-joint-owner-card-header{
+        padding:16px 14px;
+    }
+
+    .wa-joint-owner-card-body{
+        padding:20px 14px;
+    }
+
+    .wa-joint-owner-title{
+        font-size:15px;
+    }
+}
+
 .wa-joint-btn{
     display:flex;
     align-items:center;
@@ -98,6 +191,64 @@
     font-size:12px;
     white-space:nowrap;
     pointer-events:none;
+}
+
+.wa-joint-ratios-three .wa-ratio-input{
+    min-width:0;
+}
+
+.wa-joint-ratios-three .wa-input{
+    padding-right:110px;
+}
+
+@media (max-width: 900px){
+    .wa-request-page .wa-joint-owner .wa-joint-ratio-group{
+        display:grid;
+        grid-template-columns:minmax(0, 1fr) auto;
+        gap:10px 8px;
+    }
+
+    .wa-request-page .wa-joint-owner .wa-joint-ratio-group .wa-ratio-input{
+        min-width:0;
+    }
+
+    .wa-request-page .wa-joint-owner .wa-joint-ratio-group .wa-input{
+        padding-right:124px;
+    }
+}
+
+@media (min-width: 761px) and (max-width: 900px){
+    .wa-request-page .wa-joint-owner-card-body .wa-form-row{
+        grid-template-columns:minmax(0, 1fr);
+        gap:8px;
+    }
+
+    .wa-request-page .wa-joint-owner-card-body .wa-form-label{
+        justify-self:start;
+        text-align:left;
+    }
+}
+
+@media (max-width: 760px){
+    .wa-request-page .wa-joint-owner .wa-address-wrap .wa-input{
+        padding-right:34px;
+    }
+}
+
+@media (max-width: 420px){
+    .wa-request-page .wa-joint-owner .wa-joint-registration-group{
+        display:grid;
+        grid-template-columns:minmax(0, 1fr);
+        gap:8px;
+    }
+
+    .wa-request-page .wa-joint-owner .wa-joint-registration-group > .wa-dash{
+        display:none;
+    }
+
+    .wa-request-page .wa-joint-owner .wa-address-wrap .wa-input::placeholder{
+        font-size:14px;
+    }
 }
 /* ========================
  * 주소 검색

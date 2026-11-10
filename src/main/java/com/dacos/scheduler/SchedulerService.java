@@ -680,11 +680,14 @@ public class SchedulerService {
             String deadline,
             String insuranceDeadline,
             String insuranceStartDate) {
-        return "안녕하세요. 폴스타 오토모티브코리아 차량번호 선택을 위한 링크를 재안내해 드립니다.\r\n\r\n"
+        boolean refundInfoRequired = target.isREFUND_INFO_REQUIRED();
+        String linkPurpose = refundInfoRequired ? "환불정보 입력 및 차량번호 선택" : "차량번호 선택";
+        return "안녕하세요. 폴스타 오토모티브코리아 " + linkPurpose + "을 위한 링크를 재안내해 드립니다.\r\n\r\n"
                 + "주문번호 : " + safeValue(target.getLINK_ID()) + "\r\n"
                 + "차대번호 : " + safeValue(target.getCARID_NO()) + "\r\n\r\n"
                 + url + "\r\n\r\n"
                 + "오늘 중으로 위 링크에 접속하셔서 번호를 선택해 주세요.\r\n\r\n"
+                + (refundInfoRequired ? "※ 환불금액은 등록 당일 오후 5시 이후에 입금됩니다.\r\n\r\n" : "")
                 + "※ 번호 조회 후 5분 내로 선택을 완료해 주세요. (시간 초과 시 재선택 불가)\r\n\r\n"
                 + "■ 아래 항목이 " + deadline + "까지 완료되어야 원활한 등록이 가능합니다.\r\n"
                 + "- 차량대금 납부\r\n"

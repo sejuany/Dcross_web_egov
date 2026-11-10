@@ -2,36 +2,38 @@ import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from '
 import axios from 'axios';
 
 import {
-    Calculator,
+    // Calculator,
     CheckCircle2,
     CircleAlert,
     CreditCard,
-    LoaderCircle,
+    // LoaderCircle,
     ReceiptText,
-    RefreshCw,
+    // RefreshCw,
     X
 } from 'lucide-react';
 
 import CommonSelect from '../../../components/common/CommonSelect';
 import { gf } from '../../../utils/utils';
 import { registrationMailByteLength } from './registrationMail';
+import NumplateSelectionHistory from './NumplateSelectionHistory';
+import RegistrationDeliveryAddress from './RegistrationDeliveryAddress';
 import RegistrationEmailDomainSelect from './RegistrationEmailDomainSelect';
 import SplitInput from '../common/SplitInput';
 import AddressSearch from '../common/AddressSearch';
 import {
     AUTO_APPLY_EXEMPTION_TARGET_CODES,
     EXEMPTION_GRADE_CODES_BY_TARGET,
-    buildNewcarEstimateKey,
-    calculateNewcarEstimate,
+    // buildNewcarEstimateKey,
+    // calculateNewcarEstimate,
     calculateTotalFromRows,
-    formatAmount,
+    // formatAmount,
     isEcoAcquisitionEligible,
-    resolveBondPreExemption,
-    sortPaymentRows
+    // resolveBondPreExemption,
+    // sortPaymentRows
 } from './newcarAmountCalculator';
 import {
     buildCarSpecPatch,
-    resolveBondSearchCriteria
+    // resolveBondSearchCriteria
 } from './newcarCarSpec';
 
 const BOND_OPTIONS = [
@@ -50,7 +52,7 @@ const ECO_EXEMPTION_NOTICE_BY_CODE = {
     },
     '14': {
         targetName: '보훈보상대상자 감면',
-        benefit: '보훈보상대상자 – 취득세 50% 감면 (정확한 감면 금액은 [예상납부금액 확인] 클릭)'
+        benefit: '보훈보상대상자 – 취득세 50% 감면'
     }
 };
 
@@ -340,6 +342,7 @@ const hasFamilyRelationDocument = (info) => {
     return targetText.includes('가족관계증명서') || targetText.includes('가족관계 증명서');
 };
 
+/*
 const FALLBACK_BANKS = [
     { CODE_ID: '088', CODE_NM: '신한은행' },
     { CODE_ID: '004', CODE_NM: '국민은행' },
@@ -347,6 +350,7 @@ const FALLBACK_BANKS = [
     { CODE_ID: '081', CODE_NM: '하나은행' },
     { CODE_ID: '011', CODE_NM: '농협은행' }
 ];
+*/
 
 const LEASE_DEFAULTS = {
     WA001: {
@@ -411,6 +415,7 @@ const getLeaseDefaults = (taskCode, procCode, baseBranchId, dsBaseList) => {
     return LEASE_DEFAULTS[selectedLeaseBase?.COMPANY_ID]?.[leaseName] ?? null;
 };
 
+/*
 const PAYMENT_LABELS = {
     ACQ: '취득세',
     UREG: '등록면허세',
@@ -423,7 +428,7 @@ const PAYMENT_LABELS = {
     UNUM: '번호판대행',
     SPARE: '예비비'
 };
-
+*/
 
 const getCodeOptions = (codes, groupId, fallback = []) => {
     const optionList = codes?.[groupId];
@@ -899,12 +904,13 @@ const ExemptionWarningModal = memo(({ notice, onClose, onConfirm }) => {
 ExemptionWarningModal.displayName = 'ExemptionWarningModal';
 
 // 계산 금액이 0원이어도 계산 사유가 전액면제라면 감면 카드를 표시한다.
-const hasFullExemptionReason = (reason) => /전액\s*(?:면제|감면)/.test(String(reason ?? ''));
+// const hasFullExemptionReason = (reason) => /전액\s*(?:면제|감면)/.test(String(reason ?? ''));
 
 /**
  * 예상금액 결과 표시 전용 컴포넌트다.
  * 계산 중 여부나 계산 결과가 바뀌지 않으면 React.memo가 기존 결과 DOM을 재사용한다.
  */
+/*
 const EstimateResultPanel = memo(({
     estimating,
     estimateSummary,
@@ -1069,6 +1075,7 @@ const EstimateResultPanel = memo(({
 });
 
 EstimateResultPanel.displayName = 'EstimateResultPanel';
+*/
 
 /**
  * 환불 예금주와 계좌번호는 각각 DeferredInput의 로컬 draft를 사용한다.
@@ -1076,11 +1083,13 @@ EstimateResultPanel.displayName = 'EstimateResultPanel';
  */
 const RefundAccountFields = memo(({
     recordKey,
+    /*
     returnName,
     bankCode,
     returnAccount,
     bankOptions,
     onFieldChange,
+    */
     onFieldCommit,
 	carpMail,
 	leaseMailEnabled,
@@ -1088,7 +1097,8 @@ const RefundAccountFields = memo(({
 	taxEmail1,
 	carpMailRequired,
 	carpMailGuide,
-	emailDomainOptions
+	emailDomainOptions,
+    registrationAddress
 }) => (
     <>
 		{/* 메일 발송 대상 지점과 WA001만 등록증 이메일을 입력받는다. */}
@@ -1127,7 +1137,9 @@ const RefundAccountFields = memo(({
 				<p className="wa-mail-guide">영문·숫자·일반 특수문자는 각각 1글자로 계산하며, 이메일 포함 49자까지 입력할 수 있습니다.</p>
 			</div>
 		</div>}
-		
+        {registrationAddress}
+
+        {/* 고객이 번호 선택 링크에서 환불정보를 입력하므로 이 화면의 수동 입력을 숨긴다.
         <div className="wa-form-row">
             <label className="wa-form-label">환불 예금주</label>
 
@@ -1173,6 +1185,7 @@ const RefundAccountFields = memo(({
                 </div>
             </div>
         </div>
+        */}
     </>
 ));
 
@@ -1183,7 +1196,7 @@ const NewcarInfo = ({
     dsNewCar = {},
     dsService = {},
     dsPaymentList = [],
-    dsWorkCp = {},
+    // dsWorkCp = {},
     codes = {},
     handleChange,
     setDsNewCar,
@@ -1191,17 +1204,20 @@ const NewcarInfo = ({
     setDsTaxReceipt,
     onTaxReceiptAddressSelect,
     onTaxReceiptAddressClear,
-    setDsPaymentList,
+    // setDsPaymentList,
     dsBaseList = [],
 	carpMailRequired = false,
 	carpMailGuide = '',
+    carpPostYn,
+    onRegistrationAddressSelect,
+    onRegistrationAddressClear,
     skipFeeReceipt = false
 }) => {
     const hasExemption = Boolean(dsNewCar.NTAX_TRGET_CD && dsNewCar.NTAX_TRGET_CD !== '00');
     const [isExemptionOpen, setIsExemptionOpen] = useState(hasExemption);
     const [exemptionNotice, setExemptionNotice] = useState(null);
-    const [estimating, setEstimating] = useState(false);
-    const [estimateSummary, setEstimateSummary] = useState(null);
+    // const [estimating, setEstimating] = useState(false);
+    // const [estimateSummary, setEstimateSummary] = useState(null);
     const [receiptType, setReceiptType] = useState('');
     const [taxReceiptSameOwner, setTaxReceiptSameOwner] = useState(false);
     const [cashReceiptPhoneSource, setCashReceiptPhoneSource] = useState('');
@@ -1298,21 +1314,25 @@ const NewcarInfo = ({
         || AUTO_APPLY_EXEMPTION_TARGET_CODES.has(String(dsNewCar.NTAX_TRGET_CD))
     );
     const emailDomainOptions = useMemo(() => getCodeOptions(codes, 'EMAIL'), [codes]);
+    /*
     const bankOptions = useMemo(
         () => getCodeOptions(codes, 'BANK', FALLBACK_BANKS),
         [codes]
     );
+    */
     const selectedExemptionDocInfo = useMemo(
         () => getExemptionDocumentInfo(dsNewCar.NTAX_TRGET_CD, exemptionTargetOptions),
         [dsNewCar.NTAX_TRGET_CD, exemptionTargetOptions]
     );
     const showFamilyRelationNumberNote = hasFamilyRelationDocument(selectedExemptionDocInfo);
 
+    /*
     // 예상금액 계산 기준 key 생성함.
     // 주요 입력값 변경 시 재계산 안내 표시용으로 사용함.
     const estimateKey = buildNewcarEstimateKey({ dsNewCar, dsWorkCp });
 
     const estimateDirty = Boolean(estimateSummary && estimateSummary.key !== estimateKey);
+    */
 
     useEffect(() => {
         if (hasExemption) {
@@ -1518,6 +1538,7 @@ const NewcarInfo = ({
         return Promise.resolve();
     }, []);
 
+    /*
     // 실제 계산식은 newcarAmountCalculator.js의 calculateNewcarEstimate() 한 곳에서 처리한다.
     // 이 화면은 조회가 끝난 dsNewCar와 현재 결제목록을 계산기에 전달하고 결과를 state에 반영한다.
     // 화면에서 금액을 별도로 다시 계산하면 요약 카드와 DB 저장값이 달라질 수 있으므로 금지한다.
@@ -1528,6 +1549,7 @@ const NewcarInfo = ({
         dsWorkCp,
         codes
     });
+    */
 
     /**
      * 계산에 필요한 서버 기준정보를 모아 calculateNewcarEstimate() 입력 객체를 만든다.
@@ -1540,6 +1562,7 @@ const NewcarInfo = ({
      * 여기서 만든 BOND_*와 TM_TAX_INFO는 계산 기준값이다. 서버 저장 컬럼을 추가하려는 경우
      * 이 patch에 넣는 것만으로 끝내지 말고 TR_NEWCAR 매퍼의 실제 컬럼 매핑도 확인해야 한다.
      */
+    /*
     const getCarSpecForEstimate = async () => {
         const carName = String(dsNewCar.CAR_NM ?? '').trim();
         const baseAddress = String(dsNewCar.BASE_ADDRESS ?? '').trim();
@@ -1612,6 +1635,7 @@ const NewcarInfo = ({
             }
         };
     };
+    */
 
     const handleBondSelect = (value) => {
         updateNewCar(prev => ({
@@ -1734,6 +1758,7 @@ const NewcarInfo = ({
         });
     };
 
+    /*
     const handleEstimateClick = async () => {
         if (!dsNewCar.BOND_DC) {
             await showAlert('채권 처리 방식을 선택해주세요.');
@@ -1780,6 +1805,7 @@ const NewcarInfo = ({
             setEstimating(false);
         }
     };
+    */
 
     const handleReceiptSelect = (type) => {
         setReceiptType(type);
@@ -1898,6 +1924,7 @@ const NewcarInfo = ({
 
     return (
         <div className="wa-form-body wa-newcar-info-body">
+            <NumplateSelectionHistory dsService={dsService} />
             <div className="wa-info-section">
                 <div className="wa-form-row">
                     <label className="wa-form-label">채권 처리 선택</label>
@@ -1946,6 +1973,7 @@ const NewcarInfo = ({
                     {dsNewCar.CARD_YN === 'Y' && <CheckCircle2 size={16} />}
                 </button>
 
+                {/* 공급가액은 관리자 데이터 수정에서 반영하므로 예상납부금액 확인을 비활성화한다.
                 <div className="wa-estimate-action-row">
                     <button
                         type="button"
@@ -1969,12 +1997,12 @@ const NewcarInfo = ({
                     </button>
                 </div>
 
-                {/* 정렬·금액 포맷이 포함된 계산 결과 영역은 계산값 변경 시에만 렌더함. */}
                 <EstimateResultPanel
                     estimating={estimating}
                     estimateSummary={estimateSummary}
                     estimateDirty={estimateDirty}
                 />
+                */}
             </div>
 
             <hr className="wa-divider" />
@@ -2274,11 +2302,13 @@ const NewcarInfo = ({
                 {/* Trace에서 입력 지연이 확인된 환불 입력 영역을 로컬 draft로 격리함. */}
                 <RefundAccountFields
                     recordKey={dsService.SERVICE_ID || 'new'}
+                    /*
                     returnName={dsNewCar.RETURN_NM ?? ''}
                     bankCode={dsNewCar.RT_BANK_CD ?? ''}
                     returnAccount={dsNewCar.RETURN_NO ?? ''}
                     bankOptions={bankOptions}
                     onFieldChange={handleNewCarFieldChange}
+                    */
                     onFieldCommit={commitNewCarField}
 					carpMail={dsNewCar.CARP_MAIL ?? ''}
 					leaseMailEnabled={dsNewCar.TASK_CD === 'LEASE' && ['I', 'C'].includes(dsNewCar.PROC_CD)}
@@ -2287,6 +2317,15 @@ const NewcarInfo = ({
 					carpMailRequired={carpMailRequired}
 					carpMailGuide={carpMailGuide}
 					emailDomainOptions={emailDomainOptions}
+                    registrationAddress={carpPostYn === 'Y' && (
+                        <RegistrationDeliveryAddress
+                            dsNewCar={dsNewCar}
+                            setDsNewCar={setDsNewCar}
+                            handleChange={handleChange}
+                            onSelect={onRegistrationAddressSelect}
+                            onClear={onRegistrationAddressClear}
+                        />
+                    )}
                 />
 
             </div>
