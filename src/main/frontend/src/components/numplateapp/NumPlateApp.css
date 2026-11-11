@@ -162,6 +162,8 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-login-tutorial h2:focus,
 .numplate-practice-coach h2:focus { outline: none; }
 .numplate-guide-description { margin: 14px 0 18px; color: #354b64; font-size: 18px; line-height: 1.75; word-break: keep-all; overflow-wrap: anywhere; }
+.numplate-guide-instructions { padding-left: 1.5em; }
+.numplate-guide-instructions li + li { margin-top: 8px; }
 .numplate-guide-hint { margin: 0; padding: 14px; border: 1px solid #dce7f4; border-radius: 12px; background: #f2f7fd; color: #425a74; font-size: 16px; line-height: 1.65; word-break: keep-all; overflow-wrap: anywhere; }
 .numplate-guide-platform { margin: 12px 0 0; color: #52647a; font-size: 16px; line-height: 1.6; }
 .numplate-guide-safety { margin: 18px 0 0; padding: 12px 14px; border-left: 3px solid #7ba5d4; border-radius: 0 10px 10px 0; background: #f4f7fb; color: #425a74; font-size: 16px; line-height: 1.65; }
@@ -206,9 +208,10 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-practice-coach .numplate-guide-skip { min-height: 52px; font-size: 16px; }
 .numplate-guide-fill { width: 100%; margin-top: 12px; padding: 10px 12px; border: 1px solid #1e66b3 !important; border-radius: 12px; background: #eaf4ff; color: #174f8c; }
 
-/* 직접 그린 안내 화면은 조작할 수 없으며 실제 계정이나 고객 정보를 사용하지 않는다. */
+/* 앱 설치 영상과 로그인·인증 예시 화면 */
 .numplate-guide-example { min-width: 0; margin: 18px 0; padding: 14px; border: 1px solid #d8e5f4; border-radius: 18px; background: linear-gradient(145deg, #f1f7ff, #e7f0fe 65%, #f6faff); }
 .numplate-guide-example figcaption { margin-bottom: 12px; color: #425a74; font-size: 16px; font-weight: 800; }
+.numplate-guide-video-player { display: block; width: 100%; max-width: 360px; height: auto; max-height: 65dvh; margin: 0 auto; border: 1px solid #c9d7e7; border-radius: 14px; background: #101a27; object-fit: contain; }
 .numplate-example-screen { min-width: 0; overflow: hidden; border: 1px solid #c9d7e7; border-radius: 14px; background: #fff; color: #1e324b; font-size: 16px; line-height: 1.5; }
 .numplate-example-screen * { box-sizing: border-box; }
 .numplate-example-screen svg { width: 24px; height: 24px; flex-shrink: 0; }

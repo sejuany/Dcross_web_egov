@@ -8,11 +8,11 @@ const topics = {
     install: {
     title: '휴대폰에 앱 설치하기', icon: Download, summary: '기기에 DACOS 아이콘을 만들어요.',
     steps: [
-      { scene: 'browser-menu', title: '브라우저 오른쪽 상단 점 세 개를 눌러주세요.', description: '크롬에서 번호판 로그인 화면을 열고, 주소창 옆의 점 세 개 메뉴를 눌러 주세요.', hint: '주소는 web.dcross.kr/numplateapp/login이에요. 이 안내의 그림은 설치 연습용이에요.' },
-      { scene: 'browser-scroll', title: '메뉴를 아래쪽까지 내려 보세요', description: '펼쳐진 메뉴를 아래로 내려 「설치 및 바로가기 만들기」를 찾아 눌러 주세요.', hint: '메뉴 이름이나 위치는 크롬 버전에 따라 조금 다를 수 있어요.' },
-      { scene: 'install-choice', title: '「설치」를 선택해 주세요', description: '「설치」와 「바로가기 만들기」가 함께 보이면 「설치」를 눌러 주세요.', hint: '이 그림을 눌러도 앱이 설치되지는 않아요. 실제 크롬 메뉴에서 진행해야 해요.' },
-      { scene: 'install-confirm', title: '앱 이름을 확인하고 설치해요', description: 'DACOS 번호판 업무가 맞는지 확인한 뒤, 설치 확인창의 「설치」를 눌러 주세요.', hint: '설치 메뉴가 없으면 이미 설치했는지 확인해 주세요. 설치하지 않고 크롬에서 이용할 수도 있어요.' },
-      { scene: 'home-icon', title: '홈 화면의 DACOS 아이콘을 눌러요', description: '설치한 뒤에는 휴대폰 홈 화면이나 앱 목록의 DACOS 번호판 아이콘으로 열 수 있어요.', hint: '여기까지는 설치 방법 안내예요. 실제 설치가 완료됐다는 뜻은 아니에요.' },
+      { scene: 'browser-menu', title: '브라우저 메뉴를 열어 주세요', description: ['Chrome에서 web.dcross.kr/numplateapp/login을 열고 진행해 주세요.','브라우저 우측 상단 점 3개를 클릭해주세요.'] },
+      { scene: 'browser-scroll', title: '설치 메뉴를 찾아 주세요', description: ['메뉴를 스크롤 해주세요.', '[설치 및 바로가기 만들기]를 클릭해주세요.'], hint: '메뉴 이름이나 위치는 Chrome 버전에 따라 조금 다를 수 있어요.' },
+      { scene: 'install-choice', title: '설치를 선택하고 확인해 주세요', description: ['첫번째 항목인 "설치" 를 클릭해주세요.', '이 후 나타난 팝업창에서 "설치"를 클릭해주세요.'], hint: '설치 메뉴가 없으면 이미 설치했는지 확인해 주세요.' },
+      { scene: 'home-icon', title: '생성된 앱 아이콘을 확인해 주세요', description: ['설치가 완료되면 홈버튼을 눌러 메뉴화면으로 이동해주세요.', '기존 앱과 같이 아이콘이 생성되었습니다!'], hint: '휴대폰 홈 화면이나 앱 목록에서 DACOS 번호판 아이콘을 찾아 주세요.' },
+      { scene: 'app-open', title: '아이콘을 눌러 앱을 실행해 주세요', description: ['아이콘을 클릭하여 앱을 실행시켜주세요.', '앱 설치 완료!'], hint: '다음부터는 이 아이콘을 눌러 번호판 앱을 이용하시면 돼요.' },
     ],
   },
   login: {
@@ -128,7 +128,11 @@ export default function NumPlateLoginGuide({
             <h2 id="numplate-guide-title" ref={headingRef} tabIndex={-1}>
               {current.target === 'login' && loginPreview ? '로그인하면 처리목록이 보여요' : current.title}
             </h2>
-            <p id="numplate-guide-description" className="numplate-guide-description">{current.description}</p>
+            {Array.isArray(current.description) ? (
+              <ol id="numplate-guide-description" className="numplate-guide-description numplate-guide-instructions">
+                {current.description.map((instruction) => <li key={instruction}>{instruction}</li>)}
+              </ol>
+            ) : <p id="numplate-guide-description" className="numplate-guide-description">{current.description}</p>}
             {!target && current.scene && <NumPlateGuideExample scene={current.target === 'login' && loginPreview ? 'process-list' : current.scene} />}
             {(target === 'phone' || target === 'password') && (
               <button type="button" className="numplate-guide-fill" onClick={() => onFillExample?.(target)}>예시 넣기</button>

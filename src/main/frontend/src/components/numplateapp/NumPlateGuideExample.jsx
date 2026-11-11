@@ -1,12 +1,12 @@
 import React from 'react';
-import { ArrowDown, ArrowRight, Download, Fingerprint, Globe, KeyRound, MoreVertical, ShieldCheck } from 'lucide-react';
+import { ArrowRight, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react';
 
 const descriptions = {
   'browser-menu': 'Chrome 오른쪽 위 점 세 개 메뉴를 여는 위치입니다.',
   'browser-scroll': '메뉴를 아래로 내려 설치 및 바로가기 만들기를 찾습니다.',
-  'install-choice': '바로가기 만들기 위에 있는 설치를 선택합니다.',
-  'install-confirm': 'DACOS 번호판 앱 이름을 확인하고 설치를 선택합니다.',
-  'home-icon': '휴대폰 홈 화면에 생긴 DACOS 번호판 아이콘을 선택합니다.',
+  'install-choice': '첫 번째 설치 항목과 이어서 나타나는 팝업창의 설치를 선택합니다.',
+  'home-icon': '설치가 끝나면 홈 버튼을 눌러 생성된 DACOS 번호판 아이콘을 확인합니다.',
+  'app-open': 'DACOS 번호판 아이콘을 눌러 설치한 앱을 실행합니다.',
   'login-button': '입력을 마친 다음 파란색 로그인 버튼을 선택합니다.',
   'process-list': '로그인하면 배정받은 번호판 업무의 처리목록이 보입니다.',
   'password-save': '비밀번호 저장 안내에서 저장을 선택하는 위치입니다.',
@@ -15,6 +15,14 @@ const descriptions = {
   'device-unlock': '휴대폰의 지문이나 화면 잠금 PIN으로 본인을 확인합니다.',
   'passkey-use': '저장된 패스키를 확인한 다음 계속을 선택합니다.',
   'passkey-missing': '저장된 패스키가 없으면 확인을 누른 뒤 비밀번호로 로그인합니다.',
+};
+
+const installVideos = {
+  'browser-menu': 1,
+  'browser-scroll': 2,
+  'install-choice': 3,
+  'home-icon': 4,
+  'app-open': 5,
 };
 
 const AppIcon = () => <img className="numplate-example-app-icon" src="/dacos_white_only_logo192.png" alt="" />;
@@ -33,37 +41,6 @@ const SavedAccount = () => (
 
 function ExampleScene({ scene }) {
   switch (scene) {
-    case 'browser-menu':
-      return <>
-        <div className="numplate-example-browser-bar">
-          <Globe /><span>web.dcross.kr<small>/numplateapp/login</small></span>
-          <Target><MoreVertical /></Target>
-        </div>
-        <div className="numplate-example-login"><AppIcon /><strong>DACOS 번호판</strong><span className="numplate-example-line" /><span className="numplate-example-line" /></div>
-      </>;
-    case 'browser-scroll':
-      return <div className="numplate-example-menu">
-        <span>새 탭</span><span>기록</span><span>다운로드</span>
-        <div className="numplate-example-scroll-cue"><ArrowDown />아래로 내려 찾기</div>
-        <Target number={2}><Download /><strong>설치 및 바로가기 만들기</strong></Target>
-      </div>;
-    case 'install-choice':
-      return <div className="numplate-example-menu">
-        <strong>설치 및 바로가기 만들기</strong>
-        <Target number={3}><AppIcon /><div><strong>설치</strong><span>휴대폰에 앱으로 설치</span></div></Target>
-        <div className="numplate-example-menu-row"><Globe /><div><strong>바로가기 만들기</strong><span>Chrome에서 열기</span></div></div>
-      </div>;
-    case 'install-confirm':
-      return <div className="numplate-example-system-card">
-        <div className="numplate-example-app-name"><AppIcon /><div><strong>DACOS 번호판</strong><span>앱을 설치할까요?</span></div></div>
-        <div className="numplate-example-dialog-actions"><span>취소</span><Target number={4} className="numplate-example-primary">설치</Target></div>
-      </div>;
-    case 'home-icon':
-      return <div className="numplate-example-home">
-        <span className="numplate-example-home-label">휴대폰 홈 화면</span>
-        <Target number={5}><AppIcon /><strong>DACOS 번호판</strong></Target>
-        <div className="numplate-example-home-dots"><i /><i /><i /></div>
-      </div>;
     case 'login-button':
       return <div className="numplate-example-login">
         <strong>DACOS 번호판</strong><span className="numplate-example-field">01000000000</span><span className="numplate-example-field">●●●●</span>
@@ -116,6 +93,19 @@ function ExampleScene({ scene }) {
 export default function NumPlateGuideExample({ scene }) {
   const description = descriptions[scene];
   if (!description) return null;
+  const videoNumber = installVideos[scene];
+  if (videoNumber) {
+    return (
+      <figure className="numplate-guide-example numplate-guide-video">
+        <figcaption>영상 확인해보세요!</figcaption>
+        <video key={scene} className="numplate-guide-video-player" src={`/loginGuide/${videoNumber}.mp4`}
+          controls autoPlay muted loop playsInline preload="metadata" aria-label={`앱 설치 안내 영상: ${description}`}>
+          이 브라우저에서는 영상을 재생할 수 없습니다.
+        </video>
+        {/* <p className="numplate-example-caption">영상 아래의 재생 버튼으로 멈추거나 다시 볼 수 있어요. 실제 설치는 휴대폰의 Chrome에서 진행해 주세요.</p> */}
+      </figure>
+    );
+  }
   return (
     <figure className={`numplate-guide-example numplate-example-${scene}`} role="img" aria-label={`예시 화면: ${description}`}>
       <figcaption>예시 화면</figcaption>
