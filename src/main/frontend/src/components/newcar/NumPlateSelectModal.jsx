@@ -8,6 +8,8 @@ const NumberPlateModal = ({
 	isOpen, onClose, carIdNo, taskCd, onSelect,
 	dsService, dsNewCar, dsCarNoDetach, dsUserInfo
  }) => {
+	// 한성 화면설계서 9페이지: WB001만 번호 검색 입력을 숨긴다. 공용 조회·선택 처리는 유지한다.
+	const isWb001 = dsUserInfo?.COMPANY_ID === 'WB001';
 	
     const [carType, setCarType] = useState('SEDAN');
     const [condition, setCondition] = useState('NOT');
@@ -40,7 +42,7 @@ const NumberPlateModal = ({
 			LIMIT: '10',
 			GOVT_ID: dsService.GOVT_ID,
 			CONDITION: condition,
-			WANT_CAR_NO: keyword,
+			WANT_CAR_NO: isWb001 ? '' : keyword,
 			ASSIGN_CD: assignCd,
 			TASK_CD: taskCd,
 			HOLE_YN: dsCarNoDetach.HOLE_YN,
@@ -306,9 +308,11 @@ const NumberPlateModal = ({
 	                            <option value="SEDAN">승용</option>
 	                            <option value="VAN">승합</option>
 	                        </select>
+	                        {/* WB001은 검색어 없이 차종으로 다시 조회할 수 있도록 버튼을 이 줄에 둔다. */}
+	                        {isWb001 && <button type="button" className="btn-search" onClick={fetchList}>조회</button>}
 	                    </div>
 
-	                    <div className="search-row search-row-input">
+	                    {!isWb001 && <div className="search-row search-row-input">
 	                        <label>번호</label>
 
 	                        <div className="search-input-group">
@@ -326,7 +330,7 @@ const NumberPlateModal = ({
 	                                조회
 	                            </button>
 	                        </div>
-	                    </div>
+	                    </div>}
 	                </div>
 
 	                {/* 목록 */}

@@ -31,4 +31,8 @@ public class MortgageSearchRequest {
     private String CUSTOMER_NM;
     /** 시간 구분 */
     private String TIME_DVSN;
+    /** 설정신청현황의 설정자명 검색 */
+    private String MORTGAGOR_NM;
+    /** 서버가 로그인 세션으로 덮어쓰는 목록 접근 범위 */
+    private java.util.Map<String, Object> ACCESS;
 }

@@ -183,10 +183,22 @@
     border-collapse: collapse;
 }
 
-.grid-box tbody {
+.NumPlateSelect .grid-box tbody {
     display: block;
-    height: min(385px, 35vh);
-    overflow-y: auto;
+    /* ERP·WA 번호선택 팝업 공통: 위에서 아래 순서를 유지하며 10개를 좌우 5개씩 표시한다.
+       목록 내부의 고정 높이·스크롤을 없애고, 작은 화면은 기존 모달 본문 스크롤을 사용한다. */
+    height: auto;
+    overflow-y: visible;
+    column-count: 2;
+    column-gap: 0;
+}
+
+.NumPlateSelect .grid-box tr {
+    break-inside: avoid;
+}
+
+.NumPlateSelect .grid-box tr:only-child {
+    column-span: all;
 }
 
 .grid-box tr {

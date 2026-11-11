@@ -6,6 +6,8 @@
 	
 	<select id="getTokenInfo" parameterType="map" resultType="map">
         SELECT TS.SERVICE_ID,
+               TS.COMPANY_ID,
+               (SELECT TC.COMPANY_NM FROM TM_COMPANY TC WHERE TC.COMPANY_ID = TS.COMPANY_ID) AS COMPANY_NM,
                TOKEN,
                REG_GB,
                PKG_COMMON.FN_DECRYPT(TN.REG_NO) AS REG_NO,

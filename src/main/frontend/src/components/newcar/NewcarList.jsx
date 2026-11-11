@@ -12,6 +12,7 @@ import ErpField from '../common/ErpField';
 import CommonMultiSelect from '../common/CommonMultiSelect';
 import NewcarPDFUpload from './NewcarPDFUpload';
 import { exportAgGridToXlsx } from '../../utils/xlsxExport';
+import { getNewcarListColumns } from './newcarListColumns';
 
 // Register AG Grid modules
 ModuleRegistry.registerModules([AllCommunityModule]);
@@ -33,31 +34,6 @@ const getUserCompanyId = (user) => String(
     ''
 ).trim().toUpperCase();
 
-const formatYyyyMmDd = (value) => {
-    const digits = String(value || '').replace(/[^0-9]/g, '');
-
-    if (digits.length !== 8) {
-        return value || '';
-    }
-
-    return `${digits.slice(0, 4)}-${digits.slice(4, 6)}-${digits.slice(6, 8)}`;
-};
-
-const formatAmount = (value) => {
-    const digits = String(value ?? '').replace(/[^0-9-]/g, '');
-
-    if (!digits || digits === '-') {
-        return '';
-    }
-
-    const numberValue = Number(digits);
-
-    if (Number.isNaN(numberValue)) {
-        return value || '';
-    }
-
-    return numberValue.toLocaleString('ko-KR');
-};
 const timeOptions = [
     { label: '8시', value: '08' },
     { label: '9시', value: '09' },
@@ -74,7 +50,7 @@ const timeOptions = [
 const getInitialSearchFilters = (user) => ({
     workCode: '010',
     companyID: user.company_ID === 'dacos' ? '' : user.company_ID,
-	govtId: user.member_GB === 'CA' || user.member_GB === 'SA' || user.member_GB === 'SU' ? 'INCHN' : '',
+	govtId: '',
     userNM: '',
     customerNM: '',
     carNo: '',
@@ -91,15 +67,18 @@ const getInitialSearchFilters = (user) => ({
 const NewcarList = ({ isW = false }) => {
     const location = useLocation();
     const listPath = isW ? '/newcar/newcar-list-w' : '/newcar/newcar-list';
-    const requestTabId = isW ? 'newcar-request-w' : 'newcar-request';
     const requestTitle = isW ? '신규등록(W)' : '신규등록';
-    const requestPath = `/newcar/${requestTabId}`;
 	const { activeTabId, addTab, removeTab } = useTabs(); // 탭 관리
     const gridRef = useRef(null);
 	const fileInputRef = useRef(null);
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기
     const memberGb = user?.member_GB || '';
     const companyId = getUserCompanyId(user);
+    let requestTabId = isW ? 'newcar-request-w' : 'newcar-request';
+    if (isW && companyId === 'WB002') {
+        requestTabId = 'newcar-request-wb002';
+    }
+    const requestPath = `/newcar/${requestTabId}`;
     const isWb001Company = companyId === 'WB001';
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
@@ -212,99 +191,9 @@ const NewcarList = ({ isW = false }) => {
         fetchCompanies();
     }, []); // 의존성 배열을 비워 컴포넌트 마운트 시 최초 1회만 불러옵니다.
 
-    // 기본 사용자 항목 (24개)
-    const defaultColumnDefs = [
-        { headerCheckboxSelection: true, checkboxSelection: true, width: 40 },
-        { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
-        { headerName: '접수번호', field: 'SERVICE_ID', width: 145 },
-        { headerName: '차대번호', field: 'CARID_NO', width: 160 },
-        { headerName: '차량번호', field: 'REQ_CAR_NO', width: 110 },
-        { headerName: '업무구분', field: 'WORK_CD', width: 90, valueFormatter: params => formatCode('SGB', params.value) },
-        { headerName: '신청상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
-        { headerName: '납부상태', field: 'PAY_ST', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
-        { headerName: '사용연료', field: 'FUEL_CD', width: 90, valueFormatter: params => formatCode('FUEL', params.value) },
-        { headerName: '임판여부', field: 'IMSINUM_YN', width: 90, valueFormatter: params => formatCode('IMPST', params.value) },
-        { headerName: '비고', field: 'GOVT_TX', width: 120 },
-        { headerName: '배송지', field: 'DELIVERY_ADDR', width: 250 },
-        { headerName: '고객명', field: 'CUSTOMER_NM', width: 90 },
-        { headerName: '전자납부번호', field: 'TAX_VBANK_NO', width: 120 },
-        { headerName: '신청일자', field: 'REQUEST_DT', width: 120 },
-        { headerName: '심사일자', field: 'JUDGE_DT', width: 100 },
-        { headerName: '배송상태', field: 'NUM_PROC_ST', width: 120, valueFormatter: params => formatCode('NUMST', params.value) },
-        { headerName: '배송구분', field: 'DELIVERY_GB', width: 90, valueFormatter: params => {
-		    const value = params.value;
-	        if (value === 'null' || value == null) {
-	            return '';
-	        }
-	        return formatCode('DLVGB', value);
-	    }},
-        { headerName: '차량명', field: 'CAR_NM', width: 150 },
-        { headerName: '차종', field: 'CAR_KD', width: 90, valueFormatter: params => formatCode('CARKD', params.value) },
-        { headerName: '취득가액', field: 'BUY_AMT', width: 100, valueFormatter: params => formatAmount(params.value), cellClass: 'ag-right-cell' },
-        { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
-        { headerName: '회사명', field: 'COMPANY_NM', width: 120 },
-        { headerName: '신청인', field: 'MEMBER_NM', width: 90 },
-        { headerName: '관청', field: 'GOVT_ID', width: 90, valueFormatter: params => formatCode('GOVT', params.value) },
-    ];
-
-    // SA 사용자 전용 항목 (21개)
-	const saColumnDefs = [
-        { headerCheckboxSelection: true, checkboxSelection: true, width: 20 },
-        { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
-        { headerName: '처리상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
-        { headerName: '등록 예정일자', field: 'REGIST_DATE', width: 120, valueFormatter: params => formatYyyyMmDd(params.value) },
-        { headerName: '주문번호', field: 'LINK_ID', width: 145 },
-        { headerName: '차대번호', field: 'CARID_NO', width: 160 },
-        { headerName: '차량번호', field: 'REQ_CAR_NO', width: 110 },
-        { headerName: '소유자명', field: 'OWNER_NM', width: 90 },
-		{ headerName: '공급가액', field: 'BUY_AMT', width: 100, valueFormatter: params => formatAmount(params.value), cellClass: 'ag-right-cell' },
-        { headerName: '납부상태', field: 'ALL_PAY_YN', width: 90, valueFormatter: params => formatCode('PAYST', params.value) },
-        { headerName: '차량대금 납부일자', field: 'BPAY_DT', width: 120 },
-        { headerName: '등록비용 납부일자', field: 'PAY_DT', width: 120 },
-        { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
-        { headerName: '등록일자', field: 'JUDGE_DT', width: 100 },
-		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 90, valueFormatter: params => {
-		    const value = params.value;
-	        if (value === 'null' || value == null) {
-	            return '';
-	        }
-	        return formatCode('DLVGB', value);
-	    }},
-        { headerName: '신청SP명', field: 'MEMBER_NM', width: 90 },
-        { headerName: '접수번호', field: 'SERVICE_ID', width: 90 },
-    ];
-
-	// SU 사용자 전용 항목 (21개)
-	const suColumnDefs = [
-        { headerCheckboxSelection: true, checkboxSelection: true, width: 20 },
-        { headerName: '순번', valueGetter: 'node.rowIndex + 1', width: 40, textAlign: 'center' },
-		{ headerName: '처리상태', field: 'PROC_ST', width: 90, valueFormatter: params => formatCode('PR_ST', params.value) },
-		{ headerName: '주문번호', field: 'LINK_ID', width: 170 },
-        { headerName: '차대번호', field: 'CARID_NO', width: 180 },
-		{ headerName: '계약자명', field: 'CUSTOMER_NM', width: 130 },
-        { headerName: '입력일자', field: 'REQUEST_DT', width: 120 },
-		{ headerName: '등록 예정일자', field: 'REGIST_DATE', width: 130, valueFormatter: params => formatYyyyMmDd(params.value) },
-		{ headerName: '공급가액', field: 'BUY_AMT', width: 120, valueFormatter: params => formatAmount(params.value), cellClass: 'ag-right-cell' },
-		{ headerName: 'Space',  field: 'DELIVERY_GB', width: 180, valueFormatter: params => {
-		    const value = params.value;
-	        if (value === 'null' || value == null) {
-	            return '';
-	        }
-	        return formatCode('DLVGB', value);
-	    }},
-        { headerName: '접수번호', field: 'SERVICE_ID',  flex: 1},
-    ];
-
-    // user ID에 따라 컬럼 속성 분기
-    const columnDefs = React.useMemo(() => {
-        if (memberGb === 'SA' || memberGb === 'CA') {
-            return saColumnDefs;
-        } else if (memberGb === 'SU') {
-            return suColumnDefs;
-		}
-        // 기본적으로 defaultColumnDefs 반환
-        return defaultColumnDefs;
-    }, [memberGb, codeMap]);
+    const columnDefs = React.useMemo(() => getNewcarListColumns({
+        companyId, memberGb, formatCode
+    }), [companyId, memberGb, formatCode]);
 
     const openRequestDetail = (row) => {
         const serviceId = String(row?.SERVICE_ID ?? '').trim();
@@ -600,17 +489,14 @@ const NewcarList = ({ isW = false }) => {
 	
 	const memberGbConfig = {
 	    SA: {
-	        govts: ['INCHN'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
 	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    },
 	    CA: {
-	        govts: ['INCHN'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
 	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    },
 	    SU: {
-	        govts: ['INCHN'],
 	        processStatuses: ['C_REQ', 'SAV', 'W_REQ', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'S_REQ', 'S_END', 'J_REQ', 'END'],
 	        deliveryGbs: ['ILSAN', 'HANAM', 'BUSAN', 'DAEGU', 'DAEJE', 'GWANG', 'SEOUL', 'SUWON', 'JEJU', 'INPUT']
 	    }
@@ -618,17 +504,8 @@ const NewcarList = ({ isW = false }) => {
 	
 	const config = memberGbConfig[memberGb] || {};
 	
-	const govtOptions = React.useMemo(() => {
-	    const allGovts = codeListMap['GOVT'] || [];
-
-	    if (!config.govts) {
-	        return allGovts;
-	    }
-
-	    return allGovts.filter(code =>
-	        config.govts.includes(code.CODE_ID)
-	    );
-	}, [codeListMap, config.govts]);
+	// 관청은 공통 코드 전체를 제공하고, 실제 조회 권한은 서버에서 적용한다.
+	const govtOptions = codeListMap['GOVT'] || [];
 	
 	const processStatusOptions = React.useMemo(() => {
 	    const allStatuses = codeListMap['PR_ST'] || [];

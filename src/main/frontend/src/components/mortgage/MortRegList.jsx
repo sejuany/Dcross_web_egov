@@ -6,6 +6,7 @@ import { AgGridReact } from 'ag-grid-react';
 import { ModuleRegistry, AllCommunityModule } from 'ag-grid-community';
 import 'ag-grid-community/styles/ag-theme-alpine.css';
 import { useAuth } from '../../context/AuthContext';
+import { useTabs } from '../../context/TabContext';
 import ErpSection from '../common/ErpSection';
 import ErpField from '../common/ErpField';
 
@@ -26,6 +27,7 @@ const MortRegList = () => {
     const location = useLocation();
     const gridRef = useRef(null);
     const { user } = useAuth();
+    const { addTab } = useTabs();
 
     const [codeMap, setCodeMap] = useState({});
     const [codeListMap, setCodeListMap] = useState({});
@@ -58,8 +60,8 @@ const MortRegList = () => {
                 MORTGAGOR_NM: searchFilters.mortgagorNm,
                 START_DT: searchFilters.startDate.replace(/-/g, ''),
                 END_DT: searchFilters.endDate.replace(/-/g, ''),
-                PROC_ST: cleanParam(searchFilters.processStatus)
-                // PAY_ST: cleanParam(searchFilters.payStatus) // Add if backend supports it
+                PROC_ST: cleanParam(searchFilters.processStatus),
+                PAY_ST: cleanParam(searchFilters.payStatus)
             };
 
             const response = await axios.post('/api/mortgage/list', params);
@@ -251,6 +253,8 @@ const MortRegList = () => {
                     rowSelection="multiple"
                     headerHeight={28}
                     rowHeight={24}
+                    // 접수번호를 넘겨 저장된 설정등록 전체정보를 연다.
+                    onRowDoubleClicked={e => addTab('mort-reg-request', '설정등록', '/mortgage/mort-reg-request', { state: { receiptNo: e.data.SERVICE_ID, detailOpenKey: e.data.SERVICE_ID + '-' + Date.now() } })}
                 />
             </div>
         </div>

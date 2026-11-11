@@ -1,0 +1,1208 @@
+.new-reg-container {
+    background-color: #fff;
+    font-family: 'Malgun Gothic', 'Dotum', sans-serif;
+    color: #333;
+    padding: 0px;
+    height: 100%;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+/* Unified Toolbar */
+.erp-toolbar {
+    background: linear-gradient(to bottom, #3c638d, #2f557d);
+    border-bottom: 1px solid #294868;
+    padding: 2px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    color: #fff;
+    flex: 0 0 auto;
+    min-height: 30px;
+}
+
+.toolbar-left,
+.toolbar-right {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    min-width: 0;
+    flex-wrap: wrap;
+}
+
+.toolbar-title {
+    font-size: 15px;
+    font-weight: bold;
+    margin-right: 20px;
+    color: #fff;
+}
+
+/* ERP Form Sections */
+.erp-section {
+    background-color: #fff;
+    border: 1px solid #ced4da;
+    padding: 0px;
+    margin-bottom: 3px;
+    flex: 0 0 auto;
+}
+
+.header-info {
+    background-color: #f1f3f6;
+}
+
+.erp-section-title {
+    /* background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7; */
+    background-color: #dbe4f1!important;
+    border-bottom: 2px solid #a3b8d7!important;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.sub-section-title {
+    font-size: 13px;
+    font-weight: bold;
+    color: #2b4b7c;
+    margin: 8px 0 4px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+/* Grid Layout */
+.erp-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0px;
+    background-color: #ced4da;
+}
+
+.erp-row {
+    background-color: #fff;
+    display: flex;
+    min-height: 28px;
+    align-items: stretch;
+}
+
+@media (max-width: 1980px) {
+    .erp-row {
+        min-height: 24px;
+    }
+}
+
+.erp-row:not(:last-child) {
+    border-bottom: 1px solid #ced4da;
+}
+
+/* 12-Column Grid System */
+.erp-row>.field-group {
+    border-right: 1px solid #ced4da;
+}
+
+.erp-row>.field-group:last-child {
+    border-right: none;
+}
+
+.col-1 {
+    flex: 0 0 8.333333%;
+}
+
+.col-2 {
+    flex: 0 0 16.666667%;
+}
+
+.col-3 {
+    flex: 0 0 25%;
+}
+
+.col-4 {
+    flex: 0 0 33.333333%;
+}
+
+.col-5 {
+    flex: 0 0 41.666667%;
+}
+
+.col-6 {
+    flex: 0 0 50%;
+}
+
+.col-7 {
+    flex: 0 0 58.333333%;
+}
+
+.col-8 {
+    flex: 0 0 66.666667%;
+}
+
+.col-9 {
+    flex: 0 0 75%;
+}
+
+.col-10 {
+    flex: 0 0 83.333333%;
+}
+
+.col-11 {
+    flex: 0 0 91.666667%;
+}
+
+.col-12 {
+    flex: 0 0 100%;
+}
+
+.field-group {
+    display: flex;
+    align-items: center;
+    background-color: #fff;
+    min-width: 0;
+}
+
+/* 테이블 첫번째 th 크기 맞추기 */
+.erp-grid .erp-label {
+    min-width: 120px;
+}
+
+/* ErpField의 기본 폭을 CSS로 사용하는 화면도 기존 라벨과 같은 폭을 유지한다. */
+.new-reg-container .erp-grid .erp-label {
+    min-width: 95px;
+    flex: 0 0 95px;
+}
+
+.new-reg-container .field-group.label-110 > .erp-label { min-width: 110px; flex-basis: 110px; }
+.new-reg-container .field-group.label-115 > .erp-label { min-width: 115px; flex-basis: 115px; }
+.new-reg-container .field-group.label-120 > .erp-label { min-width: 120px; flex-basis: 120px; }
+
+
+.erp-input:focus {
+    outline: 1px solid #4dabf7;
+    border-color: #4dabf7;
+}
+
+.erp-input.disabled {
+    background-color: #f8f9fa;
+    color: #868e96;
+    border-color: #dee2e6;
+}
+
+.erp-input.highlight-red {
+    border: 1px solid #fa5252;
+    background-color: #fff5f5;
+}
+
+/* 필수 입력용 배경 */
+.required-highlight, .erp-input.required-highlight, .required-highlight[readonly] 
+.erp-input.required-highlight,
+.erp-input.required-highlight:read-only,
+.erp-input.required-highlight:disabled{
+    background-color: #fff3cd!important;
+    border: 1px solid #ff8607!important;
+}
+
+.erp-input.highlight-yellow {
+    background-color: #fff9db;
+    border-color: #fab005;
+}
+
+.erp-input.highlight-blue {
+    background-color: #e7f5ff;
+    border-color: #339af0;
+    color: #1971c2;
+    font-weight: bold;
+}
+
+/* Buttons */
+.btn-erp {
+    height: 24px;
+    padding: 0 15px;
+    font-size: 13px;
+    border-radius: 3px;
+    border: 1px solid #2e5b8d;
+    background: linear-gradient(to bottom, #4a7db6, #35679e);
+    color: #fff;
+    cursor: pointer;
+    font-weight: 500;
+    transition: all 0.15s ease;
+    margin: 0 2px;
+    /* 버튼 글씨 가운데 정렬*/
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn-erp:hover {
+    background: linear-gradient(to bottom, #5a8dc6, #4174ad);
+    transform: translateY(-1px);
+}
+
+/* Labels and Inputs */
+.erp-label {
+    height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+    font-size: 13px;
+    background: #e9eff4 !important;
+    color: #44546a!important;
+    border-right: 1px solid #c8d2df!important;
+    flex-shrink: 0;
+    font-weight: 500;
+    min-width: 65px;
+    line-height: 1.2;
+    white-space: normal;
+    word-break: keep-all;
+    /* 작은 해상도에서도 라벨이 너무 찌그러지는 것 방지 */
+}
+
+.erp-label.align-right {
+    justify-content: flex-end;
+    padding-right: 10px;
+}
+
+.erp-label.req::before {
+    content: '* ';
+    color: #e03131;
+    margin-right: 2px;
+    font-weight: bold;
+    font-size: 15px;
+}
+
+input.erp-input,
+textarea.erp-input {
+    appearance: auto;
+    height: 28px !important;
+    background-image: none;
+    cursor: text;
+    font-size: 14px;
+}
+
+.erp-input {
+    height: 28px;
+    border: 1px solid #a3a3a3;
+    padding: 0 4px;
+    font-size: 15px;
+    text-align: center;
+    margin: 1px;
+    flex: 1;
+    max-width: none;
+    width: 100%;
+    min-width: 0;
+    box-sizing: border-box;
+}
+
+/* readonly */
+input.erp-input:read-only,
+textarea.erp-input:read-only {
+    background-color: #ebeff2 !important;
+    color: #868e96;
+    border-color: #ced4da;
+    cursor: default;
+}
+
+/* disabled */
+
+/*
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled,
+select:disabled,
+input[readonly],
+input.erp-input:read-only {
+    background-color: #ebeff2 !important;
+    color: #585d61!important;
+    border-color: #ced4da!important;
+    cursor: default;
+    
+}
+
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled,
+select:disabled,
+input[readonly],
+input.erp-input:read-only {
+    background-color: #f3ede0 !important;
+    border: 1px solid #d4c4a8 !important;
+    color: #4b5563 !important;
+}
+*/
+
+
+input.erp-input:disabled,
+textarea.erp-input:disabled,
+select.erp-input:disabled,
+input.erp-input:read-only {
+    background-color: #f8fafc !important;
+    border: 1px solid #d5dee8 !important;
+    color: #495057 !important;
+
+    opacity: 1 !important;
+    -webkit-text-fill-color: #495057 !important;
+
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+}
+
+/* 메모 영역*/
+.erp-input.erp-textArea {
+    height: 200px !important;
+    text-align: left;
+}
+
+/* 1280px Optimization for Inputs and Labels */
+@media (max-width: 1980px) {
+    .erp-label {
+        padding: 0 2px;
+        min-width: 50px;
+        letter-spacing: -0.3px;
+    }
+}
+
+@media (max-width: 1980px) {
+    .erp-input {
+        font-size: 15px;
+        padding: 0 1px;
+        margin: 1px;
+        flex: 1;
+        min-width: 0;
+    }
+
+    input[type="date"].erp-input {
+        font-size: 13px;
+        padding: 0;
+        letter-spacing: -1px;
+    }
+
+}
+
+.flex-grow {
+    flex: 1;
+}
+
+.flex-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: 1;
+    min-width: 0;
+}
+
+.flex-row span,
+.flex-row label {
+    margin-left: 10px;
+}
+
+.wonText {
+	margin: 0 2px!important;
+	font-size: 15px;
+}
+
+.value-red {
+    color: #e03131;
+    font-weight: bold;
+}
+
+.value-black {
+    color: #333;
+    font-weight: 500;
+}
+
+@media (max-width: 1980px) {
+
+    .value-red,
+    .value-black {
+        font-size: 13px;
+    }
+}
+
+.text-right {
+    text-align: right;
+    justify-content: flex-end;
+}
+
+/* 1280px Optimization for Buttons */
+@media (max-width: 1980px) {
+    .btn-erp {
+        height: 24px;
+        padding: 0 15px;
+        font-size: 12px;
+    }
+}
+
+.btn-erp.light {
+    background: linear-gradient(to bottom, #ffffff, #eef4fb);
+    border-color: #aebfd3;
+    color: #24496f;
+}
+
+
+/* disabled */
+.btn-erp:disabled,
+.btn-erp.light:disabled {
+    background: linear-gradient(to bottom, #dbe3ec, #c8d4e1);
+    border: 1px solid #a8b8ca;
+    color: #5a6b7d;
+    opacity: 1;
+    box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.4);
+}
+
+/* disabled hover 막기 */
+.btn-erp:disabled:hover,
+.btn-erp.light:disabled:hover {
+    background: linear-gradient(to bottom, #dbe3ec, #c8d4e1);
+    border-color: #a8b8ca;
+    color: #5a6b7d;
+    transform: none;
+}
+
+.btn-erp.dark {
+    background: linear-gradient(to bottom, #647c98, #50657d);
+    border-color: #405364;
+}
+
+.btn-erp.grey {
+    background: linear-gradient(to bottom, #f7f9fc, #e7eef7);
+    border-color: #c2cfdd;
+    color: #35506d;
+}
+
+/* small */
+.btn-erp.sm {
+    padding: 12px 15px;
+    font-size: 12px;
+    min-width: 52px;
+}
+
+/* medium */
+.btn-erp.md {
+    padding: 12px 15px;
+    font-size: 13px;
+}
+
+/* large */
+.btn-erp.lg {
+    padding: 12px 24px;
+    font-size: 13px;
+}
+
+/* Vehicle Table-like Grid */
+.erp-table-like-grid {
+    display: flex;
+    flex-direction: column;
+}
+
+.grid-row {
+    display: flex;
+    background-color: #fff;
+    min-height: 26px;
+}
+
+.grid-label {
+    background-color: #f1f3f6;
+    border-right: 1px solid #ced4da;
+    border-left: 1px solid #ced4da;
+    padding: 0 8px;
+    font-size: 12px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    text-align: center;
+    min-width: 80px;
+    justify-content: center;
+}
+
+.grid-value {
+    padding: 0 8px;
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    border-right: 1px solid #ced4da;
+}
+
+.highlight-red-text {
+    color: #ef4444;
+    font-weight: bold;
+}
+
+.text-right {
+    justify-content: flex-end;
+    text-align: right;
+}
+
+.info-txt {
+    font-size: 12px;
+    color: #2b4b7c;
+    margin-left: 10px;
+}
+
+/* 결제정보 그리드 ========================== */
+/* 헤더 가운데 정렬 */
+.ag-theme-alpine .ag-header-cell-label {
+    justify-content: center;
+}
+
+.ag-header-cell-text {
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.ag-header-cell-resize {
+    opacity: 0;
+    /* 안 보이게 */
+    width: 8px;
+    /* 영역은 유지 */
+    cursor: col-resize;
+    /* 커서는 유지 */
+}
+
+.ag-theme-alpine .ag-cell {
+    font-size: 13px
+}
+
+/* 셀 가운데 정렬 */
+.ag-theme-alpine .ag-center-cell {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+/* 셀 왼쪽 정렬 */
+.ag-theme-alpine .ag-right-cell {
+    display: flex;
+    justify-content: flex-end;
+    align-items: center;
+}
+
+/* 짝수 행만 색깔 칠하기 */
+.ag-theme-alpine .ag-center-cols-container .ag-row:nth-child(even) .ag-cell {
+    background-color: #f5f6f8;
+}
+
+/* ===================================== */
+
+/* Tabs */
+.tab-container {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    margin-top: 6px;
+    min-height: 0;
+}
+
+.tab-header-list {
+    display: flex;
+    align-items: flex-end;
+    justify-content: space-between;
+    gap: 1px;
+    flex: 0 0 auto;
+    width: 100%;
+}
+
+.tab-button-group {
+    display: flex;
+    align-items: flex-end;
+    gap: 1px;
+}
+
+.tab-header-extra {
+    display: flex;
+    align-items: center;
+    justify-content: flex-end;
+    min-height: 28px;
+}
+
+.tab-checkbox-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    margin: 0;
+    font-size: 13px;
+    color: #333;
+}
+
+.tab-btn {
+    padding: 4px 18px;
+    border: 1px solid #ced4da;
+    border-bottom: none;
+    /* background-color: #e9ecef; */
+    background: #edf2f7!important;
+    font-size: 13px;
+    cursor: pointer;
+    border-radius: 4px 4px 0 0;
+}
+
+/* 1280px Optimization for Tabs */
+@media (max-width: 1980px) {
+    .tab-btn {
+        padding: 4px 12px;
+        font-size: 12px;
+    }
+}
+
+/* .tab-btn.active {
+    background-color: #fff;
+    border-top: 2px solid #007bff;
+    font-weight: bold;
+} */
+
+.tab-btn.active {
+    background: #fff!important;
+    border-top: 2px solid #3c638d!important;
+}
+
+.tab-content {
+    flex: 1;
+    border: 1px solid #ced4da;
+    padding: 0px;
+    min-height: 0;
+    overflow: auto;
+    background-color: #f7f9fc;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+
+.tab-content .erp-row {
+    min-height: 26px;
+}
+
+.tab-content .erp-input {    
+    margin: 1px;
+    padding: 0 4px;
+    font-size: 13px;
+}
+
+.new-reg-container select.erp-input {
+    padding: 0 14px 0 4px;
+    text-overflow: ellipsis;
+    appearance: none;
+    background-image: url("data:image/svg+xml,%3Csvg%20xmlns%3D%22http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%22%20viewBox%3D%220%200%2024%2024%22%3E%3Cpath%20d%3D%22M6%209l6%206%206-6%22%20fill%3D%22none%22%20stroke%3D%22%2344546a%22%20stroke-width%3D%222%22%2F%3E%3C%2Fsvg%3E");
+    background-repeat: no-repeat;
+    background-position: right 2px center;
+    background-size: 10px;
+}
+
+.tab-content .btn-erp.sm,
+.tab-content .btn-erp.md {
+    height: 24px;
+    min-width: 52px;
+    padding: 0 6px;
+}
+
+.tab-content .erp-section:last-child {
+    margin-bottom: 0;
+}
+
+.owner-info-section,
+.delivery-info-section,
+.payment-info-section {
+    order: 1;
+    flex: 0 0 auto;
+}
+
+.fixed-reg-info-section {
+    order: 2;
+    flex: 0 0 auto;
+}
+
+.owner-split-layout {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    gap: 4px;
+    align-items: stretch;
+}
+.owner-panel {
+    min-width: 0;
+    margin-bottom: 0;
+}
+
+.owner-panel .erp-row {
+    flex-wrap: wrap;
+}
+
+.owner-panel .erp-label {
+    width: 96px !important;
+    min-width: 96px;
+    padding: 0 4px;
+    font-size: 13px;
+}
+
+.owner-panel .col-9,
+.owner-panel .col-12 {
+    flex: 0 0 100%;
+}
+
+.owner-main-panel .erp-grid>.erp-row:first-child .col-3 {
+    flex: 0 0 25%;
+}
+
+.owner-panel .btn-erp.sm {
+    margin-left: 2px !important;
+}
+
+.owner-split-layout .erp-section-title,
+.fixed-reg-info-section .erp-section-title {
+    background-color: #dbe4f1;
+    border-bottom: 1px solid #a3b8d7;
+    padding: 4px 8px;
+    font-size: 13px;
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.fixed-reg-info-section .erp-label {
+    width: 105px !important;
+    min-width: 105px;
+    padding: 0 4px;
+}
+
+.fixed-reg-info-section .erp-textArea {
+    height: 147px !important;
+}
+
+@media (max-width: 1980px) {
+    .new-reg-container:not(.newcar-request-w) .owner-split-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .owner-split-layout .erp-section-title,
+    .fixed-reg-info-section .erp-section-title {
+        font-size: 16px;
+    }
+}
+
+#ADDRESS,
+#BASE_ADDRESS,
+#DELIVERY_ADDR,
+.new-reg-container input[name="ADDRESS"],
+.new-reg-container input[name="BASE_ADDRESS"],
+input[name="CARP_ADDRESS"] {
+    flex: 1 1 180px;
+    text-align: left;
+}
+
+#ADDRESS_DT,
+#BASE_ADDRESS_DT,
+#DELIVERY_ADDR_DT,
+.new-reg-container input[name="ADDRESS_DT"],
+.new-reg-container input[name="BASE_ADDRESS_DT"],
+input[name="CARP_ADDRESS_DT"] {
+    flex: 0 1 170px;
+    width: auto !important;
+    min-width: 100px;
+}
+
+input[name="CARP_POST_NO"] {
+    flex: 0 0 82px;
+}
+
+@media (max-width: 1100px) {
+    .owner-split-layout {
+        grid-template-columns: 1fr;
+    }
+
+    .tab-content {
+        padding: 6px;
+    }
+
+    #ADDRESS_DT,
+    #BASE_ADDRESS_DT,
+    #DELIVERY_ADDR_DT,
+    .new-reg-container input[name="ADDRESS_DT"],
+    .new-reg-container input[name="BASE_ADDRESS_DT"],
+    input[name="CARP_ADDRESS_DT"] {
+        flex-basis: 180px;
+    }
+}
+
+/* Helpers */
+.w-50 {
+    width: 50px;
+}
+
+.w-80 {
+    width: 80px;
+}
+
+.w-100 {
+    width: 100px;
+}
+
+.w-120 {
+    width: 120px;
+}
+
+.w-150 {
+    width: 150px;
+}
+
+.w-180 {
+    width: 180px;
+}
+
+.w-250 {
+    width: 250px;
+}
+
+.w-300 {
+    width: 300px;
+}
+
+.w-350 {
+    width: 350px;
+}
+
+.mt-10 {
+    margin-top: 10px;
+}
+
+.ml-10 {
+    margin-left: 10px;
+}
+
+.mL-24 {
+    margin-left: 24px!important;
+}
+
+.mr-10 {
+    margin-right: 10px;
+}
+
+button.btn-erp.sm.light.mL-25 {
+    margin-left: 25px !important;
+}
+
+.border-top {
+    border-top: 1px solid #ced4da;
+}
+
+.chk-label {
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.text-left {
+    text-align: left;
+    padding-left: 10px;
+}
+
+/* flex 일 때 좌측정렬 */
+.f-left {
+    justify-content: flex-start;
+}
+
+/* Estimate Modal Styling */
+.estimate-modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.4);
+    -webkit-backdrop-filter: blur(2px);
+    backdrop-filter: blur(2px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;
+}
+
+.estimate-modal-container {
+    width: 500px;
+    max-width: 90vw;
+    background: #fff;
+    border-radius: 8px;
+    overflow: hidden;
+    box-shadow: 0 8px 30px rgba(0, 0, 0, 0.15);
+    border: 1px solid #ced4da;
+}
+
+.estimate-modal-header {
+    background: linear-gradient(to bottom, #3c638d, #2f557d);
+    color: #fff;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom: 1px solid #294868;
+}
+
+.estimate-modal-header h3 {
+    margin: 0;
+    font-size: 14px;
+    font-weight: bold;
+}
+
+.estimate-modal-close-btn {
+    border: 0;
+    background: none;
+    color: #fff;
+    cursor: pointer;
+    font-size: 16px;
+    font-weight: bold;
+    opacity: 0.8;
+    transition: opacity 0.15s ease;
+}
+
+.estimate-modal-close-btn:hover {
+    opacity: 1;
+}
+
+.estimate-modal-body {
+    padding: 16px;
+    font-size: 13px;
+    background-color: #fff;
+}
+
+.estimate-table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-bottom: 15px;
+    border: 1px solid #ced4da;
+}
+
+.estimate-table th, .estimate-table td {
+    padding: 8px 10px;
+    border-bottom: 1px solid #ced4da;
+    font-size: 13px;
+}
+
+.estimate-table th {
+    background-color: #f1f3f6;
+    text-align: left;
+    font-weight: bold;
+    color: #495057;
+    width: 150px;
+    border-right: 1px solid #ced4da;
+}
+
+.estimate-table td {
+    text-align: right;
+    color: #333;
+}
+
+.estimate-table tr.total-row th,
+.estimate-table tr.total-row td {
+    background-color: #e7f5ff;
+    font-weight: bold;
+    color: #1971c2;
+    border-bottom: 2px solid #339af0;
+}
+
+.estimate-notice {
+    background-color: #fff9db;
+    border: 1px solid #fab005;
+    border-radius: 4px;
+    padding: 12px;
+    color: #664d03;
+    font-size: 13px;
+    line-height: 1.5;
+    margin-bottom: 15px;
+    word-break: keep-all;
+    text-align: left;
+}
+
+.estimate-modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 6px;
+    padding: 10px 16px;
+    background-color: #f1f3f6;
+    border-top: 1px solid #ced4da;
+}
+
+.estimate-modal-footer .btn-erp {
+    min-width: 70px;
+    height: 24px;
+}
+
+
+.ratio-field > .erp-label {
+	min-width: 120px;
+}
+
+/* 로딩중 효과 */
+.loading-overlay {
+	position: fixed;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(255,255,255,0.5);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	z-index: 9999;
+}
+
+.loading-spinner {
+	width: 50px;
+	height: 50px;
+	border: 4px solid #ddd;
+	border-top: 4px solid #2f80ed;
+	border-radius: 50%;
+	animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+	from {
+		transform: rotate(0deg);
+	}
+	to {
+		transform: rotate(360deg);
+	}
+}
+
+/* 흔들리는 효과 */
+@keyframes shake {
+    0%   { transform: translateX(0); }
+    20%  { transform: translateX(-4px); }
+    40%  { transform: translateX(4px); }
+    60%  { transform: translateX(-4px); }
+    80%  { transform: translateX(4px); }
+    100% { transform: translateX(0); }
+}
+
+.btn-shake {
+    animation: shake 0.6s 3;
+}
+
+.btn-shake.red-btn, .red-btn, input.erp-input:read-only.red-btn {
+	border: 1px solid #fa5252!important;
+	background: #fff5f5!important;
+	background-color: #fff5f5!important;
+}
+
+/* 소유자명 체크 */
+.erp-label-extra {
+	margin-left: 3px!important;
+	vertical-align: middle!important;
+}
+
+.erp-input{
+	background-color: #fbfcfd;
+}
+
+
+#SERVICE_ID {
+	cursor: pointer;
+}
+
+/* W 화면은 12칸 안에서 소수 span을 사용하고 라벨 너비를 필드별로 지정한다. */
+.newcar-request-w .erp-row > .field-group {
+    flex: 0 0 calc(var(--erp-span) / 12 * 100%);
+    box-sizing: border-box;
+}
+
+.newcar-request-w .erp-row > .field-group > .erp-label {
+    width: var(--erp-label-width, 100px) !important;
+    min-width: var(--erp-label-width, 100px);
+    flex: 0 0 var(--erp-label-width, 100px);
+    box-sizing: border-box;
+}
+
+/* W 화면의 필수값·자동입력 표시와 추가 팝업. 배치는 위 공통 스타일을 사용한다. */
+.newcar-request-w .erp-input.w-required { background-color: #fff6cc !important; border: 1px solid #dc3545 !important; }
+.newcar-request-w .erp-input.w-auto, .newcar-request-w span.w-auto { background-color: #e1f3ff !important; border: 1px solid #2382c8 !important; }
+.newcar-request-w .w-bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px; }
+.newcar-request-w .w-message, .newcar-request-w .w-state { margin: 0; padding: 9px 12px; background: #fff5dc; color: #723f00; }
+.newcar-request-w .w-payments { width: 100%; border-collapse: collapse; background: white; }
+.newcar-request-w .w-payments caption { text-align: left; padding: 8px; font-weight: bold; }
+.newcar-request-w .w-payments th, .newcar-request-w .w-payments td { border: 1px solid #d6dee8; padding: 7px 10px; overflow-wrap: anywhere; }
+.newcar-request-w .w-payments td { text-align: right; }
+.newcar-request-w .w-modal-backdrop { position: fixed; inset: 0; z-index: 2000; background: #172d4b80; display: flex; align-items: center; justify-content: center; padding: 16px; }
+.newcar-request-w .w-modal { width: min(850px, 95vw); max-height: 90vh; overflow: auto; padding: 20px; border-radius: 8px; background: white; box-shadow: 0 12px 36px #0003; }
+.newcar-request-w .w-modal h3 { margin: 0 0 12px; }
+.newcar-request-w .w-paper { width: 100%; height: 70vh; border: 1px solid #d6dee8; }
+
+/* 제작증 확인은 본문만 스크롤하고 주요 정보와 동작 버튼을 함께 보여준다. */
+.newcar-request-w .w-certificate-modal { width: min(1040px, calc(100vw - 32px)); max-height: min(820px, calc(100dvh - 32px)); padding: 0; display: flex; flex-direction: column; overflow: hidden; color: #20344d; border-radius: 12px; }
+.newcar-request-w .w-certificate-header { flex: 0 0 auto; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 8px 20px; padding: 18px 22px 14px; border-bottom: 1px solid #dde5ef; background: #fff; }
+.newcar-request-w .w-certificate-eyebrow { display: block; margin-bottom: 4px; color: #547394; font-size: 11px; font-weight: 600; }
+.newcar-request-w .w-certificate-header h3 { margin: 0; font-size: 18px; line-height: 1.4; }
+.newcar-request-w .w-certificate-header p { flex-basis: 100%; margin: 0; color: #62748a; font-size: 12px; line-height: 1.5; }
+.newcar-request-w .w-certificate-file { max-width: 42%; padding: 5px 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; border: 1px solid #dde5ef; border-radius: 5px; color: #5b7089; font-size: 11px; background: #f7f9fc; }
+.newcar-request-w .w-certificate-body { min-height: 0; overflow: auto; display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-content: start; gap: 12px; padding: 16px 20px; background: #f3f6fa; }
+.newcar-request-w .w-certificate-card { min-width: 0; padding: 12px; border: 1px solid #dbe3ed; border-radius: 8px; background: #fff; }
+.newcar-request-w .w-certificate-card h4 { margin: 0 0 10px; padding-left: 8px; border-left: 3px solid #32669f; color: #263e5d; font-size: 13px; line-height: 1.3; }
+.newcar-request-w .w-certificate-vehicle, .newcar-request-w .w-certificate-specs { grid-column: 1 / -1; }
+.newcar-request-w .w-certificate-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px; margin: 0; }
+.newcar-request-w .w-certificate-field { min-width: 0; padding: 7px 9px; border: 1px solid transparent; border-radius: 5px; background: #f5f7fa; }
+.newcar-request-w .w-certificate-field.is-changed { background: #edf5ff; border-color: #d7e7fb; }
+.newcar-request-w .w-certificate-field.is-wide { grid-column: 1 / -1; }
+.newcar-request-w .w-certificate-field dt { margin-bottom: 3px; color: #64758a; font-size: 11px; line-height: 1.35; }
+.newcar-request-w .w-certificate-field dd { display: flex; flex-direction: column; gap: 3px; margin: 0; }
+.newcar-request-w .w-certificate-value { color: #233b58; font-size: 13px; font-weight: 600; line-height: 1.45; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.newcar-request-w .w-certificate-value.is-vin { font-family: Consolas, monospace; letter-spacing: .3px; }
+.newcar-request-w .w-certificate-previous { color: #7d8998; font-size: 11px; line-height: 1.4; overflow-wrap: anywhere; }
+.newcar-request-w .w-certificate-vehicle .w-certificate-fields { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.newcar-request-w .w-certificate-vehicle .w-certificate-field.is-wide { grid-column: span 2; }
+.newcar-request-w .w-certificate-vehicle .w-certificate-field:first-child .w-certificate-value { font-size: 15px; }
+.newcar-request-w .w-certificate-specs { border: 1px solid #dbe3ed; border-radius: 8px; background: #fff; }
+.newcar-request-w .w-certificate-specs summary { display: flex; align-items: center; gap: 10px; padding: 12px 14px; cursor: pointer; list-style: none; color: #314d6d; font-size: 12px; font-weight: 600; }
+.newcar-request-w .w-certificate-specs summary::-webkit-details-marker { display: none; }
+.newcar-request-w .w-certificate-specs summary span { color: #8290a2; font-size: 11px; font-weight: 400; }
+.newcar-request-w .w-certificate-specs summary::after { content: ''; width: 6px; height: 6px; margin-left: auto; border: solid #6f839d; border-width: 0 1.5px 1.5px 0; transform: rotate(45deg); }
+.newcar-request-w .w-certificate-specs[open] summary::after { transform: rotate(225deg); }
+.newcar-request-w .w-certificate-specs .w-certificate-fields { grid-template-columns: repeat(4, minmax(0, 1fr)); padding: 0 12px 12px; }
+.newcar-request-w .w-certificate-footer { flex: 0 0 auto; justify-content: flex-end; gap: 8px; padding: 12px 20px; border-top: 1px solid #dde5ef; background: #fff; }
+.newcar-request-w .w-certificate-footer > span { margin-right: auto; color: #6b7d92; font-size: 11px; }
+.newcar-request-w .w-certificate-footer .btn-erp { min-width: 86px; min-height: 34px; border-radius: 5px; font-size: 13px; }
+.newcar-request-w .w-certificate-specs summary:focus-visible, .newcar-request-w .w-certificate-footer button:focus-visible { outline: 2px solid #2382c8; outline-offset: 2px; }
+/* 증빙 입력도 제작증 팝업의 카드·본문 스크롤·고정 하단 구성을 공유한다. */
+.newcar-request-w .w-tax-modal { width: min(850px, calc(100vw - 32px)); }
+.newcar-request-w .w-tax-wide { grid-column: 1 / -1; }
+.newcar-request-w .w-tax-kind { max-width: 300px; }
+.newcar-request-w .w-tax-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.newcar-request-w .w-tax-field { display: flex; flex-direction: column; gap: 5px; min-width: 0; margin: 0; }
+.newcar-request-w .w-tax-field > span { color: #64758a; font-size: 11px; line-height: 1.4; }
+.newcar-request-w .w-tax-modal .erp-input { box-sizing: border-box; width: 100%; min-width: 0; height: 34px; padding: 6px 10px; border: 1px solid #cdd9e7; border-radius: 5px; background-color: #fff; color: #233b58; text-align: left; font-size: 13px; }
+.newcar-request-w .w-tax-modal select.erp-input { padding-right: 28px; }
+.newcar-request-w .w-tax-modal input.erp-input:read-only { background-color: #f5f7fa; }
+.newcar-request-w .w-tax-modal .erp-input:focus { border-color: #2382c8; outline: 2px solid #2382c830; }
+.newcar-request-w .w-tax-hint { margin: 10px 0 0; color: #6b7d92; font-size: 12px; line-height: 1.5; }
+.newcar-request-w .w-tax-address { display: flex; align-items: flex-end; gap: 8px; }
+.newcar-request-w .w-tax-address > label { flex: 1; }
+.newcar-request-w .w-tax-address > button { flex: 0 0 auto; min-height: 34px; border-radius: 5px; }
+.newcar-request-w .w-tax-detail { margin-top: 10px; }
+@media (max-width: 760px) {
+    .newcar-request-w .w-certificate-body { grid-template-columns: minmax(0, 1fr); gap: 10px; padding: 12px; }
+    .newcar-request-w .w-certificate-header { padding: 14px; gap: 8px; }
+    .newcar-request-w .w-certificate-header h3 { font-size: 16px; }
+    .newcar-request-w .w-certificate-file { max-width: 100%; }
+    .newcar-request-w .w-certificate-specs .w-certificate-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .newcar-request-w .w-certificate-footer { padding: 10px 14px; }
+}
+@media (max-width: 480px) {
+    .newcar-request-w .w-tax-fields { grid-template-columns: minmax(0, 1fr); }
+    .newcar-request-w .w-certificate-vehicle .w-certificate-fields { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+    .newcar-request-w .w-certificate-vehicle .w-certificate-field.is-wide { grid-column: 1 / -1; }
+    .newcar-request-w .w-certificate-footer > span { flex-basis: 100%; }
+}
+
+.newcar-request-wb002 .payment-info-section .erp-section-title-extra {
+    margin-left: 12px;
+    gap: 8px;
+}
+
+/* WB002 임시 숨김: 입력 UI와 처리 코드는 보존한다. */
+.newcar-request-wb002 .wb002-hidden,
+.newcar-request-wb002 .field-group:has([name="NUMPLATE_ST"]),
+.newcar-request-wb002 .field-group:has([name="TOTAL_AMT"]):not(.wb002-payment-summary .field-group),
+.newcar-request-wb002 .field-group:has([name="RT_AMT"]),
+.newcar-request-wb002 .field-group:has([name="PAY_NM"]),
+.newcar-request-wb002 .field-group:has([name="PAY_HP_NO"]),
+.newcar-request-wb002 .field-group:has([name="RETURN_NM"]),
+.newcar-request-wb002 .field-group:has([name="RETURN_NO"]),
+.newcar-request-wb002 .erp-row:has([name="CARP_ADDRESS"]),
+.newcar-request-wb002 .erp-row:has([name="CARP_MAIL"]) {
+    display: none !important;
+}

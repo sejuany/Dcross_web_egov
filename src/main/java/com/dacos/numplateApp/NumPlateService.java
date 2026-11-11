@@ -1056,17 +1056,18 @@ public class NumPlateService {
                 && imageMissing(detail, "IMAGE6")) {
             throw new BusinessException("서명을 등록해 주세요.");
         }
+        String phone = Objects.toString(detail.get("TEL_NO"), "").trim();
+        if (phone.isBlank()) throw new BusinessException("완료 문자를 받을 고객 연락처를 확인해 주세요.");
         Map<String, Object> param = managerParam(user);
         param.put("SERVICE_ID", validateServiceId(serviceId));
         param.put("READY_YN", "C");
         if (numPlateMapper.updateReadyYn(param) != 1) throw new BusinessException("사진등록 완료 상태를 저장하지 못했습니다.", 409);
-        String phone = Objects.toString(detail.get("TEL_NO"), "");
-        if (!phone.isBlank()) {
-            commonService.sendSms(Map.of(
+        if (commonService.sendSms(Map.of(
                     "PAY_HP_NO", phone,
                     "TEXT", Objects.toString(detail.get("CAR_NO"), "") + " 차량의 번호판 교체 작업이 완료되었습니다.",
                     "MSG_TYPE", "3",
-                    "SUBJECT", "번호판 교체 완료"));
+                    "SUBJECT", "번호판 교체 완료")) != 1) {
+            throw new BusinessException("완료 문자를 발송 대기열에 저장하지 못했습니다.", 409);
         }
     }
 

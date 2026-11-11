@@ -1,0 +1,394 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dacos.mortgage.mapper.MortgageRequestMapper">
+    <!-- DaCOS mortgageDAO.selectTrService 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectService" parameterType="map" resultType="map" >
+		SELECT
+		SERVICE_ID, WORK_CD, COMPANY_ID, ASSOCIATION_ID, GOVT_ID, BRANCH_ID, SANGSA_ID,
+           (SELECT MAX(MEMBER_NM) FROM TM_MEMBER_DT M WHERE M.MEMBER_ID = TR_SERVICE.MEMBER_ID AND M.COMPANY_ID = TR_SERVICE.COMPANY_ID) MEMBER_NM,
+		   MEMBER_ID, CAR_NO, TO_CHAR(REQUEST_DT, 'YYYYMMDD') as REQUEST_DT,
+		   PROC_DT, TO_CHAR(JUDGE_DT, 'YYYYMMDD') as JUDGE_DT, PROC_ST,
+		   JUDGE_ST, RETURN_TX, INS_USER,
+		   INS_DATE, UPD_USER, UPD_DATE, LINK_ID, IMPO_YN, READ_YN, AUTO_YN
+		FROM TR_SERVICE
+		WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectTrMortgage 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectMortgage" parameterType="map" resultType="map" >
+		SELECT SERVICE_ID, WORK_CD, CAR_NO, WONBU_ST, COMPANY_ID,
+			   MORT_NM, REG_GB as MORT_REG_GB, PKG_COMMON.FN_DECRYPT(REG_NO) as MORT_REG_NO, BIZ_NO as MORT_BIZ_NO, BOND_AMT,
+			   PAY_NM, PKG_COMMON.FN_DECRYPT(PAY_HP_NO) AS PAY_HP_NO, PAY_ME, PAY_ST, PAY_DT, PAY_GB,
+			   VBANK_CD, VBANK_NO, T_VBANK_GB, T_VBANK_ID, BD_SERVICE_ID,
+			   DSIGN_GB, DSIGN_HP_GB, PKG_COMMON.FN_DECRYPT(DSIGN_HP_NO) AS DSIGN_HP_NO, DSIGN_TX, DSIGN_ST,
+			   DSIGN_DT, TOTAL_AMT, IDEN_ST, IDEN_DT, CONFIRM_NO, PAY_TP, CAUSE_TX, RATIO_NO, WONBU_YN, PRE_MORT_NM, (SELECT MAX(SEQ) FROM TR_JOINT WHERE SERVICE_ID = #{SERVICE_ID}) GROUP_CNT
+		  FROM TR_MORTGAGE
+		 WHERE SERVICE_ID = #{SERVICE_ID}
+	    <if test="LOCK_ROW == true">FOR UPDATE</if>
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectTrCarInfo 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectCarInfo" parameterType="map" resultType="map" >
+		SELECT SERVICE_ID, WORK_CD, EULBU_NO, CARID_NO, CAR_NM,
+			   CAR_KD, CAR_US, CAR_YY, CARREG_DT, MORT_CT, SHARE_YN,
+			   DIST_CT, INS_USER, INS_DATE, UPD_USER, UPD_DATE, PRE_CAR_NO, MORT_NM, TO_CHAR(MORTREG_DT,'YYYY/MM/DD') AS MORTREG_DT
+		  FROM TR_CARINFO
+		 WHERE SERVICE_ID = #{SERVICE_ID}
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectCompanyInfo 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectCompany" parameterType="map" resultType="map" >
+		SELECT ASSOCIATION_ID,
+		       COMPANY_ID,
+		       BIZ_NO,
+		       COMPANY_NO,
+		       COMPANY_NM,
+		       CEO_NM,
+		       POST_NO,
+		       ADDRESS,
+		       ADDRESS_DT,
+		       TEL_NO,
+		       MPHONE_NO,
+		       RT_BANK_CD,
+		       RT_ACC_NO,
+		       RT_ACC_NM,
+		       USE_YN
+		  FROM TM_COMPANY
+		 WHERE USE_YN = 'Y'
+		  <if test="ASSOCIATION_ID != null and ASSOCIATION_ID != ''"> AND
+		   ASSOCIATION_ID = #{ASSOCIATION_ID}
+		  </if>
+		   AND COMPANY_ID = #{COMPANY_ID}
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectWorkCp 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectWorkCp" parameterType="map" resultType="map" >
+		SELECT WORK_CD,
+		       COMPANY_ID,
+		       GOVT_ID,
+		       PERM_GB,
+		       PAYMENT_GB,
+		       PAYMENT_OP,
+		       PAYMENT_TP,
+		       PAYMENT_ME, POINT_COMMON_USE, POINT_SANGSA_USE,
+		       FEE,
+		       USE_YN
+		  FROM TM_WORK_CP
+		 WHERE COMPANY_ID = #{COMPANY_ID}
+		   AND WORK_CD = #{WORK_CD}
+		   AND USE_YN = 'Y'
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectTmTax 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectTax" parameterType="map" resultType="map" >
+		SELECT
+			WORK_CD, STAMP_PER, STAMP_AMT,
+		   	REGIST_PER, REGIST_AMT, STAMP_BASE, REGIST_BASE
+		FROM TM_TAX
+		WHERE WORK_CD = #{WORK_CD}
+		AND sysdate between start_dt and end_dt
+		AND USE_YN = 'Y'
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectCompanyHis 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectCompanyHistory" parameterType="map" resultType="map" >
+		 SELECT COMPANY_ID, BIZ_NO, COMPANY_NO, COMPANY_NM, '' as ADDRESS
+		  FROM TM_COMPANY
+		 WHERE USE_YN = 'Y'
+		   AND ASSOCIATION_ID = #{ASSOCIATION_ID}
+		   AND COMPANY_ID = #{COMPANY_ID}
+	    UNION ALL
+		SELECT COMPANY_ID,
+		       BIZ_NO,
+		       COMPANY_NO,
+		       COMPANY_NM,
+		       ADDRESS
+		  FROM TM_COMPANY_HIS
+		 WHERE COMPANY_ID = #{COMPANY_ID}
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectTrPayment 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectPayments" parameterType="map" resultType="map" >
+		SELECT SERVICE_ID, PAY_KD, PAY_AMT, PAY_OP, PAY_ST,
+			   VBANK_CD, VBANK_NO, TO_CHAR(PAY_DT, 'YYYY/MM/DD HH24:MI:SS') as PAY_DT, T_VBANK_GB, T_VBANK_ID, REAL_PAY_ST
+		  FROM TR_PAYMENT
+		 WHERE SERVICE_ID = #{SERVICE_ID}
+		 ORDER BY PAY_KD
+	    <if test="LOCK_ROW == true">FOR UPDATE</if>
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectOwnerInfo2 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="selectOwners" parameterType="map" resultType="map" >
+		SELECT  SERVICE_ID, SEQ, GUBUN, BIZ_NO,
+		   		ORG_NM, TO_CHAR(ISSUE_DT, 'YYYYMMDD') AS ISSUE_DT, PKG_COMMON.FN_DECRYPT(REG_NO) AS REG_NO,
+		      	CONFIRM_NO1, CONFIRM_NO2, CONFIRM_NO3,
+		   		CONFIRM_NO4, DEBTOR_YN, UNION_YN, DEBTOR_NM, DEBTOR_GB, DEBTOR_RATIO, PKG_COMMON.FN_DECRYPT(DEBTOR_ADDR) AS DEBTOR_ADDR, PKG_COMMON.FN_DECRYPT(DEBTOR_ADDR_DT) AS DEBTOR_ADDR_DT, DEBTOR_ROAD_CD,
+		   		DSIGN_GB, DSIGN_HP_GB, PKG_COMMON.FN_DECRYPT(DSIGN_HP_NO) AS DSIGN_HP_NO, DSIGN_TX, DSIGN_ST, TO_CHAR(DSIGN_DT, 'YYYY-MM-DD HH24:MI:SS') as DSIGN_DT, IDEN_ST, TO_CHAR(IDEN_DT, 'YYYY-MM-DD HH24:MI:SS') as IDEN_DT, CONFIRM_NO
+		FROM  TR_OWNERINFO
+		WHERE SERVICE_ID = #{SERVICE_ID}
+		ORDER BY SEQ
+	    <if test="LOCK_ROW == true">FOR UPDATE</if>
+	</select>
+
+    <!-- DaCOS mortgageDAO.selectServiceID 이관: MyBatis 매개변수 문법만 변경 -->
+    <select id="nextServiceSequence" parameterType="map" resultType="string" >
+		SELECT LPAD(SEQ_SERVICE_ID.NEXTVAL, 5, 0) AS SERVICE_ID FROM DUAL
+	</select>
+
+    <!-- DaCOS mortgageDAO.insertTrService 이관: MyBatis 매개변수 문법만 변경 -->
+    <insert id="insertService" parameterType="map">
+		INSERT INTO TR_SERVICE (
+		   SERVICE_ID, WORK_CD, COMPANY_ID,
+		   ASSOCIATION_ID, GOVT_ID,
+		   MEMBER_ID, CAR_NO, REQUEST_DT,
+		   PROC_ST, BRANCH_ID, SANGSA_ID,
+		   JUDGE_ST, RETURN_TX, INS_USER, AUTO_YN, LINK_ID)
+		VALUES ( #{SERVICE_ID},
+				 #{WORK_CD},
+				 #{COMPANY_ID},
+				 #{ASSOCIATION_ID},
+				 #{GOVT_ID},
+				 #{MEMBER_ID},
+				 #{CAR_NO},
+				 sysdate,
+				 #{PROC_ST},
+				 #{BRANCH_ID},
+				 #{SANGSA_ID},
+				 #{JUDGE_ST},
+				 #{RETURN_TX},
+				 #{MEMBER_ID},
+				 #{AUTO_YN},
+				 #{LINK_ID})
+	</insert>
+
+    <!-- DaCOS mortgageDAO.insertTrMortgage 이관: MyBatis 매개변수 문법만 변경 -->
+    <insert id="insertMortgage" parameterType="map">
+		INSERT INTO TR_MORTGAGE (
+				   SERVICE_ID, WORK_CD, CAR_NO,
+				   WONBU_ST, COMPANY_ID, MORT_NM,
+				   REG_GB, REG_NO, BIZ_NO,
+				   BOND_AMT, PAY_NM, PAY_HP_NO,
+				   PAY_ME, PAY_ST, PAY_DT, PAY_GB,
+				   VBANK_NO, T_VBANK_GB,
+				   T_VBANK_ID, BD_SERVICE_ID, DSIGN_GB,
+				   DSIGN_HP_GB, DSIGN_HP_NO, DSIGN_TX,
+				   DSIGN_ST, DSIGN_DT, TOTAL_AMT, IDEN_ST, IDEN_DT,
+				   INS_USER, CONFIRM_NO, PAY_TP, CAUSE_TX, RATIO_NO, WONBU_YN, PRE_MORT_NM)
+				VALUES ( #{SERVICE_ID},
+						 #{WORK_CD},
+						 #{CAR_NO},
+						 #{WONBU_ST},
+						 #{COMPANY_ID},
+						 #{MORT_NM},
+						 #{MORT_REG_GB},
+						 PKG_COMMON.FN_ENCRYPT(#{MORT_REG_NO}),
+						 #{MORT_BIZ_NO},
+						 #{BOND_AMT},
+						 #{PAY_NM},
+						 PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}),
+						 #{PAY_ME},
+						 #{PAY_ST},
+						 #{PAY_DT},
+						 #{PAY_GB},
+						 #{VBANK_NO},
+						 #{T_VBANK_GB},
+						 #{T_VBANK_ID},
+						 #{BD_SERVICE_ID},
+						 #{DSIGN_GB},
+						 #{DSIGN_HP_GB},
+						 PKG_COMMON.FN_ENCRYPT(#{DSIGN_HP_NO}),
+						 #{DSIGN_TX},
+						 #{DSIGN_ST},
+						 #{DSIGN_DT},
+						 #{TOTAL_AMT},
+						 #{IDEN_ST},
+						 #{IDEN_DT},
+						 #{MEMBER_ID},
+						 #{CONFIRM_NO},
+						 #{PAY_TP},
+						 #{CAUSE_TX},
+						 #{RATIO_NO},
+						 #{WONBU_YN},
+						 #{PRE_MORT_NM}
+						  )
+	</insert>
+
+    <!-- DaCOS mortgageDAO.insertTrCarInfo 이관: MyBatis 매개변수 문법만 변경 -->
+    <insert id="insertCarInfo" parameterType="map">
+		INSERT INTO TR_CARINFO (
+		   SERVICE_ID, WORK_CD, EULBU_NO,
+		   CARID_NO, CAR_NM, CAR_KD,
+		   CAR_US, CAR_YY, CARREG_DT, SHARE_YN, MORT_NM,
+		   MORT_CT, DIST_CT,
+		   <if test="MORTREG_DT != null and MORTREG_DT != ''"> MORTREG_DT,</if>
+		   PRE_CAR_NO, INS_USER)
+		VALUES ( #{SERVICE_ID},
+				 #{WORK_CD},
+				 #{EULBU_NO},
+				 #{CARID_NO},
+				 #{CAR_NM},
+				 #{CAR_KD},
+				 #{CAR_US},
+				 #{CAR_YY},
+				 #{CARREG_DT},
+				 #{SHARE_YN},
+				 #{MORT_NM},
+				 #{MORT_CT},
+				 #{DIST_CT},
+				 <if test="MORTREG_DT != null and MORTREG_DT != ''">
+			     	#{MORTREG_DT},
+			     </if>
+				 DECODE(LENGTH(#{CAR_NO}), 17, #{CAR_NO}, null),
+				 #{MEMBER_ID} )
+	</insert>
+
+    <!-- DaCOS mortgageDAO.insertTrPayment 이관: MyBatis 매개변수 문법만 변경 -->
+    <insert id="insertPayment" parameterType="map">
+		INSERT INTO TR_PAYMENT (
+		   SERVICE_ID, PAY_KD, PAY_AMT,
+		   PAY_OP, PAY_ST, VBANK_CD,
+		   VBANK_NO, PAY_DT, T_VBANK_GB,
+		   T_VBANK_ID, INS_USER, PRE_PAY_AMT)
+		VALUES ( #{SERVICE_ID},
+				 #{PAY_KD},
+				 #{PAY_AMT},
+				 #{PAY_OP},
+				 #{PAY_ST},
+				 #{VBANK_CD},
+				 #{VBANK_NO},
+				 #{PAY_DT},
+				 #{T_VBANK_GB},
+				 #{T_VBANK_ID},
+				 #{MEMBER_ID},
+				 #{PAY_AMT})
+	</insert>
+
+    <!-- DaCOS mortgageDAO.updateTrMortgage 이관: MyBatis 매개변수 문법만 변경 -->
+    <update id="updateMortgage" parameterType="map">
+		UPDATE TR_MORTGAGE
+		SET    SERVICE_ID    = #{SERVICE_ID},
+		       WORK_CD       = #{WORK_CD},
+		       CAR_NO        = #{CAR_NO},
+		       WONBU_ST      = #{WONBU_ST},
+		       COMPANY_ID    = #{COMPANY_ID},
+		       MORT_NM       = #{MORT_NM},
+		       <if test="WORK_CD == '000'">
+		       REG_GB        = #{MORT_REG_GB},
+		       REG_NO        = PKG_COMMON.FN_ENCRYPT(#{MORT_REG_NO}),
+		       BIZ_NO        = #{MORT_BIZ_NO},
+		       </if>
+		       BOND_AMT      = #{BOND_AMT},
+		       PAY_NM        = #{PAY_NM},
+		       PAY_HP_NO     = PKG_COMMON.FN_ENCRYPT(#{PAY_HP_NO}),
+		       PAY_GB		 = #{PAY_GB},
+		       PAY_ME        = #{PAY_ME},
+		       PAY_ST        = #{PAY_ST},
+		       PAY_DT        = #{PAY_DT},
+		       VBANK_NO      = #{VBANK_NO},
+		       T_VBANK_GB    = #{T_VBANK_GB},
+		       T_VBANK_ID    = #{T_VBANK_ID},
+		       BD_SERVICE_ID = #{BD_SERVICE_ID},
+		       DSIGN_GB      = #{DSIGN_GB},
+		       DSIGN_HP_GB   = #{DSIGN_HP_GB},
+		       DSIGN_HP_NO   = PKG_COMMON.FN_ENCRYPT(#{DSIGN_HP_NO}),
+		       DSIGN_TX      = #{DSIGN_TX},
+		       DSIGN_ST      = #{DSIGN_ST},
+		       IDEN_ST		 = #{IDEN_ST},
+		       CONFIRM_NO    = #{CONFIRM_NO},
+		       PAY_TP		 = #{PAY_TP},
+		       <if test="PRE_MORT_NM != null and PRE_MORT_NM != ''">
+		       PRE_MORT_NM	 = #{PRE_MORT_NM},
+		       </if>
+		       <!-- DSIGN_DT      = #{DSIGN_DT},-->
+		       TOTAL_AMT     = #{TOTAL_AMT},
+		       UPD_USER      = #{MEMBER_ID},
+		       <if test="CAUSE_TX != null and CAUSE_TX != ''">
+		       CAUSE_TX		 = #{CAUSE_TX},
+		       </if>
+		       RATIO_NO		 = #{RATIO_NO},
+		       <if test="WONBU_YN != null and WONBU_YN != ''">
+		       WONBU_YN		 = #{WONBU_YN},
+		       </if>
+		       UPD_DATE      = sysdate
+		WHERE  SERVICE_ID    = #{SERVICE_ID}
+	</update>
+
+    <!-- DaCOS mortgageDAO.updateTrCarInfo 이관: MyBatis 매개변수 문법만 변경 -->
+    <update id="updateCarInfo" parameterType="map">
+		<![CDATA[
+		UPDATE TR_CARINFO
+		SET    SERVICE_ID = #{SERVICE_ID},
+		       WORK_CD    = #{WORK_CD},
+		       EULBU_NO   = #{EULBU_NO},
+		       CARID_NO   = #{CARID_NO},
+		       CAR_NM     = #{CAR_NM},
+		       CAR_KD     = #{CAR_KD},
+		       CAR_US     = #{CAR_US},
+		       CAR_YY     = #{CAR_YY},
+		       CARREG_DT  = #{CARREG_DT},
+		       MORT_CT    = #{MORT_CT},
+		       DIST_CT    = #{DIST_CT},
+		       SHARE_YN   = #{SHARE_YN},
+		       MORT_NM    = #{MORT_NM},
+		       PRE_CAR_NO = DECODE(LENGTH(#{CAR_NO}), 17, #{CAR_NO}, null),
+		       UPD_USER   = #{MEMBER_ID},
+		       UPD_DATE   = sysdate
+		WHERE  SERVICE_ID = #{SERVICE_ID}
+		]]>
+	</update>
+
+    <!-- DaCOS trnsnameDAO.insertTrOwnerInfo 이관: 암호화 유지, 미요청 서명일시는 NULL로 저장 -->
+    <insert id="insertOwner" parameterType="map">
+		INSERT INTO TR_OWNERINFO (
+		   SERVICE_ID, SEQ, REG_NO, DEBTOR_YN, UNION_YN, DEBTOR_NM, DEBTOR_GB, DEBTOR_RATIO, DEBTOR_ADDR,
+		   DSIGN_GB, DSIGN_HP_GB, DSIGN_HP_NO, DSIGN_TX, DSIGN_ST, DSIGN_DT, IDEN_ST, IDEN_DT, CONFIRM_NO,
+		   DEBTOR_ADDR_DT, DEBTOR_ROAD_CD, BIZ_NO
+		   )
+		VALUES (#{SERVICE_ID},
+			 #{SEQ},
+			 PKG_COMMON.FN_ENCRYPT(#{REG_NO}),
+			 #{DEBTOR_YN},
+			 #{UNION_YN},
+			 #{DEBTOR_NM},
+			 #{DEBTOR_GB},
+			 #{DEBTOR_RATIO},
+			 PKG_COMMON.FN_ENCRYPT(#{DEBTOR_ADDR}),
+			 #{DSIGN_GB},
+			 #{DSIGN_HP_GB},
+			 PKG_COMMON.FN_ENCRYPT(#{DSIGN_HP_NO}),
+			 #{DSIGN_TX},
+			 #{DSIGN_ST},
+			 TO_DATE(#{DSIGN_DT}, 'YYYY-MM-DD HH24:MI:SS'),
+			 #{IDEN_ST},
+			 TO_DATE(#{IDEN_DT}, 'YYYY-MM-DD HH24:MI:SS'),
+			 #{CONFIRM_NO},
+			 PKG_COMMON.FN_ENCRYPT(#{DEBTOR_ADDR_DT}),
+			 #{DEBTOR_ROAD_CD},
+			 #{BIZ_NO}
+			 )
+	</insert>
+
+<select id="lockService" parameterType="map" resultType="map">
+ SELECT * FROM TR_SERVICE WHERE SERVICE_ID = #{SERVICE_ID} FOR UPDATE
+</select>
+<update id="updateService" parameterType="map">
+ UPDATE TR_SERVICE SET CAR_NO = #{CAR_NO}, PROC_ST = 'SAV',
+ UPD_USER = #{UPD_USER}, UPD_DATE = SYSDATE
+ WHERE SERVICE_ID = #{SERVICE_ID} AND WORK_CD = '000'
+ AND PROC_ST IN ('INPUT', 'SAV') AND JUDGE_ST IS NULL
+</update>
+<delete id="deletePayments" parameterType="map">
+ DELETE FROM TR_PAYMENT WHERE SERVICE_ID = #{SERVICE_ID}
+</delete>
+<delete id="deleteOwners" parameterType="map">
+ DELETE FROM TR_OWNERINFO WHERE SERVICE_ID = #{SERVICE_ID}
+</delete>
+<!-- 원본 DSIGB 필터에 쓰이는 DETAIL_ID와 회사 범위 DETAIL_NM도 함께 조회한다. -->
+<select id="selectCodes" resultType="map">
+ SELECT GROUP_ID, CODE_ID, CODE_NM, DETAIL_ID, DETAIL_NM, ORDER_NO
+ FROM TM_CODE WHERE USE_YN = 'Y'
+ AND GROUP_ID IN ('BANK','REGGB','DSIGB','CARUS','DHPGB','IDEST','DSIST',
+ 'SGB','PR_ST','JG_ST','PAYGB','PAYKD','PAYME','PAYOP','PAYST','PAYTP','MRTGB')
+ ORDER BY GROUP_ID, ORDER_NO, CODE_ID
+</select>
+</mapper>

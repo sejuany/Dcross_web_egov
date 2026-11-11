@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import com.dacos.common.BusinessException;
 import com.dacos.mortgage.dto.MortgageSearchRequest;
 import com.dacos.mortgage.mapper.MortgageMapper;
+import com.dacos.auth.dto.UserDto;
+import com.dacos.common.ServiceAccessGuard;
 
 /**
  * 저당설정 서비스
@@ -29,7 +31,13 @@ public class MortgageService {
     /**
      * 저당설정 목록 조회
      */
-    public List<Map<String, Object>> getMortgageList(MortgageSearchRequest request) {
+    public List<Map<String, Object>> getMortgageList(MortgageSearchRequest request, UserDto user) {
+        // 화면에서 전달한 회사정보와 별개로 서버에서 접근 가능한 범위를 제한한다.
+        ServiceAccessGuard.ListAccessScope scope = ServiceAccessGuard.listAccessScopeFor(user);
+        request.setACCESS(Map.of("scope", scope.scope(), "companyId", scope.companyId(),
+                "branchId", scope.branchId(), "sangsaId", scope.sangsaId(),
+                "memberId", scope.memberId(), "govtId", scope.govtId(), "companyIds", scope.companyIds()));
+        request.setWORK_CD("000");
         logger.info("[MortgageService] 저당설정 목록 조회 - 기간: {} ~ {}", request.getSTART_DT(), request.getEND_DT());
         return mortgageMapper.getMortgageList(request);
     }

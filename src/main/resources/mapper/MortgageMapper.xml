@@ -19,19 +19,25 @@
             TS.PROC_ST,
             TS.GOVT_ID,
             TMD.MEMBER_NM,
+            TM.MORT_NM AS MORTGAGOR_NM, TM.PAY_NM AS PAYER_NM, TM.PAY_ST, TM.BOND_AMT,
+            TM.DSIGN_GB AS SIGN_METHOD, TM.DSIGN_ST, TM.VBANK_NO, TM.PAY_TP,
             TS.JUDGE_ST,
             TO_CHAR(TS.JUDGE_DT, 'YYYYMMDD')        AS JUDGE_DT
         FROM
             TR_SERVICE     TS,
             TM_COMPANY     TC,
-            TM_MEMBER_DT   TMD
+            TM_MEMBER_DT   TMD,
+            TR_MORTGAGE    TM
         WHERE
             TS.COMPANY_ID = TC.COMPANY_ID
             AND TS.MEMBER_ID = TMD.MEMBER_ID
+            AND TS.COMPANY_ID = TMD.COMPANY_ID
+            AND TS.SERVICE_ID = TM.SERVICE_ID
             AND TS.REQUEST_DT BETWEEN
                 TO_DATE(#{START_DT} || '00:00:00', 'YYYYMMDDHH24:MI:SS')
                 AND TO_DATE(#{END_DT} || '23:59:59', 'YYYYMMDDHH24:MI:SS')
-            AND TS.WORK_CD LIKE 'MORT%'
+            AND TS.WORK_CD = '000'
+            <if test="PROC_ST == null or PROC_ST == ''">AND TS.PROC_ST &lt;&gt; 'DEL'</if>
 
         <if test="WORK_CD != null and WORK_CD != ''">
             AND TS.WORK_CD = #{WORK_CD}
@@ -48,6 +54,23 @@
         <if test="GOVT_ID != null and GOVT_ID != ''">
             AND TS.GOVT_ID = #{GOVT_ID}
         </if>
+        <if test="MORTGAGOR_NM != null and MORTGAGOR_NM != ''">
+            AND TM.MORT_NM LIKE '%' || #{MORTGAGOR_NM} || '%'
+        </if>
+        <if test="PAY_ST != null and PAY_ST != ''">AND TM.PAY_ST = #{PAY_ST}</if>
+        <!-- 공통 SERVICE_ID 권한과 동일한 접근 범위를 서버에서 설정한다. -->
+        <choose>
+            <when test="ACCESS != null and ACCESS.scope == 'GLOBAL'"></when>
+            <when test="ACCESS != null and ACCESS.scope == 'GOVERNMENT'">AND TS.GOVT_ID = #{ACCESS.govtId}</when>
+            <when test="ACCESS != null and ACCESS.scope == 'RELATED_COMPANY'">
+                AND TS.COMPANY_ID IN <foreach collection="ACCESS.companyIds" item="id" open="(" separator="," close=")">#{id}</foreach>
+            </when>
+            <when test="ACCESS != null and ACCESS.scope == 'COMPANY'">AND TS.COMPANY_ID = #{ACCESS.companyId}</when>
+            <when test="ACCESS != null and ACCESS.scope == 'BRANCH'">AND TS.COMPANY_ID = #{ACCESS.companyId} AND TS.BRANCH_ID = #{ACCESS.branchId}</when>
+            <when test="ACCESS != null and ACCESS.scope == 'TEAM'">AND TS.COMPANY_ID = #{ACCESS.companyId} AND TS.BRANCH_ID = #{ACCESS.branchId} AND TS.SANGSA_ID = #{ACCESS.sangsaId}</when>
+            <when test="ACCESS != null and ACCESS.scope == 'OWNER'">AND TS.COMPANY_ID = #{ACCESS.companyId} AND TS.BRANCH_ID = #{ACCESS.branchId} AND TS.MEMBER_ID = #{ACCESS.memberId}</when>
+            <otherwise>AND 1 = 0</otherwise>
+        </choose>
         ORDER BY TS.REQUEST_DT DESC
     </select>
 

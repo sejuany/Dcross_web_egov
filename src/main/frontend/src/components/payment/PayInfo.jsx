@@ -48,6 +48,7 @@ const PayInfo = () => {
     const gridRef = useRef(null);	
     const { user } = useAuth(); // 로그인 사용자 정보 가져오기 use_YN	'Y', regist_NO	'UA', member_NM	'다코스관리자', branch_ID	'dacos', login_GB	'UA', sangsa_ID	'dacos', login_ID	'dacos', member_GB	'UA', company_ID	'dacos', pass_WD	null
     const memberGb = user?.member_GB || '';
+    const isWB002 = user?.company_ID === 'WB002';
 	const isCompanyAdmin = ['CA', 'CU', 'MA'].includes(memberGb);
 	const isCb152CompanyAdmin = isCompanyAdmin && user?.company_ID === 'CB152';
 	const isCb407CompanyAdmin = isCompanyAdmin && user?.company_ID === 'CB407';
@@ -537,7 +538,7 @@ const PayInfo = () => {
 
 			//console.table(searchFilters);
 		    const params = {
-                WORK_CD: searchFilters.workCD,
+                WORK_CD: isWB002 ? '010' : searchFilters.workCD,
 				COMPANY_ID: finalCompanyId,
 				GOVT_ID: finalGovtId,
 				USER_NM: searchFilters.userNM,
@@ -1026,8 +1027,34 @@ const PayInfo = () => {
 	];
 	
 	
+    const WB002_ColumnDefs = [
+        { headerName: '순번', width: 60, cellClass: 'ag-center-aligned-cell',
+            valueGetter: params => params.node.isRowPinned() ? '합계' : params.node.rowIndex + 1 },
+        { headerName: '계약서번호', field: 'CONTRACT_NO', width: 130 },
+        { headerName: '담당자명', field: 'MEMBER_NM', width: 100 },
+        { headerName: '고객명', field: 'CUSTOMER_NM', width: 110 },
+        { headerName: '상세모델', field: 'CAR_NM', width: 160 },
+        { headerName: '구입조건', field: 'BUY_CONDITION', width: 90 },
+        { headerName: '리스(할부)사', field: 'FINANCE_COMPANY_NM', width: 120 },
+        { headerName: '공동소유주', field: 'JOINT_OWNER_NM', width: 130 },
+        { headerName: '등록유형', field: 'REGISTRATION_TYPE', width: 100 },
+        { headerName: '차대번호', field: 'CARID_NO', width: 180 },
+        ...[
+            ['취득세', 'ACQ_AMT'], ['증지대', 'STAMP_AMT'], ['인지세', 'INJI_AMT'],
+            ['번호판대', 'NUMP_AMT'], ['공채(채권)금액', 'BOND_AMT'], ['채권수수료', 'BFEE_AMT'],
+            ['대행수수료', 'FEE_AMT'], ['기타', 'ETC_AMT'], ['총금액', 'TOTAL_AMT']
+        ].map(([headerName, field]) => ({
+            headerName, field, width: 110, cellClass: 'ag-right-aligned-cell',
+            valueFormatter: params => params.value == null ? '' : Number(params.value).toLocaleString()
+        })),
+        { headerName: '등록일', field: 'REGISTRATION_DATE', width: 110 }
+    ];
+
     // 권한(member_GB)과 회사코드에 따른 그리드 포맷 분기 (레거시 PayInfo.js 174~203행 이식)
     const columnDefs = React.useMemo(() => {
+        if (isWB002) {
+            return WB002_ColumnDefs;
+        }
 		if (memberGb === 'GU') {
 			return GU_ColumnDefs;
 		}
@@ -1059,11 +1086,12 @@ const PayInfo = () => {
 			return IMS_ColumnDefs; // 아이엠에스모빌리티
 		}
         return CU_ColumnDefs;
-    }, [memberGb, user, codeMap]);
+    }, [memberGb, user, codeMap, isWB002]);
 
     const handleRowDoubleClicked = (event) => {
         if (event.data && event.data.SERVICE_ID) {
-            navigate('/newcar/newcar-request', { state: { receiptNo: event.data.SERVICE_ID } });
+            navigate(isWB002 ? '/newcar/newcar-request-wb002' : '/newcar/newcar-request',
+                { state: { receiptNo: event.data.SERVICE_ID } });
         }
     };
 
@@ -1146,6 +1174,7 @@ const PayInfo = () => {
 	    let totalRegis = 0;
 	    let totalAmt = 0;
 	    let rowCount = 0;
+        const wb002Totals = { STAMP_AMT: 0, INJI_AMT: 0, NUMP_AMT: 0, BOND_AMT: 0, BFEE_AMT: 0, FEE_AMT: 0 };
 
 	    // 필터링된 결과만 순회하며 합산
 	    params.api.forEachNodeAfterFilter((node) => {
@@ -1154,6 +1183,11 @@ const PayInfo = () => {
 	            totalRegis += Number(node.data.REGIS_AMT || 0);
 	            totalAmt += Number(node.data.TOTAL_AMT || 0);
 	            rowCount++;
+                if (isWB002) {
+                    Object.keys(wb002Totals).forEach(field => {
+                        wb002Totals[field] += Number(node.data[field] || 0);
+                    });
+                }
 	        }
 	    });
 
@@ -1163,6 +1197,7 @@ const PayInfo = () => {
             ACQ_AMT: totalAcq,
             REGIS_AMT: totalRegis,
             TOTAL_AMT: totalAmt,
+            ...(isWB002 ? wb002Totals : {}),
         };
 
 	    setPinnedBottomRowData(prevRows => {
@@ -1173,14 +1208,16 @@ const PayInfo = () => {
                 prevRow?.WORK_CD === nextPinnedRow.WORK_CD &&
                 Number(prevRow?.ACQ_AMT || 0) === nextPinnedRow.ACQ_AMT &&
                 Number(prevRow?.REGIS_AMT || 0) === nextPinnedRow.REGIS_AMT &&
-                Number(prevRow?.TOTAL_AMT || 0) === nextPinnedRow.TOTAL_AMT
+                Number(prevRow?.TOTAL_AMT || 0) === nextPinnedRow.TOTAL_AMT &&
+                (!isWB002 || Object.keys(wb002Totals).every(field =>
+                    Number(prevRow?.[field] || 0) === nextPinnedRow[field]))
             ) {
                 return prevRows;
             }
 
             return [nextPinnedRow];
         });
-	}, []);
+	}, [isWB002]);
 
     const defaultColDef = React.useMemo(() => ({ sortable: true, resizable: true }), []);
 
@@ -1221,7 +1258,7 @@ const PayInfo = () => {
             <ErpSection isHeader={true}>
                 <div className="erp-row">
                     <ErpField label="신청구분" span={5}>
-						<select className="erp-input" value={searchFilters.workCD} onChange={handleWorkCdChange}>
+						<select className="erp-input" value={isWB002 ? '010' : searchFilters.workCD} onChange={handleWorkCdChange} disabled={isWB002}>
 						    <option value="">전체</option>
 						    {SGB_DATA.map(code => (
 						        <option key={code.CODE_ID} value={code.CODE_ID}>{code.CODE_NM}</option>

@@ -489,6 +489,9 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
 .numplate-signature-pad button:last-child { border-color: #1e66b3; background: #1e66b3; color: #fff; }
 .numplate-id-card-upload { display: grid; gap: 14px; }
 .numplate-id-card-upload p { margin: 0; line-height: 1.55; }
+.numplate-id-card-upload .numplate-photo-button { display: flex; align-items: center; justify-content: center; box-sizing: border-box; min-height: 52px; margin: 0; padding: 12px 16px; font-size: 16px; line-height: 1.5; text-align: center; }
+.numplate-id-card-upload .numplate-photo-button input { width: 1px; height: 1px; min-height: 0; margin: 0; padding: 0; border: 0; }
+.numplate-id-card-upload .numplate-photo-button:focus-within { outline: 3px solid rgba(30, 102, 179, .4); outline-offset: 3px; }
 .numplate-id-card-canvas { width: 100%; max-height: 420px; border-radius: 12px; object-fit: contain; background: #eef2f7; touch-action: none; }
 
 /* 번호판 후보는 서버에서 임시 배정되므로 모달 밖 클릭으로 닫지 않고 취소 버튼으로만 해제한다. */

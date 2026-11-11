@@ -146,7 +146,10 @@ export default function ProcessStatus() {
   const finishPhotos = async () => {
     if (!window.confirm('사진 등록을 완료하고 고객에게 완료 문자를 보내시겠습니까?')) return;
     const ok = await run('complete', () => axios.post(`/api/numplateapp/process/${encodeURIComponent(serviceId)}/photos-complete`), '사진 등록 완료 문자를 전송했습니다.');
-    if (ok) navigate('/numplateapp');
+    if (ok) {
+      window.alert('문자발송을 완료했습니다. 반납 목록 화면으로 이동합니다.');
+      navigate('/numplateapp/returns');
+    }
   };
 
   const saveSignature = () => {

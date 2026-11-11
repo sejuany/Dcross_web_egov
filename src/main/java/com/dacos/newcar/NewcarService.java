@@ -148,7 +148,10 @@ public class NewcarService {
         applyListAccessScope(request, user);
         request.setMEMBER_GB(user.getMEMBER_GB());
         request.setMEMBER_ID(user.getLOGIN_ID());
-        return newcarMapper.getNewCarList(request);
+        List<Map<String, Object>> rows = newcarMapper.getNewCarList(request);
+        // 기업별 그리드는 같은 응답을 사용하며 첨부 완료 여부도 기존 목록 정책으로 계산한다.
+        rows.forEach(this::applyListAttachStatus);
+        return rows;
     }
 
     @Transactional
@@ -303,7 +306,7 @@ public class NewcarService {
         request.setMEMBER_GB(user.getMEMBER_GB());
         request.setMEMBER_ID(user.getLOGIN_ID());
         List<Map<String, Object>> rows = newcarMapper.getWaNewCarList(request);
-        rows.forEach(this::applyWaAttachStatus);
+        rows.forEach(this::applyListAttachStatus);
         return rows;
     }
 
@@ -323,7 +326,7 @@ public class NewcarService {
         applyListAccessScope(request, user);
 
         List<Map<String, Object>> rows = newcarMapper.getWaNewCarList(request);
-        rows.forEach(this::applyWaAttachStatus);
+        rows.forEach(this::applyListAttachStatus);
         return rows;
     }
 
@@ -432,7 +435,7 @@ public class NewcarService {
      * ATTACH_YN은 실제 업로드 서류가 필요한 경우에만 Y이며,
      * ATTACH_COMPLETE_YN은 필요한 모든 문서 코드가 등록된 경우에만 Y이다.
      */
-    private void applyWaAttachStatus(Map<String, Object> row) {
+    private void applyListAttachStatus(Map<String, Object> row) {
         Set<String> requiredCodes = resolveWaRequiredAttachCodes(row);
         Set<String> uploadedCodes = parseAttachCodes(row.get("ATTACH_CODES"));
 
@@ -835,6 +838,10 @@ public class NewcarService {
         if (detail == null || detail.isEmpty()) {
             throw new BusinessException("신차 정보 없음: " + serviceId, 404);
         }
+
+        // 담당SC는 조회 중인 사용자가 아니라 해당 접수건 신청자의 이름이다.
+        Map<String, Object> applicant = authService.selectMemberInfo(Objects.toString(service.get("MEMBER_ID"), ""));
+        service.put("MEMBER_NM", applicant == null ? "" : applicant.get("MEMBER_NM"));
 
         // 공통 데이터 조회
         result.putAll(
@@ -2314,6 +2321,7 @@ public class NewcarService {
 
 	    // 공통 파라미터
 	    Map<String, Object> param = authService.toMap(user, "010");
+	    param.put("MEMBER_NM", user.getMEMBER_NM());
 
 	    // 공통 데이터 조회
 	    result.putAll(

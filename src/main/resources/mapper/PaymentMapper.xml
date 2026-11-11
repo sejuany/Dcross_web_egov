@@ -207,6 +207,44 @@
         </choose>
         ORDER BY MEMBER_NM, LOGIN_ID
     </select>
+    <!-- WB002 신규등록 납부현황: 연결 기준이 미정인 항목은 빈 컬럼으로 유지한다. -->
+    <select id="getWB002PayInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
+            resultType="java.util.Map">
+        SELECT TS.WORK_CD, TS.SERVICE_ID, TS.PROC_ST, TM.PAY_ST,
+               NULL AS CONTRACT_NO,
+               TMD.MEMBER_NM,
+               NULL AS CUSTOMER_NM,
+               TM.CAR_NM,
+               NULL AS BUY_CONDITION,
+               NULL AS FINANCE_COMPANY_NM,
+               (SELECT LISTAGG(O.DEBTOR_NM, ', ') WITHIN GROUP (ORDER BY O.SEQ)
+                  FROM TR_OWNERINFO O
+                 WHERE O.SERVICE_ID = TS.SERVICE_ID
+                   AND (TM.TASK_CD IS NULL OR TM.TASK_CD &lt;&gt; 'LEASE')) AS JOINT_OWNER_NM,
+               NULL AS REGISTRATION_TYPE,
+               TM.CARID_NO,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'ACQ') AS ACQ_AMT,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'STAMP') AS STAMP_AMT,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'INJI') AS INJI_AMT,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'TNUM') AS NUMP_AMT,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BOND') AS BOND_AMT,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'BFEE') AS BFEE_AMT,
+               (SELECT PAY_AMT FROM TR_PAYMENT WHERE SERVICE_ID = TS.SERVICE_ID AND PAY_KD = 'FEE') AS FEE_AMT,
+               NULL AS ETC_AMT,
+               TM.TOTAL_AMT,
+               NULL AS REGISTRATION_DATE
+          FROM TR_SERVICE TS
+          JOIN TR_NEWCAR TM ON TM.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TM_MEMBER_DT TMD ON TMD.ASSOCIATION_ID = TS.ASSOCIATION_ID
+                                   AND TMD.COMPANY_ID = TS.COMPANY_ID
+                                   AND TMD.MEMBER_ID = TS.MEMBER_ID
+         WHERE TS.COMPANY_ID = 'WB002'
+           AND TS.WORK_CD = '010'
+        <if test="PAY_ST != null and PAY_ST != ''"> AND TM.PAY_ST = #{PAY_ST} </if>
+        <include refid="commonWhereSql" />
+         ORDER BY TS.REQUEST_DT DESC
+    </select>
+
     <!-- 납부현황 조회 -->
     <select id="getPayInfoList" parameterType="com.dacos.payment.dto.PaymentSearchRequest"
             resultType="java.util.Map">

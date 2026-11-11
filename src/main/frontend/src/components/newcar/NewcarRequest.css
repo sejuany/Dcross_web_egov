@@ -723,6 +723,49 @@ input.erp-input:read-only {
     margin-bottom: 0;
 }
 
+/* PPT 7페이지: 리스사·신규등록정보 아래에 계약자·추가정보를 각각 배치한다. */
+.newcar-request-w.w-normal-lease .owner-main-panel {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.newcar-request-w.w-normal-lease .w-lease-contractor-panel {
+    grid-column: 1;
+    grid-row: 2;
+}
+
+.newcar-request-w.w-normal-lease .w-registration-panel {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.newcar-request-w.w-normal-lease .w-additional-panel {
+    grid-column: 2;
+    grid-row: 2;
+}
+
+/* PPT 6페이지 현금/할부: 위쪽은 대표소유자·신규등록, 아래쪽은 공동소유자·추가정보다. */
+.newcar-request-w.w-cash-purchase .owner-main-panel {
+    grid-column: 1;
+    grid-row: 1;
+}
+
+.newcar-request-w.w-cash-purchase .w-registration-panel {
+    grid-column: 2;
+    grid-row: 1;
+}
+
+.newcar-request-w.w-cash-purchase .w-joint-panels {
+    grid-column: 1;
+    grid-row: 2;
+    min-width: 0;
+}
+
+.newcar-request-w.w-cash-purchase .w-additional-panel {
+    grid-column: 2;
+    grid-row: 2;
+}
+
 .owner-panel .erp-row {
     flex-wrap: wrap;
 }
@@ -808,6 +851,17 @@ input[name="CARP_POST_NO"] {
 @media (max-width: 1100px) {
     .owner-split-layout {
         grid-template-columns: 1fr;
+    }
+
+    /* 한 열로 접힐 때는 일반 리스의 오른쪽 고정 배치도 해제한다. */
+    .newcar-request-w.w-normal-lease .w-registration-panel,
+    .newcar-request-w.w-normal-lease .w-additional-panel,
+    .newcar-request-w.w-cash-purchase .owner-main-panel,
+    .newcar-request-w.w-cash-purchase .w-registration-panel,
+    .newcar-request-w.w-cash-purchase .w-joint-panels,
+    .newcar-request-w.w-cash-purchase .w-additional-panel {
+        grid-column: auto;
+        grid-row: auto;
     }
 
     .tab-content {
@@ -1109,8 +1163,143 @@ button.btn-erp.sm.light.mL-25 {
     box-sizing: border-box;
 }
 
+/* PPT 6페이지 버튼 색상: 테마 accent4·6의 밝기 80%, 저장 노랑, 신규등록정보 파랑. */
+.newcar-request-w .btn-erp.w-button { background: var(--w-button-bg, #fff); color: var(--w-button-color, #365c85); border: 1px solid transparent; box-shadow: none; }
+.newcar-request-w .w-button-sky { --w-button-bg: #caeefb; }
+.newcar-request-w .w-button-green { --w-button-bg: #d9f2d0; }
+.newcar-request-w .w-button-yellow { --w-button-bg: #fff6cc; }
+.newcar-request-w .w-button-blue { --w-button-bg: #1e61e6; --w-button-color: #fff; }
+.newcar-request-w .w-button:enabled:hover { filter: brightness(.96); }
+.newcar-request-w .w-button:disabled { opacity: .65; }
+.newcar-request-w .w-registration-panel .erp-section-title-extra { margin-left: auto; display: flex; gap: 4px; }
+
+/* 기본정보는 7개 항목을 같은 폭으로 배치하고, 좁은 화면에서도 두 줄로 꺾이지 않게 한다. */
+.newcar-request-w .w-basic-info { overflow-x: auto; }
+.newcar-request-w .w-basic-info > .erp-grid { min-width: 1680px; }
+.newcar-request-w .w-basic-fields { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); }
+.newcar-request-w .w-basic-info .erp-row > .field-group > .erp-label { --erp-label-width: 80px; }
+
+/* PPT 6페이지의 세 입력 영역은 라벨 폭을 통일해 행마다 입력 시작점이 어긋나지 않게 한다. */
+.newcar-request-w.w-cash-purchase :is(.owner-main-panel, .owner-co-panel, .w-registration-panel) .field-group > .erp-label {
+    width: 125px !important;
+    min-width: 125px;
+    flex: 0 0 125px;
+}
+
+/* 리스 화면도 각 영역의 라벨 폭을 통일하고, 자동 조회 정보와 비활성 항목의 색상을 구분한다. */
+.newcar-request-w.w-normal-lease :is(.owner-main-panel, .w-lease-contractor-panel, .w-registration-panel) .field-group > .erp-label {
+    width: 145px !important;
+    min-width: 145px;
+    flex: 0 0 145px;
+}
+.newcar-request-w.w-normal-lease .owner-main-panel .erp-input:is([name="RATIO_NO"], [name="REG_GB"]) {
+    background-color: #c3cedf !important;
+    border: 1px solid #ced4da !important;
+}
+.newcar-request-w.w-normal-lease .owner-main-panel .erp-input:is([name="OWNER_NM"], [name="BIZ_NO"], [name="ADDRESS"], [name="ADDRESS_DT"], [name="BASE_ADDRESS"], [name="BASE_ADDRESS_DT"]) {
+    background-color: #fff !important;
+    border: 1px solid #ced4da !important;
+}
+.newcar-request-w.w-normal-lease .w-lease-contact {
+    background-color: #fff6cc !important;
+    border: 1px solid #dc3545 !important;
+}
+
+/* PPT처럼 아이디 / @ / 도메인 / 콤보 / 지우기를 항상 표시해 선택 전후에도 칸 너비를 유지한다. */
+.newcar-request-w .w-registration-email .flex-row { display: grid; grid-template-columns: minmax(0, 1fr) 24px minmax(0, 1fr) minmax(0, 1fr) 64px; }
+.newcar-request-w .w-registration-email .flex-row > * { min-width: 0; box-sizing: border-box; }
+.newcar-request-w .w-registration-email .erp-input { width: 100%; }
+.newcar-request-w .w-registration-email .w-email-at { display: flex; align-items: center; justify-content: center; width: 100%; height: 100%; margin: 0; padding: 0; }
+.newcar-request-w .w-registration-email .w-email-domain:read-only { background-color: #c3cedf !important; }
+.newcar-request-w .w-registration-email .btn-erp { width: 100%; padding: 0; }
+
+/* PPT 8페이지 결제 요약은 두 줄 모두 라벨 폭을 맞춘다. */
+.newcar-request-w .w-payment-summary .erp-row > .field-group > .erp-label {
+    --erp-label-width: 130px;
+}
+
+/* PPT 6페이지 자동차정보는 14칸 기준의 3줄 표다. 좁은 화면에서는 줄을 늘리지 않고 가로로 스크롤한다. */
+.newcar-request-w .w-vehicle-section {
+    overflow-x: auto;
+}
+
+.newcar-request-w .w-vehicle-section > .erp-grid {
+    min-width: 1680px;
+}
+
+.newcar-request-w .w-vehicle-top {
+    display: grid;
+    grid-template-columns: minmax(0, 3fr) minmax(0, 4fr);
+}
+
+.newcar-request-w .w-vehicle-top > div {
+    min-width: 0;
+}
+
+.newcar-request-w .w-vehicle-section .erp-row {
+    flex-wrap: nowrap;
+}
+
+.newcar-request-w .w-vehicle-section .field-group > .erp-label {
+    width: 50% !important;
+    min-width: 0;
+    flex: 0 0 50%;
+    white-space: nowrap;
+}
+
+/* 번호판 종류 행의 첫 필드는 라벨 1칸과 번호판·천공·봉인 값 3칸이다. */
+.newcar-request-w .w-vehicle-registration .erp-row:nth-child(2) > .field-group:first-child > .erp-label {
+    width: 25% !important;
+    flex-basis: 25%;
+}
+
+.newcar-request-w .w-vehicle-certificate {
+    display: grid;
+    /* 공급가액을 반 칸 넓히고 차대번호에서 나눠 쓴다. 차명·안내문 너비와 3줄 구성은 유지한다. */
+    grid-template-columns: minmax(0, 2.5fr) minmax(0, 2.5fr) minmax(0, 3fr) minmax(0, 6fr);
+}
+
+.newcar-request-w .w-vehicle-certificate > .field-group {
+    grid-column: auto;
+}
+
+.newcar-request-w .w-vehicle-certificate > .field-group > .erp-label {
+    width: 120px !important;
+    flex-basis: 120px;
+}
+
+/* 조회 전용 제원과 비활성 값은 PPT의 회청색 셀로 표시한다. */
+.newcar-request-w .w-vehicle-spec .flex-row,
+.newcar-request-w .w-vehicle-spec .erp-input,
+.newcar-request-w .w-vehicle-spec .value-black,
+.newcar-request-w .w-vehicle-section select.erp-input:disabled,
+.newcar-request-w .w-vehicle-registration input.erp-input:read-only {
+    background-color: #c3cedf !important;
+    color: #20344d;
+}
+
+.newcar-request-w .w-vehicle-spec .flex-row {
+    align-self: stretch;
+}
+
+.newcar-request-w .w-vehicle-notice {
+    grid-column: auto;
+    display: flex;
+    align-items: center;
+    margin: 0;
+    padding: 0 8px;
+    color: #0000ff;
+    font-size: 12px;
+    font-weight: bold;
+    white-space: nowrap;
+}
+
 /* W 화면의 필수값·자동입력 표시와 추가 팝업. 배치는 위 공통 스타일을 사용한다. */
 .newcar-request-w .erp-input.w-required { background-color: #fff6cc !important; border: 1px solid #dc3545 !important; }
+/* 천공·봉인과 등록증 배송지는 필수값 검증을 유지하되 빨간 테두리는 표시하지 않는다. */
+.newcar-request-w .erp-input.w-required:is([name="HOLE_YN"], [name="SEAL_YN"], [name="CARP_ADDRESS"]) {
+    border-color: #a3a3a3 !important;
+}
 .newcar-request-w .erp-input.w-auto, .newcar-request-w span.w-auto { background-color: #e1f3ff !important; border: 1px solid #2382c8 !important; }
 .newcar-request-w .w-bottom-actions { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; padding: 8px; }
 .newcar-request-w .w-message, .newcar-request-w .w-state { margin: 0; padding: 9px 12px; background: #fff5dc; color: #723f00; }

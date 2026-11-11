@@ -1,0 +1,105 @@
+/* 신규등록 공통 스타일을 사용하고, 설정등록에 필요한 배치만 조정한다. */
+.mort-reg-request .mort-reg-body {
+    flex: 1;
+    min-height: 0;
+    overflow: auto;
+    padding: 6px;
+    background: #f7f9fc;
+}
+
+.mort-reg-request .mort-reg-notice {
+    margin: 0 0 6px;
+    color: #596b80;
+    font-size: 12px;
+}
+
+/* 조회·연계·저장 결과는 화면에 남겨 사용자가 확인할 수 있게 한다. */
+.mort-reg-request .mort-reg-message {
+    margin: 0 0 6px;
+    padding: 7px 10px;
+    border: 1px solid #a3b8d7;
+    background: #edf2f7;
+    color: #2b4b7c;
+    font-size: 13px;
+}
+
+.mort-reg-request .erp-section-title-extra {
+    display: flex;
+    margin-left: auto;
+}
+
+.mort-reg-request .mort-reg-signature {
+    flex: none;
+    margin: 6px 0;
+}
+
+.mort-reg-request .mort-reg-unit {
+    padding: 0 5px;
+    white-space: nowrap;
+    font-size: 12px;
+}
+
+/* 원부정보와 납부내역은 신규등록 화면과 같은 색상의 간단한 표로 표시한다. */
+.mort-reg-request .mort-reg-table-wrap {
+    overflow-x: auto;
+    background: #fff;
+}
+
+.mort-reg-request .mort-reg-table {
+    width: 100%;
+    min-width: 760px;
+    border-collapse: collapse;
+    font-size: 12px;
+    text-align: center;
+}
+
+.mort-reg-request .mort-reg-table th,
+.mort-reg-request .mort-reg-table td {
+    border: 1px solid #ced4da;
+    padding: 5px 8px;
+}
+
+.mort-reg-request .mort-reg-table th {
+    background: #e9eff4;
+    color: #44546a;
+    font-weight: 500;
+}
+
+.mort-reg-request .mort-reg-empty {
+    height: 42px;
+    color: #758295;
+}
+
+/* 아직 연결하지 않은 업무 버튼을 구분하고, 좁은 화면에서도 입력란 폭을 확보한다. */
+.mort-reg-request .btn-erp:disabled {
+    opacity: 0.5;
+    cursor: default;
+    transform: none;
+}
+
+@media (max-width: 1100px) {
+    .mort-reg-request .erp-row {
+        flex-wrap: wrap;
+    }
+
+    .mort-reg-request .erp-row > .col-3,
+    .mort-reg-request .erp-row > .col-4,
+    .mort-reg-request .erp-row > .col-8 {
+        flex: 0 0 50%;
+    }
+}
+
+@media (max-width: 700px) {
+    .mort-reg-request .erp-toolbar {
+        flex-wrap: wrap;
+        gap: 4px;
+    }
+
+    .mort-reg-request .erp-row > .field-group {
+        flex: 0 0 100%;
+    }
+
+    .mort-reg-request .erp-section-title {
+        flex-wrap: wrap;
+    }
+}

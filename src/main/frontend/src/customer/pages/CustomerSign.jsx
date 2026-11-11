@@ -327,7 +327,7 @@ const CustomerSign = () => {
 	            <h3>감면 서명</h3>
 				
 				<p className="customer-description">
-				    안녕하세요. 폴스타코리아 신규등록 대행업체입니다.
+				    안녕하세요. {info.COMPANY_ID === 'WA001' ? '폴스타코리아' : info.COMPANY_NM} 신규등록 대행업체입니다.
 				    <br /><br />
 
 

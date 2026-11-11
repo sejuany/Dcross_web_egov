@@ -29,6 +29,7 @@ const WaSendSmsModal = ({
 	const hp1Ref = useRef(null);
 	const hp2Ref = useRef(null);
 	const hp3Ref = useRef(null);
+	const sendingRef = useRef(false);
 
 	const recipientPhone =
 		dsNewCar?.NTAX_TRGET_CD !== '00' && dsNewCar?.NTAX_WHO === 'UNION'
@@ -68,6 +69,7 @@ const WaSendSmsModal = ({
 	};
 
     const handleSend = async () => {
+        if (sendingRef.current) return;
         const fullPhone = `${phone.hp1}${phone.hp2}${phone.hp3}`;
 
         if (fullPhone.length < 10) {
@@ -81,39 +83,38 @@ const WaSendSmsModal = ({
 		    return;
 		}
 		
-		let token = dsCarNoDetach.TOKEN;
-		
-		// 토큰이 없는 경우 생성 후 저장
-		if (!dsCarNoDetach.TOKEN) {
-			
-			token = await setToken();
-			
-			const newDsCarNoDetach = {
-			    ...dsCarNoDetach,
-			    TOKEN: token
-			};
-
-			setDsCarNoDetach(newDsCarNoDetach);
-
-			await saveProcess(null, "SAV", null, null, null, true, newDsCarNoDetach);
-		}
-		
-		const url = `${window.location.origin}/customer/CustomerSign?t=${token}`;
-		/*
-		const sText = '안녕하세요. 폴스타코리아 주문번호 ' + dsService.LINK_ID + 
-		' 차량의 추가 제출서류를 준비하셔서 아래의 URL로 접속하신 후 업로드 바랍니다.\n' +
-		'※ 업로드 완료 후 담당 스페셜리스트에게 연락 바랍니다.\n' +
-		'담당 스페셜리스트 : ' + formatPhoneNumber(dsUserInfo.MPHONE_NO) + '\r\n' +
-		url;
-		 */
-		const sText = '안녕하세요. 폴스타코리아 차량의 신규등록을 위해 추가 제출서류를 준비하셔서 아래의 URL로 접속하신 후 업로드 바랍니다. \r\n\r\n' +
-		 			'주문번호 ' + dsService.LINK_ID + '\r\n차대번호 : ' + dsNewCar.CARID_NO + '\r\n\r\n' + 				
-				'※ 업로드 완료 후 담당 스페셜리스트에게 연락 바랍니다.\n' +
-				'담당 스페셜리스트 : ' + formatPhoneNumber(dsUserInfo.MPHONE_NO) + '\r\n' +
-				url;
-		console.log(sText);
-		
+		if (sendingRef.current) return;
+		sendingRef.current = true;
 		try {
+			let token = dsCarNoDetach.TOKEN;
+		
+			// 토큰이 없는 경우 생성 후 저장
+			if (!dsCarNoDetach.TOKEN) {
+			
+				token = await setToken();
+			
+				const newDsCarNoDetach = {
+				    ...dsCarNoDetach,
+				    TOKEN: token
+				};
+
+				// 저장되지 않은 토큰으로 고객 링크가 발송되지 않도록 W 저장 실패 시 중단한다.
+				const saved = await saveProcess(null, "SAV", null, null, null, true, newDsCarNoDetach);
+				if (saved === false) {
+					gf.alert('신청 정보 저장에 실패하여 문자를 발송하지 않았습니다. 입력 내용을 확인해 주세요.');
+					return;
+				}
+				setDsCarNoDetach(newDsCarNoDetach);
+			}
+		
+			const url = `${window.location.origin}/customer/CustomerSign?t=${token}`;
+			// WA001의 기존 안내명은 유지하고 다른 회사는 회원사명을 사용한다.
+			const companyName = dsUserInfo.COMPANY_ID === 'WA001' ? '폴스타코리아' : dsUserInfo.COMPANY_NM;
+			const sText = '안녕하세요. ' + companyName + ' 차량의 신규등록을 위해 추가 제출서류를 준비하셔서 아래의 URL로 접속하신 후 업로드 바랍니다. \r\n\r\n' +
+				'주문번호 ' + dsService.LINK_ID + '\r\n차대번호 : ' + dsNewCar.CARID_NO + '\r\n\r\n' +
+					'※ 업로드 완료 후 담당 스페셜리스트에게 연락 바랍니다.\n' +
+					'담당 스페셜리스트 : ' + formatPhoneNumber(dsUserInfo.MPHONE_NO) + '\r\n' +
+					url;
 			
 			// 1. 문자 발송
 			await axios.post('/api/newcar/numplateSms', {
@@ -144,6 +145,9 @@ const WaSendSmsModal = ({
 
 			alert('[문자 전송] 처리 중 오류가 발생했습니다.');
 
+		}
+		finally {
+			sendingRef.current = false;
 		}
     };
 	
@@ -178,14 +182,7 @@ const WaSendSmsModal = ({
 	        // 중복 없으면 종료
 	        if (res.data.result === 0) {
 				
-				setDsCarNoDetach({
-				    ...dsCarNoDetach,
-				    TOKEN: token
-				});
-
-				if (res.data.result === 0) {
-				    return token;
-				}
+				return token;
 	        }
 	    }
 

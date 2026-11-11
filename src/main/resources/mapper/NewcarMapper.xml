@@ -136,6 +136,34 @@
             TN.REQ_CAR_NO,
             TN.OWNER_NM,
             TMD.MEMBER_NM,
+            <!-- 기업별 목록에서 필요한 값은 공통 조회로 제공한다. 표시명과 컬럼 순서는 프런트에서 정한다. -->
+            TB.BRANCH_NM,
+            CASE
+                WHEN TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'I' THEN TOI.DEBTOR_NM
+                WHEN TN.TASK_CD = 'LEASE' AND TN.PROC_CD = 'C' THEN CD.CUSTOMER_NM
+            END AS LEASE_CUSTOMER_NM,
+            TN.CARD_YN,
+            CASE WHEN NVL(TN.NTAX_TRGET_CD, '00') &lt;&gt; '00' THEN 'Y' ELSE 'N' END AS NTAX_YN,
+            TN.LOW_POLLUTION_KD,
+            TN.LOW_POLLUTION_NO,
+            <!-- INSTALL_DT는 배송 예정일이므로 실제 발송 처리일과 구분한다. -->
+            TO_CHAR(CD.SEND_YN_DT, 'YYYY-MM-DD') AS SEND_YN_DT,
+            TN.TASK_CD AS ATTACH_TASK_CD,
+            TN.REG_GB AS ATTACH_REG_GB,
+            TN.RATIO_NO AS ATTACH_RATIO_NO,
+            TN.NTAX_TRGET_CD AS ATTACH_NTAX_TRGET_CD,
+            TN.NTAX_TRGET_GR_CD AS ATTACH_NTAX_TRGET_GR_CD,
+            TN.NTAX_WHO AS ATTACH_NTAX_WHO,
+            (
+                SELECT LISTAGG(
+                    SUBSTR(AF.ATCHSVRFILE_NM, LENGTH(AF.SERVICE_ID) + 2,
+                        INSTR(AF.ATCHSVRFILE_NM, '.', -1) - LENGTH(AF.SERVICE_ID) - 2), '|'
+                ) WITHIN GROUP (ORDER BY AF.SEQ)
+                FROM TR_ATTACH_FILE AF
+                WHERE AF.SERVICE_ID = TS.SERVICE_ID
+                  AND SUBSTR(AF.ATCHSVRFILE_NM, 1, LENGTH(AF.SERVICE_ID) + 1) = AF.SERVICE_ID || '_'
+                  AND INSTR(AF.ATCHSVRFILE_NM, '.', -1) > LENGTH(AF.SERVICE_ID) + 2
+            ) AS ATTACH_CODES,
             CD.DELIVERY_GB,
             CD.CUSTOMER_NM,
             CD.DELIVERY_POST_NO,
@@ -186,7 +214,9 @@
             TM_MEMBER_DT       TMD,
             TR_CARNO_DETACH    CD,
             TM_NUMPLATE_LIST   NL,
-            TR_PAYMENT         PM
+            TR_PAYMENT         PM,
+            TM_BRANCH          TB,
+            TR_OWNERINFO       TOI
         WHERE
             TN.SERVICE_ID  = TS.SERVICE_ID
             AND TS.COMPANY_ID  = TC.COMPANY_ID
@@ -195,6 +225,11 @@
             AND TS.SERVICE_ID  = NL.SERVICE_ID(+)
             AND TN.SERVICE_ID  = PM.SERVICE_ID
             AND PM.PAY_KD      = 'ACQ'
+            <!-- 지점·계약자 정보가 없어도 기존 신청건은 유지하고, 계약자는 첫 행(SEQ=0)만 연결한다. -->
+            AND TS.COMPANY_ID = TB.COMPANY_ID(+)
+            AND TS.BRANCH_ID = TB.BRANCH_ID(+)
+            AND TS.SERVICE_ID = TOI.SERVICE_ID(+)
+            AND TOI.SEQ(+) = 0
 			<include refid="serviceListAccessScope"/>
 			<choose>
 				<when test="DATE_CD == 'REGIST_DATE'">

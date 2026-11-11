@@ -33,6 +33,11 @@ public class PaymentService {
     public List<Map<String, Object>> getPayInfoList(PaymentSearchRequest request, UserDto user) {
         logger.info("[PaymentService] 납부현황 조회");
         applyPayInfoAccessScope(request, user);
+        if ("WB002".equals(user.getCOMPANY_ID())) {
+            request.setWORK_CD("010");
+            request.setCOMPANY_ID(user.getCOMPANY_ID());
+            return paymentMapper.getWB002PayInfoList(request);
+        }
         return paymentMapper.getPayInfoList(request);
     }
 

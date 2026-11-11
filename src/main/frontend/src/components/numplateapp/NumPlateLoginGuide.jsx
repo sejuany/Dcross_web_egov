@@ -5,6 +5,16 @@ import NumPlateGuideExample from './NumPlateGuideExample';
 
 const STORAGE_KEY = 'numplateapp.login-guide-complete';
 const topics = {
+    install: {
+    title: '휴대폰에 앱 설치하기', icon: Download, summary: '기기에 DACOS 아이콘을 만들어요.',
+    steps: [
+      { scene: 'browser-menu', title: '브라우저 오른쪽 상단 점 세 개를 눌러주세요.', description: '크롬에서 번호판 로그인 화면을 열고, 주소창 옆의 점 세 개 메뉴를 눌러 주세요.', hint: '주소는 web.dcross.kr/numplateapp/login이에요. 이 안내의 그림은 설치 연습용이에요.' },
+      { scene: 'browser-scroll', title: '메뉴를 아래쪽까지 내려 보세요', description: '펼쳐진 메뉴를 아래로 내려 「설치 및 바로가기 만들기」를 찾아 눌러 주세요.', hint: '메뉴 이름이나 위치는 크롬 버전에 따라 조금 다를 수 있어요.' },
+      { scene: 'install-choice', title: '「설치」를 선택해 주세요', description: '「설치」와 「바로가기 만들기」가 함께 보이면 「설치」를 눌러 주세요.', hint: '이 그림을 눌러도 앱이 설치되지는 않아요. 실제 크롬 메뉴에서 진행해야 해요.' },
+      { scene: 'install-confirm', title: '앱 이름을 확인하고 설치해요', description: 'DACOS 번호판 업무가 맞는지 확인한 뒤, 설치 확인창의 「설치」를 눌러 주세요.', hint: '설치 메뉴가 없으면 이미 설치했는지 확인해 주세요. 설치하지 않고 크롬에서 이용할 수도 있어요.' },
+      { scene: 'home-icon', title: '홈 화면의 DACOS 아이콘을 눌러요', description: '설치한 뒤에는 휴대폰 홈 화면이나 앱 목록의 DACOS 번호판 아이콘으로 열 수 있어요.', hint: '여기까지는 설치 방법 안내예요. 실제 설치가 완료됐다는 뜻은 아니에요.' },
+    ],
+  },
   login: {
     title: '로그인 따라하기', icon: Smartphone, summary: '예시 번호로 직접 눌러 보며 배워요.',
     steps: [
@@ -14,16 +24,6 @@ const topics = {
       { target: 'login', scene: 'login-button', title: '파란색 로그인 버튼을 눌러 보세요', description: '연습 버튼을 눌러 로그인 뒤에 보이는 처리목록 예시를 확인해 보세요.', hint: '실제로 로그인되거나 고객의 업무가 조회되지는 않아요.' },
       { scene: 'password-save', title: '비밀번호 저장 창이 나오면', description: '내 휴대폰에서 다음에도 편하게 입력하려면 「저장」을 누를 수 있어요.', hint: '저장은 선택이에요. 창이 안 나와도 직접 입력하면 돼요. 지문·얼굴로 로그인하는 패스키와는 다른 기능이에요.' },
       { scene: 'password-fill', title: '저장된 내 번호를 선택해 주세요', description: '다음 방문에 저장된 번호가 보이면 내 휴대폰 번호를 선택해요. 입력된 번호를 확인하고 로그인해 주세요.', hint: '저장된 정보가 없거나 여러 개라 헷갈리면 창을 닫고 내 번호와 비밀번호를 직접 입력해도 돼요.' },
-    ],
-  },
-  install: {
-    title: '휴대폰에 앱 설치하기', icon: Download, summary: '홈 화면에 DACOS 아이콘을 만들어요.',
-    steps: [
-      { scene: 'browser-menu', title: '크롬 오른쪽 위 점 세 개를 눌러요', description: '크롬에서 번호판 로그인 화면을 열고, 주소창 옆의 점 세 개 메뉴를 눌러 주세요.', hint: '주소는 web.dcross.kr/numplateapp/login이에요. 이 안내의 그림은 설치 연습용이에요.' },
-      { scene: 'browser-scroll', title: '메뉴를 아래쪽까지 내려 보세요', description: '펼쳐진 메뉴를 아래로 내려 「설치 및 바로가기 만들기」를 찾아 눌러 주세요.', hint: '메뉴 이름이나 위치는 크롬 버전에 따라 조금 다를 수 있어요.' },
-      { scene: 'install-choice', title: '「설치」를 선택해 주세요', description: '「설치」와 「바로가기 만들기」가 함께 보이면 「설치」를 눌러 주세요.', hint: '이 그림을 눌러도 앱이 설치되지는 않아요. 실제 크롬 메뉴에서 진행해야 해요.' },
-      { scene: 'install-confirm', title: '앱 이름을 확인하고 설치해요', description: 'DACOS 번호판 업무가 맞는지 확인한 뒤, 설치 확인창의 「설치」를 눌러 주세요.', hint: '설치 메뉴가 없으면 이미 설치했는지 확인해 주세요. 설치하지 않고 크롬에서 이용할 수도 있어요.' },
-      { scene: 'home-icon', title: '홈 화면의 DACOS 아이콘을 눌러요', description: '설치한 뒤에는 휴대폰 홈 화면이나 앱 목록의 DACOS 번호판 아이콘으로 열 수 있어요.', hint: '여기까지는 설치 방법 안내예요. 실제 설치가 완료됐다는 뜻은 아니에요.' },
     ],
   },
   passkey: {
@@ -120,8 +120,8 @@ export default function NumPlateLoginGuide({
     <>
       {header}
       <div className="numplate-guide-body">
-        <p className="numplate-guide-safety">연습 화면 · 실제 로그인되지 않습니다</p>
-        {!target && <p className="numplate-guide-platform">설치·인증 예시는 갤럭시 · 안드로이드 크롬 기준이에요.</p>}
+        {/* <p className="numplate-guide-safety">연습 화면 · 실제 로그인되지 않습니다</p> */}
+        {/* {!target && <p className="numplate-guide-platform">설치·인증 예시는 갤럭시 · 안드로이드 크롬 기준이에요.</p>} */}
         {currentTopic ? (
           <>
             <p className="numplate-guide-step">{currentTopic.title} <span>{step + 1} / {currentTopic.steps.length}단계</span></p>
@@ -140,8 +140,8 @@ export default function NumPlateLoginGuide({
           </>
         ) : (
           <>
-            <h2 id="numplate-guide-title" ref={headingRef} tabIndex={-1}>어떤 안내가 필요하세요?</h2>
-            <p id="numplate-guide-description" className="numplate-guide-description">처음이라면 「로그인 따라하기」부터 눌러 보세요. 원하는 안내만 골라 볼 수도 있어요.</p>
+            <h2 id="numplate-guide-title" ref={headingRef} tabIndex={-1}>앱 설치 및 로그인 가이드</h2>
+            <p id="numplate-guide-description" className="numplate-guide-description">처음이라면 「휴대폰에 앱 설치하기」부터 눌러 보세요. <br />원하는 안내만 골라 볼 수도 있어요.</p>
             <div className="numplate-guide-topics">
               {Object.entries(topics).map(([key, item]) => {
                 const Icon = item.icon;
