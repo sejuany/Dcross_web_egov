@@ -1,8 +1,10 @@
-import { useLayoutEffect } from 'react';
+import React, { useLayoutEffect } from 'react';
 import { useLocation } from 'react-router-dom';
+import ChromeBrowserNotice from './ChromeBrowserNotice';
 
 export default function PwaManifest() {
-  const { pathname } = useLocation();
+  const location = useLocation();
+  const { pathname } = location;
   const isNumPlateApp = pathname === '/numplateapp' || pathname.startsWith('/numplateapp/');
 
   useLayoutEffect(() => {
@@ -20,5 +22,5 @@ export default function PwaManifest() {
     };
   }, [isNumPlateApp]);
 
-  return null;
+  return <ChromeBrowserNotice location={location} />;
 }

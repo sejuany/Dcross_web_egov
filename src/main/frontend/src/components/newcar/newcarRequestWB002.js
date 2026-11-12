@@ -74,12 +74,12 @@ export const calculateWEstimate = async (data, codes) => {
         updatedPaymentList, totalAmt, car: newCar, inputs: estimateWInputs(newCar) };
 };
 export const fieldLabels = {
-    TASK_CD: '업무구분', CARID_NO: '차대번호', REGIST_DATE: '등록예정일자', NUMPLATE_GB: '번호판지정 요구사항',
-    HOLE_YN: '천공 여부', SEAL_YN: '봉인 여부', BUY_AMT: '공급가액', LINK_ID: '주문번호', CUSTOMER_NM: '계약자명',
+    TASK_CD: '구입조건', CARID_NO: '차대번호', REGIST_DATE: '등록예정일자', NUMPLATE_GB: '번호판지정 요구사항',
+    HOLE_YN: '천공 여부', SEAL_YN: '봉인 여부', BUY_AMT: '공급가액', LINK_ID: '주문(계약서)번호', CUSTOMER_NM: '계약자명',
     REG_GB: '등록구분', REG_NO: '등록번호', BIZ_NO: '사업자번호', OWNER_NM: '대표소유자명', RATIO_NO: '대표소유자 비율',
     MPHONE_NO: '휴대폰번호', ADDRESS: '소유자주소', BASE_ADDRESS: '사용본거지', NTAX_TRGET_CD: '비과세대상',
     NTAX_TRGET_GR_CD: '비과세대상등급', NTAX_WHO: '비과세대상자', CARD_YN: '취득세카드납부', BOND_DC: '채권할인여부',
-    PAY_NM: '결제자명', PAY_HP_NO: '결제자 휴대폰번호', RT_BANK_CD: '환급은행', RETURN_NO: '환급계좌', RETURN_NM: '환급계좌예금주',
+    PAY_NM: '카드 결제자명', PAY_HP_NO: '결제자 휴대폰번호', RT_BANK_CD: '환급은행', RETURN_NO: '환급계좌', RETURN_NM: '환급계좌예금주',
     CARP_ADDRESS: '등록증 배송지', DEBTOR_GB: '공동소유자 등록구분', DEBTOR_NM: '공동소유자명', DEBTOR_TEL_NO: '공동소유자 전화번호',
     DEBTOR_REG_NO: '공동소유자 등록번호', DEBTOR_BIZ_NO: '공동소유자 사업자번호', DEBTOR_RATIO: '공동소유자비율',
     ADDRESS_DT: '소유자 상세주소', POST_NO: '소유자 우편번호', DEBTOR_ADDR: '공동소유자 주소',

@@ -80,6 +80,8 @@ import jakarta.servlet.http.HttpSession;
 public class NewcarService {
 
     private static final Logger logger = LoggerFactory.getLogger(NewcarService.class);
+    private static final Set<String> NUMPLATE_DELIVERY_FIELDS = Set.of(
+            "RECEIVE_NM", "RECEIVE_TEL_NO", "DELIVERY_ADDR", "DELIVERY_ADDR_DT", "DELIVERY_POST_NO");
     private static final int WA_SEARCH_START_LIMIT_YEARS = 2;
     private static final DateTimeFormatter SEARCH_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Seoul");
@@ -701,6 +703,35 @@ public class NewcarService {
                 .anyMatch(companyId::equalsIgnoreCase);
     }
 
+    private boolean canEditNumplateDelivery(UserDto user) {
+        return newcarMapper.canEditNumplateDelivery(
+                user.getLOGIN_ID(), user.getCOMPANY_ID(), user.getBRANCH_ID());
+    }
+
+    private Map<String, String> validateNumplateDelivery(Object value, UserDto user) {
+        if (value == null) {
+            return Map.of();
+        }
+        if (!(value instanceof Map<?, ?> fields)) {
+            throw new BusinessException("번호판 배송 정보 형식이 올바르지 않습니다.", 400);
+        }
+        if (fields.isEmpty()) {
+            return Map.of();
+        }
+        if (!canEditNumplateDelivery(user)) {
+            throw new BusinessException("번호판 배송 정보를 수정할 권한이 없습니다.", 403);
+        }
+
+        Map<String, String> delivery = new HashMap<>();
+        fields.forEach((field, fieldValue) -> {
+            if (!NUMPLATE_DELIVERY_FIELDS.contains(field) || !(fieldValue instanceof String text)) {
+                throw new BusinessException("번호판 배송 정보 형식이 올바르지 않습니다.", 400);
+            }
+            delivery.put((String) field, text.trim());
+        });
+        return delivery;
+    }
+
     /** 로그인 회사의 지점에 설정된 ASSIGN_CD만 담당자 정보 조회를 허용한다. */
     public Map<String, Object> getWaNumplateAssignee(String assignCd, UserDto user) {
         String companyId = requireLoginCompanyId(user);
@@ -885,6 +916,7 @@ public class NewcarService {
             carNoDetach != null ? carNoDetach : new HashMap<>()
         );
         result.put("dsTaxReceipt", taxReceipt != null ? taxReceipt : new HashMap<>());
+        result.put("numplateDeliveryEditable", canEditNumplateDelivery(user));
 
         return result;
     }
@@ -2090,8 +2122,12 @@ public class NewcarService {
 	    dsCarNoDetach.put("DELIVERY_GB", row.get("SPACE_GB"));
 	    dsCarNoDetach.put("CUSTOMER_NM", row.get("OWNER_NM")); 						// 계약자명
 
+	    boolean skipExcelNumplateDelivery = newcarMapper.canEditNumplateDelivery(
+	            Objects.toString(dsService.get("MEMBER_ID"), ""), user.getCOMPANY_ID(),
+	            Objects.toString(dsService.get("BRANCH_ID"), ""));
+
 	    // 배송지주소 코드값 가져와서 넣어주기
-		String codeNm = dlaMap.get(row.get("SPACE_GB"));
+		String codeNm = skipExcelNumplateDelivery ? "" : dlaMap.get(row.get("SPACE_GB"));
 
 		String address = "";
 		String detailAddress = "";
@@ -2157,7 +2193,7 @@ public class NewcarService {
 	    // =========================
 	    // 실제 저장
 	    // =========================
-	    Map<String, Object> response = processNewCar(request, user);
+	    Map<String, Object> response = processNewCar(request, user, skipExcelNumplateDelivery);
 
 	    Map<String, Object> data = (Map<String, Object>) response.get("data");
 
@@ -2349,6 +2385,7 @@ public class NewcarService {
 	    result.put("dsOwnerInfo1", dsOwnerInfo1);
 	    result.put("dsCarNoDetach", dsCarNoDetach);
 	    result.put("dsPaymentList", dsPaymentList);
+	    result.put("numplateDeliveryEditable", canEditNumplateDelivery(user));
 
 	    return result;
 	}
@@ -2361,10 +2398,16 @@ public class NewcarService {
 	 */
 	@Transactional
 	public Map<String, Object> processNewCar(Map<String, Object> request, UserDto user) {
+	    return processNewCar(request, user, false);
+	}
+
+	private Map<String, Object> processNewCar(Map<String, Object> request, UserDto user, boolean skipExcelNumplateDelivery) {
 	    // 성공 반환
 	    Map<String, Object> result = new HashMap<>();
 	    Map<String, Object> mNewCar = commonUtil.getMap(request, "dsNewCar");
 	    validateRegistrationMailLength(Objects.toString(mNewCar.get("CARP_MAIL"), ""));
+	    Object numplateDeliveryRequest = request.get("dsNumplateDelivery");
+	    Map<String, String> numplateDelivery = validateNumplateDelivery(numplateDeliveryRequest, user);
 
 		try {
 			logger.info("[NewcarService] 신규등록 저장 및 신청 프로세스");
@@ -2385,6 +2428,13 @@ public class NewcarService {
 			
 		    // 데이터 병합
 		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
+		    input.remove("NUMPLATE_DELIVERY_FIELDS");
+		    if (numplateDeliveryRequest != null) {
+		        // 신규등록 정보 탭에서 수정한 필드만 반영한다.
+		        input.keySet().removeAll(NUMPLATE_DELIVERY_FIELDS);
+		        input.putAll(numplateDelivery);
+		        input.put("NUMPLATE_DELIVERY_FIELDS", new HashSet<>(numplateDelivery.keySet()));
+		    }
 
 		    // 로그인 사용자
 		    input.put("UPD_USER", user.getLOGIN_ID());
@@ -2409,6 +2459,7 @@ public class NewcarService {
 
 		    // insert
 		    if (commonUtil.isEmpty(serviceId)) {
+		        input.put("SKIP_EXCEL_NUMPLATE_DELIVERY", skipExcelNumplateDelivery);
 		    	insertNewCar(input, mService, lOwnerInfoList, lOwnerInfoList1, lPaymentList, mTaxReceipt);
 		    }
 
@@ -2746,8 +2797,6 @@ public class NewcarService {
 		for (Map<String, Object> row : request) {
 			String serviceId = String.valueOf(row.get("SERVICE_ID"));
 			Map<String, Object> mNewCarDetail = getNewCarDetail(user, serviceId);
-
-			logger.info("mNewCarDetail >>> " + mNewCarDetail);
 
 			 // 데이터 파싱
 		    Map<String, Object> mService = commonUtil.getMap(mNewCarDetail, "dsService");

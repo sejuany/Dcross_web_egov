@@ -888,6 +888,19 @@
 			  BASE_NM
 	</select>
 
+	<select id="canEditNumplateDelivery" resultType="boolean">
+	    SELECT CASE WHEN EXISTS (
+	        SELECT 1
+	          FROM TM_MEMBER_DT M
+	          JOIN TM_BRANCH B ON B.COMPANY_ID = M.COMPANY_ID AND B.BRANCH_ID = M.BRANCH_ID
+	          JOIN TM_CARNO_COMPANY C ON B.ASSIGN_CD = C.COMPANY_ID || C.BRANCH_ID
+	         WHERE M.LOGIN_ID = #{LOGIN_ID}
+	           AND M.COMPANY_ID = #{COMPANY_ID}
+	           AND M.BRANCH_ID = #{BRANCH_ID}
+	           AND C.BRANCH_NM LIKE '%택배%'
+	    ) THEN 1 ELSE 0 END FROM DUAL
+	</select>
+
 	<!-- 로그인 회사 지점에 연결된 번호판 담당자 조회 -->
 	<select id="getNumplateAssignee" resultType="java.util.Map">
 	    SELECT POST_NO,
@@ -1181,10 +1194,30 @@
 	        #{FILENAME1}, #{FILENAME2}, #{FILENAME3}, #{FILENAME4}, #{FILENAME5},
 	        #{FILENAME6}, #{OWNER_YN}, #{SEND_YN}, #{RECEIVE_YN}, #{NUM_MEMO_TX},
 	        #{ETC1}, #{ETC2}, #{ETC3}, #{ETC4}, #{ETC5},
-	        #{MEMBER_ID}, SYSDATE, #{DELIVERY_GB}, #{DELIVERY_CP}, PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR}),
-	        #{LAST_DELIVERY_GB}, PKG_COMMON.FN_ENCRYPT(#{LAST_DELIVERY_ADDR}), #{SONGJANG_NO}, PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR_DT}), #{DELIVERY_POST_NO},
-	        PKG_COMMON.FN_ENCRYPT(#{DELIVERY_CP_ADDR}), #{INSTALL_DT}, #{INSTALL_NM}, PKG_COMMON.FN_ENCRYPT(#{INSTALL_TEL_NO}), (SELECT MAX(MEMBER_NM) FROM TM_MEMBER_DT WHERE LOGIN_ID = #{MEMBER_ID}),
-	        #{CUSTOMER_NM}, #{INSTALL_SMS_TX}, PKG_COMMON.FN_ENCRYPT((SELECT MAX(MPHONE_NO) FROM TM_MEMBER_DT WHERE LOGIN_ID = #{MEMBER_ID})), #{INSTALL_TM}, #{DELIVERY_BC},
+	        #{MEMBER_ID}, SYSDATE, #{DELIVERY_GB}, #{DELIVERY_CP},
+	        <choose>
+	            <when test="SKIP_EXCEL_NUMPLATE_DELIVERY">NULL</when>
+	            <otherwise>PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR})</otherwise>
+	        </choose>,
+	        #{LAST_DELIVERY_GB}, PKG_COMMON.FN_ENCRYPT(#{LAST_DELIVERY_ADDR}), #{SONGJANG_NO},
+	        <choose>
+	            <when test="SKIP_EXCEL_NUMPLATE_DELIVERY">NULL</when>
+	            <otherwise>PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR_DT})</otherwise>
+	        </choose>,
+	        #{DELIVERY_POST_NO},
+	        PKG_COMMON.FN_ENCRYPT(#{DELIVERY_CP_ADDR}), #{INSTALL_DT}, #{INSTALL_NM}, PKG_COMMON.FN_ENCRYPT(#{INSTALL_TEL_NO}),
+	        <choose>
+	            <when test="SKIP_EXCEL_NUMPLATE_DELIVERY">NULL</when>
+	            <when test="NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('RECEIVE_NM')">#{RECEIVE_NM}</when>
+	            <otherwise>(SELECT MAX(MEMBER_NM) FROM TM_MEMBER_DT WHERE LOGIN_ID = #{MEMBER_ID})</otherwise>
+	        </choose>,
+	        #{CUSTOMER_NM}, #{INSTALL_SMS_TX},
+	        <choose>
+	            <when test="SKIP_EXCEL_NUMPLATE_DELIVERY">NULL</when>
+	            <when test="NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('RECEIVE_TEL_NO')">PKG_COMMON.FN_ENCRYPT(#{RECEIVE_TEL_NO})</when>
+	            <otherwise>PKG_COMMON.FN_ENCRYPT((SELECT MAX(MPHONE_NO) FROM TM_MEMBER_DT WHERE LOGIN_ID = #{MEMBER_ID}))</otherwise>
+	        </choose>,
+	        #{INSTALL_TM}, #{DELIVERY_BC},
 	        PKG_COMMON.FN_ENCRYPT(#{STATUS_SMS_NO}), #{HOLE_YN}, #{SEAL_YN}
 	    )
 	</insert>

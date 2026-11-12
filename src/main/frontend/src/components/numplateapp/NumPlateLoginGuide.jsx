@@ -2,13 +2,15 @@ import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from
 import { createPortal } from 'react-dom';
 import { ArrowLeft, ArrowRight, CircleHelp, Download, Fingerprint, Smartphone } from 'lucide-react';
 import NumPlateGuideExample from './NumPlateGuideExample';
+import ChromeBrowserNotice from '../common/ChromeBrowserNotice';
 
 const STORAGE_KEY = 'numplateapp.login-guide-complete';
 const topics = {
     install: {
-    title: '휴대폰에 앱 설치하기', icon: Download, summary: '기기에 DACOS 아이콘을 만들어요.',
+    title: '휴대폰에 앱 설치하기', icon: Download, summary: '설치 과정을 영상으로 확인해 보세요.',
     steps: [
-      { scene: 'browser-menu', title: '브라우저 메뉴를 열어 주세요', description: ['Chrome에서 web.dcross.kr/numplateapp/login을 열고 진행해 주세요.','브라우저 우측 상단 점 3개를 클릭해주세요.'] },
+      { scene: 'browser-confirm', title: '브라우저 확인', description: ['web.dcross.kr/numplateapp/login을 열었을때 다음과 같이 팝업이 뜨는지 확인해주세요.','크롬브라우저 열기 버튼을 눌러주세요.','Chrome 아이콘을 선택하여 실행해주세요.'], hint: 'Chrome 브라우저에 최적화 되으므로 반드시 따라주세요.' },
+      { scene: 'browser-menu', title: '브라우저 메뉴를 열어 주세요', description: ['브라우저 우측 상단 점 3개를 클릭해주세요.'], hint: '브라우저 메뉴 이름이나 위치는 Chrome 버전에 따라 조금 다를 수 있어요.' },
       { scene: 'browser-scroll', title: '설치 메뉴를 찾아 주세요', description: ['메뉴를 스크롤 해주세요.', '[설치 및 바로가기 만들기]를 클릭해주세요.'], hint: '메뉴 이름이나 위치는 Chrome 버전에 따라 조금 다를 수 있어요.' },
       { scene: 'install-choice', title: '설치를 선택하고 확인해 주세요', description: ['첫번째 항목인 "설치" 를 클릭해주세요.', '이 후 나타난 팝업창에서 "설치"를 클릭해주세요.'], hint: '설치 메뉴가 없으면 이미 설치했는지 확인해 주세요.' },
       { scene: 'home-icon', title: '생성된 앱 아이콘을 확인해 주세요', description: ['설치가 완료되면 홈버튼을 눌러 메뉴화면으로 이동해주세요.', '기존 앱과 같이 아이콘이 생성되었습니다!'], hint: '휴대폰 홈 화면이나 앱 목록에서 DACOS 번호판 아이콘을 찾아 주세요.' },
@@ -16,7 +18,7 @@ const topics = {
     ],
   },
   login: {
-    title: '로그인 따라하기', icon: Smartphone, summary: '예시 번호로 직접 눌러 보며 배워요.',
+    title: '로그인 따라하기', icon: Smartphone, summary: '설치 과정을 영상으로 확인해 보세요.',
     steps: [
       { target: 'phone', title: '휴대폰 번호 칸을 눌러 주세요', description: '숫자 키패드가 열리면 번호를 입력해 보세요. 연습에서는 01000000000을 사용해요.', hint: '어려우시면 「예시 넣기」를 눌러 주세요. 실제 로그인할 때는 등록된 내 휴대폰 번호를 입력해요.' },
       { target: 'password', title: '숫자 비밀번호를 입력해 보세요', description: '비밀번호 칸을 누르면 숫자 키패드가 열려요. 연습 비밀번호 1234를 입력해 보세요.', hint: '입력한 숫자는 점으로 가려져요. 1234는 연습용이며, 실제 로그인할 때는 안내받은 내 비밀번호를 입력해요.' },
@@ -27,7 +29,7 @@ const topics = {
     ],
   },
   passkey: {
-    title: '지문·얼굴로 로그인하기', icon: Fingerprint, summary: '패스키 등록부터 다음 로그인까지 알아봐요.',
+    title: '지문·얼굴로 로그인하기', icon: Fingerprint, summary: '패스키 등록부터 편한 로그인 방법까지 알려드려요.',
     steps: [
       { scene: 'passkey-create', title: '패스키 만들기에서 계속을 눌러요', description: '지원되는 휴대폰에서 처음 비밀번호로 로그인하면 패스키 등록을 안내해 드려요. 「계속」을 눌러 주세요.', hint: '패스키는 비밀번호 대신 기기의 지문·얼굴·화면 잠금으로 확인하는 방법이에요. 등록은 건너뛸 수 있어요.' },
       { scene: 'device-unlock', title: '휴대폰에서 본인 확인을 해 주세요', description: '휴대폰이 안내하는 지문·얼굴 또는 화면 잠금 번호로 확인해 주세요.', hint: '여기는 예시 그림이에요. 실제 지문이나 잠금 번호를 입력받거나 저장하지 않아요.' },
@@ -120,6 +122,7 @@ export default function NumPlateLoginGuide({
     <>
       {header}
       <div className="numplate-guide-body">
+        {!target && (!topic || topic === 'install') && <ChromeBrowserNotice inline />}
         {/* <p className="numplate-guide-safety">연습 화면 · 실제 로그인되지 않습니다</p> */}
         {/* {!target && <p className="numplate-guide-platform">설치·인증 예시는 갤럭시 · 안드로이드 크롬 기준이에요.</p>} */}
         {currentTopic ? (

@@ -1836,6 +1836,19 @@
     box-shadow: 0 24px 70px rgba(15, 23, 42, 0.28);
 }
 
+@media (min-width: 761px) and (max-width: 1180px),
+       (min-width: 761px) and (max-width: 1400px) and (pointer: coarse) {
+    .wa-request-modal-backdrop:has(> .wa-request-modal-frame) {
+        padding-inline: 0;
+    }
+
+    .wa-request-modal-frame {
+        width: 100%;
+        border-inline: 0;
+        border-radius: 0;
+    }
+}
+
 .wa-request-modal-backdrop.overflow{
     align-items:flex-start;
 }

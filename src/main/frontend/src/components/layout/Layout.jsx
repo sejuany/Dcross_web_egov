@@ -72,7 +72,7 @@ const normalizeMenuRow = (row) => {
  *   ]
  * }
  */
-const buildAuthorizedMenuConfig = (rawMenuList) => {
+export const buildAuthorizedMenuConfig = (rawMenuList, companyId) => {
     const rows = Array.isArray(rawMenuList)
         ? rawMenuList
             .map(normalizeMenuRow)
@@ -80,6 +80,9 @@ const buildAuthorizedMenuConfig = (rawMenuList) => {
         : [];
 
     const topMenus = rows.filter(menu => menu.id.length === 2);
+    if (companyId === 'WB002') {
+        topMenus.sort((a, b) => Number(b.title === '신규등록') - Number(a.title === '신규등록'));
+    }
     const childMenus = rows.filter(menu => menu.id.length > 2);
 
     const result = {};
@@ -325,6 +328,8 @@ const TabBar = () => {
 
 const Layout = ({ children }) => {
     const location = useLocation();
+    const { user } = useAuth();
+    const companyId = user?.company_ID ?? user?.COMPANY_ID;
     const { activeTabId, tabs, addTab, recentlyClosedPath } = useTabs();
 
     const [layoutWidth] = useState('100%');
@@ -379,7 +384,7 @@ const Layout = ({ children }) => {
 
                 console.log('[내 권한 메뉴 원본]', list);
 
-                const authorizedMenuConfig = buildAuthorizedMenuConfig(list);
+                const authorizedMenuConfig = buildAuthorizedMenuConfig(list, companyId);
 
                 console.log('[내 권한 메뉴 변환 결과]', authorizedMenuConfig);
 
@@ -419,7 +424,7 @@ const Layout = ({ children }) => {
         return () => {
             mounted = false;
         };
-    }, []);
+    }, [companyId]);
 
     useEffect(() => {
         if (!activeCategory && categories.length > 0) {

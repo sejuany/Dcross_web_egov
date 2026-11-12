@@ -87,6 +87,7 @@
           AND A.LOGIN_ID = ME.LOGIN_ID(+)
 		  AND A.MEMBER_ID = ME.MEMBER_ID(+)
 		  AND A.COMPANY_ID = ME.COMPANY_ID(+)
+          AND A.USE_YN IN ('N', 'Y', 'R', 'W')
         <if test="COMPANY_ID != null and COMPANY_ID != ''">
           AND A.COMPANY_ID = #{COMPANY_ID}
         </if>

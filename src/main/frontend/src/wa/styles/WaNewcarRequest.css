@@ -1256,6 +1256,30 @@ hr.wa-divider.hr2 {
     padding-bottom: 4px;
 }
 
+.wa-newcar-topic {
+    padding: 16px clamp(12px, 2vw, 20px) 4px;
+    border: 1px solid var(--wa-line-strong);
+    border-radius: 14px;
+    background: var(--wa-surface);
+}
+
+.wa-newcar-topic + .wa-newcar-topic {
+    margin-top: 20px;
+}
+
+.wa-newcar-topic-title {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin: 0 0 18px;
+    padding: 10px 12px;
+    border-radius: 8px;
+    background: #edf3fb;
+    color: var(--wa-navy);
+    font-size: 16px;
+    font-weight: 700;
+}
+
 .wa-newcar-info-body > .wa-info-section > .wa-form-row {
     grid-template-columns: 190px minmax(0, 1fr);
 }
@@ -3028,6 +3052,15 @@ hr.wa-divider.hr2 {
         padding: 14px 12px;
     }
 
+    .wa-request-page .wa-cash-receipt-input {
+        flex-wrap: wrap;
+    }
+
+    .wa-request-page .wa-cash-receipt-input > .wa-select {
+        flex: 1 0 100%;
+        width: 100%;
+    }
+
     .wa-request-page .wa-info-section .wa-form-row:has(.wa-receipt-panel) > .wa-form-control > .wa-inline-group {
         grid-template-columns: repeat(2, minmax(0, 1fr));
     }
@@ -3250,7 +3283,6 @@ hr.wa-divider.hr2 {
     .wa-request-page .simple-step {
         gap: 6px;
         padding: 0 6px;
-        font-size: 13px;
     }
 
     .wa-request-page .simple-summary {

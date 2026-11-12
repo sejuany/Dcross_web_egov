@@ -1198,11 +1198,23 @@ button.btn-erp.sm.light.mL-25 {
 .newcar-request-wb002 .field-group:has([name="NUMPLATE_ST"]),
 .newcar-request-wb002 .field-group:has([name="TOTAL_AMT"]):not(.wb002-payment-summary .field-group),
 .newcar-request-wb002 .field-group:has([name="RT_AMT"]),
-.newcar-request-wb002 .field-group:has([name="PAY_NM"]),
-.newcar-request-wb002 .field-group:has([name="PAY_HP_NO"]),
 .newcar-request-wb002 .field-group:has([name="RETURN_NM"]),
 .newcar-request-wb002 .field-group:has([name="RETURN_NO"]),
 .newcar-request-wb002 .erp-row:has([name="CARP_ADDRESS"]),
 .newcar-request-wb002 .erp-row:has([name="CARP_MAIL"]) {
     display: none !important;
+}
+
+.newcar-request-wb002 .fixed-reg-info-section .erp-section-title-extra {
+    margin-left: auto;
+}
+
+.newcar-request-wb002 .owner-main-panel .erp-row > .field-group:first-child {
+    --erp-label-width: 125px !important;
+}
+
+.newcar-request-wb002 .field-group:has([aria-label="시승차"]) > .erp-label {
+    width: 50px !important;
+    min-width: 50px;
+    flex-basis: 50px;
 }

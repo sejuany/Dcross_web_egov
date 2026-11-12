@@ -2,6 +2,7 @@ import React from 'react';
 import { ArrowRight, Fingerprint, KeyRound, ShieldCheck } from 'lucide-react';
 
 const descriptions = {
+  'browser-confirm': 'Chrome 브라우저로 진입합니다.',
   'browser-menu': 'Chrome 오른쪽 위 점 세 개 메뉴를 여는 위치입니다.',
   'browser-scroll': '메뉴를 아래로 내려 설치 및 바로가기 만들기를 찾습니다.',
   'install-choice': '첫 번째 설치 항목과 이어서 나타나는 팝업창의 설치를 선택합니다.',
@@ -18,11 +19,16 @@ const descriptions = {
 };
 
 const installVideos = {
-  'browser-menu': 1,
-  'browser-scroll': 2,
-  'install-choice': 3,
-  'home-icon': 4,
-  'app-open': 5,
+  'browser-confirm': "app_install_1_samsung_browser_guide",
+  'browser-menu': "app_install_2",
+  'browser-scroll': "app_install_3",
+  'install-choice': "app_install_4",
+  'home-icon': "app_install_5",
+  'app-open': "app_install_6",
+  'login-input': "login1_input",
+  'login-passkey': "login1_passkey",
+  
+
 };
 
 const AppIcon = () => <img className="numplate-example-app-icon" src="/dacos_white_only_logo192.png" alt="" />;
@@ -93,12 +99,12 @@ function ExampleScene({ scene }) {
 export default function NumPlateGuideExample({ scene }) {
   const description = descriptions[scene];
   if (!description) return null;
-  const videoNumber = installVideos[scene];
-  if (videoNumber) {
+  const videoName = installVideos[scene];
+  if (videoName) {
     return (
       <figure className="numplate-guide-example numplate-guide-video">
         <figcaption>영상 확인해보세요!</figcaption>
-        <video key={scene} className="numplate-guide-video-player" src={`/loginGuide/${videoNumber}.mp4`}
+        <video key={scene} className="numplate-guide-video-player" src={`/loginGuide/${videoName}.mp4`}
           controls autoPlay muted loop playsInline preload="metadata" aria-label={`앱 설치 안내 영상: ${description}`}>
           이 브라우저에서는 영상을 재생할 수 없습니다.
         </video>

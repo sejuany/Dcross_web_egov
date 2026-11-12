@@ -528,6 +528,8 @@ const WaNewcarRequest = ({
 	const [isMultiOwner, setIsMultiOwner] = useState(false);
 	// 번호판 탈부착/배송 관련 정보와 세금계산서 발행정보를 각각 독립 state로 관리한다.
 	const [dsCarNoDetach, setDsCarNoDetach] = useState(initialDsCarNoDetach);
+	const [numplateDeliveryEditable, setNumplateDeliveryEditable] = useState(false);
+	const [numplateDeliveryPatch, setNumplateDeliveryPatch] = useState({});
 	const [dsTaxReceipt, setDsTaxReceipt] = useState(initialDsTaxReceipt);
 
 	// 초기조회 또는 상세조회 API가 함께 내려주는 보조 데이터 목록이다.
@@ -1714,6 +1716,8 @@ const WaNewcarRequest = ({
 	            setDsBranchList(dbData.dsBranchList || []);
 	            setDsBaseList(dbData.dsBaseList || []);
 	            setDsCarNoDetach(dbData.dsCarNoDetach || {});
+				setNumplateDeliveryEditable(dbData.numplateDeliveryEditable === true);
+				setNumplateDeliveryPatch({});
 				setDsCompanyInfo(dbData.dsCompanyInfo || {});
 				setDsWorkCp(dbData.dsWorkCp || {});
 				setDsUserInfo(dbData.dsUserInfo || {});
@@ -1839,7 +1843,10 @@ const WaNewcarRequest = ({
 	    try {
 			
 	        // 저장 요청
-	        const res = await axios.post('/api/newcar/process', newDataSet);
+	        const res = await axios.post('/api/newcar/process', {
+				...newDataSet,
+				dsNumplateDelivery: numplateDeliveryEditable ? numplateDeliveryPatch : {}
+			});
 			
 			// 서버에러
 			const isErr = (res.data?.data?.RESULT_CD ?? 0) < 0;
@@ -1985,6 +1992,8 @@ const WaNewcarRequest = ({
 	    setDsBaseList(initialDsBaseList);
 	    setDsCompanyInfo({});
 	    setDsCarNoDetach(initialDsCarNoDetach);
+	    setNumplateDeliveryEditable(false);
+	    setNumplateDeliveryPatch({});
 
 	    // DB 조회 후 초기값
 	    const res = await fetch('/api/newcar/init', {
@@ -2012,6 +2021,7 @@ const WaNewcarRequest = ({
 	        } = resData.data || {};
 
 	        setDsUserInfo(dsUserInfo);
+	        setNumplateDeliveryEditable(resData.data?.numplateDeliveryEditable === true);
 
 			// 회사별 기본값
 			// 적용 순서
@@ -2513,12 +2523,20 @@ const WaNewcarRequest = ({
 
 	// 신규등록 정보 필수값 검증
 	const validateRegistrationStep = () => {
+		const delivery = { ...dsCarNoDetach, ...numplateDeliveryPatch };
+		const deliveryMessage = numplateDeliveryEditable
+			? requireValue(delivery.RECEIVE_NM, '번호판 수령인')
+				|| requireValue(delivery.RECEIVE_TEL_NO, '수령인 연락처')
+				|| requireValue(delivery.DELIVERY_ADDR, '번호판 배송지')
+			: '';
+
 		// 기존 자동차 정보 단계에서 확인하던 차량 식별값을 검사한다.
 		const vehicleMessage = !isPostNumplate || carpPostYn === 'Y'
 			? requireTextLength(dsNewCar.CARID_NO, 17, '차대번호') || requireValue(dsNewCar.CAR_NM, '차량명')
 			: '';
 
 		let message = vehicleMessage
+		    || deliveryMessage
 		    || requireValue(dsNewCar.PAY_GB, '결제구분')
 		    || requireValue(dsNewCar.BOND_DC, '채권 처리 방식')
 		    || requirePayPhoneNumber(dsNewCar.PAY_HP_NO, '결제자 연락처');
@@ -2640,6 +2658,9 @@ const WaNewcarRequest = ({
 	    dsNewCar,
 	    dsOwnerInfo,
 	    dsOwnerInfo1,
+	    dsCarNoDetach,
+	    numplateDeliveryPatch,
+	    numplateDeliveryEditable,
 	    dsService.SERVICE_ID,
 	    showAttach
 	]);
@@ -3019,6 +3040,8 @@ const WaNewcarRequest = ({
 							<NewcarInfo
 							dsService={dsService}
 							dsNewCar={dsNewCar}
+							numplateDelivery={numplateDeliveryEditable ? { ...dsCarNoDetach, ...numplateDeliveryPatch } : null}
+							onNumplateDeliveryChange={patch => setNumplateDeliveryPatch(prev => ({ ...prev, ...patch }))}
 							dsPaymentList={dsPaymentList}
 							codes={codes}
 							handleChange={handleChange}

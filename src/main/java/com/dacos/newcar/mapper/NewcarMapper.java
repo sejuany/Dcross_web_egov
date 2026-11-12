@@ -94,6 +94,11 @@ public interface NewcarMapper {
 	/** 본거지 목록 (COMPANY_ID 필요) */
 	List<Map<String, Object>> getBaseList(Map<String, Object> param);
 
+	boolean canEditNumplateDelivery(
+			@Param("LOGIN_ID") String loginId,
+			@Param("COMPANY_ID") String companyId,
+			@Param("BRANCH_ID") String branchId);
+
 	/** 로그인 회사 지점에 연결된 번호판 담당자 조회 */
 	Map<String, Object> getNumplateAssignee(
 			@Param("COMPANY_ID") String companyId,

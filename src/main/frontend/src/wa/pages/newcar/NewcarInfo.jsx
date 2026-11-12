@@ -6,9 +6,11 @@ import {
     CheckCircle2,
     CircleAlert,
     CreditCard,
+    Landmark,
     // LoaderCircle,
     ReceiptText,
     // RefreshCw,
+    Truck,
     X
 } from 'lucide-react';
 
@@ -1195,6 +1197,8 @@ RefundAccountFields.displayName = 'RefundAccountFields';
 const NewcarInfo = ({
     dsNewCar = {},
     dsService = {},
+    numplateDelivery,
+    onNumplateDeliveryChange,
     dsPaymentList = [],
     // dsWorkCp = {},
     codes = {},
@@ -1925,7 +1929,67 @@ const NewcarInfo = ({
     return (
         <div className="wa-form-body wa-newcar-info-body">
             <NumplateSelectionHistory dsService={dsService} />
-            <div className="wa-info-section">
+            {numplateDelivery && (
+                <section className="wa-info-section wa-newcar-topic">
+                    <h3 className="wa-newcar-topic-title">
+                        <Truck size={18} aria-hidden="true" />
+                        번호판 배송
+                    </h3>
+                    <div className="wa-form-row">
+                        <label className="wa-form-label" htmlFor="wa-numplate-recipient">번호판 수령인</label>
+                        <div className="wa-form-control">
+                            <input
+                                id="wa-numplate-recipient"
+                                className="wa-input"
+                                value={numplateDelivery.RECEIVE_NM ?? ''}
+                                onChange={e => onNumplateDeliveryChange({ RECEIVE_NM: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <div className="wa-form-row">
+                        <label className="wa-form-label" htmlFor="wa-numplate-recipient-tel">수령인 연락처</label>
+                        <div className="wa-form-control">
+                            <input
+                                id="wa-numplate-recipient-tel"
+                                type="tel"
+                                className="wa-input"
+                                value={numplateDelivery.RECEIVE_TEL_NO ?? ''}
+                                onChange={e => onNumplateDeliveryChange({ RECEIVE_TEL_NO: e.target.value })}
+                            />
+                        </div>
+                    </div>
+                    <AddressSearch
+                        label="번호판 배송지"
+                        addressLabel="번호판 배송지"
+                        placeholder="건물, 지번 또는 도로명 검색"
+                        type="DELIVERY_ADDR"
+                        detailName="DELIVERY_ADDR_DT"
+                        postName="DELIVERY_POST_NO"
+                        data={numplateDelivery}
+                        dataType="detach"
+                        handleChange={({ target: { name, value } }) => onNumplateDeliveryChange({
+                            [name]: value,
+                            ...(name === 'DELIVERY_ADDR' && { DELIVERY_POST_NO: '' })
+                        })}
+                        onSelect={(_, addr) => onNumplateDeliveryChange({
+                            DELIVERY_ADDR: addr.ADDR ?? '',
+                            DELIVERY_ADDR_DT: addr.ADDRESS_DT ?? addr.ADDR_DT ?? '',
+                            DELIVERY_POST_NO: addr.POST_NO ?? ''
+                        })}
+                        onClear={() => onNumplateDeliveryChange({
+                            DELIVERY_ADDR: '',
+                            DELIVERY_ADDR_DT: '',
+                            DELIVERY_POST_NO: ''
+                        })}
+                    />
+                </section>
+            )}
+
+            <section className="wa-info-section wa-newcar-topic">
+                <h3 className="wa-newcar-topic-title">
+                    <Landmark size={18} aria-hidden="true" />
+                    채권·취득세
+                </h3>
                 <div className="wa-form-row">
                     <label className="wa-form-label">채권 처리 선택</label>
 
@@ -2003,11 +2067,13 @@ const NewcarInfo = ({
                     estimateDirty={estimateDirty}
                 />
                 */}
-            </div>
+            </section>
 
-            <hr className="wa-divider" />
-
-            <div className="wa-info-section">
+            <section className="wa-info-section wa-newcar-topic">
+                <h3 className="wa-newcar-topic-title">
+                    <ReceiptText size={18} aria-hidden="true" />
+                    결제·증빙 및 등록증
+                </h3>
                 <div className="wa-form-row">
 					<label className="wa-form-label">
 					    {dsNewCar?.PROC_CD === "C" || dsNewCar?.TASK_CD === "LEASE"
@@ -2328,7 +2394,7 @@ const NewcarInfo = ({
                     )}
                 />
 
-            </div>
+            </section>
 
             <ExemptionWarningModal
                 notice={exemptionNotice}

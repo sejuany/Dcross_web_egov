@@ -80,15 +80,15 @@
 	            DELIVERY_CP = #{DELIVERY_CP},
 	        </if>
 	
-	        <if test="DELIVERY_ADDR != null and DELIVERY_ADDR != ''">
+	        <if test="(NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('DELIVERY_ADDR')) or (DELIVERY_ADDR != null and DELIVERY_ADDR != '')">
 	            DELIVERY_ADDR = PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR}),
 	        </if>
 	
-	        <if test="DELIVERY_ADDR_DT != null and DELIVERY_ADDR_DT != ''">
+	        <if test="(NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('DELIVERY_ADDR_DT')) or (DELIVERY_ADDR_DT != null and DELIVERY_ADDR_DT != '')">
 	            DELIVERY_ADDR_DT = PKG_COMMON.FN_ENCRYPT(#{DELIVERY_ADDR_DT}),
 	        </if>
 	
-	        <if test="DELIVERY_POST_NO != null and DELIVERY_POST_NO != ''">
+	        <if test="(NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('DELIVERY_POST_NO')) or (DELIVERY_POST_NO != null and DELIVERY_POST_NO != '')">
 	            DELIVERY_POST_NO = #{DELIVERY_POST_NO},
 	        </if>
 	
@@ -124,11 +124,11 @@
 	            INSTALL_SMS_TX = #{INSTALL_SMS_TX},
 	        </if>
 	
-	        <if test="RECEIVE_NM != null and RECEIVE_NM != ''">
+	        <if test="(NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('RECEIVE_NM')) or (RECEIVE_NM != null and RECEIVE_NM != '')">
 	            RECEIVE_NM = #{RECEIVE_NM},
 	        </if>
 
-	        <if test="RECEIVE_TEL_NO != null and RECEIVE_TEL_NO != ''">
+	        <if test="(NUMPLATE_DELIVERY_FIELDS != null and NUMPLATE_DELIVERY_FIELDS.contains('RECEIVE_TEL_NO')) or (RECEIVE_TEL_NO != null and RECEIVE_TEL_NO != '')">
 	            RECEIVE_TEL_NO = PKG_COMMON.FN_ENCRYPT(#{RECEIVE_TEL_NO}),
 	        </if>
 	
