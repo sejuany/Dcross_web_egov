@@ -318,7 +318,7 @@ export default function NReqDetail() {
         <div><span>보조판 종류</span><strong>{show(detail.BOND_NM)}</strong></div>
         <div><span>처리상태</span><strong>{show(detail.PROC_ST_NM || detail.PROC_ST)}</strong></div>
         {!delivery && detail.COMPANY_ID !== 'CB407' && <>
-          <div><span>송장번호</span><strong>{show(detail.SONGJANG_NO)}</strong>{detail.SONGJANG_NO && detail.SONGJANG_NO !== '없음' ? <a className="numplate-tracking-link" href={`https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${encodeURIComponent(String(detail.SONGJANG_NO).replace(/-/g, ''))}&displayHeader=N`} target="_blank" rel="noopener noreferrer">배송조회</a> : <button type="button" className="numplate-tracking-link" disabled>배송조회</button>}</div>
+          <div className="numplate-tracking-row"><span>송장번호</span><strong>{show(detail.SONGJANG_NO)}</strong>{detail.SONGJANG_NO && detail.SONGJANG_NO !== '없음' ? <a className="numplate-tracking-link" href={`https://service.epost.go.kr/trace.RetrieveDomRigiTraceList.comm?sid1=${encodeURIComponent(String(detail.SONGJANG_NO).replace(/-/g, ''))}&displayHeader=N`} target="_blank" rel="noopener noreferrer">배송조회</a> : <button type="button" className="numplate-tracking-link" disabled>배송조회</button>}</div>
           <div><span>등록증 주소</span><strong>{show(detail.CARP_ADDRESS)}</strong></div>
         </>}
         {!delivery && <div><span>보험 시작일자</span><strong>{show(detail.INSU_START_DT)}</strong></div>}

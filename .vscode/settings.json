@@ -10,6 +10,10 @@
         }
     ],
     "maven.terminal.useJavaHome": true,
+    "maven.executable.options": "-DskipTests -Dmaven.test.skip",
+    "terminal.integrated.automationProfile.windows": {
+        "path": "${env:windir}\\System32\\cmd.exe"
+    },
     "maven.terminal.customEnv": [
         {
             "environmentVariable": "JAVA_HOME",
@@ -45,5 +49,22 @@
     "files.readonlyInclude": {
         "{**/.c4z/.extsrcs/*.PROTSYM.cbl,**/.c4z/.extsrcs/*.PROTSYM.listing}": true
     },
-    "java.debug.settings.onBuildFailureProceed": true
+    "java.debug.settings.onBuildFailureProceed": true,
+    "svn.sourceControl.ignoreOnCommit": [
+        "ignore-on-commit"
+    ],
+    "svn.sourceControl.ignoreOnStatusCount": [
+        "ignore-on-commit"
+    ],
+    "svn.sourceControl.ignore": [
+        "/.vscode/*",
+        "/.github",
+        "/target"
+    ],
+    "maven.terminal.favorites": [
+        {
+            "command": "package",
+            "debug": false
+        }
+    ]
 }

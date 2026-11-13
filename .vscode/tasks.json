@@ -1,0 +1,47 @@
+{
+    "version": "2.0.0",
+    "options": {
+        "env": {
+            "JAVA_HOME": "C:\\Program Files\\Java\\jdk-21.0.13.0.2",
+            "Path": "C:\\Program Files\\Java\\jdk-21.0.13.0.2\\bin;${env:Path}"
+        },
+        "shell": {
+            "executable": "cmd.exe",
+            "args": [
+                "/d",
+                "/c"
+            ]
+        }
+    },
+    "tasks": [
+        {
+            "label": "JAR 빌드 (전체: 프론트엔드 + 백엔드)",
+            "type": "shell",
+            "command": "chcp 65001 > nul && mvn clean package -DskipTests -Dmaven.test.skip",
+            "group": {
+                "kind": "build",
+                "isDefault": true
+            },
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "problemMatcher": "$msCompile"
+        },
+        {
+            "label": "JAR 빠른 빌드 (백엔드만, 프론트엔드 빌드 생략)",
+            "type": "shell",
+            "command": "chcp 65001 > nul && mvn package -DskipTests -Dmaven.test.skip -Dskip.npm",
+            "group": "build",
+            "presentation": {
+                "echo": true,
+                "reveal": "always",
+                "focus": true,
+                "panel": "shared"
+            },
+            "problemMatcher": "$msCompile"
+        }
+    ]
+}
