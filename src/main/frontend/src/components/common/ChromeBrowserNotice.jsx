@@ -1,4 +1,5 @@
-import React, { useEffect, useId, useState } from 'react';
+import React, { useEffect, useId, useLayoutEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 
 const NON_CHROME_ANDROID_RE = /SamsungBrowser|KAKAOTALK|NAVER|Whale|EdgA|OPR|Firefox|FxiOS|DaumApps|Instagram|FBAN|FBAV|Line|;\s*wv\)|Version\/\d/i;
 const HELP_PARAM = 'chromeOpenHelp';
@@ -10,18 +11,53 @@ const isAndroidNonChrome = () => {
   return !/Chrome\//i.test(ua) || NON_CHROME_ANDROID_RE.test(ua);
 };
 
-export default function ChromeBrowserNotice({ inline = false, location = window.location }) {
+export default function ChromeBrowserNotice({ location = window.location }) {
+  const supported = isAndroidNonChrome();
   const fallbackHelp = new URLSearchParams(location.search).get(HELP_PARAM) === '1';
   const [dismissed, setDismissed] = useState(false);
   const [helpOpen, setHelpOpen] = useState(fallbackHelp);
   const [copyMessage, setCopyMessage] = useState('');
+  const [portalTarget, setPortalTarget] = useState(null);
+  const noticeRef = useRef(null);
   const helpId = useId();
 
   useEffect(() => {
     if (fallbackHelp) setHelpOpen(true);
   }, [fallbackHelp]);
 
-  if (dismissed || !isAndroidNonChrome()) return null;
+  useLayoutEffect(() => {
+    if (dismissed || !supported) return undefined;
+    // 네이티브 모달 바깥은 클릭할 수 없어 열린 가이드 안의 슬롯으로 이동한다.
+    let currentTarget;
+    const updateTarget = () => {
+      const nextTarget = document.querySelector('.numplate-login-tutorial[open] [data-chrome-notice-root]');
+      if (nextTarget !== currentTarget) {
+        currentTarget = nextTarget;
+        setPortalTarget(nextTarget);
+      }
+    };
+    updateTarget();
+    const observer = new MutationObserver(updateTarget);
+    observer.observe(document.body, { childList: true, subtree: true, attributes: true, attributeFilter: ['open'] });
+    return () => observer.disconnect();
+  }, [dismissed, supported]);
+
+  useLayoutEffect(() => {
+    const dialog = portalTarget?.closest('dialog');
+    if (dismissed || !supported || !dialog || !noticeRef.current) return undefined;
+    const updateHeight = () => dialog.style.setProperty('--chrome-notice-height', `${noticeRef.current.getBoundingClientRect().height}px`);
+    dialog.classList.add('has-chrome-notice');
+    updateHeight();
+    const observer = new ResizeObserver(updateHeight);
+    observer.observe(noticeRef.current);
+    return () => {
+      observer.disconnect();
+      dialog.classList.remove('has-chrome-notice');
+      dialog.style.removeProperty('--chrome-notice-height');
+    };
+  }, [dismissed, supported, portalTarget]);
+
+  if (dismissed || !supported) return null;
 
   const targetUrl = new URL(window.location.origin);
   targetUrl.pathname = location.pathname;
@@ -41,8 +77,8 @@ export default function ChromeBrowserNotice({ inline = false, location = window.
     }
   };
 
-  return (
-    <section className={inline ? 'chrome-open-inline' : 'chrome-open-banner'} aria-label="Chrome 브라우저 열기 안내">
+  const notice = (
+    <section ref={noticeRef} className="chrome-open-banner" aria-label="Chrome 브라우저 열기 안내">
       <div className="chrome-open-banner-actions">
         <a className="chrome-open-banner-link" href={intentUrl} onClick={() => setHelpOpen(true)}>
           Chrome 브라우저로 열기
@@ -68,4 +104,5 @@ export default function ChromeBrowserNotice({ inline = false, location = window.
       )}
     </section>
   );
+  return portalTarget ? createPortal(notice, portalTarget) : notice;
 }

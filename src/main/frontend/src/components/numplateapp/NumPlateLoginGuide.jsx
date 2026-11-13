@@ -1,7 +1,6 @@
 import React, { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { ArrowLeft, ArrowRight, CircleHelp, Download, Fingerprint, Smartphone } from 'lucide-react';
 import NumPlateGuideExample from './NumPlateGuideExample';
-import ChromeBrowserNotice from '../common/ChromeBrowserNotice';
 
 const STORAGE_KEY = 'numplateapp.login-guide-complete';
 const topics = {
@@ -96,7 +95,6 @@ export default function NumPlateLoginGuide({ disabled = false, onGuideChange }) 
     <>
       {header}
       <div className="numplate-guide-body">
-        {(!topic || topic === 'install') && <ChromeBrowserNotice inline />}
         {currentTopic ? (
           <>
             <p className="numplate-guide-step">{currentTopic.title} <span>{step + 1} / {currentTopic.steps.length}단계</span></p>
@@ -148,6 +146,7 @@ export default function NumPlateLoginGuide({ disabled = false, onGuideChange }) 
         <dialog ref={dialogRef} className="numplate-login-tutorial" aria-labelledby="numplate-guide-title"
           aria-describedby="numplate-guide-description" onCancel={(event) => { event.preventDefault(); finish(); }}>
           <div className="numplate-guide-content">{content}</div>
+          <div data-chrome-notice-root />
         </dialog>
       )}
     </>

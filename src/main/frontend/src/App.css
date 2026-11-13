@@ -19,23 +19,40 @@
   margin: 0 auto;
   padding: 10px 12px;
   border-radius: 14px;
-  background: #163b68;
+  background: #2b2b2b;
   color: #ffffff;
   box-shadow: 0 12px 32px rgba(15, 23, 42, 0.35);
+  animation: chrome-notice-rise .24s ease-out both;
 }
 
 body:has(.numplate-app-nav) .chrome-open-banner {
   bottom: calc(94px + env(safe-area-inset-bottom, 0px));
 }
 
-.chrome-open-inline {
-  display: grid;
-  gap: 8px;
-  margin-bottom: 18px;
-  padding: 12px;
-  border-radius: 14px;
-  background: #00000065;
-  color: #fff;
+.numplate-login-tutorial.has-chrome-notice {
+  inset: 12px 0 calc(var(--chrome-notice-height, 0px) + 28px + env(safe-area-inset-bottom, 0px));
+  max-height: calc(100dvh - var(--chrome-notice-height, 0px) - 40px - env(safe-area-inset-bottom, 0px));
+  overflow: visible;
+}
+
+.numplate-login-tutorial.has-chrome-notice .numplate-guide-content {
+  max-height: calc(100dvh - var(--chrome-notice-height, 0px) - 40px - env(safe-area-inset-bottom, 0px));
+  border-radius: inherit;
+  overflow: hidden;
+}
+
+.numplate-login-tutorial[open] .chrome-open-banner {
+  bottom: calc(16px + env(safe-area-inset-bottom, 0px));
+  max-height: min(50dvh, max(64px, calc(100dvh - 240px)));
+}
+
+@keyframes chrome-notice-rise {
+  from { opacity: 0; transform: translateY(calc(100% + 24px)); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .chrome-open-banner { animation: none; }
 }
 
 .chrome-open-banner-actions {
