@@ -163,19 +163,14 @@
 		SELECT MD.COMPANY_ID,
 		       MD.MEMBER_NM,
 		       MD.LOGIN_ID,
-		       MD.BRANCH_ID,
+		       TB.BRANCH_ID,
 		       TB.BRANCH_NM
 		FROM TM_MEMBER_DT MD
 		INNER JOIN TM_BRANCH TB
 			ON TB.COMPANY_ID = MD.COMPANY_ID
-		   AND TB.BRANCH_ID = MD.BRANCH_ID
+		   AND TB.BRANCH_NM = #{branchNm}
 		WHERE MD.COMPANY_ID = #{companyId}
-		  AND MD.BRANCH_ID = (
-		      SELECT TB.BRANCH_ID
-		      FROM TM_BRANCH TB
-		      WHERE TB.COMPANY_ID = #{companyId}
-		        AND TB.BRANCH_NM = #{branchNm}
-		  )
+		  AND (MD.BRANCH_ID = TB.BRANCH_ID OR MD.MEMBER_GB = 'CA')
 		  AND MD.USE_YN = 'Y'
 		  AND MD.MEMBER_NM = #{memberNm}
 	</select>	

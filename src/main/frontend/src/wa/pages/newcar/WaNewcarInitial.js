@@ -13,6 +13,7 @@ export const initialDsService = {
 	RETURN_TX: '',
 	COMPANY_ID: '',
 	BRANCH_ID: '', // 등록증 발송 정책을 판정할 신청 지점
+	MEMBER_ID: '', // 신청건에 배정된 담당자의 로그인 ID
 	LINK_ID: '',
 	GOVT_ID: '',
 	UPD_USER: ''
@@ -113,6 +114,7 @@ export const initialDsNewCar = {
 	VBANK_CD: '',
 	VBANK_NO: '',
 	CARD_YN: 'N',
+	DSC_LIST: '',
 
 	// 환급
 	RT_BANK_CD: '',
@@ -315,6 +317,7 @@ export const serviceMap = {
 	RETURN_TX: 'RETURN_TX',
 	COMPANY_ID: 'COMPANY_ID',
 	BRANCH_ID: 'BRANCH_ID',
+	MEMBER_ID: 'MEMBER_ID',
 	GOVT_ID: 'GOVT_ID',
 	LINK_ID: 'LINK_ID',
 };
@@ -406,6 +409,7 @@ export const newCarMap = {
 	VBANK_CD: 'VBANK_CD',
 	VBANK_NO: 'VBANK_NO',
 	CARD_YN: 'CARD_YN',
+	DSC_LIST: 'DSC_LIST',
 
 	// 환급·환불
 	RT_BANK_CD: 'RT_BANK_CD',

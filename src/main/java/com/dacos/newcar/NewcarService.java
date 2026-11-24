@@ -82,6 +82,7 @@ public class NewcarService {
     private static final Logger logger = LoggerFactory.getLogger(NewcarService.class);
     private static final Set<String> NUMPLATE_DELIVERY_FIELDS = Set.of(
             "RECEIVE_NM", "RECEIVE_TEL_NO", "DELIVERY_ADDR", "DELIVERY_ADDR_DT", "DELIVERY_POST_NO");
+    private static final List<String> DISCOUNT_CODES = List.of("15", "06", "REBUY", "MOU");
     private static final int WA_SEARCH_START_LIMIT_YEARS = 2;
     private static final DateTimeFormatter SEARCH_DATE_FORMATTER = DateTimeFormatter.BASIC_ISO_DATE;
     private static final ZoneId SEARCH_ZONE = ZoneId.of("Asia/Seoul");
@@ -928,7 +929,10 @@ public class NewcarService {
     public int changeProcSt(List<String> serviceIds, String procSt, UserDto user) {
         List<String> distinctIds = serviceIds.stream().distinct().toList();
         for (String serviceId : distinctIds) {
-            serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
+            Map<String, Object> service = serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.CHANGE_STATUS);
+            if ("W_REQ".equals(procSt)) {
+                validateAdminDraftChange(user, service, procSt);
+            }
         }
         return newcarMapper.updateProcSt(distinctIds, procSt);
     }
@@ -1024,12 +1028,12 @@ public class NewcarService {
 		if (isEmpty(spaceNm)) {
 			errors.add("담당 Specialist 없음");
 		} else {
-			// SPACE_GB에 해당하는 Specialist만 허용
+			// SP는 해당 Space 소속, 어드민은 동일 회사 내에서 매칭한다.
 			Map<String, Object> memberInfo = authMapper.selectMemberSuInfo(companyId, spaceGb, spaceNm);
 			if (memberInfo == null) {
 		        errors.add("Space 명과 담당 Specialist 정보 매칭 불가");
 		    } else {
-		        // 해당 SU login_id, branch_id 넣어주기
+		        // 담당자 login_id와 엑셀에서 지정한 Space의 branch_id를 사용한다.
 		    	row.put("SU_LOGIN_ID", memberInfo.get("LOGIN_ID"));
 		    	row.put("SU_BRANCH_ID", memberInfo.get("BRANCH_ID"));
 		    }
@@ -2398,6 +2402,12 @@ public class NewcarService {
 	 */
 	@Transactional
 	public Map<String, Object> processNewCar(Map<String, Object> request, UserDto user) {
+	    Map<String, Object> input = commonUtil.mergeMaps(commonUtil.getMap(request, "dsService"),
+	            commonUtil.getMap(request, "dsNewCar"), commonUtil.getMap(request, "dsCarNoDetach"));
+	    if (Objects.toString(input.get("SERVICE_ID"), "").isBlank()) {
+	        // 엑셀 내부 등록과 달리 화면에서 직접 작성하는 신규 건은 본인 지점만 허용한다.
+	        validateAdminDraftChange(user, input, Objects.toString(input.get("PROC_ST"), ""));
+	    }
 	    return processNewCar(request, user, false);
 	}
 
@@ -2408,6 +2418,17 @@ public class NewcarService {
 	    validateRegistrationMailLength(Objects.toString(mNewCar.get("CARP_MAIL"), ""));
 	    Object numplateDeliveryRequest = request.get("dsNumplateDelivery");
 	    Map<String, String> numplateDelivery = validateNumplateDelivery(numplateDeliveryRequest, user);
+	    Map<String, Object> requestedService = commonUtil.getMap(request, "dsService");
+	    String requestedServiceId = Objects.toString(commonUtil.mergeMaps(requestedService, mNewCar,
+	            commonUtil.getMap(request, "dsCarNoDetach")).get("SERVICE_ID"), "").trim();
+	    Map<String, Object> persistedService = requestedServiceId.isEmpty() ? Map.of()
+	            : serviceAccessGuard.requireAccess(user, requestedServiceId, ServiceAction.UPDATE_SERVICE);
+	    // 엑셀 내부 신규 등록은 기존 회사/Space 검증을 따르고, 화면 신규 작성은 위에서 검사한다.
+	    if (!persistedService.isEmpty() || "W_REQ".equals(requestedService.get("PROC_ST"))) {
+	        validateAdminDraftChange(user, persistedService,
+	                Objects.toString(requestedService.get("PROC_ST"), ""));
+	    }
+	    String discountList = normalizeDiscountList(mNewCar.get("DSC_LIST"));
 
 		try {
 			logger.info("[NewcarService] 신규등록 저장 및 신청 프로세스");
@@ -2428,6 +2449,10 @@ public class NewcarService {
 			
 		    // 데이터 병합
 		    Map<String, Object> input = commonUtil.mergeMaps(mService, mNewCar, mCarNoDetach);
+		    input.remove("DSC_LIST");
+		    if (mNewCar.containsKey("DSC_LIST")) {
+		        input.put("DSC_LIST", discountList);
+		    }
 		    input.remove("NUMPLATE_DELIVERY_FIELDS");
 		    if (numplateDeliveryRequest != null) {
 		        // 신규등록 정보 탭에서 수정한 필드만 반영한다.
@@ -2441,8 +2466,11 @@ public class NewcarService {
 
 		    // 서비스번호
 		    String serviceId = Objects.toString(input.get("SERVICE_ID"), "").trim();
-		    if (!serviceId.isEmpty()) {
-		        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
+		    if (!serviceId.isEmpty() && "CA".equals(user.getMEMBER_GB())) {
+		        // 상세 화면에서 전달한 담당자/소속 값으로 기존 배정 권한을 바꾸지 않는다.
+		        for (String field : List.of("COMPANY_ID", "BRANCH_ID", "SANGSA_ID", "MEMBER_ID")) {
+		            input.put(field, persistedService.get(field));
+		        }
 		    }
 		    
 		    // 처리상태
@@ -2597,11 +2625,62 @@ public class NewcarService {
 		return ApiResponse.withKey("data", result);
 	}
 	
+	// 기존 건의 회사/지점과 처리상태는 DB의 TR_SERVICE를 기준으로 검사한다.
+	static void validateAdminDraftChange(UserDto user, Map<String, Object> service, String nextStatus) {
+	    if (!"CA".equals(user.getMEMBER_GB())) return;
+	    String companyId = Objects.toString(user.getCOMPANY_ID(), "").trim();
+	    String branchId = Objects.toString(user.getBRANCH_ID(), "").trim();
+	    boolean ownBranch = !companyId.isEmpty() && !branchId.isEmpty()
+	            && companyId.equals(Objects.toString(service.get("COMPANY_ID"), "").trim())
+	            && branchId.equals(Objects.toString(service.get("BRANCH_ID"), "").trim());
+	    // 같은 회사의 다른 지점 작성 건도 수정할 수 있지만 요청 상태로 변경할 수는 없다.
+	    if (!ownBranch && !companyId.isEmpty() && !branchId.isEmpty()
+	            && companyId.equals(Objects.toString(service.get("COMPANY_ID"), "").trim())
+	            && !Objects.toString(service.get("BRANCH_ID"), "").isBlank()
+	            && !Objects.toString(service.get("SERVICE_ID"), "").isBlank()
+	            && Set.of("INPUT", "C_REQ", "SAV", "RET").contains(Objects.toString(service.get("PROC_ST"), ""))
+	            && (Objects.equals(service.get("PROC_ST"), nextStatus)
+	                || (Set.of("INPUT", "C_REQ").contains(Objects.toString(service.get("PROC_ST"), ""))
+	                    && "SAV".equals(nextStatus)))
+	            && Objects.toString(service.get("JUDGE_ST"), "").isBlank()) {
+	        return;
+	    }
+	    if (!ownBranch) {
+	        throw new BusinessException("다른 지점 건은 내용 수정과 저장만 가능하며, 작성과 요청은 본인 지점만 가능합니다.", 403);
+	    }
+	    String status = Objects.toString(service.get("PROC_ST"), "");
+	    boolean draft = Set.of("INPUT", "C_REQ", "SAV").contains(status)
+	            && Objects.toString(service.get("JUDGE_ST"), "").isBlank();
+	    if ("W_REQ".equals(nextStatus)
+	            && (!draft || !Set.of("C_REQ", "SAV").contains(status))) {
+	        throw new BusinessException("등록요청 또는 저장 상태에서만 신청대기로 요청할 수 있습니다.", 409);
+	    }
+	    if (!"RET".equals(status)
+	            && (!draft || !Set.of("INPUT", "C_REQ", "SAV", "W_REQ").contains(nextStatus))) {
+	        throw new BusinessException("어드민은 신청대기 전까지만 내용을 수정할 수 있습니다.", 409);
+	    }
+	}
+
 	// 화면 검증을 우회한 요청도 DB 저장 전에 쉼표 포함 100Byte 한도를 검사한다.
 	static void validateRegistrationMailLength(String mail) {
 	    if (mail != null && mail.getBytes(StandardCharsets.UTF_8).length > 100) {
 	        throw new BusinessException("등록증 이메일 주소는 쉼표를 포함하여 총 100Byte 이내로 입력해주세요.", 400);
 	    }
+	}
+
+	private static String normalizeDiscountList(Object value) {
+	    if (value == null || "".equals(value)) {
+	        return null;
+	    }
+	    if (!(value instanceof String discountList)) {
+	        throw new BusinessException("할인목록 형식이 올바르지 않습니다.", 400);
+	    }
+
+	    Set<String> selected = new HashSet<>(Arrays.asList(discountList.split(",", -1)));
+	    if (!DISCOUNT_CODES.containsAll(selected)) {
+	        throw new BusinessException("할인목록에 올바르지 않은 코드가 있습니다.", 400);
+	    }
+	    return DISCOUNT_CODES.stream().filter(selected::contains).collect(Collectors.joining(","));
 	}
 
 	// 값이 비어 있는 경우 이곳을 타게 한다.

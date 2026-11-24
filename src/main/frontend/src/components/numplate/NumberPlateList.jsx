@@ -402,6 +402,11 @@ const NumberPlateList = () => {
 				<div className="toolbar-left">
                 </div>
                 <div className="toolbar-right">
+                    {['UA', 'UC', 'UU'].includes(user?.member_GB || user?.MEMBER_GB) && (
+                        <button type="button" className="btn-status" onClick={() => navigate('/numplate/attach-image-list')}>
+                            탈부착 이미지 관리
+                        </button>
+                    )}
                     <span className="title-count">{totalCount}</span> 건
                     <button className="btn-status" onClick={handleSearchClick}>조회[F2]</button>
                     <button className="btn-status" onClick={handleExportExcel}>엑셀[F7]</button>

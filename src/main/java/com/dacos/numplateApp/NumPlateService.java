@@ -10,6 +10,7 @@ import java.net.URI;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
+import java.nio.file.LinkOption;
 import java.nio.file.Path;
 import java.nio.file.StandardCopyOption;
 import java.security.MessageDigest;
@@ -59,6 +60,7 @@ public class NumPlateService {
     private static final Logger logger = LoggerFactory.getLogger(NumPlateService.class);
     private static final SecureRandom SECURE_RANDOM = new SecureRandom();
     private static final char[] TOKEN_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789".toCharArray();
+    private static final String SHARED_IMAGE_PATH = "/upload/numplate/";
     private final NumPlateMapper numPlateMapper;
     private final CommonService commonService;
     private Path imageDirectory = defaultImageDirectory();
@@ -844,7 +846,7 @@ public class NumPlateService {
 
             param.put("SERVICE_ID", validatedServiceId);
             param.put("IMAGE_FIELD", field);
-            param.put("IMAGE_PATH", target.toString());
+            param.put("IMAGE_PATH", SHARED_IMAGE_PATH + fileName);
             if (numPlateMapper.upsertProcessImagePath(param) != 1) {
                 throw new BusinessException("사진을 저장하지 못했습니다.", 409);
             }
@@ -865,12 +867,53 @@ public class NumPlateService {
 
     private Path resolveStoredImage(String dbPath) {
         String normalized = dbPath.trim().replace('\\', '/');
-        String fileName = normalized.substring(normalized.lastIndexOf('/') + 1);
-        if (!fileName.matches("[A-Za-z0-9._-]{1,150}")) {
-            throw new BusinessException("잘못된 사진 경로입니다.");
+        for (String prefix : new String[] { SHARED_IMAGE_PATH, "/web/upload/numplate/",
+                "/app/DaCOS/upload/numplate/", "D:/webapps/upload/numplate/",
+                imageDirectory.toString().replace('\\', '/') + "/" }) {
+            if (normalized.startsWith(prefix)) {
+                return containedImagePath(imageDirectory, normalized.substring(prefix.length()));
+            }
         }
-        Path candidate = imageDirectory.resolve(fileName).normalize();
-        if (!imageDirectory.equals(candidate.getParent())) throw new BusinessException("잘못된 사진 경로입니다.");
+        for (String prefix : new String[] { "/web/numplate/images/", "/app2/numplate/images/",
+                "D:/webapps/numplate/images/" }) {
+            if (!normalized.startsWith(prefix)) continue;
+            String relative = normalized.substring(prefix.length());
+            String archive = prefix.startsWith("/web/") ? "legacy-web/" : "legacy-numplate/";
+            Path shared = containedImagePath(imageDirectory, archive + relative);
+            // 서로 다른 서버의 같은 파일명을 덮어쓰지 않고 원래 출처별로 이전한다.
+            return Files.isRegularFile(shared) ? shared
+                    : containedImagePath(Path.of(prefix).toAbsolutePath().normalize(), relative);
+        }
+        Path shared = containedImagePath(imageDirectory, normalized);
+        if (!normalized.contains("/") && !Files.isRegularFile(shared)) {
+            Path archived = containedImagePath(imageDirectory, "legacy-numplate/" + normalized);
+            if (Files.isRegularFile(archived)) return archived;
+            String oldRoot = System.getProperty("os.name", "").startsWith("Windows")
+                    ? "D:/webapps/numplate/images" : "/app2/numplate/images";
+            return containedImagePath(Path.of(oldRoot).toAbsolutePath().normalize(), normalized);
+        }
+        return shared;
+    }
+
+    private Path containedImagePath(Path root, String relative) {
+        for (String segment : relative.split("/", -1)) {
+            if (!segment.matches("[A-Za-z0-9._,-]{1,255}") || segment.equals(".") || segment.equals("..")) {
+                throw new BusinessException("잘못된 사진 경로입니다.");
+            }
+        }
+        Path candidate = root.resolve(relative).normalize();
+        if (!candidate.startsWith(root) || candidate.equals(root)) throw new BusinessException("잘못된 사진 경로입니다.");
+        try {
+            if (Files.exists(root, LinkOption.NOFOLLOW_LINKS)) {
+                Path existing = candidate;
+                while (existing != null && !Files.exists(existing, LinkOption.NOFOLLOW_LINKS)) existing = existing.getParent();
+                if (existing == null || !existing.toRealPath().startsWith(root.toRealPath())) {
+                    throw new BusinessException("잘못된 사진 경로입니다.");
+                }
+            }
+        } catch (IOException exception) {
+            throw new BusinessException("사진 경로를 확인하지 못했습니다.");
+        }
         return candidate;
     }
 
@@ -910,7 +953,7 @@ public class NumPlateService {
 
     private static Path defaultImageDirectory() {
         String path = System.getProperty("os.name", "").startsWith("Windows")
-                ? "D:/webapps/numplate/images" : "/app2/numplate/images";
+                ? "D:/webapps/upload/numplate" : "/web/upload/numplate";
         return Path.of(path).toAbsolutePath().normalize();
     }
 

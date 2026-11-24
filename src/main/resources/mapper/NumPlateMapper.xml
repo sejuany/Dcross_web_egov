@@ -780,7 +780,7 @@
 	                 FROM TR_CARNO_DETACH D
 	                WHERE D.NUMPLATE_MSG_TOKEN = #{TOKEN}
 	           )
-	       AND N.BOND_AMT &gt;= 0
+	       AND N.BOND_AMT &gt; 0
 	       AND (TRIM(N.RETURN_NM) IS NULL OR TRIM(N.RT_BANK_CD) IS NULL OR TRIM(N.RETURN_NO) IS NULL)
 	</update>
 
@@ -826,7 +826,7 @@
 	                 FROM TR_NEWCAR N
 	                WHERE N.SERVICE_ID = TR_CARNO_DETACH.SERVICE_ID
 	                  AND N.REQ_CAR_NO IS NULL
-	                  AND (N.BOND_AMT IS NULL OR N.BOND_AMT &lt; 0 OR (
+	                  AND (N.BOND_AMT IS NULL OR N.BOND_AMT &lt;= 0 OR (
 	                      TRIM(N.RETURN_NM) IS NOT NULL
 	                      AND TRIM(N.RT_BANK_CD) IS NOT NULL
 	                      AND TRIM(N.RETURN_NO) IS NOT NULL

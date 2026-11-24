@@ -521,8 +521,11 @@ public class SchedulerService {
                 + "- 납부계좌 : 우리은행 " + Objects.toString(target.get("VBANK_NO"), "") + "\r\n"
                 + "- 예금주명 : " + carNo.substring(Math.max(0, carNo.length() - 4)) + "주식회사다코\r\n"
                 + "등록 예정일에 맞춰 차량이 등록될수 있도록, 안내해 드린 기한 내에 등록 비용을 입금해주세요.\r\n\r\n"
-                + "■ 등록비용 안내\r\n"
-                + "(차액 발생 시 등록하신 환불정보로 환불예정. 등록완료 후 영업일 기준 1일 소요)\r\n";
+                + "■ 등록비용 안내\r\n";
+
+        if (target.get("REFUND_BOND_AMT") instanceof Number bondAmount && bondAmount.doubleValue() > 0) {
+            text += "(차액 발생 시 등록하신 환불정보로 환불예정. 등록완료 후 영업일 기준 1일 소요)\r\n";
+        }
 
         boolean cardPayment = "Y".equals(target.get("CARD_YN"));
         text += "취득세 : " + (cardPayment ? "등록 후 안내 (카드납부)" : safeAmount(target.get("ACQ_AMT"))) + "\r\n"
@@ -547,14 +550,14 @@ public class SchedulerService {
                 + "\r\n담당 스페셜리스트 : " + specialistPhone;
     }
 
-    /** 영업일 D-2부터 등록예정일 당일 및 기존 경과 미처리 건을 신차사업부 알림으로 등록한다. */
+    /** 등록 임박 및 등록예정일 경과 미처리 건을 신차사업부 알림으로 등록한다. */
     @Transactional
     public int processNewcarNumplateD2Alerts() {
         List<SchedulerDto> targets = schedulerMapper.selectNewcarNumplateD2AlertTargets();
         List<SchedulerDto> overdueTargets = schedulerMapper.selectOverdueNewcarNumplateAlertTargets();
         if ((targets == null || targets.isEmpty())
                 && (overdueTargets == null || overdueTargets.isEmpty())) {
-            logger.info("[번호판D-2알림] D-2 및 등록예정일 경과 대상 없음");
+            logger.info("[번호판D-2알림] 등록 임박 및 등록예정일 경과 대상 없음");
             return 0;
         }
 
@@ -587,17 +590,11 @@ public class SchedulerService {
                 continue;
             }
 
-            // 처리 단계와 관계없이 미납/번호 미선택 조합에 맞는 제목을 사용한다.
-            String alertContent;
-            if (numplateMissing && unpaid) {
-                alertContent = "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
-            } else if (numplateMissing) {
-                alertContent = "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
-            } else if (unpaid) {
-                alertContent = "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
-            } else {
-                continue;
-            }
+            LocalDate registrationDay = toLocalDate(target.getREGIST_DATE());
+            String alertContent = numplateService.buildNewcarDeadlineAlertContent(
+                companyId, target.getBRANCH_ID(), target.getCOMPANY_NM(),
+                target.getBUSINESS_DAYS_LEFT(), target.getALERT_KIND()
+            );
 
             int inserted = schedulerMapper.insertNewcarD2Alert(
                 serviceId,
@@ -611,7 +608,8 @@ public class SchedulerService {
                     serviceId,
                     target.getCARID_NO(),
                     target.getCUSTOMER_NM(),
-                    toLocalDate(target.getREGIST_DATE()).format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    registrationDay.format(DateTimeFormatter.ISO_LOCAL_DATE),
+                    target.getBUSINESS_DAYS_LEFT(),
                     unpaid,
                     target.getREQ_CAR_NO(),
                     alertContent
@@ -648,7 +646,7 @@ public class SchedulerService {
         }
 
         logger.info(
-            "[번호판D-2알림] 완료 - D-2 조회건수={}, 경과 조회건수={}, 등록건수={}",
+            "[번호판D-2알림] 완료 - 임박 조회건수={}, 경과 조회건수={}, 등록건수={}",
             targets == null ? 0 : targets.size(),
             overdueTargets == null ? 0 : overdueTargets.size(),
             alertCount

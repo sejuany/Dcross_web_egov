@@ -13,6 +13,7 @@ public class SchedulerDto {
     private String PROC_CD;
     private String LEASE_HP_NO;
     private String COMPANY_ID;
+    private String COMPANY_NM;
     private String BRANCH_ID;
     private String MEMBER_ID;
     private String GOVT_ID;
@@ -35,6 +36,8 @@ public class SchedulerDto {
     private String LINK_ID;
     private String NTAX_TRGET_CD;
     private String PAY_ST;
+    private int BUSINESS_DAYS_LEFT;
+    private String ALERT_KIND;
     private Object TOTAL_AMT;
     private String VBANK_NO;
     private String NUMPLATE_MSG_TOKEN;

@@ -43,6 +43,13 @@ const BOND_OPTIONS = [
     { value: 'BUY', label: '매입' }
 ];
 
+const DISCOUNT_OPTIONS = [
+    { value: '15', label: '다자녀(2자녀)' },
+    { value: '06', label: '다자녀(3자녀)' },
+    { value: 'REBUY', label: '재구매' },
+    { value: 'MOU', label: 'MOU' }
+];
+
 const ECO_EXEMPTION_NOTICE_BY_CODE = {
     '15': {
         targetName: '다자녀 감면',
@@ -548,7 +555,7 @@ const splitRegistrationEmail = (value) => {
 
 // 아이디와 도메인은 나눠 입력받고, 상위 state에는 완성된 이메일 한 개를 전달한다.
 // 고객/리스사 주소 모두 서로의 길이에 관계없이 @와 도메인을 포함해 49자로 제한한다.
-const RegistrationEmailInput = memo(({ id, label, name, value, domainOptions, maxLength = 49, onCommit }) => {
+const RegistrationEmailInput = memo(({ id, label, name, value, domainOptions, maxLength = 49, dataType = 'newcar', onCommit }) => {
     const [parts, setParts] = useState(() => splitRegistrationEmail(value));
     const partsRef = useRef(parts);
     const lastCommittedRef = useRef(null);
@@ -582,8 +589,9 @@ const RegistrationEmailInput = memo(({ id, label, name, value, domainOptions, ma
             <DeferredInput
                 id={id}
                 className="wa-input"
+                aria-label={`${label} 아이디`}
                 name={name}
-                data-type="newcar"
+                data-type={dataType}
                 maxLength={Math.max(0, maxLength - (parts[1] ? registrationMailByteLength(`@${parts[1]}`) : 0))}
                 value={parts[0]}
                 onCommit={(_, localPart) => commitParts([localPart, partsRef.current[1]])}
@@ -1749,6 +1757,23 @@ const NewcarInfo = ({
         }
     }, [codes, dsNewCar, handleNewCarFieldChange, isJsaEligibleAddress, showAlert, updateNewCar]);
 
+    const selectedDiscounts = (dsNewCar.DSC_LIST || '').split(',');
+
+    const handleDiscountToggle = (code) => {
+        updateNewCar(prev => {
+            const selected = new Set((prev.DSC_LIST || '').split(','));
+            if (!selected.delete(code)) {
+                selected.add(code);
+            }
+
+            return {
+                ...prev,
+                DSC_LIST: DISCOUNT_OPTIONS.map(option => option.value)
+                    .filter(value => selected.has(value)).join(',')
+            };
+        });
+    };
+
     const handleCardToggle = () => {
         updateNewCar(prev => {
             const cardYn = prev.CARD_YN === 'Y' ? 'N' : 'Y';
@@ -2036,6 +2061,26 @@ const NewcarInfo = ({
                     취득세 카드 납부 시 클릭
                     {dsNewCar.CARD_YN === 'Y' && <CheckCircle2 size={16} />}
                 </button>
+
+                <div className="wa-form-row wa-discount-row" role="group" aria-label="할인목록 (해당 시 모두 선택)">
+                    <div className="wa-form-label wa-form-label-wrap">
+                        <span>할인목록</span>
+                        <small>(해당 시 모두 선택)</small>
+                    </div>
+                    <div className="wa-form-control wa-inline-group wa-discount-options">
+                        {DISCOUNT_OPTIONS.map(({ value, label }) => (
+                            <button
+                                key={value}
+                                type="button"
+                                className="wa-option-btn"
+                                aria-pressed={selectedDiscounts.includes(value)}
+                                onClick={() => handleDiscountToggle(value)}
+                            >
+                                {label}
+                            </button>
+                        ))}
+                    </div>
+                </div>
 
                 {/* 공급가액은 관리자 데이터 수정에서 반영하므로 예상납부금액 확인을 비활성화한다.
                 <div className="wa-estimate-action-row">
@@ -2326,35 +2371,35 @@ const NewcarInfo = ({
 											
 											{/* MAIL1/2는 세금계산서 선택 시에만 입력한다. */}
                                             <div className="wa-form-row compact">
-												<label className="wa-form-label">계산서 이메일</label>
+												<label className="wa-form-label" htmlFor="newcar-tax-mail1">계산서 이메일</label>
                                                 <div className="wa-form-control">
-                                                    <DeferredInput
+                                                    <RegistrationEmailInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:MAIL1`}
-                                                        className="wa-input"
+                                                        id="newcar-tax-mail1"
+                                                        label="계산서 이메일"
                                                         maxLength={50}
                                                         name="MAIL1"
-                                                        data-type="taxReceipt"
+                                                        dataType="taxReceipt"
+                                                        domainOptions={emailDomainOptions}
                                                         value={dsTaxReceipt.MAIL1 ?? ''}
                                                         onCommit={commitTaxReceiptField}
-                                                        sanitizeValue={removeHangul}
-                                                        placeholder="example@company.com"
                                                     />
                                                 </div>
                                             </div>
 
                                             <div className="wa-form-row compact">
-												<label className="wa-form-label">계산서 추가 이메일</label>
+												<label className="wa-form-label" htmlFor="newcar-tax-mail2">계산서 추가 이메일</label>
                                                 <div className="wa-form-control">
-                                                    <DeferredInput
+                                                    <RegistrationEmailInput
                                                         key={`${dsService.SERVICE_ID || 'new'}:MAIL2`}
-                                                        className="wa-input"
+                                                        id="newcar-tax-mail2"
+                                                        label="계산서 추가 이메일"
                                                         maxLength={50}
                                                         name="MAIL2"
-                                                        data-type="taxReceipt"
+                                                        dataType="taxReceipt"
+                                                        domainOptions={emailDomainOptions}
                                                         value={dsTaxReceipt.MAIL2 ?? ''}
                                                         onCommit={commitTaxReceiptField}
-                                                        sanitizeValue={removeHangul}
-                                                        placeholder="추가 수신 이메일"
                                                     />
                                                 </div>
                                             </div>

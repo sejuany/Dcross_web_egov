@@ -9,6 +9,7 @@ import CarPaperManage from '../components/numplate/CarPaperManage';
 import TemporaryNumPlate from '../components/numplate/TemporaryNumPlate';
 import NumPlateSupplyManage from '../components/numplate/NumPlateSupplyManage';
 import NumPlateSupplyList from '../components/numplate/NumPlateSupplyList';
+import AttachImageList from '../components/numplate/AttachImageList';
 
 const NumberPlateRoutes = [
   // 번호판관리
@@ -17,6 +18,7 @@ const NumberPlateRoutes = [
   <Route key="num-temp" path="/numplate/temporary-num-plate" element={<ProtectedRoute><Layout><TemporaryNumPlate /></Layout></ProtectedRoute>} />,
   <Route key="num-supply-mng" path="/numplate/num-plate-supply-manage" element={<ProtectedRoute><Layout><NumPlateSupplyManage /></Layout></ProtectedRoute>} />,
   <Route key="num-supply-list" path="/numplate/num-plate-supply-list" element={<ProtectedRoute><Layout><NumPlateSupplyList /></Layout></ProtectedRoute>} />,
+  <Route key="num-attach-images" path="/numplate/attach-image-list" element={<ProtectedRoute><Layout><AttachImageList /></Layout></ProtectedRoute>} />,
 ];
 
 export default NumberPlateRoutes;

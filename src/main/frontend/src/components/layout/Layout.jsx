@@ -347,6 +347,7 @@ const Layout = ({ children }) => {
 
     const getTitleByPath = useCallback((path) => {
         if (path === '/home') return '홈';
+        if (path === '/numplate/attach-image-list') return '탈부착 이미지 관리';
 
         const menuItems = Object.values(menuConfig || {}).flat();
         const menu = menuItems.find(item => item.path === path);

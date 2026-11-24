@@ -122,7 +122,7 @@ const columns = [
     { key: 'CUSTOMER_NM', label: '계약자명', width: 120, minWidth: 60 },
     { key: 'OWNER_NM', label: '소유자명', width: 120, minWidth: 60 },
     { key: 'BUY_AMT', label: '공급가액', width: 102, minWidth: 60, sortType: 'number', className: 'number-cell' },
-    { key: 'SELF_YN', label: '셀프입력', width: 65, minWidth: 60 },
+    { key: 'DSC_LIST', label: '할인목록', width: 230, minWidth: 100 },
     { key: 'ATTACH_YN', label: '첨부서류', width: 65, minWidth: 60 },
     { key: 'CARD_YN', label: '카드납부', width: 65, minWidth: 60 },
     { key: 'NTAX_YN', label: '감면여부', width: 65, minWidth: 60 },
@@ -259,6 +259,16 @@ const getUserBranchId = (user) => String(
 const toYmd = (value) => String(value || '').replace(/-/g, '');
 
 const toStringValue = (value) => String(value ?? '').trim();
+const formatDiscountList = (value) => {
+    const selected = new Set(toStringValue(value).split(','));
+    return [
+        ['15', '2자녀'],
+        ['06', '3자녀'],
+        ['REBUY', '재구매'],
+        ['MOU', 'MOU']
+    ].filter(([code]) => selected.has(code)).map(([, label]) => label).join(' / ');
+};
+
 const formatBizNo = (value) => toStringValue(value).replace(/\D/g, '').replace(/^(\d{3})(\d{2})(\d{5})$/, '$1-$2-$3');
 
 const formatAmount = (value) => {
@@ -391,6 +401,7 @@ const WaNewcarList = () => {
     const [noticeMessage, setNoticeMessage] = useState('');
     const [searchFilters, setSearchFilters] = useState(() => getInitialSearchFilters(memberGb, userBranchId));
     const [sortConfig, setSortConfig] = useState({ key: '', direction: 'asc' });
+    const [mobileSortDirection, setMobileSortDirection] = useState('asc');
     const [columnWidths, setColumnWidths] = useState({});
     const [activeRequest, setActiveRequest] = useState(null);
     const [requestRows, setRequestRows] = useState([]);
@@ -559,7 +570,7 @@ const WaNewcarList = () => {
             CUSTOMER_NM: row.CUSTOMER_NM || '',
             OWNER_NM: row.OWNER_NM || '',
             BUY_AMT: formatAmount(row.BUY_AMT),
-			SELF_YN: ({ N: '요청', P: '진행', C: '완료' })[row.SELF_YN] || row.SELF_YN || '',
+			DSC_LIST: formatDiscountList(row.DSC_LIST),
 			ATTACH_YN: toStringValue(row.ATTACH_YN) === 'Y' ? (toStringValue(row.ATTACH_COMPLETE_YN) === 'Y' ? 'Y' : 'N') : '',
 			CARD_YN: ['Y', 'T'].includes(toStringValue(row.CARD_YN)) ? (toStringValue(row.CARD_PAY_YN) === 'Y' ? 'Y' : 'N') : '',
             NTAX_YN: formatYn(row.NTAX_YN),
@@ -615,17 +626,20 @@ const WaNewcarList = () => {
     }), [formatCode, rawRows]);
 
     const sortedRows = useMemo(() => {
-        if (!sortConfig.key) {
+        const sortKey = isMobileView ? 'REGIST_DATE' : sortConfig.key;
+
+        if (!sortKey) {
             return rows;
         }
 
-        const sortColumn = columns.find(column => column.key === sortConfig.key);
+        const sortColumn = columns.find(column => column.key === sortKey);
 
         if (!sortColumn || sortColumn.sortable === false) {
             return rows;
         }
 
-        const direction = sortConfig.direction === 'desc' ? -1 : 1;
+        const sortDirection = isMobileView ? mobileSortDirection : sortConfig.direction;
+        const direction = sortDirection === 'desc' ? -1 : 1;
 
         return rows
             .map((row, index) => ({ row, index }))
@@ -633,13 +647,19 @@ const WaNewcarList = () => {
                 const leftValue = getComparableValue(left.row, sortColumn);
                 const rightValue = getComparableValue(right.row, sortColumn);
 
+                if (isMobileView) {
+                    const leftUndated = leftValue === Number.NEGATIVE_INFINITY;
+                    const rightUndated = rightValue === Number.NEGATIVE_INFINITY;
+                    if (leftUndated !== rightUndated) return leftUndated ? 1 : -1;
+                }
+
                 if (leftValue > rightValue) return direction;
                 if (leftValue < rightValue) return -direction;
 
                 return left.index - right.index;
             })
             .map(item => item.row);
-    }, [rows, sortConfig]);
+    }, [rows, sortConfig, isMobileView, mobileSortDirection]);
 
     const gridWidth = useMemo(() => columns.reduce((total, column) => {
         const width = columnWidths[column.key] ?? column.width ?? column.minWidth ?? DEFAULT_MIN_COLUMN_WIDTH;
@@ -1762,6 +1782,15 @@ const WaNewcarList = () => {
 
             <div className="wa-mobile-result-heading">
                 <strong>검색 결과 총 {rows.length}건</strong>
+                <button
+                    type="button"
+                    className="wa-mobile-regist-sort"
+                    onClick={() => setMobileSortDirection(prev => prev === 'asc' ? 'desc' : 'asc')}
+                    aria-label={`등록예정일 ${mobileSortDirection === 'asc' ? '오름차' : '내림차'} 순 정렬, 누르면 ${mobileSortDirection === 'asc' ? '내림차' : '오름차'} 순으로 변경`}
+                    disabled={loading}
+                >
+                    <span>등록예정일 {mobileSortDirection === 'asc' ? '오름차 순 ↑' : '내림차 순 ↓'}</span>
+                </button>
                 <label>
                     <input type="checkbox" checked={allRowsSelected} onChange={event => toggleAllRows(event.target.checked)} />
                     <span>전체 선택</span>

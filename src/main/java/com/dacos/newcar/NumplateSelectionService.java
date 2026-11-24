@@ -114,7 +114,7 @@ public class NumplateSelectionService {
     /**
      * 신청 후 번호판 선택 문자 발송 처리
      * - 번호판 선택 대상 업체만 처리
-     * - 등록예정일 기준 D-1까지 문자 발송, 폴스타 임박 알림은 영업일 D-2부터 당일까지 등록
+     * - 등록예정일 기준 D-1까지 문자 발송, 폴스타 임박 알림은 SQL의 영업일 조건으로 등록
      */
     public void processNumplateSelectSms(
             Map<String, Object> mService,
@@ -139,8 +139,9 @@ public class NumplateSelectionService {
         // 문자 발송은 등록예정일 기준 D-1까지 허용한다.
         boolean selectPeriod = isNumplateSelectPeriod(registDate, 1);
 
-        // 영업일 D-2부터 등록예정일 당일까지의 범위는 알림 INSERT SQL에서 검증한다.
-        if ("WA001".equals(companyId) && isNumplateSelectPeriod(registDate, 0)) {
+        Map<String, Object> alert = "WA001".equals(companyId)
+                ? newcarMapper.selectNewcarApplicationNumplateAlert(serviceId) : null;
+        if (alert != null && alert.get("ALERT_KIND") != null) {
             
             Map<String, Object> param1 = new HashMap<>();
             param1.put("GROUP_ID", "TEAMS");
@@ -152,30 +153,26 @@ public class NumplateSelectionService {
 			if (newcarTeam.isBlank()) {
 				logger.warn("[번호판문자] 알림 등록 제외 - 신차사업부 공통코드 없음. SERVICE_ID={}", serviceId);
 			} else {
-				boolean numplateMissing = Objects.toString(mNewCar.get("REQ_CAR_NO"), "").trim().isEmpty();
-				boolean unpaid = "N".equalsIgnoreCase(Objects.toString(mNewCar.get("PAY_ST"), "").trim());
-				String alertKind = numplateMissing && unpaid ? "BOTH"
-						: numplateMissing ? "NUMPLATE" : unpaid ? "PAYMENT" : "NONE";
-				String alertContent = switch (alertKind) {
-					case "BOTH" -> "[신차사업] 등록예정일 임박 건 납부/번호선택 필요";
-					case "NUMPLATE" -> "[신차사업] 등록예정일 임박 건 번호판 선택 필요";
-					case "PAYMENT" -> "[신차사업] 등록예정일 임박 건 등록비 납부 필요";
-					default -> "";
-				};
-				int alertCount = alertContent.isEmpty() ? 0
-						: newcarMapper.insertNewcarApplicationNumplateAlert(
-								serviceId,
-								Objects.toString(mNewCar.get("CARID_NO"), ""),
-								alertContent,
-								newcarTeam,
-								alertKind);
+				String alertKind = alert.get("ALERT_KIND").toString();
+				int businessDaysLeft = ((Number) alert.get("BUSINESS_DAYS_LEFT")).intValue();
+				String alertContent = buildNewcarDeadlineAlertContent(
+						companyId, Objects.toString(alert.get("BRANCH_ID"), ""),
+						newcarMapper.getRegistrationMailCompanyName(companyId), businessDaysLeft, alertKind);
+				int alertCount = newcarMapper.insertNewcarApplicationNumplateAlert(
+						serviceId,
+						Objects.toString(mNewCar.get("CARID_NO"), ""),
+						alertContent,
+						newcarTeam,
+						alertKind,
+						businessDaysLeft);
 				logger.info(
 						"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
 						serviceId, alertKind, alertCount);
 				if (alertCount > 0) {
+					boolean unpaid = "N".equalsIgnoreCase(Objects.toString(alert.get("PAY_ST"), "").trim());
 					sendNewcarTeamTelegramAfterCommit(serviceId, Objects.toString(mNewCar.get("CARID_NO"), ""),
-							customerName, registDate,
-							unpaid, Objects.toString(mNewCar.get("REQ_CAR_NO"), ""), alertContent);
+							customerName, Objects.toString(alert.get("REGIST_DATE"), ""), businessDaysLeft,
+							unpaid, Objects.toString(alert.get("REQ_CAR_NO"), ""), alertContent);
 				}
 			}
         }
@@ -203,9 +200,29 @@ public class NumplateSelectionService {
         sendNumplateSelectSms(mService, mNewCar, registDate, phoneNo);
     }
 
+	public String buildNewcarDeadlineAlertContent(String companyId, String branchId, String companyName,
+			int businessDaysLeft, String alertKind) {
+		String displayName = Objects.toString(companyName, "").trim();
+		if (displayName.startsWith("폴스타")) {
+			displayName = "폴스타";
+		}
+		String dDay = businessDaysLeft == 0 ? "D-day" : "D-" + businessDaysLeft;
+		String serviceBranchId = Objects.toString(branchId, "").trim();
+		if ("WA001".equals(companyId) && ("1".equals(serviceBranchId) || "10".equals(serviceBranchId))) {
+			dDay += " (택배)";
+		}
+		String action = switch (alertKind) {
+			case "NUMPLATE" -> "번호판 선택 필요";
+			case "PAYMENT" -> "등록비 납부";
+			case "BOTH" -> "등록비 납부/번호선택 필요";
+			default -> throw new IllegalArgumentException("알림 종류를 확인해 주세요.");
+		};
+		return ("[신차사업] " + displayName).stripTrailing() + " 등록 " + dDay + " " + action;
+	}
+
 	/** 새로 등록된 신차팀 임박 알림만 커밋 후 텔레그램으로 전송한다. */
 	public void sendNewcarTeamTelegramAfterCommit(String serviceId, String carIdNo, String customerName,
-			String registDate, boolean unpaid, String reqCarNo, String alertContent) {
+			String registDate, int businessDaysLeft, boolean unpaid, String reqCarNo, String alertContent) {
 		String selectedCarNo = Objects.toString(reqCarNo, "").trim();
 		Runnable send = () -> {
 			try {
@@ -216,7 +233,7 @@ public class NumplateSelectionService {
 						+ "\n• 차대번호: " + Objects.toString(carIdNo, "")
 						+ "\n• 고객명: " + Objects.toString(customerName, "")
 						+ "\n• 등록예정일: " + registrationDay
-						+ "\n• 납부유무: " + (unpaid ? "미납" : "납부완료")
+						+ (businessDaysLeft <= 2 ? "\n• 납부유무: " + (unpaid ? "미납" : "납부완료") : "")
 						+ "\n• 번호선택: " + (selectedCarNo.isEmpty() ? "미선택" : "선택완료(" + selectedCarNo + ")");
 				telegramService.sendMessage(message, null, null, "newds");
 			} catch (ParseException | RuntimeException e) {
@@ -957,7 +974,7 @@ public class NumplateSelectionService {
 	}
 
 	private boolean hasBond(Map<String, Object> newcar) {
-		return newcar.get("BOND_AMT") instanceof Number bondAmount && bondAmount.doubleValue() >= 0;
+		return newcar.get("BOND_AMT") instanceof Number bondAmount && bondAmount.doubleValue() > 0;
 	}
 
 	private boolean requiresCustomerRefundInfo(Map<String, Object> assignment) {

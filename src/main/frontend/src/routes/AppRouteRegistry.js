@@ -62,6 +62,7 @@ import CarPaperManage from '../components/numplate/CarPaperManage';
 import TemporaryNumPlate from '../components/numplate/TemporaryNumPlate';
 import NumPlateSupplyManage from '../components/numplate/NumPlateSupplyManage';
 import NumPlateSupplyList from '../components/numplate/NumPlateSupplyList';
+import AttachImageList from '../components/numplate/AttachImageList';
 
 import CodeManage from '../components/common/CodeManage';
 import BoardManage from '../components/common/BoardManage';
@@ -146,6 +147,7 @@ export const protectedRouteComponents = {
     '/numplate/temporary-num-plate': TemporaryNumPlate,
     '/numplate/num-plate-supply-manage': NumPlateSupplyManage,
     '/numplate/num-plate-supply-list': NumPlateSupplyList,
+    '/numplate/attach-image-list': AttachImageList,
 
     '/admin/code-manage': CodeManage,
     '/admin/board-manage': BoardManage,

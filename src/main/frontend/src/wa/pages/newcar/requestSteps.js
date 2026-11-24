@@ -11,6 +11,32 @@ export const getAdjacentRequestStep = (steps, currentStep, offset) => {
     return steps[index + offset]?.no;
 };
 
+export const isRequestApplicant = (service, user) => {
+    if (user?.MEMBER_GB === 'CA') {
+        const companyId = String(user.COMPANY_ID || '').trim();
+        const branchId = String(user.BRANCH_ID || '').trim();
+        return Boolean(companyId && branchId)
+            && companyId === String(service?.COMPANY_ID || '').trim()
+            && branchId === String(service?.BRANCH_ID || '').trim();
+    }
+    const loginId = String(user?.LOGIN_ID || '').trim();
+    return user?.MEMBER_GB === 'SU'
+        && Boolean(loginId)
+        && loginId === String(service?.MEMBER_ID || '').trim();
+};
+
+export const canEditOtherBranchRequest = (service, user) => (
+    user?.MEMBER_GB === 'CA'
+    && Boolean(service?.SERVICE_ID)
+    && Boolean(String(user.COMPANY_ID || '').trim())
+    && String(user.COMPANY_ID).trim() === String(service.COMPANY_ID || '').trim()
+    && Boolean(String(user.BRANCH_ID || '').trim())
+    && Boolean(String(service.BRANCH_ID || '').trim())
+    && String(user.BRANCH_ID).trim() !== String(service.BRANCH_ID).trim()
+    && ['INPUT', 'C_REQ', 'SAV', 'RET'].includes(service.PROC_ST)
+    && !String(service.JUDGE_ST || '').trim()
+);
+
 export const isDealCompany = (dealCodes, codeId, companyId) => {
     const targetCompanyId = String(companyId || '').trim().toUpperCase();
     const companyIds = String(

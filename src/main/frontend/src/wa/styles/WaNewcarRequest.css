@@ -919,6 +919,35 @@ hr.wa-divider.hr2 {
     color: #fff;
 }
 
+.wa-form-row.wa-discount-row {
+    margin-bottom: 0;
+}
+
+@media (min-width: 761px) {
+    .wa-form-row.wa-discount-row {
+        margin-bottom: 16px;
+    }
+}
+
+.wa-discount-row small {
+    font-size: 12px;
+    font-weight: 500;
+}
+
+.wa-discount-options {
+    flex-wrap: wrap;
+}
+
+.wa-discount-options .wa-option-btn {
+    flex: 1 1 120px;
+}
+
+.wa-discount-options .wa-option-btn[aria-pressed='true'] {
+    border-color: var(--wa-blue);
+    background: var(--wa-blue);
+    color: #fff;
+}
+
 .wa-number-btn {
     display: flex;
 	justify-content: center;
@@ -1879,6 +1908,7 @@ hr.wa-divider.hr2 {
 .wa-attach-choice {
 	color: red;
     font-size: 12px;
+    white-space: nowrap;
 }
 
 /* =========================================================
@@ -2975,6 +3005,19 @@ hr.wa-divider.hr2 {
     .wa-request-page .wa-inline-group {
         flex-wrap: nowrap;
         gap: 7px;
+    }
+
+    .wa-request-page .wa-discount-row > .wa-form-label-wrap {
+        flex-direction: row;
+        align-items: baseline;
+        gap: 6px;
+        white-space: nowrap;
+    }
+
+    .wa-request-page .wa-discount-options {
+        display: grid;
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+        gap: 8px;
     }
 
     /* 등록번호처럼 선택박스와 분할 입력이 함께 있으면 선택박스만 윗줄로 보낸다. */

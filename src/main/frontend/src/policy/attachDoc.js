@@ -128,10 +128,18 @@ export const NTAX_ATTACH_DOC = {
 
 	MARRIAGE_CERT: {
 	    code: 'MARRIAGE_CERT',
-	    name: '혼인관계증명서',
+	    name: '(재혼)혼인관계증명서',
 	    seq: 820,
 	    gubun: 'MERGE',
 		choice: 'Y'
+	},
+	
+	CHILD_FAMILY_CERT: {
+	    code: 'CHILD_FAMILY_CERT',
+	    name: '(한부모/이혼) 자녀기준 가족관계증명서(일반)',
+	    seq: 130,
+	    gubun: 'MERGE',
+	    choice: 'Y'
 	},
 	
 	GUARDIAN_ID: {
@@ -442,7 +450,8 @@ export const NTAX_POLICY = {
 	    ],
 		// (선택) 제출 서류
 		OPTIONAL: [
-		    NTAX_ATTACH_DOC.MARRIAGE_CERT
+		    NTAX_ATTACH_DOC.MARRIAGE_CERT,
+			NTAX_ATTACH_DOC.CHILD_FAMILY_CERT
 		],
 		// 추가 안내사항
 		NOTICE: [
@@ -466,7 +475,8 @@ export const NTAX_POLICY = {
 		    NTAX_ATTACH_DOC.RESIDENT_CERT
 		],
 		OPTIONAL: [
-		    NTAX_ATTACH_DOC.MARRIAGE_CERT
+		    NTAX_ATTACH_DOC.MARRIAGE_CERT,
+		    NTAX_ATTACH_DOC.CHILD_FAMILY_CERT
 		],
 		// 추가 안내사항
 		NOTICE: [

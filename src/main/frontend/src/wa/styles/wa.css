@@ -3100,6 +3100,48 @@
     }
 }
 
+@media (min-width: 761px) {
+    .wa-newcar-list-page .wa-status-page-content {
+        gap: 12px;
+    }
+
+    .wa-newcar-list-page .wa-status-card-grid {
+        gap: 10px;
+    }
+
+    .wa-newcar-list-page .wa-status-card {
+        min-height: 64px;
+        gap: 4px;
+        padding: 8px;
+        box-sizing: border-box;
+    }
+
+    .wa-newcar-list-page .wa-status-card span {
+        font-size: 12px;
+    }
+
+    .wa-newcar-list-page .wa-status-card strong {
+        font-size: 22px;
+    }
+
+    .wa-newcar-list-page .wa-status-filter-panel {
+        grid-template-columns: repeat(6, minmax(0, 1fr));
+        padding: 12px 14px;
+        gap: 10px;
+    }
+
+    .wa-newcar-list-page .wa-status-filter-panel label {
+        gap: 4px;
+    }
+
+    .wa-newcar-list-page .wa-status-filter-panel input,
+    .wa-newcar-list-page .wa-status-filter-panel select {
+        min-height: 34px;
+        padding: 0 8px;
+        font-size: 12px;
+    }
+}
+
 @media (max-width: 760px) {
     .wa-newcar-list-page {
         padding: 10px;
@@ -3353,6 +3395,47 @@
     .wa-mobile-result-heading > strong {
         color: #172033;
         font-size: 16px;
+    }
+
+    .wa-newcar-list-page .wa-mobile-result-heading {
+        flex-wrap: wrap;
+        gap: 4px 8px;
+    }
+
+    .wa-newcar-list-page .wa-mobile-result-heading > strong {
+        font-size: 13px;
+        white-space: nowrap;
+    }
+
+    .wa-mobile-regist-sort {
+        min-height: 44px;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        padding: 0;
+        border: 0;
+        background: transparent;
+        color: #475467;
+        font: inherit;
+        font-size: 11px;
+        white-space: nowrap;
+        cursor: pointer;
+    }
+
+    .wa-mobile-regist-sort strong {
+        color: #172033;
+    }
+
+    .wa-mobile-regist-sort:disabled {
+        opacity: .5;
+        cursor: default;
+    }
+
+    .wa-newcar-list-page .wa-mobile-result-heading label {
+        margin-left: auto;
+        gap: 4px;
+        font-size: 12px;
+        white-space: nowrap;
     }
 
     .wa-mobile-result-heading label {

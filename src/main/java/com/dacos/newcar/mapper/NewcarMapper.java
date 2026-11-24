@@ -72,13 +72,16 @@ public interface NewcarMapper {
     /** 접수건의 회사 ID로 등록증 메일 제목에 표시할 회원사명을 조회한다. */
     String getRegistrationMailCompanyName(@Param("COMPANY_ID") String companyId);
 
-    /** 신청 시 폴스타 D-2 미납/번호 미선택 알림을 당일 중복 없이 등록한다. */
+    Map<String, Object> selectNewcarApplicationNumplateAlert(@Param("SERVICE_ID") String serviceId);
+
+    /** 신청 시 폴스타 등록 임박 건의 미납/번호 미선택 알림을 당일 중복 없이 등록한다. */
     int insertNewcarApplicationNumplateAlert(
             @Param("SERVICE_ID") String serviceId,
             @Param("CARID_NO") String carIdNo,
             @Param("CONTENT_TX") String content,
             @Param("COMPANY_ID") String companyId,
-            @Param("ALERT_KIND") String alertKind);
+            @Param("ALERT_KIND") String alertKind,
+            @Param("BUSINESS_DAYS_LEFT") int businessDaysLeft);
     
     /**
      *  신규등록 기본정보 초기화

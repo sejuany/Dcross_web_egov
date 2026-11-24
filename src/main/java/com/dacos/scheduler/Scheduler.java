@@ -57,7 +57,7 @@ public class Scheduler {
 	    }
     }
 
-    /** 매일 오전 9시에 안내 문자를 발송하고 영업일 D-2~당일 건은 신차팀 알림/텔레그램을 전송한다. */
+    /** 매일 오전 9시에 안내 문자를 발송하고 등록 임박 건의 신차팀 알림/텔레그램을 전송한다. */
     @Scheduled(cron = "0 0 9 * * *", zone = "Asia/Seoul")
     public void processNewcarNumplateSelectionReminders() {
         String serverIp = commonService.getServerAddress("IP");

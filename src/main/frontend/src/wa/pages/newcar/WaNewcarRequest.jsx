@@ -44,7 +44,7 @@ import {
 import ConfirmInfo from './ConfirmInfo';
 import NewcarInfo from './NewcarInfo';
 import { calculateTotalFromRows } from './newcarAmountCalculator';
-import { REQUEST_STEPS, getAdjacentRequestStep, isDealCompany } from './requestSteps';
+import { REQUEST_STEPS, getAdjacentRequestStep, isRequestApplicant, canEditOtherBranchRequest, isDealCompany } from './requestSteps';
 import OwnerNormal from './owner/OwnerNormal';
 import OwnerLease from './owner/OwnerLease';
 import OwnerUserLease from './owner/OwnerUserLease';
@@ -643,8 +643,16 @@ const WaNewcarRequest = ({
 	const isRentInput = dsService.PROC_ST === 'INPUT' && dsNewCar.TASK_CD === 'ADD';
 	// 반려건은 조회 전용 화면이 아니라 4단계 수정/재요청 화면으로 연다.
 	const isRejectedRequest = dsService.PROC_ST === 'RET';
+	const isApplicant = isRequestApplicant(dsService, dsUserInfo);
+	const isOtherAdminBranch = dsUserInfo.MEMBER_GB === 'CA' && Boolean(dsService.SERVICE_ID) && !isApplicant;
+	const otherBranchRequestEditable = canEditOtherBranchRequest(dsService, dsUserInfo);
+	const canRequestDraft = isApplicant && !dsService.JUDGE_ST
+		&& ['C_REQ', 'SAV'].includes(dsService.PROC_ST);
 	// 상세조회 화면 여부
 	const isDetailPage = useMemo(() => {
+	    if (isOtherAdminBranch && !otherBranchRequestEditable) {
+	        return true;
+	    }
 	    if (isRejectedRequest) {
 	        return false;
 	    }
@@ -655,7 +663,7 @@ const WaNewcarRequest = ({
 
 	    if (
 	        dsService.PROC_ST === 'W_REQ' &&
-	        dsUserInfo.MEMBER_GB === 'SU'
+	        (dsUserInfo.MEMBER_GB === 'SU' || isApplicant)
 	    ) {
 	        return true;
 	    }
@@ -665,6 +673,9 @@ const WaNewcarRequest = ({
 	    dsService.PROC_ST,
 	    dsService.JUDGE_ST,
 	    dsUserInfo.MEMBER_GB,
+	    isApplicant,
+	    isOtherAdminBranch,
+	    otherBranchRequestEditable,
 	    isRejectedRequest
 	]);
 
@@ -970,7 +981,7 @@ const WaNewcarRequest = ({
 
 	/**
 	 * 하단의 다음/요청 버튼 진입점.
-	 * 1~3단계는 changeStep()으로 넘기고, 최종 확인 단계의 SU 요청은
+	 * 1~3단계는 changeStep()으로 넘기고, 최종 확인 단계의 작성자 요청은
 	 * requestWaitProcess()로 분기한다. 렌트 선택 건은 일반 단계 진행 대신
 	 * 직접등록 상태로 변경한 데이터를 saveProcess()에 전달한다.
 	 */
@@ -985,8 +996,8 @@ const WaNewcarRequest = ({
 		    return;
 		}
 		
-		// SU 사용자가 최종 확인에서 요청
-		if (step === 4 && dsUserInfo.MEMBER_GB === 'SU') {
+		// 본인 지점의 어드민 또는 배정된 SP는 최종 확인에서 검토를 요청한다.
+		if (step === 4 && canRequestDraft) {
 		    await requestWaitProcess();
 		    return;
 		}
@@ -1811,8 +1822,8 @@ const WaNewcarRequest = ({
 		// 입력, 등록요청, 신청대기, 저장일 때 저장 가능 
 	    if (["INPUT", "C_REQ", "W_REQ", "SAV"].includes(PROC_ST)) {
 			
-			// 최초 저장(INPUT) 또는 AD가 등록요청(C_REQ) 상태에서 저장할 때는 상태 유지, SU가 저장할 때는 저장으로 변경
-			if ( PROC_ST === "INPUT" || (PROC_ST === "C_REQ" && userGb === "SU")) {
+			// 최초 저장 또는 작성자가 등록요청 건을 작성하면 저장 상태로 변경한다.
+			if ( PROC_ST === "INPUT" || (PROC_ST === "C_REQ" && (userGb === "SU" || isApplicant))) {
 				newDataSet.dsService.PROC_ST = "SAV";
 			}
 	    }
@@ -2164,11 +2175,15 @@ const WaNewcarRequest = ({
 	};
 
 	/**
-	 * SU 사용자가 최종 확인 단계에서 요청할 때 실행한다.
+	 * 배정된 SP 또는 본인 지점의 어드민이 최종 확인 단계에서 요청할 때 실행한다.
 	 * validateRequest() 통과 후 PROC_ST를 W_REQ로 바꾸고,
 	 * 감면 전자서명이 필요한 경우 dsExemption 데이터도 함께 구성하여 저장 요청한다.
 	 */
 	const requestWaitProcess = async () => {
+		if (!canRequestDraft) {
+			await gf.alert('본인 지점의 어드민 또는 배정된 SP만 요청할 수 있습니다.');
+			return;
+		}
 		
 		// 저장 및 요청일 때만 요청할 수 있게 => 신청대기 변경
 		if(!['C_REQ', 'SAV'].includes(dsService.PROC_ST)) {
@@ -3132,19 +3147,18 @@ const WaNewcarRequest = ({
 						<button
 						    type="button"
 						    className={`wa-action-btn wa-confirm-btn ${
-						        (step === 4 && dsUserInfo.MEMBER_GB === 'SU' && requestDisabled ) ? 'wa-disabled' : ''
+						        (step === 4 && canRequestDraft && requestDisabled ) ? 'wa-disabled' : ''
 						    }`}
-						    onClick={step === 4 && (dsUserInfo.MEMBER_GB === 'CA' || dsUserInfo.MEMBER_GB === 'BA')
+						    onClick={step === 4 && !canRequestDraft && !(isRejectedRequest && dsUserInfo.MEMBER_GB === 'SU')
 								? handleCloseRequest
 								: handleNext}
 						>
 							<span>
 								{
-									(step === 4 && dsUserInfo.MEMBER_GB === 'CA') ? '닫기'
-									: (step === 4 && dsUserInfo.MEMBER_GB === 'BA') ? '닫기'
+									(step === 4 && canRequestDraft) ? '요청'
+									: (step === 4 && !(isRejectedRequest && dsUserInfo.MEMBER_GB === 'SU')) ? '닫기'
 									: purchaseType === 'RENT' ? '확인'
 									: (step === 4 && isRejectedRequest) ? '요청'
-									: (step === 4 && dsUserInfo.MEMBER_GB === 'SU') ? '요청' 
 									: '다음'
 								}
 							</span>

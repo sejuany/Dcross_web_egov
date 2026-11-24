@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.dacos.attach.mapper.AttachImageMapper">
+    <sql id="imageRows">
+        SELECT TS.SERVICE_ID, TS.WORK_CD, TS.CAR_NO, T.CAR_NM, TCD.POST_CAR_NO,
+               <choose>
+                   <when test="WORK_CD == '030'">T.REQ_CAR_NO, T.MDF_GB, CAST(NULL AS VARCHAR2(20)) AS TASK_CD,</when>
+                   <otherwise>CAST(NULL AS VARCHAR2(30)) AS REQ_CAR_NO, CAST(NULL AS VARCHAR2(10)) AS MDF_GB, T.TASK_CD,</otherwise>
+               </choose>
+               DECODE(T.BOND_YN, 'Y', '일반형', 'PD', '고급형(블랙)', 'PG', '고급형(그레이)',
+                      'PR', '고급형(레드)', 'PB', '고급형(블루)', 'PW', '고급형(화이트)', 'PN', '고급형(네이비)') AS SUBPANNEL,
+               TS.JUDGE_DT AS SORT_DATE, TO_CHAR(TS.JUDGE_DT, 'YYYY-MM-DD') AS JUDGE_DT,
+               CASE WHEN TCD.FILENAME6 IS NOT NULL THEN 'Y' ELSE 'N' END AS HAS_OTHER_RETURN_IMAGE,
+               CASE WHEN NI.IMAGE1_PATH IS NOT NULL OR DBMS_LOB.GETLENGTH(NI.IMAGE1) > 0 THEN 'Y' ELSE 'N' END AS IMAGE1_YN,
+               CASE WHEN NI.IMAGE2_PATH IS NOT NULL OR DBMS_LOB.GETLENGTH(NI.IMAGE2) > 0 THEN 'Y' ELSE 'N' END AS IMAGE2_YN,
+               CASE WHEN NI.IMAGE3_PATH IS NOT NULL OR DBMS_LOB.GETLENGTH(NI.IMAGE3) > 0 THEN 'Y' ELSE 'N' END AS IMAGE3_YN,
+               CASE WHEN NI.IMAGE4_PATH IS NOT NULL OR DBMS_LOB.GETLENGTH(NI.IMAGE4) > 0 THEN 'Y' ELSE 'N' END AS IMAGE4_YN,
+               CASE WHEN NI.IMAGE5_PATH IS NOT NULL OR DBMS_LOB.GETLENGTH(NI.IMAGE5) > 0 THEN 'Y' ELSE 'N' END AS IMAGE5_YN,
+               CASE WHEN NI.IMAGE6_PATH IS NOT NULL OR DBMS_LOB.GETLENGTH(NI.IMAGE6) > 0 THEN 'Y' ELSE 'N' END AS IMAGE6_YN
+          FROM TR_SERVICE TS
+          <choose>
+              <when test="WORK_CD == '030'">JOIN TR_MODIFY T ON T.SERVICE_ID = TS.SERVICE_ID</when>
+              <otherwise>JOIN TR_TRNSNAME T ON T.SERVICE_ID = TS.SERVICE_ID</otherwise>
+          </choose>
+          LEFT JOIN TR_CARNO_DETACH TCD ON TCD.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_NUMPLATE_IMAGES NI ON NI.SERVICE_ID = TS.SERVICE_ID
+         WHERE TS.WORK_CD = #{WORK_CD}
+           AND TS.PROC_ST NOT IN ('SAV', 'P_REQ', 'B_REQ', 'REQ', 'INPUT', 'C_REQ', 'DEL', 'P_END', 'T_CAN')
+           <choose>
+               <when test="WORK_CD == '030'">AND T.MDF_GB IN ('CARNO', 'BNUM', 'PRPNO')</when>
+               <otherwise>
+                   AND TS.PROC_ST &lt;&gt; 'A_RET'
+                   AND (T.NUM_CHANGE_YN = 'Y' OR T.ETC5 = 'Y')
+                   AND (T.CARD_YN IS NULL OR T.CARD_YN = 'N' OR (T.CARD_YN = 'Y' AND T.CARD_PAY_YN = 'Y'))
+                   AND EXISTS (SELECT 1 FROM TR_TRNSNAME_SELL S WHERE S.SERVICE_ID = TS.SERVICE_ID)
+                   AND EXISTS (SELECT 1 FROM TR_TRNSNAME_BUY B WHERE B.SERVICE_ID = TS.SERVICE_ID)
+               </otherwise>
+           </choose>
+           AND TS.JUDGE_DT &gt;= TO_DATE(#{START_DT}, 'YYYYMMDD')
+           AND TS.JUDGE_DT &lt; TO_DATE(#{END_DT}, 'YYYYMMDD') + 1
+           <if test="CAR_NO != null and CAR_NO != ''">AND TS.CAR_NO LIKE '%' || #{CAR_NO} || '%'</if>
+           <if test="DIS_YN">AND (TCD.ETC1 IS NULL OR TCD.ETC1 &lt;&gt; 'Y')</if>
+    </sql>
+
+    <select id="countImages" parameterType="map" resultType="long">
+        SELECT COUNT(*) FROM (<include refid="imageRows"/>)
+    </select>
+
+    <select id="getImages" parameterType="map" resultType="map">
+        SELECT SERVICE_ID, WORK_CD, CAR_NO, CAR_NM, POST_CAR_NO, REQ_CAR_NO, MDF_GB,
+               TASK_CD, SUBPANNEL, JUDGE_DT, HAS_OTHER_RETURN_IMAGE,
+               IMAGE1_YN, IMAGE2_YN, IMAGE3_YN, IMAGE4_YN, IMAGE5_YN, IMAGE6_YN
+          FROM (
+              SELECT R.*, ROW_NUMBER() OVER (ORDER BY R.SORT_DATE, R.SERVICE_ID) AS RN
+                FROM (<include refid="imageRows"/>) R
+          )
+         WHERE RN BETWEEN #{FIRST_ROW} AND #{LAST_ROW}
+         ORDER BY RN
+    </select>
+</mapper>

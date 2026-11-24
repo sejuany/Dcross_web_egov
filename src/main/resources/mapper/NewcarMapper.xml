@@ -420,6 +420,7 @@
             CD.CUSTOMER_NM,
             TN.BUY_AMT AS BUY_AMT,
             TN.SELF_YN AS SELF_YN,
+            TN.DSC_LIST AS DSC_LIST,
             TN.TASK_CD AS ATTACH_TASK_CD,
             TN.REG_GB AS ATTACH_REG_GB,
             TN.RATIO_NO AS ATTACH_RATIO_NO,
@@ -703,6 +704,7 @@
             PKG_COMMON.FN_DECRYPT(ADDR_INFO)            AS ADDR_INFO,
             PKG_COMMON.FN_DECRYPT(ADDR_INFO2)           AS ADDR_INFO2,
             LOW_POLLUTION_YN, LOW_POLLUTION_KD, LOW_POLLUTION_NO, CONTRACTOR_NM, CARD_YN, CARD_PAY_YN,
+            DSC_LIST,
             TO_CHAR(CONTRACTOR_DT, 'YYYYMMDD')          AS CONTRACTOR_DT,
 			TO_CHAR(REGIST_DATE, 'YYYY-MM-DD')            AS REGIST_DATE
         FROM TR_NEWCAR
@@ -1151,7 +1153,7 @@
 		    RT_BANK_CD, RT_ACC_NO, RT_ACC_NM, RT_AMT, CARP_ADDRESS, GOVT_TX,
 		    CARP_ADDRESS_DT, CARP_POST_NO, VH_TY_CD, INSURER_CD, INSURER_SDT, INSURER_EDT,
 		    ADDR_INFO, ADDR_INFO2, LOW_POLLUTION_YN, CONTRACTOR_NM, CONTRACTOR_DT, CARD_YN, REGIST_DATE,
-			RETURN_NO, RETURN_NM, DIRECT_YN, CARP_MAIL
+			RETURN_NO, RETURN_NM, DIRECT_YN, CARP_MAIL, DSC_LIST
 		)
 		VALUES (
 		    #{SERVICE_ID}, #{WORK_CD}, #{PROC_CD}, #{TASK_CD}, #{BOND_YN},
@@ -1172,7 +1174,7 @@
 		    #{RT_BANK_CD}, #{RT_ACC_NO}, #{RT_ACC_NM}, #{RT_AMT}, PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}), #{GOVT_TX},
 		    PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}), #{CARP_POST_NO}, #{VH_TY_CD}, #{INSURER_CD}, #{INSURER_SDT}, #{INSURER_EDT},
 		    PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO}), PKG_COMMON.FN_ENCRYPT(#{ADDR_INFO2}), #{LOW_POLLUTION_YN}, #{CONTRACTOR_NM}, #{CONTRACTOR_DT}, #{CARD_YN}, #{REGIST_DATE},
-			#{RETURN_NO}, #{RETURN_NM}, #{DIRECT_YN}, #{CARP_MAIL}
+			#{RETURN_NO}, #{RETURN_NM}, #{DIRECT_YN}, #{CARP_MAIL}, #{DSC_LIST,jdbcType=VARCHAR}
 		)
 	</insert>
 
@@ -1432,6 +1434,9 @@
 			<if test="CARD_YN != null">
 	            CARD_YN = #{CARD_YN},
 			</if>
+			<if test="_parameter.containsKey('DSC_LIST')">
+	            DSC_LIST = #{DSC_LIST,jdbcType=VARCHAR},
+			</if>
 			<if test="REGIST_DATE != null and REGIST_DATE != ''">
 	            REGIST_DATE = #{REGIST_DATE},
 			</if>
@@ -1567,32 +1572,56 @@
 	     WHERE SERVICE_ID = #{SERVICE_ID}
 	</update>
 
-	<!-- 주말과 기존 HOLID 공통코드의 휴일을 제외한 영업일 D-2부터 등록예정일 당일까지. -->
-	<sql id="numplateAlertBusinessDateRange">
-	    AND TRUNC(TN.REGIST_DATE) BETWEEN TRUNC(SYSDATE) AND (
-	        SELECT MAX(BUSINESS_DATE)
-	          FROM (
-	                SELECT TRUNC(SYSDATE) + D.DAY_OFFSET AS BUSINESS_DATE
-	                  FROM (SELECT LEVEL AS DAY_OFFSET FROM DUAL CONNECT BY LEVEL &lt;= 31) D
-	                 WHERE (TRUNC(SYSDATE) + D.DAY_OFFSET
-	                        - TRUNC(TRUNC(SYSDATE) + D.DAY_OFFSET, 'IW')) BETWEEN 0 AND 4
-	                   AND INSTR(
-	                         ',' || NVL((
-	                             SELECT REPLACE(H.DETAIL_NM, ' ', '')
-	                               FROM TM_CODE H
-	                              WHERE H.GROUP_ID = 'ETC..'
-	                                AND H.CODE_ID = 'HOLID'
-	                                AND ROWNUM = 1
-	                         ), '') || ',',
-	                         ',' || TO_CHAR(TRUNC(SYSDATE) + D.DAY_OFFSET, 'YYYYMMDD') || ','
-	                       ) = 0
-	                 ORDER BY D.DAY_OFFSET
-	               )
-	         WHERE ROWNUM &lt;= 2
-	    )
+	<!-- 오늘 다음 날부터 등록예정일까지 주말과 HOLID 휴일을 제외해 남은 영업일을 계산한다. -->
+	<sql id="newcarAlertBusinessCalendar">
+	    JOIN (
+	        SELECT TRUNC(SYSDATE) + D.DAY_OFFSET AS CALENDAR_DATE,
+	               SUM(CASE
+	                       WHEN D.DAY_OFFSET > 0
+	                        AND (TRUNC(SYSDATE) + D.DAY_OFFSET
+	                             - TRUNC(TRUNC(SYSDATE) + D.DAY_OFFSET, 'IW')) BETWEEN 0 AND 4
+	                        AND INSTR(
+	                              ',' || NVL((
+	                                  SELECT REPLACE(H.DETAIL_NM, ' ', '')
+	                                    FROM TM_CODE H
+	                                   WHERE H.GROUP_ID = 'ETC..'
+	                                     AND H.CODE_ID = 'HOLID'
+	                                     AND ROWNUM = 1
+	                              ), '') || ',',
+	                              ',' || TO_CHAR(TRUNC(SYSDATE) + D.DAY_OFFSET, 'YYYYMMDD') || ','
+	                            ) = 0
+	                       THEN 1 ELSE 0
+	                   END) OVER (ORDER BY D.DAY_OFFSET ROWS UNBOUNDED PRECEDING) AS BUSINESS_DAYS_LEFT
+	          FROM (SELECT LEVEL - 1 AS DAY_OFFSET FROM DUAL CONNECT BY LEVEL &lt;= 32) D
+	    ) ALERT_CAL ON ALERT_CAL.CALENDAR_DATE = TRUNC(TN.REGIST_DATE)
 	</sql>
 
-	<!-- 신청 시 폴스타 영업일 D-2~당일 번호 미선택/등록비 미납 알림을 당일 중복 없이 등록한다. -->
+	<sql id="newcarDeadlineAlertKind">
+	    CASE
+	        WHEN ALERT_CAL.BUSINESS_DAYS_LEFT &lt;= 2 AND TN.PAY_ST = 'N' THEN
+	            CASE WHEN TN.REQ_CAR_NO IS NULL THEN 'BOTH' ELSE 'PAYMENT' END
+	        WHEN TN.REQ_CAR_NO IS NULL AND (
+	            ALERT_CAL.BUSINESS_DAYS_LEFT &lt;= 2
+	            OR (ALERT_CAL.BUSINESS_DAYS_LEFT &lt;= 5 AND TS.COMPANY_ID = 'WA001'
+	                AND TRIM(TS.BRANCH_ID) IN ('1', '10'))
+	        ) THEN 'NUMPLATE'
+	    END
+	</sql>
+
+	<select id="selectNewcarApplicationNumplateAlert" resultType="map">
+	    SELECT TS.SERVICE_ID, TS.BRANCH_ID, TN.REQ_CAR_NO, TN.PAY_ST,
+	           TO_CHAR(TN.REGIST_DATE, 'YYYY-MM-DD') AS REGIST_DATE,
+	           ALERT_CAL.BUSINESS_DAYS_LEFT,
+	           <include refid="newcarDeadlineAlertKind"/> AS ALERT_KIND
+	      FROM TR_SERVICE TS
+	      JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+	      <include refid="newcarAlertBusinessCalendar"/>
+	     WHERE TS.SERVICE_ID = #{SERVICE_ID}
+	       AND TS.WORK_CD = '010'
+	       AND TS.COMPANY_ID = 'WA001'
+	</select>
+
+	<!-- 신청 시 폴스타 등록 임박 건의 번호 미선택/등록비 미납 알림을 당일 중복 없이 등록한다. -->
 	<insert id="insertNewcarApplicationNumplateAlert">
 	    INSERT INTO TM_BOARD (
 	        BOARD_ID, BOARD_GB, BOARD_VW, SUBJECT_TX, CONTENT_TX,
@@ -1604,22 +1633,16 @@
 	           #{COMPANY_ID}, SYSDATE, SYSDATE, SYSDATE
 	      FROM TR_SERVICE TS
 	      JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+	      <include refid="newcarAlertBusinessCalendar"/>
 	     WHERE TS.SERVICE_ID = #{SERVICE_ID}
 	       AND TS.WORK_CD = '010'
 	       AND TS.COMPANY_ID = 'WA001'
-	       <include refid="numplateAlertBusinessDateRange"/>
+	       AND ALERT_CAL.BUSINESS_DAYS_LEFT = #{BUSINESS_DAYS_LEFT}
+	       AND (<include refid="newcarDeadlineAlertKind"/>) = #{ALERT_KIND}
 	       AND (
 	           (TS.JUDGE_ST IS NULL
 	            AND NVL(TS.PROC_ST, '-') NOT IN ('SAV', 'RET', 'DEL', 'REJECT', 'END'))
 	           OR (TS.PROC_ST = 'REQ' AND TS.JUDGE_ST = 'S_REQ')
-	       )
-	       AND (
-	           (#{ALERT_KIND} = 'NUMPLATE'
-	            AND TN.REQ_CAR_NO IS NULL AND NVL(TN.PAY_ST, 'Y') != 'N')
-	           OR (#{ALERT_KIND} = 'BOTH'
-	               AND TN.REQ_CAR_NO IS NULL AND TN.PAY_ST = 'N')
-	           OR (#{ALERT_KIND} = 'PAYMENT'
-	               AND TN.REQ_CAR_NO IS NOT NULL AND TN.PAY_ST = 'N')
 	       )
 	       AND NOT EXISTS (
 	           SELECT 1
