@@ -9,4 +9,5 @@ import org.apache.ibatis.annotations.Mapper;
 public interface AttachImageMapper {
     long countImages(Map<String, Object> param);
     List<Map<String, Object>> getImages(Map<String, Object> param);
+    Map<String, Object> getImageTarget(Map<String, Object> param);
 }

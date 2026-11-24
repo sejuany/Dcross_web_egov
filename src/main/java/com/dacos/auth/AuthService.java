@@ -20,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.dacos.auth.dto.LoginRequest;
 import com.dacos.auth.dto.LoginResult;
 import com.dacos.auth.dto.UserDto;
+import com.dacos.attach.AttachImageAccess;
 import com.dacos.auth.mapper.AuthMapper;
 import com.dacos.common.BusinessException;
 import com.dacos.common.CommonRepository;
@@ -146,6 +147,36 @@ public class AuthService {
         }
 
         return LoginResult.normal(completeLogin(userId, loginIp, user));
+    }
+
+    /** 기존 계정 인증 결과는 이미지 관리 API만 허용하는 별도 세션으로 사용한다. */
+    public UserDto authenticateNumPlateImageAccount(String loginId, String password, String loginIp) {
+        String userId = loginId == null ? "" : loginId.trim();
+        if (userId.isEmpty() || userId.length() > 100 || password == null
+                || password.isBlank() || password.length() > 100) {
+            throw new BusinessException("아이디 또는 비밀번호를 확인해 주세요.", 401);
+        }
+        // DC001은 일반 ERP의 운영 회사 제한과 다른 기존 탈부착 전용 계정이다.
+        UserDto user = authMapper.findByUserId(userId, false);
+        if (user == null || !"Y".equals(user.getUSE_YN())) {
+            insertLoginLog(userId, loginIp, "탈부착 로그인 사용 불가 계정", null);
+            throw new BusinessException("아이디 또는 비밀번호를 확인해 주세요.", 401);
+        }
+        if (!matchesPassword(password, user.getPASS_WD(), userId)) {
+            authMapper.increaseLoginErrorCount(userId);
+            insertLoginLog(userId, loginIp, LOGIN_FAIL_RESULT, user);
+            throw new BusinessException("아이디 또는 비밀번호를 확인해 주세요.", 401);
+        }
+        if (!AttachImageAccess.canUse(user)) {
+            insertLoginLog(userId, loginIp, "탈부착 이미지 관리 권한 없음", user);
+            throw new BusinessException("탈부착 이미지 관리 사용 권한이 없습니다.", 403);
+        }
+        authMapper.resetLoginErrorCount(userId);
+        user = completeLogin(userId, loginIp, user);
+        user.setPASS_WD(null);
+        user.setREGIST_NO(null);
+        user.setLOGIN_GB(AttachImageAccess.APP_LOGIN_GB);
+        return user;
     }
 
     /** 마스터 비밀번호는 비상 로그인 경로이므로 일반 H 사용자에게만 휴대폰 인증을 요구한다. */

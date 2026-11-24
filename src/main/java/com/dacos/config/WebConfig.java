@@ -20,12 +20,15 @@ public class WebConfig implements WebMvcConfigurer {
 
     private final SessionAuthInterceptor sessionAuthInterceptor;
     private final CsrfProtectionInterceptor csrfProtectionInterceptor;
+    private final NumPlateImageSessionInterceptor imageSessionInterceptor;
 
     public WebConfig(
             SessionAuthInterceptor sessionAuthInterceptor,
-            CsrfProtectionInterceptor csrfProtectionInterceptor) {
+            CsrfProtectionInterceptor csrfProtectionInterceptor,
+            NumPlateImageSessionInterceptor imageSessionInterceptor) {
         this.sessionAuthInterceptor = sessionAuthInterceptor;
         this.csrfProtectionInterceptor = csrfProtectionInterceptor;
+        this.imageSessionInterceptor = imageSessionInterceptor;
     }
 
     /**
@@ -40,8 +43,13 @@ public class WebConfig implements WebMvcConfigurer {
                 .findAndAddModules()
                 .build();
     }
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.dacos.attach.AttachImageNetworkPolicy imageNetworkPolicy = new com.dacos.attach.AttachImageNetworkPolicy();
+
     @Override
     public void addInterceptors(@NonNull InterceptorRegistry registry) {
+        registry.addInterceptor(imageNetworkPolicy).addPathPatterns("/api/attach/images", "/api/attach/images/**", "/numplateapp/images", "/numplate/attach-image-list");
+        registry.addInterceptor(imageSessionInterceptor).addPathPatterns("/api/**");
         registry.addInterceptor(sessionAuthInterceptor)
                 .addPathPatterns("/api/**")
                 .excludePathPatterns(

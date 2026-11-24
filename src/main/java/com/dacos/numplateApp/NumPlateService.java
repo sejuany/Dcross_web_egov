@@ -778,12 +778,47 @@ public class NumPlateService {
         Map<String, Object> detail = getProcessDetail(serviceId, user);
         requirePhotoEditing(detail);
         // 번호판 사진(1~3), 신분증(4), 서명(6) 외의 DB 컬럼 접근을 차단한다.
+        if (!Set.of(1, 2, 3, 4, 6).contains(slot)) {
+            throw new BusinessException("지원하지 않는 사진 구분입니다.");
+        }
         if (slot == 6 && !Set.of("UTRNS", "RTRNS").contains(Objects.toString(detail.get("TASK_CD"), ""))) {
             throw new BusinessException("서명 사진을 등록할 수 없는 처리 건입니다.", 409);
         }
         managerParam(user);
         saveProcessImage(serviceId, slot, file);
         return getProcessDetail(serviceId, user);
+    }
+
+    /** 탈부착 이미지 관리 화면(/imageSave.do 호환)에서 슬롯 1~6 사진을 저장하고 부가 상태를 반영한다. */
+    @Transactional
+    public boolean saveAttachmentImage(
+            String serviceId, int slot, MultipartFile file,
+            boolean sendDriveReadySms, String workCd, String carNo, String receiveTelNo) {
+        String validated = validateServiceId(serviceId);
+        saveProcessImage(validated, slot, file);
+        if (slot == 5) {
+            numPlateMapper.completeDisposedPlate(Map.of("SERVICE_ID", validated));
+        }
+        if (slot == 3 && sendDriveReadySms) {
+            String phone = Objects.toString(receiveTelNo, "").replaceAll("[^0-9]", "");
+            String number = Objects.toString(carNo, "").trim();
+            if (phone.length() >= 9 && !number.isEmpty()) {
+                String workName = "030".equals(workCd) || validated.startsWith("C030") ? "변경등록" : "이전등록";
+                String text = "안녕하세요. " + workName + " 위탁업체 ㈜다코스입니다.\r\n"
+                        + number + " 차량의 " + workName + " 심사가 완료되어 지금부터 차량 운행이 가능합니다.\r\n"
+                        + "감사합니다.\r\n";
+                commonService.sendNumPlateSelectionSms(Map.of(
+                        "PAY_HP_NO", phone,
+                        "TEXT", text,
+                        "MSG_TYPE", "3",
+                        "SUBJECT", workName + " 운행 가능 안내"));
+                if (numPlateMapper.updateReadyYn(Map.of("SERVICE_ID", validated, "READY_YN", "C")) != 1) {
+                    throw new BusinessException("운행 가능 상태를 저장하지 못했습니다.", 409);
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     private void requirePhotoEditing(Map<String, Object> detail) {
@@ -1187,7 +1222,7 @@ public class NumPlateService {
     }
 
     private String imageField(int slot) {
-        if (!Set.of(1, 2, 3, 4, 6).contains(slot)) throw new BusinessException("지원하지 않는 사진 구분입니다.");
+        if (slot < 1 || slot > 6) throw new BusinessException("지원하지 않는 사진 구분입니다.");
         return "IMAGE" + slot;
     }
 

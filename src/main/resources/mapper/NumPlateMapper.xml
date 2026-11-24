@@ -1554,7 +1554,7 @@
         <result property="IMAGE_PATH" column="IMAGE_PATH" jdbcType="VARCHAR" javaType="java.lang.String"/>
     </resultMap>
 
-    <!-- IMAGE_FIELD는 서비스에서 IMAGE1/2/3/4/6 중 하나로만 만든다. 화면 입력값을 직접 사용하지 않는다. -->
+    <!-- IMAGE_FIELD는 서비스에서 IMAGE1~6 중 하나로만 만든다. 화면 입력값을 직접 사용하지 않는다. -->
     <select id="getProcessImage" parameterType="map" resultMap="processImageMap">
         SELECT ${IMAGE_FIELD} AS IMAGE,
                ${IMAGE_FIELD}_PATH AS IMAGE_PATH

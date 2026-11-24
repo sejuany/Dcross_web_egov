@@ -67,6 +67,16 @@ body:has(.numplate-app-shell) #root { height: auto; min-height: 100dvh; }
   color: #66758a;
 }
 
+.numplate-login-mode { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; margin: 18px 0 14px; padding: 5px; border: 1px solid #d9e3ef; border-radius: 13px; background: #f1f5fa; }
+.numplate-login-mode button { min-height: 46px; padding: 8px; border: 0; border-radius: 9px; background: transparent; color: #61758d; font: inherit; font-size: 14px; font-weight: 700; cursor: pointer; }
+.numplate-login-mode button[aria-pressed="true"] { background: #1e66b3; color: #fff; box-shadow: 0 3px 7px #174f8c24; }
+.numplate-login-mode button:focus-visible { outline: 3px solid #7bb6f2; outline-offset: 2px; }
+.numplate-login-mode button:disabled { cursor: default; opacity: .55; }
+
+.numplate-app-shell.numplate-image-management-shell { display: flex; flex-direction: column; height: 100dvh; min-height: 0; padding-bottom: env(safe-area-inset-bottom); overflow: hidden; }
+.numplate-image-management-shell > .numplate-app-header { flex-shrink: 0; }
+.numplate-image-management-content { flex: 1; min-height: 0; overflow: hidden; }
+
 .numplate-login-card label {
   display: block;
   margin-bottom: 16px;

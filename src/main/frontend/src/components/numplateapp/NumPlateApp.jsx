@@ -4,6 +4,7 @@ import { Bell, BellRing, ClipboardList, PackageCheck, UserRound } from 'lucide-r
 import { useAuth } from '../../context/AuthContext';
 import NumPlateSimpleList from './NumPlateSimpleList';
 import PushNotice from './PushNotice';
+import { isImageManagementUser } from './numplateAuth';
 import { enablePushNotifications, pushStatus, PUSH_RECEIVED_EVENT, showForegroundPushNotification, subscribeToPushMessages } from './firebasePush';
 import './NumPlateApp.css';
 
@@ -78,6 +79,7 @@ function PushPermissionButton() {
 
 export default function NumPlateApp() {
   const { user, logout } = useAuth();
+  const imageManagement = isImageManagementUser(user);
   const [pushNotice, setPushNotice] = useState(null);
   const noticeId = useRef(0);
   const headerRef = useRef(null);
@@ -98,6 +100,7 @@ export default function NumPlateApp() {
   }, []);
 
   useEffect(() => {
+    if (imageManagement) return undefined;
     let disposed = false;
     let unsubscribe;
     const showNotice = (notification) => setPushNotice({
@@ -117,33 +120,33 @@ export default function NumPlateApp() {
       if (!disposed) showNotice({ title: '알림 수신 연결 실패', body: '알림센터의 푸시 테스트에서 설정을 확인해 주세요.' });
     });
     return () => { disposed = true; unsubscribe?.(); };
-  }, []);
+  }, [imageManagement]);
 
   return (
-    <main className="numplate-app-shell">
+    <main className={`numplate-app-shell${imageManagement ? ' numplate-image-management-shell' : ''}`}>
       <header className="numplate-app-header" ref={headerRef}>
         <div>
           <strong>DACOS</strong>
           <span>{user?.member_NM || user?.MEMBER_NM || user?.login_ID || user?.LOGIN_ID}님</span>
         </div>
         <div className="numplate-header-actions">
-          <PushPermissionButton />
+          {!imageManagement && <PushPermissionButton />}
           <button type="button" onClick={() => logout()}>로그아웃</button>
         </div>
       </header>
-      {pushNotice && (
+      {!imageManagement && pushNotice && (
         <PushNotice key={pushNotice.id} notice={pushNotice} headerHeight={headerHeight} onDismiss={dismissPushNotice} />
       )}
       {/* 현재 하위 라우트의 목록·상세·결과 화면이 이 위치에 렌더링된다. */}
-      <Outlet />
-      <nav className="numplate-app-nav" aria-label="번호판 앱 메뉴">
+      {imageManagement ? <div className="numplate-image-management-content"><Outlet /></div> : <Outlet />}
+      {!imageManagement && <nav className="numplate-app-nav" aria-label="번호판 앱 메뉴">
         {bottomMenus.map(({ to, label, icon: Icon, end }) => (
           <NavLink key={to} end={end} to={to}>
             <Icon aria-hidden="true" />
             <span>{label}</span>
           </NavLink>
         ))}
-      </nav>
+      </nav>}
     </main>
   );
 }

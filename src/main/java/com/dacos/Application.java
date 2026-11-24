@@ -11,6 +11,14 @@ import org.springframework.boot.autoconfigure.SpringBootApplication;
 public class Application {
 
     public static void main(String[] args) {
+        if (System.console() != null && System.getProperty("os.name", "").startsWith("Windows")) {
+            try {
+                new ProcessBuilder("cmd", "/d", "/c", "chcp 65001 > nul").inheritIO().start().waitFor();
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            } catch (Exception ignored) {
+            }
+        }
         SpringApplication.run(Application.class, args);
     }
 }

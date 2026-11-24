@@ -33,6 +33,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import { useLocation } from 'react-router-dom';
+import { isNumPlateUser, isImageManagementUser } from '../components/numplateapp/numplateAuth';
 
 // Context 생성 (초기값: undefined)
 const AuthContext = createContext();
@@ -40,7 +41,6 @@ const AuthContext = createContext();
 const SESSION_TIMEOUT_MS = 60 * 60 * 1000;
 const NUMPLATE_TIMEOUT_MS = 30 * 60 * 1000;
 const MAX_TIMEOUT_MS = 2_147_483_647;
-const isNumPlateUser = (user) => (user?.login_GB || user?.LOGIN_GB) === 'NUMPLATE_APP';
 const readStoredUser = () => {
     try {
         return JSON.parse(sessionStorage.getItem('user') || 'null');
@@ -84,6 +84,13 @@ export const AuthProvider = ({ children }) => {
     const loggingOut = useRef(false);
     const numPlateSessionLoading = inNumPlateApp && !numPlateSessionChecked;
     const hasNumPlateUser = isNumPlateUser(user);
+
+    useEffect(() => {
+        // 캐시는 인증에 사용하지 않고 이미지 전용 세션의 서버 확인 화면으로만 돌려보낸다.
+        if (!inNumPlateApp && !user && isImageManagementUser(readStoredUser())) {
+            window.location.replace('/numplateapp/login');
+        }
+    }, [inNumPlateApp, user]);
 
     const saveUser = useCallback((userData, sessionPolicy = null) => {
         setUser(userData);

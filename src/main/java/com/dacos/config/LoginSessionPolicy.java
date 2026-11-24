@@ -15,6 +15,7 @@ import org.springframework.stereotype.Component;
 
 import com.dacos.auth.AuthController;
 import com.dacos.auth.dto.UserDto;
+import com.dacos.attach.AttachImageAccess;
 
 import jakarta.servlet.SessionCookieConfig;
 import jakarta.servlet.http.HttpServletRequest;
@@ -88,7 +89,7 @@ public class LoginSessionPolicy {
 
     private boolean isNumPlate(HttpSession session) {
         return session != null && session.getAttribute(AuthController.SESSION_USER) instanceof UserDto user
-                && "NUMPLATE_APP".equals(user.getLOGIN_GB());
+                && ("NUMPLATE_APP".equals(user.getLOGIN_GB()) || AttachImageAccess.isAppUser(user));
     }
 
     private void writeSessionCookie(HttpServletRequest request, HttpServletResponse response, String id, int maxAge) {

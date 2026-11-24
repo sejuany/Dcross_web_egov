@@ -20,6 +20,8 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.dacos.auth.dto.UserDto;
+import com.dacos.auth.AuthService;
+import com.dacos.attach.AttachImageAccess;
 import com.dacos.common.ApiResponse;
 import com.dacos.common.BusinessException;
 import com.dacos.common.util.AuthUtil;
@@ -49,14 +51,19 @@ public class NumPlateController {
     private final NumPlatePasskeyService passkeyService;
     private final NumPlatePushService pushService;
     private final LoginSessionPolicy loginSessionPolicy;
+    private final AuthService authService;
 
     public NumPlateController(NumPlateService numPlateService, NumPlatePasskeyService passkeyService,
-            NumPlatePushService pushService, LoginSessionPolicy loginSessionPolicy) {
+            NumPlatePushService pushService, LoginSessionPolicy loginSessionPolicy, AuthService authService) {
         this.numPlateService = numPlateService;
         this.passkeyService = passkeyService;
         this.pushService = pushService;
         this.loginSessionPolicy = loginSessionPolicy;
+        this.authService = authService;
     }
+
+    @org.springframework.beans.factory.annotation.Autowired
+    private com.dacos.attach.AttachImageNetworkPolicy imageNetworkPolicy = new com.dacos.attach.AttachImageNetworkPolicy();
 
     /** 담당자 휴대폰 번호와 비밀번호를 확인하고 번호판 앱 전용 세션을 생성한다. */
     @PostMapping("/numplateapp/login")
@@ -66,8 +73,22 @@ public class NumPlateController {
             HttpServletResponse httpResponse,
             HttpSession session) {
         boolean rememberMe = rememberMe(request);
-        UserDto user = numPlateService.loginManager(request);
-        boolean passkeyRegistered = passkeyService.hasRegisteredPasskey(user);
+        if (request == null) throw new BusinessException("로그인 정보를 확인해 주세요.", 401);
+        String phone = Objects.toString(request.get("phone"), "");
+        UserDto user;
+        if (request.containsKey("userId")) {
+            imageNetworkPolicy.requireAllowed(httpRequest);
+            if (!phone.isBlank()) throw new BusinessException("로그인 정보를 확인해 주세요.", 400);
+            user = authService.authenticateNumPlateImageAccount(Objects.toString(request.get("userId"), ""),
+                    Objects.toString(request.get("password"), ""), httpRequest.getRemoteAddr());
+            AttachImageAccess.requireAccess(user);
+        } else {
+            if (!phone.isBlank() && !phone.matches("[0-9+()\\s-]+")) {
+                throw new BusinessException("휴대폰 번호를 확인해 주세요.", 401);
+            }
+            user = numPlateService.loginManager(request);
+        }
+        boolean passkeyRegistered = !AttachImageAccess.isAppUser(user) && passkeyService.hasRegisteredPasskey(user);
         loginSessionPolicy.establishNumPlate(user, rememberMe, httpRequest, httpResponse, session);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(loginResponse(user, passkeyRegistered, session));
@@ -79,15 +100,16 @@ public class NumPlateController {
             HttpServletRequest request, HttpServletResponse response) {
         HttpSession session = request.getSession(false);
         if (session == null || !(session.getAttribute("user") instanceof UserDto user)
-                || !"NUMPLATE_APP".equals(user.getLOGIN_GB())) {
+                || (!"NUMPLATE_APP".equals(user.getLOGIN_GB()) && !AttachImageAccess.isAppUser(user))) {
             throw new BusinessException("번호판 앱 로그인이 필요합니다.", 401);
         }
         if (loginSessionPolicy.isExpired(session)) {
             loginSessionPolicy.invalidate(request, response, session);
             throw new BusinessException("로그인 세션이 만료되었습니다. 다시 로그인해 주세요.", 401);
         }
+        if (AttachImageAccess.isAppUser(user)) AttachImageAccess.requireAccess(user);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
-                .body(loginResponse(user, passkeyService.hasRegisteredPasskey(user), session));
+                .body(loginResponse(user, !AttachImageAccess.isAppUser(user) && passkeyService.hasRegisteredPasskey(user), session));
     }
 
     /** 비밀번호 로그인된 계정에 현재 기기의 Face ID/Touch ID 패스키를 등록한다. */
@@ -110,6 +132,7 @@ public class NumPlateController {
     @PostMapping(value = "/numplateapp/passkeys/login/options", produces = MediaType.APPLICATION_JSON_VALUE)
     public ResponseEntity<String> startPasskeyLogin(
             @RequestBody(required = false) Map<String, Object> request, HttpSession session) {
+        rejectImagePasskeySession(session);
         return ResponseEntity.ok().cacheControl(CacheControl.noStore())
                 .body(passkeyService.startLogin(session, rememberMe(request)));
     }
@@ -120,6 +143,7 @@ public class NumPlateController {
             HttpServletRequest httpRequest,
             HttpServletResponse httpResponse,
             HttpSession session) {
+        rejectImagePasskeySession(session);
         NumPlatePasskeyService.VerifiedLogin verified = passkeyService.finishLogin(response.toString(), session);
         UserDto user = verified.user();
         loginSessionPolicy.establishNumPlate(user, verified.rememberMe(), httpRequest, httpResponse, session);
@@ -471,6 +495,12 @@ public class NumPlateController {
         response.put("passkeyRegistered", passkeyRegistered);
         response.put("session", loginSessionPolicy.describe(session));
         return response;
+    }
+
+    private void rejectImagePasskeySession(HttpSession session) {
+        if (session.getAttribute("user") instanceof UserDto user && AttachImageAccess.isAppUser(user)) {
+            throw new BusinessException("이미지 관리 계정은 아이디와 비밀번호로 로그인해 주세요.", 403);
+        }
     }
 
     private boolean rememberMe(Map<String, Object> request) {
