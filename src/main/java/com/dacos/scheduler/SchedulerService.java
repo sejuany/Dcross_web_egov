@@ -293,9 +293,10 @@ public class SchedulerService {
     			try {
     				// 고객 안내 문자
     				String smsText = "[" + safeValue(target.getREQ_CAR_NO()) + "] 차량의 취득세가 아직 확인되지 않아 안내드립니다.\n\n"
-    								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
-    								+ "2) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
-    								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n\n"
+    								+ "1) 차대번호 : " + safeValue(target.getCARID_NO()) + "\n"
+    								+ "2) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
+    								+ "3) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
+    								+ "4) 납부방법 : 위택스(카드), 은행ATM(카드)\n\n"
     								+ "※ 미결제 시 당일 관청 등록 처리가 마감되어 부득이하게 출고 일정이 지연될 수 있으니, 원활한 차량 인도를 위해 시간 내 결제 당부드립니다.\n"
     								+ "※ 이미 납부하신 경우, 전산 반영 시차로 인해 본 안내문이 발송된 것이니 양해 부탁드립니다.";
     				
@@ -305,32 +306,7 @@ public class SchedulerService {
     				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
     				param.put("SUBJECT", "취득세 납부 미확인 안내"); // 예: SMS 제목
     				updateCount += commonService.sendSms(param);
-    				
-    				/* SP 취득세 미납부 문자 발송 중단
-    				// 담당자의 연락처로 문자 발송
-    				SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(target.getMEMBER_ID());
-    				String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
-    				
-    				if (isBlank(specialistPhone)) {
-    					logger.warn("[SchedulerService] 카드 미입금 알림 발송 제외 - 담당자 연락처 없음, memberId: {}", target.getMEMBER_ID());
-    					continue;
-    				}
-    				
-    				// 담당자 안내 문자
-    				smsText = "[" + safeValue(target.getREQ_CAR_NO()) + "] 차량의 취득세가 납부되지 않았습니다. 고객께 납부요청 부탁드립니다.\n\n"
-    								+ "1) 전자납부번호 : " + safeValue(target.getACQ_VBANK_NO()) + "\n"
-    								+ "2) 납부금액 : " + safeAmount(target.getACQ_PAY_AMT()) + "원\n"
-    								+ "3) 납부방법 : 위택스(카드), 은행ATM(카드)\n"
-    								+ "4) 납부기한 : 당일 15:00\n\n"
-    								+ "고객 연락처 : " + safeValue(target.getPAY_HP_NO());
-    				
-    				param.put("PAY_HP_NO", specialistPhone);
-    				param.put("TEXT", smsText);
-    				param.put("MSG_TYPE", "3"); // 예: SMS 메시지 유형
-    				param.put("SUBJECT", "취득세 납부 요청 필요"); // 예: SMS 제목
-    				int result = commonService.sendSms(param);
-    				updateCount += result;
-    				*/
+
     			} catch (Exception e) {
     				logger.error(
     						"[SchedulerService] 카드 미입금 알림 처리 실패 - memberId: {}, message: {}",
@@ -545,8 +521,8 @@ public class SchedulerService {
                 + "- 가입 필수 기한 : " + Objects.toString(target.get("INSURANCE_DEADLINE"), "") + " 까지\r\n"
                 + "- 보험 시작일 : " + Objects.toString(target.get("INSURANCE_START_DATE"), "") + " 부터 ~\r\n"
                 + "- 반드시 차대번호로 가입 (차량번호 가입 불가)\r\n"
-                + "- 숫자 0과 알파벳 O 를 구분해서 가입해주세요."
-                + "\r\n\r\n※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다. "
+                + "- 차대번호에는 영문 I, O, Q가 사용되지 않습니다.\r\n"
+                + "\r\n※ 본 메시지는 자동 발송되는 발신전용 메시지입니다. 차량 등록과 관련하여 문의사항이 있으신 고객님은 담당 스페셜리스트에게 문의 부탁 드립니다. "
                 + "\r\n담당 스페셜리스트 : " + specialistPhone;
     }
 
@@ -696,7 +672,7 @@ public class SchedulerService {
                 + "- 가입 필수 기한 : " + insuranceDeadline + " 까지\r\n"
                 + "- 보험 시작일 : " + insuranceStartDate + " 부터 ~\r\n"
                 + "- 반드시 차대번호로 가입 (차량번호 가입 불가)\r\n"
-                + "- 숫자 0과 알파벳 O 를 구분해서 가입해주세요.\r\n\r\n"
+                + "- 차대번호에는 영문 I, O, Q가 사용되지 않습니다.\r\n\r\n"
                 + "문의사항은 1844-0801(내선 1)로 연락해 주세요.";
     }
 

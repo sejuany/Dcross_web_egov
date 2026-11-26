@@ -194,26 +194,30 @@
     cursor:default;
 }
 
-.wa-registration-mail-backdrop {
+.wa-registration-mail-backdrop,
+.wa-registration-address-backdrop {
     z-index: 10000;
     padding: 16px;
     box-sizing: border-box;
 }
 
 /* 첨부 서류 확인의 공통 팝업 테마를 재사용하고 도메인 목록은 창 밖으로 펼친다. */
-.wa-registration-mail-modal {
+.wa-registration-mail-modal,
+.wa-registration-address-modal {
     width: min(680px, calc(100vw - 32px));
     min-width: 0;
     max-width: none;
     overflow: visible;
 }
 
-.wa-registration-mail-modal .common-popup-header {
+.wa-registration-mail-modal .common-popup-header,
+.wa-registration-address-modal .common-popup-header {
     justify-content: space-between;
     border-radius: 5px 5px 0 0;
 }
 
-.wa-registration-mail-modal .wa-request-modal-close {
+.wa-registration-mail-modal .wa-request-modal-close,
+.wa-registration-address-modal .wa-request-modal-close {
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -294,6 +298,7 @@
 }
 
 .wa-registration-mail-inputs input,
+.wa-registration-address-fields input,
 .wa-registration-mail-inputs .wa-registration-email-trigger {
     width: 100%;
     min-width: 0;
@@ -312,18 +317,217 @@
     padding-left: 26px;
 }
 
-.wa-registration-mail-modal .common-popup-footer {
+.wa-registration-address-fields {
+    max-height: 60vh;
+    overflow-y: auto;
+}
+
+.wa-registration-address-fields fieldset {
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+    border: 0;
+}
+
+.wa-registration-address-fields .wa-form-row {
+    margin: 0;
+}
+
+.wa-registration-address-fields .wa-address-wrap .wa-input {
+    padding-right: 36px;
+}
+
+.wa-registration-address-fields .wa-search-btn {
+    flex-shrink: 0;
+    height: 36px;
+}
+
+.wa-registration-address-fields .wa-registration-address-error {
+    margin-top: 12px;
+    color: #c62828;
+}
+
+/* 포털 팝업에서도 신청 화면의 레이아웃과 독립적으로 주소를 편집한다. */
+.wa-registration-address-editor .wa-form-row,
+.wa-registration-address-editor .wa-form-control {
+    display: block;
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+}
+
+.wa-registration-address-editor .wa-address-wrap {
+    display: flex;
+    align-items: center;
+    position: relative;
+    gap: 8px;
+    width: 100%;
+}
+
+.wa-registration-address-editor .wa-input {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    height: 44px;
+    margin: 0;
+    padding: 0 16px;
+    border: 1px solid #d5dce7;
+    border-radius: 12px;
+    background: #fff;
+    color: #111827;
+    font-size: 14px;
+    text-align: left;
+}
+
+.wa-registration-address-editor .wa-input:focus {
+    outline: 2px solid #9eb9d8;
+    outline-offset: 1px;
+}
+
+.wa-registration-address-editor .wa-address-wrap > .wa-input {
+    flex: 1;
+    padding-right: 38px;
+}
+
+.wa-registration-address-editor .wa-search-btn {
+    position: static;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    flex: 0 0 44px;
+    width: 44px;
+    height: 44px;
+    padding: 0;
+    border: 1px solid #d5dce7;
+    border-radius: 12px;
+    background: #fff;
+    color: #111827;
+    transform: none;
+    cursor: pointer;
+}
+
+.wa-registration-address-editor .wa-clear-btn {
+    position: absolute;
+    top: 50%;
+    right: 64px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 18px;
+    height: 18px;
+    padding: 0;
+    border: 0;
+    border-radius: 50%;
+    background: #9ca3af;
+    color: #fff;
+    transform: translateY(-50%);
+    cursor: pointer;
+}
+
+.wa-registration-address-editor .wa-inline-group {
+    display: flex;
+    gap: 10px;
+    width: 100%;
+    margin-top: 8px;
+}
+
+.wa-registration-address-editor .wa-inline-group > input[readonly] {
+    background: #f1f3f5;
+    color: #8b95a1;
+}
+
+.wa-registration-address-editor .addr-guide-box,
+.wa-registration-address-editor .wa-address-result {
+    position: static;
+    width: 100%;
+    box-sizing: border-box;
+    margin-top: 12px;
+    padding: 12px;
+    border: 1px solid #d6dfe9;
+    border-radius: 4px;
+    background: #f7f9fc;
+    color: #243044;
+    font-size: 13px;
+    text-align: left;
+}
+
+.wa-registration-address-editor .guide-title,
+.wa-registration-address-editor .guide-item strong {
+    font-weight: 600;
+}
+
+.wa-registration-address-editor .guide-item {
+    margin-top: 8px;
+}
+
+.wa-registration-address-editor .wa-address-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 0;
+    border-bottom: 1px solid #d6dfe9;
+}
+
+.wa-registration-address-editor .wa-address-info {
+    flex: 1;
+    min-width: 0;
+    overflow-wrap: anywhere;
+}
+
+.wa-registration-address-editor .wa-address-row {
+    display: flex;
+    gap: 8px;
+    line-height: 1.6;
+}
+
+.wa-registration-address-editor .wa-address-row .label {
+    flex: 0 0 52px;
+    color: #637185;
+}
+
+.wa-registration-address-editor .wa-address-select-btn,
+.wa-registration-address-editor .wa-address-pagination button {
+    flex-shrink: 0;
+    min-width: 32px;
+    min-height: 32px;
+    padding: 4px 10px;
+    border: 1px solid #b8c4d4;
+    border-radius: 4px;
+    background: #fff;
+    color: #243044;
+    cursor: pointer;
+}
+
+.wa-registration-address-editor .wa-address-pagination {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 6px;
+    margin-top: 12px;
+}
+
+.wa-registration-address-editor .wa-address-pagination .active {
+    border-color: #1d3d63;
+    background: #1d3d63;
+    color: #fff;
+}
+
+.wa-registration-mail-modal .common-popup-footer,
+.wa-registration-address-modal .common-popup-footer {
     border-radius: 0 0 5px 5px;
 }
 
-.wa-registration-mail-modal .wa-registration-mail-close {
+.wa-registration-mail-modal .wa-registration-mail-close,
+.wa-registration-address-modal .wa-registration-address-close {
     border: 1px solid #b8c4d4;
     background: #fff;
     color: #243044;
 }
 
 .wa-registration-mail-modal button:disabled,
-.wa-registration-mail-modal input:disabled {
+.wa-registration-mail-modal input:disabled,
+.wa-registration-address-modal button:disabled,
+.wa-registration-address-modal input:disabled {
     opacity: .6;
     cursor: default;
 }

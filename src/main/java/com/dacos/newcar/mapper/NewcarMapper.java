@@ -24,6 +24,8 @@ public interface NewcarMapper {
     /** WA 전용 신규신청현황 목록 조회 */
     List<Map<String, Object>> getWaNewCarList(NewcarSearchRequest request);
 
+    List<Map<String, Object>> getInitialSearchTeams();
+
     /** DACOS 딜러시스템 기업 조회조건 */
     List<Map<String, Object>> getWaCompanyOptions();
 
@@ -117,6 +119,10 @@ public interface NewcarMapper {
 	
 	/** 번호판 정보 (SERVICE_ID 기반) */
 	Map<String, Object> getTrCarNoDetach(Map<String, Object> param);
+
+    int updateRegistrationDeliveryAddress(@Param("SERVICE_ID") String serviceId,
+            @Param("CARP_ADDRESS") String address, @Param("CARP_ADDRESS_DT") String detail,
+            @Param("CARP_POST_NO") String postNo);
 	
 	/** 번호판 리스트 (복합조건) */
 	List<String> getNumPlateList(Map<String, Object> param);

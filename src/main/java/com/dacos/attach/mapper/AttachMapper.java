@@ -11,6 +11,12 @@ import org.apache.ibatis.annotations.Mapper;
 @Mapper
 public interface AttachMapper {
 
+	/** 첨부 재병합 가능 여부를 조회하고 해당 접수건을 잠근다. */
+	String lockServiceForPdfRefresh(Map<String, Object> param);
+
+	/** 미성년자 확인 대상 판단에 필요한 소유자 생년월일 조회 */
+	Map<String, Object> getMinorOwnerBirthDates(Map<String, Object> param);
+
 	/** 첨부파일 조회 */
 	List<Map<String, Object>> getAttachFiles(Map<String, Object> param);
 

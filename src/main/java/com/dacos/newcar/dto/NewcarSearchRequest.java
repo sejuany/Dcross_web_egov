@@ -91,4 +91,8 @@ public class NewcarSearchRequest {
     @JsonIgnore
     @Getter(onMethod_ = @JsonIgnore)
     private List<String> AUTH_COMPANY_IDS;
+
+    @JsonIgnore
+    @Getter(onMethod_ = @JsonIgnore)
+    private boolean CARP_POST_ONLY;
 }

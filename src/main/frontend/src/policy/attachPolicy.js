@@ -159,13 +159,13 @@ export function getAttachPolicy(dsNewCar, dsOwnerInfo) {
 
 	    groups,
 
-	    duplicateMinorCodes: new Set([
+	    duplicateMinorCodes: new Set(needMinorDocs ? [
 	        ATTACH_DOC.MINOR_AGREEMENT.code,
 	        ATTACH_DOC.GUARDIAN_CERT.code,
 	        ATTACH_DOC.GUARDIAN_ID.code,
 	        ATTACH_DOC.FAMILY_CERT.code,
 	        ATTACH_DOC.BASIC_CERT.code
-	    ])
+	    ] : [])
 	};
 }
 

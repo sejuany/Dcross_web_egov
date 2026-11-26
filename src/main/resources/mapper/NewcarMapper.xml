@@ -390,6 +390,12 @@
         ORDER BY TS.REQUEST_DT DESC
 	</select>
 
+    <select id="getInitialSearchTeams" resultType="java.util.Map">
+        SELECT CODE_ID, CODE_NM
+        FROM TM_CODE
+        WHERE GROUP_ID = 'TEAMS'
+    </select>
+
     <!-- WA 전용 신규신청현황 목록 조회 -->
     <select id="getWaNewCarList" parameterType="com.dacos.newcar.dto.NewcarSearchRequest" resultType="java.util.Map">
         SELECT
@@ -494,6 +500,9 @@
         </if>
         <if test="SPACE_TYPE != null and SPACE_TYPE != ''">
             AND TS.BRANCH_ID = #{SPACE_TYPE}
+        </if>
+        <if test="CARP_POST_ONLY">
+            AND TB.CARP_POST_YN = 'Y'
         </if>
         <if test="START_DT != null and START_DT != '' and END_DT != null and END_DT != ''">
             <choose>
@@ -982,6 +991,14 @@
 	    FROM TR_CARNO_DETACH
 	    WHERE SERVICE_ID = #{SERVICE_ID}
 	</select>
+
+	<update id="updateRegistrationDeliveryAddress">
+	    UPDATE TR_NEWCAR
+	       SET CARP_ADDRESS = PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS}),
+	           CARP_ADDRESS_DT = PKG_COMMON.FN_ENCRYPT(#{CARP_ADDRESS_DT}),
+	           CARP_POST_NO = #{CARP_POST_NO}
+	     WHERE SERVICE_ID = #{SERVICE_ID}
+	</update>
 
 	<select id="getOwnerInfoList" parameterType="map" resultType="map">
         SELECT  

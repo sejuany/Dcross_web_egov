@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffe
 import axios from 'axios';
 import { ChevronRight, Download, Filter, MoreVertical, RotateCcw, Search, Upload, X, Printer } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { applyTeamSearchDefaults } from '../../utils/newcarTeamSearch';
 import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from '../../wa/pages/newcar/WaNewcarRequest';
 import WaSupplyAmountModal, { calculateSupplyAmountRow } from '../../wa/pages/newcar/WaSupplyAmountModal';
@@ -645,18 +646,34 @@ const DacosNewcarList = () => {
             }
         };
 
-		const initialFilters = getInitialSearchFilters(memberGb, userBranchId);
-		setSearchFilters(initialFilters);
+        const fetchInitialSearch = async () => {
+            setLoading(true);
+            try {
+                const { data } = await axios.get('/api/newcar/initial-search');
+                if (!isMounted) return;
 
-		fetchInitialData();
-		fetchNewCarList(initialFilters);
+                const initialFilters = applyTeamSearchDefaults(
+                    getInitialSearchFilters(memberGb, userBranchId), data.teams, user
+                );
+                setSearchFilters(initialFilters);
+                await fetchNewCarList(initialFilters);
+            } catch (error) {
+                if (!isMounted) return;
+
+                console.error('DACOS 신규신청현황 기본 조회조건 확인 실패:', error);
+                setErrorMessage('기본 조회조건을 확인하지 못했습니다. 조회조건을 선택해 다시 조회해 주세요.');
+                setLoading(false);
+            }
+        };
+
+        fetchInitialData();
+        fetchInitialSearch();
 
         return () => {
             isMounted = false;
         };
         // 최초 진입 시 현재 기본 조회조건으로 한 번만 조회한다.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fetchNewCarList, memberGb, user]);
+    }, [fetchNewCarList, memberGb, user, userBranchId]);
 
     useEffect(() => {
         let isMounted = true;
@@ -927,7 +944,7 @@ const DacosNewcarList = () => {
 	};
 	
 	// 신규등록 엑셀 업로드 양식 다운로드
-	const handleExcelTemplateDownload = async (templateFileName) => {
+	const handleExcelTemplateDownload = async (templateFileName, downloadFileName) => {
 
 	    const companyId = getUserCompanyId(user);
 	    let fileNm = templateFileName;
@@ -965,7 +982,7 @@ const DacosNewcarList = () => {
 	        const link = document.createElement('a');
 
 	        link.href = url;
-	        link.download = fileNm;
+	        link.download = downloadFileName || fileNm;
 
 	        document.body.appendChild(link);
 	        link.click();

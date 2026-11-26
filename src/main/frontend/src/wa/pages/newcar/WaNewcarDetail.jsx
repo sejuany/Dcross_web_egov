@@ -7,6 +7,7 @@ import { gf, log, mapData, toast } from '../../../utils/utils';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 
 import '../../../components/common/CommonPopup.css';
+import AddressSearch from '../common/AddressSearch';
 import RegistrationEmailDomainSelect from './RegistrationEmailDomainSelect';
 import '../../styles/WaNewcarDetail.css';
 // 첨부서류 모달
@@ -108,6 +109,12 @@ const WaNewcarDetail = ({
 	const [directMailDomain, setDirectMailDomain] = useState('');
 	const [directMailDomainOption, setDirectMailDomainOption] = useState('');
 	const directMailInputRef = useRef(null);
+	const [deliveryAddressModalOpen, setDeliveryAddressModalOpen] = useState(false);
+	const [confirmedDeliveryAddress, setConfirmedDeliveryAddress] = useState(null);
+	const [deliveryAddressDraft, setDeliveryAddressDraft] = useState({});
+	const [deliveryAddressSaving, setDeliveryAddressSaving] = useState(false);
+	const [deliveryAddressError, setDeliveryAddressError] = useState('');
+	const deliveryAddressButtonRef = useRef(null);
 	const [actionHistoryModal, setActionHistoryModal] = useState({
 		open: false,
 		tab: 'history',
@@ -303,6 +310,66 @@ const WaNewcarDetail = ({
 
 	const closeMailModal = () => {
 		if (!mailSending) setMailModal({ open: false, error: '' });
+	};
+
+	const closeDeliveryAddressModal = () => {
+		setDeliveryAddressModalOpen(false);
+		deliveryAddressButtonRef.current?.focus();
+	};
+
+	const deliveryAddress = confirmedDeliveryAddress && confirmedDeliveryAddress.SERVICE_ID === dsService.SERVICE_ID
+		? confirmedDeliveryAddress
+		: dsNewCar;
+
+	const openDeliveryAddressModal = () => {
+		setDeliveryAddressDraft({
+			CARP_ADDRESS: deliveryAddress.CARP_ADDRESS ?? '',
+			CARP_ADDRESS_DT: deliveryAddress.CARP_ADDRESS_DT ?? '',
+			CARP_POST_NO: deliveryAddress.CARP_POST_NO ?? ''
+		});
+		setDeliveryAddressError('');
+		setDeliveryAddressModalOpen(true);
+	};
+
+	const changeDeliveryAddress = ({ target: { name, value } }) => {
+		setDeliveryAddressDraft(current => ({
+			...current,
+			[name]: value,
+			CARP_POST_NO: name === 'CARP_ADDRESS' ? '' : current.CARP_POST_NO
+		}));
+	};
+
+	const confirmDeliveryAddress = async event => {
+		event.preventDefault();
+		event.stopPropagation();
+		if (deliveryAddressSaving) return;
+
+		// AddressSearch는 한글 입력을 지연 반영하므로 제출 시점의 실제 입력값을 읽는다.
+		const fields = new FormData(event.currentTarget);
+		const address = {
+			CARP_ADDRESS: fields.get('CARP_ADDRESS').trim(),
+			CARP_ADDRESS_DT: fields.get('CARP_ADDRESS_DT').trim(),
+			CARP_POST_NO: fields.get('CARP_POST_NO').trim()
+		};
+		if (!address.CARP_ADDRESS || !address.CARP_POST_NO) {
+			setDeliveryAddressError('주소 검색 결과에서 수령지를 선택해 주세요.');
+			return;
+		}
+
+		setDeliveryAddressSaving(true);
+		setDeliveryAddressError('');
+		try {
+			const addressText = [address.CARP_ADDRESS, address.CARP_ADDRESS_DT].filter(Boolean).join(' ');
+			if (!await gf.confirm(`등록증 배송지 정보를 (${addressText}) 입력하시겠습니까?`,
+				'등록증 배송지 확인', { okText: '확인', cancelText: '취소' })) return;
+			await axios.post(`/api/newcar/wa/registration-delivery-address/${encodeURIComponent(dsService.SERVICE_ID)}`, address);
+			setConfirmedDeliveryAddress({ SERVICE_ID: dsService.SERVICE_ID, ...address });
+			closeDeliveryAddressModal();
+		} catch (error) {
+			setDeliveryAddressError(error.response?.data?.message || '등록증 수령지를 저장하지 못했습니다.');
+		} finally {
+			setDeliveryAddressSaving(false);
+		}
 	};
 
 	const handleRegistrationMail = async () => {
@@ -837,7 +904,7 @@ const WaNewcarDetail = ({
 							<div className="wa-detail-row">
 				                <span className="wa-detail-name">등록증 수령지</span>
 				                <span>
-									{`${dsNewCar.CARP_ADDRESS || ''} ${dsNewCar.CARP_ADDRESS_DT || ''}`}
+									{`${deliveryAddress.CARP_ADDRESS || ''} ${deliveryAddress.CARP_ADDRESS_DT || ''}`}
 								</span>
 								
 				            </div>
@@ -850,6 +917,10 @@ const WaNewcarDetail = ({
 								<button type="button" className="wa-detail-delivery-btn" onClick={handleOpenActionHistory}>
 									<History size={18} strokeWidth={2.3} />
 									<span>번호판선택이력</span>
+								</button>
+								<button type="button" className="wa-detail-delivery-btn" ref={deliveryAddressButtonRef}
+									onClick={openDeliveryAddressModal} aria-haspopup="dialog">
+									<span>등록증 수령지 수정</span>
 								</button>
 					        </div>
 				    </div>
@@ -1094,6 +1165,63 @@ const WaNewcarDetail = ({
 				
 			</div>
 			
+			{deliveryAddressModalOpen && createPortal(
+				<div className="common-popup-overlay wa-registration-address-backdrop" onMouseDown={deliveryAddressSaving ? undefined : closeDeliveryAddressModal}>
+					<form
+						className="common-popup-box wa-registration-address-modal"
+						role="dialog"
+						aria-modal="true"
+						aria-labelledby="wa-registration-address-title"
+						aria-busy={deliveryAddressSaving}
+						onSubmit={confirmDeliveryAddress}
+						onMouseDown={event => event.stopPropagation()}
+						onKeyDown={event => {
+							if (event.key === 'Escape' && !event.nativeEvent.isComposing) {
+								event.stopPropagation();
+								if (!deliveryAddressSaving) closeDeliveryAddressModal();
+							}
+						}}
+					>
+						<header className="common-popup-header">
+							<strong id="wa-registration-address-title">등록증 수령지 수정</strong>
+							<button type="button" className="wa-request-modal-close" onClick={closeDeliveryAddressModal} aria-label="수령지 수정 창 닫기" disabled={deliveryAddressSaving}>
+								<X size={18} />
+							</button>
+						</header>
+						<div className="common-popup-body wa-registration-address-fields">
+							<fieldset className="wa-registration-address-editor" disabled={deliveryAddressSaving}>
+								<AddressSearch
+									addressLabel="등록증 수령지 주소"
+									placeholder="건물, 지번 또는 도로명 검색"
+									type="CARP_ADDRESS"
+									detailName="CARP_ADDRESS_DT"
+									postName="CARP_POST_NO"
+									addressMaxLength={70}
+									detailMaxLength={70}
+									data={deliveryAddressDraft}
+									handleChange={changeDeliveryAddress}
+									onSelect={(_, result) => setDeliveryAddressDraft({
+										CARP_ADDRESS: result.ADDR,
+										CARP_ADDRESS_DT: '',
+										CARP_POST_NO: result.POST_NO
+									})}
+									onClear={() => setDeliveryAddressDraft({})}
+									confirmMissingDetail={false}
+								/>
+							</fieldset>
+							{deliveryAddressError && <p className="wa-registration-address-error" role="alert">{deliveryAddressError}</p>}
+						</div>
+						<footer className="common-popup-footer">
+							<button type="button" className="common-popup-btn wa-registration-address-close" onClick={closeDeliveryAddressModal} disabled={deliveryAddressSaving}>취소</button>
+							<button type="submit" className="common-popup-btn ok" disabled={deliveryAddressSaving}>
+								{deliveryAddressSaving ? '저장 중' : '확인'}
+							</button>
+						</footer>
+					</form>
+				</div>,
+				document.body
+			)}
+
 			{mailModal.open && createPortal(
 				<div className="common-popup-overlay wa-registration-mail-backdrop" role="presentation" onMouseDown={closeMailModal}>
 					<section

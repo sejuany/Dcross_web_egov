@@ -98,6 +98,14 @@ public class NewcarController {
         return ResponseEntity.ok(ApiResponse.withKey("list", list));
     }
 
+    @GetMapping("/initial-search")
+    public ResponseEntity<Map<String, Object>> getInitialSearchTeams(HttpSession session) {
+        AuthUtil.getLoginUser(session);
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CACHE_CONTROL, "no-store")
+                .body(ApiResponse.withKey("teams", newcarService.getInitialSearchTeams()));
+    }
+
     @GetMapping("/dacos-company-options")
     public ResponseEntity<Map<String, Object>> getDacosWaCompanyOptions(HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
@@ -163,6 +171,14 @@ public class NewcarController {
         String memo = newcarService.notifyLeaseAddressChange(request, user);
         return ApiResponse.ok(Map.of("MEMO_TX", memo));
     }
+
+    @PostMapping("/wa/registration-delivery-address/{serviceId}")
+    public ResponseEntity<Void> updateRegistrationDeliveryAddress(HttpSession session,
+            @PathVariable("serviceId") String serviceId,
+            @RequestBody Map<String, Object> request) {
+        newcarService.updateRegistrationDeliveryAddress(AuthUtil.getLoginUser(session), serviceId, request);
+        return ResponseEntity.noContent().build();
+    }
     
     /**
      * 다건 상태 변경
@@ -202,9 +218,10 @@ public class NewcarController {
     @PostMapping("/supply-amount-upload")
     public ResponseEntity<Map<String, Object>> previewSupplyAmounts(
             @RequestParam("file") MultipartFile file,
+            @RequestParam("amountOnly") boolean amountOnly,
             HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
-        Map<String, Object> result = newcarService.previewSupplyAmounts(file, user);
+        Map<String, Object> result = newcarService.previewSupplyAmounts(file, user, amountOnly);
         return ResponseEntity.ok(ApiResponse.withKey("data", result));
     }
 
@@ -212,9 +229,10 @@ public class NewcarController {
     @PostMapping("/supply-amount-apply")
     public ResponseEntity<Map<String, Object>> applySupplyAmountCalculations(
             @RequestBody List<Map<String, Object>> rows,
+            @RequestParam("amountOnly") boolean amountOnly,
             HttpSession session) {
         UserDto user = AuthUtil.getLoginUser(session);
-        Map<String, Object> result = newcarService.applySupplyAmountCalculations(rows, user);
+        Map<String, Object> result = newcarService.applySupplyAmountCalculations(rows, user, amountOnly);
         return ResponseEntity.ok(ApiResponse.withKey("data", result));
     }
 

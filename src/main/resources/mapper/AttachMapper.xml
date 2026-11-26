@@ -3,6 +3,30 @@
   "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
 
 <mapper namespace="com.dacos.attach.mapper.AttachMapper">
+    <select id="lockServiceForPdfRefresh" parameterType="map" resultType="string" useCache="false">
+        SELECT CASE
+                   WHEN PROC_ST IN ('W_REQ', 'RET', 'P_REQ', 'PBEND', 'PREND', 'P_END', 'W_RET')
+                        OR JUDGE_DT IS NOT NULL THEN 'Y'
+                   ELSE 'N'
+               END
+          FROM TR_SERVICE
+         WHERE SERVICE_ID = #{SERVICE_ID}
+           FOR UPDATE
+    </select>
+
+    <select id="getMinorOwnerBirthDates" parameterType="map" resultType="map">
+        SELECT CASE WHEN TN.REG_GB IN ('R', 'F')
+                    THEN SUBSTR(PKG_COMMON.FN_DECRYPT(TN.REG_NO), 1, 6)
+               END AS OWNER_BIRTH,
+               CASE WHEN NVL(TN.RATIO_NO, 100) <![CDATA[<>]]> 100 AND TOI.DEBTOR_GB IN ('R', 'F')
+                    THEN SUBSTR(PKG_COMMON.FN_DECRYPT(TOI.REG_NO), 1, 6)
+               END AS JOINT_OWNER_BIRTH
+          FROM TR_SERVICE TS
+          JOIN TR_NEWCAR TN ON TN.SERVICE_ID = TS.SERVICE_ID
+          LEFT JOIN TR_OWNERINFO TOI ON TOI.SERVICE_ID = TN.SERVICE_ID AND TOI.SEQ = '0'
+         WHERE TS.SERVICE_ID = #{SERVICE_ID}
+    </select>
+
 	<!-- ============================================================ -->
     <!-- 첨부파일 조회                                    				  -->
     <!-- ============================================================ -->
@@ -64,6 +88,11 @@
                             AND DSIGN_GB = 'WSIGN'
                       )
                 ) AS SIGN_DT,
+                TN.NTAX_TRGET_CD,
+                TN.NTAX_TRGET_GR_CD,
+                (SELECT MAX(C.CODE_NM) FROM TM_CODE C
+                  WHERE C.GROUP_ID = 'NTTCD' AND C.CODE_ID = TN.NTAX_TRGET_CD
+                    AND C.USE_YN = 'Y') AS REASON,
                 NTAX_WHO,
                 DEBTOR_NM,
                 pkg_common.fn_decrypt(TOI.REG_NO) AS DEBTOR_NO,

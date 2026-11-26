@@ -327,10 +327,24 @@ public class NewcarService {
         request.setMEMBER_GB("DACOS");
         request.setMEMBER_ID(user.getLOGIN_ID());
         applyListAccessScope(request, user);
+        request.setCARP_POST_ONLY(isSupportTeamMember(user.getLOGIN_ID()));
 
         List<Map<String, Object>> rows = newcarMapper.getWaNewCarList(request);
         rows.forEach(this::applyListAttachStatus);
         return rows;
+    }
+
+    public List<Map<String, Object>> getInitialSearchTeams() {
+        return newcarMapper.getInitialSearchTeams();
+    }
+
+    private boolean isSupportTeamMember(String loginId) {
+        String memberId = Objects.toString(loginId, "").trim();
+        return !memberId.isEmpty() && getInitialSearchTeams().stream()
+                .filter(team -> "SUPPT".equals(team.get("CODE_ID")))
+                .flatMap(team -> Arrays.stream(Objects.toString(team.get("CODE_NM"), "").split(",")))
+                .map(String::trim)
+                .anyMatch(memberId::equalsIgnoreCase);
     }
 
     /** 목록 조회 권한 범위는 요청값이 아니라 로그인 세션으로만 생성한다. */
@@ -854,6 +868,15 @@ public class NewcarService {
         }
     }
 
+    @Transactional
+    public void updateRegistrationDeliveryAddress(UserDto user, String serviceId, Map<String, Object> request) {
+        serviceAccessGuard.requireAccess(user, serviceId, ServiceAction.UPDATE_SERVICE);
+        newcarMapper.updateRegistrationDeliveryAddress(serviceId,
+                Objects.toString(request.get("CARP_ADDRESS"), ""),
+                Objects.toString(request.get("CARP_ADDRESS_DT"), ""),
+                Objects.toString(request.get("CARP_POST_NO"), ""));
+    }
+
     public Map<String, Object> getNewCarDetail(UserDto user, String serviceId) {
 
         logger.info("[NewcarService] 신차 상세 조회 - serviceId: {}", serviceId);
@@ -1238,18 +1261,20 @@ public class NewcarService {
 
 	/** 엑셀 행을 신청 건과 매칭만 한다. 계산이 끝나기 전에는 DB를 수정하지 않는다. */
 	@Transactional(readOnly = true)
-	public Map<String, Object> previewSupplyAmounts(MultipartFile file, UserDto user) {
+	public Map<String, Object> previewSupplyAmounts(MultipartFile file, UserDto user, boolean amountOnly) {
 		validateSupplyAmountAccess(user);
 
-		List<Map<String, Object>> rows = parseSupplyAmountExcel(file);
+		List<Map<String, Object>> rows = parseSupplyAmountExcel(file, amountOnly);
 		if (rows.isEmpty()) {
 			throw new BusinessException("수정할 데이터가 없습니다.", 400);
 		}
 
 		Set<String> excelKeys = new HashSet<>();
 		Map<String, String> dlvMap = new HashMap<>();
-		for (Map<String, Object> code : codeMapper.findCodesByGroupId("DLVGB")) {
-			dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
+		if (!amountOnly) {
+			for (Map<String, Object> code : codeMapper.findCodesByGroupId("DLVGB")) {
+				dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
+			}
 		}
 		List<Map<String, Object>> results = new ArrayList<>();
 		int matchedCount = 0;
@@ -1261,16 +1286,18 @@ public class NewcarService {
 			List<String> errors = new ArrayList<>();
 
 			boolean validLinkId = linkId.length() == 8;if (!validLinkId) errors.add("주문번호가 없습니다.");
-			if (buyAmt == null) errors.add("공급가액이 0원입니다.");
-			try {
-				validateSupplyAmountRegistDate(row.get("REGIST_DATE"));
-			} catch (BusinessException e) {
-				errors.add(e.getMessage());
-			}
-			try {
-				resolveSupplyAmountSpecialist(row.get("SPACE_GB"), row.get("SPACE_NM"), user, dlvMap);
-			} catch (BusinessException e) {
-				errors.add(e.getMessage());
+			if (buyAmt == null) errors.add("공급가액은 정수로 입력해 주세요.");
+			if (!amountOnly) {
+				try {
+					validateSupplyAmountRegistDate(row.get("REGIST_DATE"));
+				} catch (BusinessException e) {
+					errors.add(e.getMessage());
+				}
+				try {
+					resolveSupplyAmountSpecialist(row.get("SPACE_GB"), row.get("SPACE_NM"), user, dlvMap);
+				} catch (BusinessException e) {
+					errors.add(e.getMessage());
+				}
 			}
 			if (!linkId.isEmpty() && !carIdNo.isEmpty()
 					&& !excelKeys.add(linkId + "\u0000" + carIdNo)) {
@@ -1294,6 +1321,8 @@ public class NewcarService {
 
 						if (carIdNo.length() != 17) {
 						    errors.add("차대번호 확인 필요");
+						} else if (amountOnly && !carIdNo.equals(existingCarIdNo)) {
+						    errors.add("주문번호와 차대번호가 일치하지 않습니다.");
 						} else if (!carIdNo.equals(existingCarIdNo)
 						        && isDuplicateCar2(Map.of("CARID_NO", carIdNo))) {
 						    errors.add("이미 등록된 차대번호");
@@ -1329,17 +1358,22 @@ public class NewcarService {
 			result.put("buyAmt", buyAmt);
 			Map<String, Object> after = new LinkedHashMap<>();
 			after.put("carIdNo", carIdNo);
-			after.put("model", row.get("MODEL"));
-			after.put("modelYear", row.get("MODEL_YEAR"));
-			after.put("engine", row.get("ENGINE"));
-			after.put("carPackage", row.get("CAR_PACKAGE"));
-			after.put("registDate", row.get("REGIST_DATE"));
-			after.put("directYn", row.get("DIRECT_YN"));
-			after.put("spaceGb", row.get("SPACE_GB"));
-			after.put("spaceNm", row.get("SPACE_NM"));
-			after.put("ownerNm", row.get("OWNER_NM"));
+			if (!amountOnly) {
+				after.put("model", row.get("MODEL"));
+				after.put("modelYear", row.get("MODEL_YEAR"));
+				after.put("engine", row.get("ENGINE"));
+				after.put("carPackage", row.get("CAR_PACKAGE"));
+				after.put("registDate", row.get("REGIST_DATE"));
+				after.put("directYn", row.get("DIRECT_YN"));
+				after.put("spaceGb", row.get("SPACE_GB"));
+				after.put("spaceNm", row.get("SPACE_NM"));
+				after.put("ownerNm", row.get("OWNER_NM"));
+			}
 			after.put("buyAmt", buyAmt);
-			List<String> changedFields = matched ? resolveSupplyAmountChangedFields(before, after) : List.of();
+			List<String> changedFields = amountOnly
+					? (before.containsKey("buyAmt") && buyAmt != null && !Objects.equals(beforeBuyAmt, buyAmt)
+							? List.of("buyAmt") : List.of())
+					: (matched ? resolveSupplyAmountChangedFields(before, after) : List.of());
 			result.put("before", before);
 			result.put("after", after);
 			result.put("changedFields", changedFields);
@@ -1361,22 +1395,21 @@ public class NewcarService {
 	/** 모든 행의 계산 결과를 다시 검증한 뒤 한 트랜잭션으로 반영한다. */
 	@Transactional
 	public Map<String, Object> applySupplyAmountCalculations(
-			List<Map<String, Object>> rows, UserDto user) {
+			List<Map<String, Object>> rows, UserDto user, boolean amountOnly) {
 		validateSupplyAmountAccess(user);
-		return saveSupplyAmountCalculations(rows, user, true);
+		return saveSupplyAmountCalculations(rows, user, true, amountOnly);
 	}
 
 	/** 검증된 계산 결과를 저장한다. 호출한 트랜잭션 안에서 실행된다. */
 	private Map<String, Object> saveSupplyAmountCalculations(
-			List<Map<String, Object>> rows, UserDto user, boolean dataModification) {
+			List<Map<String, Object>> rows, UserDto user, boolean dataModification, boolean amountOnly) {
 		if (rows == null || rows.isEmpty()) {
 			throw new BusinessException("반영할 계산 결과가 없습니다.", 400);
 		}
 		
-		List<Map<String, Object>> dlvCodes = codeMapper.findCodesByGroupId("DLVGB");
 		Map<String, String> dlvMap = new HashMap<>();
-		if (dataModification) {
-			for (Map<String, Object> code : dlvCodes) {
+		if (dataModification && !amountOnly) {
+			for (Map<String, Object> code : codeMapper.findCodesByGroupId("DLVGB")) {
 				dlvMap.put(Objects.toString(code.get("CODE_NM"), "").trim(), Objects.toString(code.get("CODE_ID"), ""));
 			}
 		}
@@ -1408,6 +1441,9 @@ public class NewcarService {
 			        || !allowedProcStates.contains(Objects.toString(targets.get(0).get("PROC_ST"), ""))) {
 			    throw new BusinessException("[" + linkId + "] 신청 대상 상태가 변경되었습니다. 목록을 다시 조회해 주세요.", 409);
 			}
+			if (amountOnly && !carIdNo.equals(Objects.toString(targets.get(0).get("CARID_NO"), "").trim().toUpperCase(Locale.ROOT))) {
+				throw new BusinessException("[" + linkId + "] 주문번호와 차대번호가 일치하지 않습니다.", 409);
+			}
 			
 			Map<String, Object> update = new HashMap<>();
 			update.put("SERVICE_ID", serviceId);
@@ -1417,13 +1453,21 @@ public class NewcarService {
 				// 담당자가 수정되지 않았을 때 사용할 기존 담당자
 				update.put("MEMBER_ID", Objects.toString(targets.get(0).get("MEMBER_ID"), ""));
 				
-				update.put("EXCEL_BEFORE", row.get("before"));
-				update.put("EXCEL_AFTER", row.get("after"));
-				update.put("EXCEL_CHANGED_FIELDS", row.get("changedFields"));
-				try {
-					applyExcelChangesToNewCar(update, user, dlvMap);
-				} catch (BusinessException e) {
-					throw new BusinessException("[" + linkId + "] " + e.getMessage(), e.getStatusCode());
+				if (amountOnly) {
+					Map<String, Object> before = new HashMap<>();
+					before.put("buyAmt", targets.get(0).get("BUY_AMT"));
+					update.put("EXCEL_BEFORE", before);
+					update.put("EXCEL_AFTER", Map.of("buyAmt", buyAmt));
+					update.put("EXCEL_CHANGED_FIELDS", List.of("buyAmt"));
+				} else {
+					update.put("EXCEL_BEFORE", row.get("before"));
+					update.put("EXCEL_AFTER", row.get("after"));
+					update.put("EXCEL_CHANGED_FIELDS", row.get("changedFields"));
+					try {
+						applyExcelChangesToNewCar(update, user, dlvMap);
+					} catch (BusinessException e) {
+						throw new BusinessException("[" + linkId + "] " + e.getMessage(), e.getStatusCode());
+					}
 				}
 			}
 			
@@ -1481,7 +1525,7 @@ public class NewcarService {
 				throw new BusinessException("[" + update.get("LINK_ID") + "] 데이터 수정 중 오류가 발생했습니다.", 500);
 			}
 			// 상태·담당자·배송지등 반영은 데이터 수정일 때만 실행
-			if (dataModification) {
+			if (dataModification && !amountOnly) {
 				if (common.update(update, "updateTrService") != 1) {
 					throw new BusinessException("[" + update.get("LINK_ID") + "] 데이터 수정 중 오류가 발생했습니다.", 500);
 				}
@@ -1497,23 +1541,24 @@ public class NewcarService {
 				}
 			}
 			
-			// 변경 이력과 로우데이터 변경 문자는 데이터 수정일 때만 실행
+			// 변경 이력은 데이터 수정, 공급가액 변경일 때만 실행
 		    if (dataModification) {
 		    	recordChangeHistory(update, user);
-		    	
-		    	// 담당 sp 문자발송
-		    	String memberId = Objects.toString(update.get("MEMBER_ID"), "").trim();
-		    	
-		    	SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(memberId);
-		    	String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
-		    	String smsText = "주문번호 " + Objects.toString(update.get("LINK_ID"), "").trim() + " 의 로우데이터가 변경되었습니다. 변경 내용 확인 후 재요청 부탁드립니다.";
-		    	
-		    	Map<String, Object> smsParam = new HashMap<>();
-		    	smsParam.put("PAY_HP_NO", specialistPhone);
-		    	smsParam.put("TEXT", smsText);
-		    	smsParam.put("MSG_TYPE", "3");
-		    	smsParam.put("SUBJECT", "로우데이터 변경");
-		    	commonService.sendSms(smsParam);
+		    	if (dataModification && !amountOnly) {
+		    		// 담당 sp 문자발송은 데이터 수정일때만
+		    		String memberId = Objects.toString(update.get("MEMBER_ID"), "").trim();
+		    		
+		    		SchedulerDto specialistInfo = schedulerMapper.selectNewcarSpecialistInfo(memberId);
+		    		String specialistPhone = specialistInfo == null ? "" : specialistInfo.getSPECIALIST_HP_NO();
+		    		String smsText = "주문번호 " + Objects.toString(update.get("LINK_ID"), "").trim() + " 의 로우데이터가 변경되었습니다. 변경 내용 확인 후 재요청 부탁드립니다.";
+		    		
+		    		Map<String, Object> smsParam = new HashMap<>();
+		    		smsParam.put("PAY_HP_NO", specialistPhone);
+		    		smsParam.put("TEXT", smsText);
+		    		smsParam.put("MSG_TYPE", "3");
+		    		smsParam.put("SUBJECT", "로우데이터 변경");
+		    		commonService.sendSms(smsParam);
+		    	}
 		    }
 		}
 		
@@ -1716,7 +1761,7 @@ public class NewcarService {
 		return changed;
 	}
 
-	private List<Map<String, Object>> parseSupplyAmountExcel(MultipartFile file) {
+	private List<Map<String, Object>> parseSupplyAmountExcel(MultipartFile file, boolean amountOnly) {
 		if (file == null || file.isEmpty()) {
 			throw new BusinessException("업로드할 엑셀 파일을 선택해 주세요.", 400);
 		}
@@ -1754,18 +1799,20 @@ public class NewcarService {
 				row.put("LINK_ID", linkId);
 				row.put("CARID_NO", carIdNo);
 				row.put("BUY_AMT_TEXT", buyAmt);
-				row.put("MODEL", getCellValue(excelRow.getCell(2), formatter));
-				row.put("MODEL_YEAR", getCellValue(excelRow.getCell(3), formatter));
-				row.put("ENGINE", getCellValue(excelRow.getCell(4), formatter));
-				row.put("CAR_PACKAGE", getCellValue(excelRow.getCell(5), formatter));
-				Cell registDateCell = excelRow.getCell(7);
-				row.put("REGIST_DATE", registDateCell != null && registDateCell.getCellType() == CellType.NUMERIC
-						&& DateUtil.isCellDateFormatted(registDateCell)
-						? getDateCellValue(registDateCell, formatter) : getCellValue(registDateCell, formatter));
-				row.put("DIRECT_YN", displayDirectYn(getCellValue(excelRow.getCell(8), formatter)));
-				row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter));
-				row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter));
-				row.put("OWNER_NM", getCellValue(excelRow.getCell(11), formatter));
+				if (!amountOnly) {
+					row.put("MODEL", getCellValue(excelRow.getCell(2), formatter));
+					row.put("MODEL_YEAR", getCellValue(excelRow.getCell(3), formatter));
+					row.put("ENGINE", getCellValue(excelRow.getCell(4), formatter));
+					row.put("CAR_PACKAGE", getCellValue(excelRow.getCell(5), formatter));
+					Cell registDateCell = excelRow.getCell(7);
+					row.put("REGIST_DATE", registDateCell != null && registDateCell.getCellType() == CellType.NUMERIC
+							&& DateUtil.isCellDateFormatted(registDateCell)
+							? getDateCellValue(registDateCell, formatter) : getCellValue(registDateCell, formatter));
+					row.put("DIRECT_YN", displayDirectYn(getCellValue(excelRow.getCell(8), formatter)));
+					row.put("SPACE_GB", getCellValue(excelRow.getCell(9), formatter));
+					row.put("SPACE_NM", getCellValue(excelRow.getCell(10), formatter));
+					row.put("OWNER_NM", getCellValue(excelRow.getCell(11), formatter));
+				}
 				rows.add(row);
 			}
 		} catch (BusinessException e) {
@@ -1778,7 +1825,7 @@ public class NewcarService {
 
 	private static Long parseSupplyAmountValue(Object value) {
 		Long amount = parseNonNegativeAmount(value);
-		return amount != null && amount > 0 ? amount : null;
+		return amount != null && amount >= 0 ? amount : null;
 	}
 
 	private static Long parseNonNegativeAmount(Object value) {
@@ -2863,7 +2910,7 @@ public class NewcarService {
 	@Transactional
 	public void requestProcessWithCalculation(List<Map<String, Object>> request, UserDto user) {
 		requireAllServiceAccess(request, user, ServiceAction.CHANGE_STATUS);
-		saveSupplyAmountCalculations(request, user, false);
+		saveSupplyAmountCalculations(request, user, false, false);
 		requestProcess(request, user);
 	}
 

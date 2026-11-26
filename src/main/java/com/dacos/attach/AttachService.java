@@ -10,12 +10,17 @@ import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.nio.file.StandardCopyOption;
+import java.time.DateTimeException;
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.awt.Graphics2D;
 import java.awt.RenderingHints;
@@ -33,6 +38,7 @@ import org.apache.pdfbox.pdmodel.graphics.image.PDImageXObject;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.NestedExceptionUtils;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
 import org.springframework.core.io.UrlResource;
@@ -71,6 +77,8 @@ public class AttachService {
     private static final Logger logger = LoggerFactory.getLogger(AttachService.class);
     // DB 저장 경로
     private static final String WA_ATTACH_PATH_NM = "/upload";
+    private static final String EXEMPTION_FORM_SUFFIX = "_감면신청서.pdf";
+    private static final String EXEMPTION_EVIDENCE_SUFFIX = "_감면서류.pdf";
     private static final int A4_WIDTH_PX = 800; // A4 210mm @ 300 DPI
     private static final Set<String> ALLOWED_UPLOAD_EXTENSIONS =
             Set.of(".jpg", ".jpeg", ".png", ".webp", ".pdf");
@@ -220,6 +228,7 @@ public class AttachService {
         // 로컬
         if ("127.0.0.1".equals(serverIp)
         		|| "169.254.242.223".equals(serverIp)
+        		|| "192.168.0.83".equals(serverIp)
                 || "localhost".equalsIgnoreCase(serverIp)) {
         	return "C:/Users/다코스/Downloads/forms";
         }
@@ -268,6 +277,15 @@ public class AttachService {
 	        throw new BusinessException("첨부파일이 없습니다.", 400);
 	    }
 
+	    boolean mergeExemption = "MERGE".equals(cleanGubun);
+	    boolean minorUpload = "MINOR".equals(cleanGubun);
+	    boolean minorCandidate = minorUpload || "Y".equals(duplicateMinor);
+	    boolean refreshPdf = (mergeExemption || minorCandidate)
+	            && "Y".equals(attachMapper.lockServiceForPdfRefresh(Map.of("SERVICE_ID", cleanServiceId)));
+	    boolean needsMinorDocs = minorCandidate && hasMinorOwner(cleanServiceId);
+	    boolean duplicateAsMinor = needsMinorDocs && !minorUpload;
+
+	    String fileStage = "create-upload-directory";
 	    try {
 
 	        // ============================
@@ -330,7 +348,7 @@ public class AttachService {
 	        // 동일한 CODE의 기존 첨부파일 삭제
 	        deleteOldAttachFiles(uploadDir, param);
 
-	        if ("Y".equals(duplicateMinor) && !"MINOR".equals(cleanGubun)) {
+	        if (duplicateAsMinor) {
 	        	// 미성년자 확인서류 병합 대상이면 MINOR도 함께 삭제
 	            param.put("GUBUN", "MINOR");
 	            deleteOldAttachFiles(uploadDir, param);
@@ -345,6 +363,7 @@ public class AttachService {
 	        // 서버에 실제 파일 저장
 	        Path savePath = uploadDir.resolve(savedFileName).normalize();
 
+	        fileStage = "save-upload-file";
 	        saveResizeImage(file, savePath);
 
 	        // ============================
@@ -354,7 +373,7 @@ public class AttachService {
 	        param.put("GUBUN", cleanGubun);
 	        attachMapper.insertAttachFile(param);
 
-	        if ("Y".equals(duplicateMinor) && !"MINOR".equals(cleanGubun)) {
+	        if (duplicateAsMinor) {
 	        	// 미성년자 확인서류 병합을 위해 MINOR도 함께 저장
 	            param.put("SEQ", String.valueOf(seq++));
 	            param.put("GUBUN", "MINOR");
@@ -366,9 +385,18 @@ public class AttachService {
 
 	    } catch (IOException e) {
 
-	        logger.error("[NewcarService] WA 신규등록 첨부파일 저장 실패");
+	        Throwable cause = NestedExceptionUtils.getMostSpecificCause(e);
+	        logger.error("[WA 첨부 업로드] 파일 저장 실패. stage={}, exception={}, cause={}",
+	                fileStage, e.getClass().getSimpleName(), cause.getClass().getSimpleName());
 
 	        throw new BusinessException("첨부파일 저장 중 오류가 발생했습니다.", 500);
+	    }
+
+	    if (refreshPdf && mergeExemption) {
+	        mergeExemptionPdf(cleanServiceId, Map.of());
+	    }
+	    if (refreshPdf && needsMinorDocs) {
+	        mergeMinorAttachments(cleanServiceId);
 	    }
 
 	    return getAttachFiles(cleanServiceId, token, user);
@@ -379,7 +407,10 @@ public class AttachService {
 	 */
 	private void saveResizeImage(MultipartFile file, Path savePath) throws IOException {
 
-	    BufferedImage original = ImageIO.read(file.getInputStream());
+	    BufferedImage original;
+	    try (var input = file.getInputStream()) {
+	        original = ImageIO.read(input);
+	    }
 
 	    // 이미지가 아닌 파일(PDF 등)은 그대로 저장
 	    if (original == null) {
@@ -797,56 +828,78 @@ public class AttachService {
      * *******************************************************************/
     @Transactional
     public void mergePdf(String serviceId, Map<String, Object> exemption) {
+        if (serviceId == null || serviceId.isBlank()) {
+            return;
+        }
+        attachMapper.lockServiceForPdfRefresh(Map.of("SERVICE_ID", serviceId));
+        mergeExemptionPdf(serviceId, exemption == null ? Map.of() : exemption);
+    }
 
-    	// 감면신청서 생성 여부
-		boolean createForm =
-		        "Y".equals(exemption.get("CREATE_YN"));
-		
-		// CREATE_YN에 따라 병합 대상 조회
-	    // - Y : 감면 증빙(MERGE) + 전자서명(SIGN)
-	    // - N : 감면 증빙(MERGE)만
-		List<Map<String, Object>> attachList =
-		        createForm
-		            ? getMergeAttachFiles(serviceId, "MERGE", "SIGN")
-		            : getMergeAttachFiles(serviceId, "MERGE", null);
-
-		// 생성 파일명
-        String fileName =
-                createForm
-                    ? serviceId + "_감면신청서.pdf"
-                    : serviceId + "_감면서류.pdf";
-
-        if (attachList.isEmpty()) {
-            logger.info("병합 대상 첨부파일이 없어 PDF 생성을 건너뜁니다. serviceId={}", serviceId);
+    private void mergeExemptionPdf(String serviceId, Map<String, Object> exemption) {
+        Map<String, Object> pdfData = common.select(Map.of("SERVICE_ID", serviceId), "selectExemptionInfo");
+        if (pdfData == null || pdfData.isEmpty()) {
             return;
         }
 
-        // 병합할 실제 파일 조회
+        boolean createForm = needsExemptionForm(pdfData, exemption);
+        List<Map<String, Object>> attachList = getMergeAttachFiles(serviceId, "MERGE", createForm ? "SIGN" : null);
         List<Path> mergeFiles = getMergeFiles(attachList);
-	
-        // CREATE_YN이 Y이면 감면신청서를 생성한 후 병합,
-        // N이면 첨부파일만 병합
-        Path pdfPath = createMergePdf(
-                serviceId,
-                fileName,
-                mergeFiles,
-                createForm ? exemption : null);
+        if (mergeFiles.isEmpty()) {
+            return;
+        }
 
+        if (createForm) {
+            String documents = attachList.stream()
+                    .filter(row -> "MERGE".equals(row.get("GUBUN")))
+                    .map(row -> Objects.toString(row.get("ATCHFILE_NM"), "").replaceFirst("\\.[^.]+$", ""))
+                    .filter(name -> !name.isBlank())
+                    .distinct()
+                    .collect(Collectors.joining(", "));
+            pdfData.put("DOCUMENT", documents);
+            if (Objects.toString(pdfData.get("REASON"), "").isBlank()) {
+                pdfData.put("REASON", Objects.toString(exemption.get("REASON"), ""));
+            }
+        }
+
+        String suffix = createForm ? EXEMPTION_FORM_SUFFIX : EXEMPTION_EVIDENCE_SUFFIX;
+        Path pdfPath = createMergePdf(serviceId + suffix, mergeFiles, createForm ? pdfData : null);
         if (pdfPath == null || Files.notExists(pdfPath)) {
             logger.warn("감면신청서 PDF 생성 실패");
             return;
         }
 
-        // 4. 서버 저장 및 DB 저장
-        saveMergePdf(serviceId, pdfPath);
+        String previousSuffix = createForm ? EXEMPTION_EVIDENCE_SUFFIX : EXEMPTION_FORM_SUFFIX;
+        saveMergePdf(serviceId, pdfPath, serviceId + previousSuffix);
     }
+
+    private boolean needsExemptionForm(Map<String, Object> pdfData, Map<String, Object> exemption) {
+        Object create = exemption.get("CREATE_YN");
+        if ("Y".equals(create) || "N".equals(create)) {
+            return "Y".equals(create);
+        }
+
+        String target = Objects.toString(pdfData.get("NTAX_TRGET_CD"), "");
+        String grade = Objects.toString(pdfData.get("NTAX_TRGET_GR_CD"), "");
+        return switch (target) {
+            case "", "00" -> false;
+            case "04" -> !Set.of("4", "5", "6", "05").contains(grade);
+            case "05" -> !Set.of("5", "6", "05").contains(grade);
+            default -> true;
+        };
+    }
+
 	
     /* *******************************************************************
      * - 미성년자 확인서류 병합
      * *******************************************************************/
     @Transactional
     public void mergeMinorPdf(String serviceId) {
+        if (hasMinorOwner(serviceId)) {
+            mergeMinorAttachments(serviceId);
+        }
+    }
 
+    private void mergeMinorAttachments(String serviceId) {
         // 1. 병합 대상 조회
         List<Map<String, Object>> attachList =
                 getMergeAttachFiles(serviceId, "MINOR", null);
@@ -861,7 +914,6 @@ public class AttachService {
 
         // 3. PDF 생성
         Path pdfPath = createMergePdf(
-                serviceId,
                 serviceId + "_미성년자확인서류.pdf",
                 mergeFiles,
                 null);
@@ -872,7 +924,34 @@ public class AttachService {
         }
 
         // 4. 서버 저장 및 DB 저장
-        saveMergePdf(serviceId, pdfPath);
+        saveMergePdf(serviceId, pdfPath, null);
+    }
+
+    private boolean hasMinorOwner(String serviceId) {
+        if (serviceId == null || serviceId.isBlank()) {
+            return false;
+        }
+        Map<String, Object> owners = attachMapper.getMinorOwnerBirthDates(Map.of("SERVICE_ID", serviceId));
+        LocalDate today = LocalDate.now(ZoneId.of("Asia/Seoul"));
+        return owners != null && (isMinorBirthDate(owners.get("OWNER_BIRTH"), today)
+                || isMinorBirthDate(owners.get("JOINT_OWNER_BIRTH"), today));
+    }
+
+    private boolean isMinorBirthDate(Object value, LocalDate today) {
+        String birthDate = Objects.toString(value, "");
+        if (!birthDate.matches("[0-9]{6}")) {
+            return false;
+        }
+
+        int year = Integer.parseInt(birthDate.substring(0, 2));
+        year += year <= today.getYear() % 100 ? 2000 : 1900;
+        try {
+            LocalDate birth = LocalDate.of(year, Integer.parseInt(birthDate.substring(2, 4)),
+                    Integer.parseInt(birthDate.substring(4, 6)));
+            return !birth.isAfter(today) && birth.isAfter(today.minusYears(19));
+        } catch (DateTimeException e) {
+            return false;
+        }
     }
     
 	/*
@@ -931,10 +1010,9 @@ public class AttachService {
 	 * - exemption == null : 전달받은 파일만 병합
 	 */
 	private Path createMergePdf(
-	        String serviceId,
 	        String fileName,
 	        List<Path> mergeFiles,
-	        Map<String, Object> exemption) {
+	        Map<String, Object> pdfData) {
 		
 		logger.info("createMergePdf?");
 
@@ -946,33 +1024,16 @@ public class AttachService {
 
 	    try {
 
-	        // 기존 PDF 삭제
-	        Files.deleteIfExists(pdfPath);
+	        // 병합이 완료될 때까지 기존 PDF 유지
+	        Path mergeDir = Files.createTempDirectory(uploadRoot, "merge-");
+	        Path mergedPdf = mergeDir.resolve("merged.pdf");
+	        tempPdfList.add(mergedPdf);
+	        tempPdfList.add(mergeDir);
 
 	        PDFMergerUtility merger = new PDFMergerUtility();
-	        merger.setDestinationFileName(pdfPath.toString());
+	        merger.setDestinationFileName(mergedPdf.toString());
 	        
-	        logger.info("exemption?" + exemption);
-	        
-	        // ===============================
-	        // 감면신청서 생성
-	        // ===============================
-	        if (exemption != null) {
-
-	        	logger.info("pdfData 하기 전");
-	            // 감면신청서 PDF 생성에 필요한 데이터 조회
-	            Map<String, Object> pdfData =
-	                    common.select(Map.of("SERVICE_ID", serviceId),
-	                            "selectExemptionInfo");
-	            
-	            logger.info("pdfData >>", pdfData);
-	            
-	            
-	            // 프론트에서 전달된 감면 정보 병합
-	            if (!exemption.isEmpty()) {
-	                pdfData.putAll(exemption);
-	            }
-
+	        if (pdfData != null) {
 	            Path signFile = null;
 
 	            // 서명파일 찾기
@@ -1004,7 +1065,7 @@ public class AttachService {
 	            try {
 
 	                // 감면신청서 생성 시에는 서명파일 제외
-	                if (exemption != null && name.contains("_sign")) {
+	                if (pdfData != null && name.contains("_sign")) {
 	                    continue;
 	                }
 
@@ -1032,6 +1093,10 @@ public class AttachService {
 	        logger.info("===== mergeDocuments 시작 =====");
 
 	        merger.mergeDocuments(IOUtils.createTempFileOnlyStreamCache());
+	        if (Files.size(mergedPdf) == 0) {
+	            return null;
+	        }
+	        Files.move(mergedPdf, pdfPath, StandardCopyOption.REPLACE_EXISTING);
 
 	        logger.info("===== mergeDocuments 완료 =====");
 
@@ -1173,7 +1238,8 @@ public class AttachService {
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	private void saveMergePdf(
 	        String serviceId,
-	        Path pdfPath) {
+	        Path pdfPath,
+	        String previousExemptionFileName) {
 
 	    // 기존 병합 PDF 삭제
 	    Map<String, Object> deleteParam = new HashMap<>();
@@ -1182,6 +1248,10 @@ public class AttachService {
 	    deleteParam.put("ATCHSVRFILE_NM", pdfPath.getFileName().toString());
 
 	    attachMapper.deleteAttachFile(deleteParam);
+	    if (previousExemptionFileName != null) {
+	        deleteParam.put("ATCHSVRFILE_NM", previousExemptionFileName);
+	        attachMapper.deleteAttachFile(deleteParam);
+	    }
 
 	    // NWEB 마지막 SEQ 조회
 	    Map<String, Object> selectParam = new HashMap<>();

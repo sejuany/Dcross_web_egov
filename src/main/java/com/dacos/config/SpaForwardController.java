@@ -26,6 +26,8 @@ public class SpaForwardController {
         "/login",
         "/wa",
         "/wa/**",
+        "/dealer",
+        "/dealer/**",
         "/customer",
         "/customer/**",
         "/newcar/**",

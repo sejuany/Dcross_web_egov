@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useState, useRef, useLayoutEffe
 import axios from 'axios';
 import { ChevronRight, ClipboardCheck, Download, Filter, MoreVertical, RotateCcw, Search, Upload, WalletCards, X, UsersRound, Printer } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { applyTeamSearchDefaults } from '../../utils/newcarTeamSearch';
 import { exportRowsToXlsx } from '../../utils/xlsxExport';
 import WaNewcarRequest from './newcar/WaNewcarRequest';
 import WaSupplyAmountModal, { calculateSupplyAmountRow } from './newcar/WaSupplyAmountModal';
@@ -428,6 +429,7 @@ const WaNewcarList = () => {
 	const [excelUploadModalOpen, setExcelUploadModalOpen] = useState(false);
 	// 데이터 수정
 	const [supplyAmountModalOpen, setSupplyAmountModalOpen] = useState(false);
+	const [savedStatusRows, setSavedStatusRows] = useState(null);
 	const [changeHistoryModal, setChangeHistoryModal] = useState({ open: false, loading: false, serviceId: '', items: [], error: '' });
 	// 전체 로딩중
 	const [templateDownloading, setTemplateDownloading] = useState(false);
@@ -770,18 +772,34 @@ const WaNewcarList = () => {
             }
         };
 
-		const initialFilters = getInitialSearchFilters(memberGb, userBranchId);
-		setSearchFilters(initialFilters);
+        const fetchInitialSearch = async () => {
+            setLoading(true);
+            try {
+                const { data } = await axios.get('/api/newcar/initial-search');
+                if (!isMounted) return;
 
-		fetchInitialData();
-		fetchNewCarList(initialFilters);
+                const initialFilters = applyTeamSearchDefaults(
+                    getInitialSearchFilters(memberGb, userBranchId), data.teams, user
+                );
+                setSearchFilters(initialFilters);
+                await fetchNewCarList(initialFilters);
+            } catch (error) {
+                if (!isMounted) return;
+
+                console.error('WA 신규신청현황 기본 조회조건 확인 실패:', error);
+                setErrorMessage('기본 조회조건을 확인하지 못했습니다. 조회조건을 선택해 다시 조회해 주세요.');
+                setLoading(false);
+            }
+        };
+
+        fetchInitialData();
+        fetchInitialSearch();
 
         return () => {
             isMounted = false;
         };
         // 최초 진입 시 현재 기본 조회조건으로 한 번만 조회한다.
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [fetchNewCarList, memberGb, user]);
+    }, [fetchNewCarList, memberGb, user, userBranchId]);
 
     useEffect(() => {
         const hasSelectedDateType = dateTypeOptions.some(option => option.CODE_ID === searchFilters.dateType);
@@ -1026,7 +1044,7 @@ const WaNewcarList = () => {
 	};
 	
 	// 신규등록 엑셀 업로드 양식 다운로드
-	const handleExcelTemplateDownload = async (templateFileName) => {
+	const handleExcelTemplateDownload = async (templateFileName, downloadFileName) => {
 
 	    const companyId = getUserCompanyId(user);
 	    let fileNm = templateFileName;
@@ -1064,7 +1082,7 @@ const WaNewcarList = () => {
 	        const link = document.createElement('a');
 
 	        link.href = url;
-	        link.download = fileNm;
+	        link.download = downloadFileName || fileNm;
 
 	        document.body.appendChild(link);
 	        link.click();
@@ -1137,6 +1155,36 @@ const WaNewcarList = () => {
             if (fileInputRef.current) {
                 fileInputRef.current.value = '';
             }
+            setLoading(false);
+        }
+    };
+
+    const handleSaveStatus = async () => {
+        if (!selectedRows.length) throw new Error('선택된 건이 없습니다.');
+
+        const changedRows = selectedRows.map(row => ({
+            serviceId: row.SERVICE_ID,
+            vin: row.displayValues.CARID_NO,
+            space: row.displayValues.SPACE,
+            sp: row.displayValues.MEMBER_ID
+        }));
+
+        setLoading(true);
+        setErrorMessage('');
+        setNoticeMessage('');
+        try {
+            const response = await axios.post('/api/newcar/change-proc-st', {
+                SERVICE_IDS: selectedRows.map(row => row.SERVICE_ID),
+                PROC_ST: 'SAV'
+            });
+            if (!response.data?.success) {
+                throw new Error(response.data?.message || '처리상태 변경에 실패했습니다.');
+            }
+            setNoticeMessage('처리상태가 저장으로 변경되었습니다.');
+            setSelectedRowKeys([]);
+            await fetchNewCarList(searchFilters);
+            setSavedStatusRows(changedRows);
+        } finally {
             setLoading(false);
         }
     };
@@ -1671,7 +1719,7 @@ const WaNewcarList = () => {
 		return () => window.removeEventListener('keydown', closeOnEscape);
 	}, [mobileFilterOpen]);
 
-	const pageHasModal = Boolean(activeRequest || showRequestConfirm || mobileFilterOpen || excelPasswordOpen);
+	const pageHasModal = Boolean(activeRequest || showRequestConfirm || mobileFilterOpen || excelPasswordOpen || savedStatusRows);
 	
 	useLayoutEffect(() => {
 	    let frameId = null;
@@ -2295,7 +2343,36 @@ const WaNewcarList = () => {
 				    open={supplyAmountModalOpen}
 				    onClose={() => setSupplyAmountModalOpen(false)}
 				    onApplied={() => fetchNewCarList(searchFilters)}
+				    onTemplateDownload={handleExcelTemplateDownload}
+				    onSaveStatus={handleSaveStatus}
+				    selectedCount={selectedRows.length}
 				/>
+				{savedStatusRows !== null && (
+					<div className="wa-request-modal-backdrop" role="presentation" onMouseDown={() => setSavedStatusRows(null)}>
+						<section className="wa-action-confirm-frame wa-status-saved-modal" role="dialog" aria-modal="true" aria-labelledby="wa-status-saved-title" onMouseDown={event => event.stopPropagation()}>
+							<header className="wa-action-confirm-header">
+								<strong id="wa-status-saved-title">처리상태 변경 안내</strong>
+								<button type="button" className="wa-request-modal-close" onClick={() => setSavedStatusRows(null)} aria-label="닫기"><X size={18} /></button>
+							</header>
+							<div className="wa-status-saved-content">
+								<p>선택하신 차량의 처리상태가 저장으로 변경되었습니다.</p>
+								<div className="wa-status-table-scroll">
+									<table className="wa-status-table wa-status-saved-table">
+										<thead><tr><th scope="col">VIN</th><th scope="col">SPACE</th><th scope="col">SP</th></tr></thead>
+										<tbody>
+											{savedStatusRows.map(row => (
+												<tr key={row.serviceId}><td>{row.vin}</td><td>{row.space}</td><td>{row.sp}</td></tr>
+											))}
+										</tbody>
+									</table>
+								</div>
+							</div>
+							<footer className="wa-action-confirm-footer">
+								<button type="button" className="wa-status-action primary" onClick={() => setSavedStatusRows(null)}>확인</button>
+							</footer>
+						</section>
+					</div>
+				)}
 				{changeHistoryModal.open && (
 					<div className="wa-request-modal-backdrop" role="presentation" onMouseDown={() => setChangeHistoryModal(prev => ({ ...prev, open: false }))}>
 						<section className="wa-action-confirm-frame wa-data-change-history-modal" style={{ width: `min(${changeHistoryModalWidth}px, calc(100vw - 32px))` }} role="dialog" aria-modal="true" aria-labelledby="wa-data-change-history-title" onMouseDown={event => event.stopPropagation()}>

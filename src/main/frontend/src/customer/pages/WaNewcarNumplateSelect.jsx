@@ -36,7 +36,7 @@ const RegistrationChecklist = ({ data }) => (
 				<li>가입 필수 기한 : {data.insuranceDeadline || '-'} 까지</li>
 				<li>보험 시작일 : {data.insuranceStartDate || '-'} 부터 ~</li>
 				<li>반드시 차대번호 <strong>{data.carIdNo || '-'}</strong>로 가입 (차량번호 가입 불가)</li>
-				<li>숫자 0과 알파벳 O 를 구분해서 가입해주세요.</li>
+				<li>차대번호에는 영문 I, O, Q가 사용되지 않습니다.</li>
 			</ul>
 		</section>
 	</div>

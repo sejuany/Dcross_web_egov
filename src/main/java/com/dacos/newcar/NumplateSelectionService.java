@@ -150,14 +150,19 @@ public class NumplateSelectionService {
             // 신차사업부 담당자 조회
 			Map<String, Object> code = common.select(param1, "selectCodeDetail");
 			String newcarTeam = code == null ? "" : Objects.toString(code.get("CODE_NM"), "").trim();
+			
 			if (newcarTeam.isBlank()) {
 				logger.warn("[번호판문자] 알림 등록 제외 - 신차사업부 공통코드 없음. SERVICE_ID={}", serviceId);
 			} else {
 				String alertKind = alert.get("ALERT_KIND").toString();
 				int businessDaysLeft = ((Number) alert.get("BUSINESS_DAYS_LEFT")).intValue();
+				
+				// 알림 메세지 생성
 				String alertContent = buildNewcarDeadlineAlertContent(
 						companyId, Objects.toString(alert.get("BRANCH_ID"), ""),
 						newcarMapper.getRegistrationMailCompanyName(companyId), businessDaysLeft, alertKind);
+				
+				// 신차팀에게 알림 발송
 				int alertCount = newcarMapper.insertNewcarApplicationNumplateAlert(
 						serviceId,
 						Objects.toString(mNewCar.get("CARID_NO"), ""),
@@ -168,6 +173,8 @@ public class NumplateSelectionService {
 				logger.info(
 						"[번호판문자] 신청 시 알림 등록 완료 - SERVICE_ID={}, alertKind={}, count={}",
 						serviceId, alertKind, alertCount);
+				
+				// 알람 추가 후 텔레그램 전송
 				if (alertCount > 0) {
 					boolean unpaid = "N".equalsIgnoreCase(Objects.toString(alert.get("PAY_ST"), "").trim());
 					sendNewcarTeamTelegramAfterCommit(serviceId, Objects.toString(mNewCar.get("CARID_NO"), ""),
@@ -200,6 +207,7 @@ public class NumplateSelectionService {
         sendNumplateSelectSms(mService, mNewCar, registDate, phoneNo);
     }
 
+    // 알림 메세지 생성
 	public String buildNewcarDeadlineAlertContent(String companyId, String branchId, String companyName,
 			int businessDaysLeft, String alertKind) {
 		String displayName = Objects.toString(companyName, "").trim();
@@ -213,8 +221,8 @@ public class NumplateSelectionService {
 		}
 		String action = switch (alertKind) {
 			case "NUMPLATE" -> "번호판 선택 필요";
-			case "PAYMENT" -> "등록비 납부";
-			case "BOTH" -> "등록비 납부/번호선택 필요";
+			case "PAYMENT" -> "등록비 납부 필요";
+			case "BOTH" -> "등록비 납부/번호판 선택 필요";
 			default -> throw new IllegalArgumentException("알림 종류를 확인해 주세요.");
 		};
 		return ("[신차사업] " + displayName).stripTrailing() + " 등록 " + dDay + " " + action;

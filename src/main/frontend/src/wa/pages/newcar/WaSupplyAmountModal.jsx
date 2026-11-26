@@ -1,11 +1,12 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import axios from 'axios';
-import { LoaderCircle, Upload, X } from 'lucide-react';
+import { Download, LoaderCircle, Upload, X } from 'lucide-react';
 
 import { gf } from '../../../utils/utils';
 import { calculateNewcarEstimate, resolveBondPreExemption } from './newcarAmountCalculator';
 import { buildCarSpecPatch, resolveBondSearchCriteria } from './newcarCarSpec';
 
+const TEMPLATE_FILE_NAME = '폴스타_공급가액_수정_양식.xlsx';
 const PAY_KINDS = new Set(['ACQ', 'BFEE', 'BOND', 'FEE', 'INJI', 'SPARE', 'STAMP', 'TNUM', 'UNUM', 'UREG']);
 const STATUS = {
     WAITING: 'WAITING',
@@ -33,6 +34,10 @@ const COMPARISON_COLUMNS = [
     { key: 'ownerNm', label: '계약자' },
     { key: 'buyAmt', label: '공급가액', amount: true }
 ];
+
+const SUPPLY_AMOUNT_COLUMNS = COMPARISON_COLUMNS.filter(column => (
+    ['linkId', 'carIdNo', 'buyAmt'].includes(column.key)
+));
 
 const formatComparisonValue = (value, column) => {
     if (value === null || value === undefined || value === '') return '-';
@@ -183,18 +188,54 @@ const getStatusView = (status, note = '') => {
     return <span className="wa-grid-status ready">대기중</span>;
 };
 
-const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
+const WaSupplyAmountModal = ({ open, onClose, onApplied, onTemplateDownload, onSaveStatus, selectedCount }) => {
     const fileInputRef = useRef(null);
+    const [action, setAction] = useState('');
+    const [actionError, setActionError] = useState('');
     const [rows, setRows] = useState(null);
     const [phase, setPhase] = useState('IDLE');
     const [message, setMessage] = useState('');
-    const busy = phase === 'UPLOADING' || phase === 'APPLYING';
+    const busy = phase === 'UPLOADING' || phase === 'APPLYING' || phase === 'SAVING';
+    const isSupplyAmount = action === 'SUPPLY_AMOUNT';
+    const resultColumns = isSupplyAmount ? SUPPLY_AMOUNT_COLUMNS : COMPARISON_COLUMNS;
+
+    useEffect(() => {
+        if (open) {
+            setAction('');
+            setActionError('');
+        }
+    }, [open]);
+
+    const closeSelection = () => {
+        if (!busy) onClose();
+    };
+
+    const handleSaveStatus = async () => {
+        if (busy || action !== 'SAVE_STATUS' || !selectedCount) return;
+        setActionError('');
+        setPhase('SAVING');
+        try {
+            await onSaveStatus();
+            onClose();
+        } catch (error) {
+            setActionError(getErrorMessage(error, '처리상태 변경 중 오류가 발생했습니다.'));
+        } finally {
+            setPhase('IDLE');
+        }
+    };
 
     const closeResult = () => {
         if (busy) return;
         setRows(null);
         setPhase('IDLE');
         setMessage('');
+    };
+	
+	const handleTemplateDownload = () => {
+        const today = new Date();
+        const dateSuffix = `${String(today.getFullYear()).slice(-2)}${String(today.getMonth() + 1).padStart(2, '0')}${String(today.getDate()).padStart(2, '0')}`;
+        onClose();
+        onTemplateDownload(TEMPLATE_FILE_NAME, TEMPLATE_FILE_NAME.replace('.xlsx', `_${dateSuffix}.xlsx`));
     };
 
     const handleUpload = async event => {
@@ -209,7 +250,9 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
         try {
             const formData = new FormData();
             formData.append('file', file);
-            const previewResponse = await axios.post('/api/newcar/supply-amount-upload', formData);
+            const previewResponse = await axios.post('/api/newcar/supply-amount-upload', formData, {
+                params: { amountOnly: isSupplyAmount }
+            });
             const preview = previewResponse.data?.data;
             if (!preview?.results?.length) throw new Error('매칭 결과가 없습니다.');
             setMessage('');
@@ -284,7 +327,9 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
                 }
             }
 
-            await axios.post('/api/newcar/supply-amount-apply', payload);
+            await axios.post('/api/newcar/supply-amount-apply', payload, {
+                params: { amountOnly: isSupplyAmount }
+            });
             setRows(current => current.map(row => (
                 row.status === 'CHANGED' ? { ...row, status: STATUS.APPLIED, note: '반영 완료' } : row
             )));
@@ -309,9 +354,9 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
     return (
         <>
             {open && (
-                <div className="wa-request-modal-backdrop" role="presentation" onMouseDown={onClose}>
+                <div className="wa-request-modal-backdrop" role="presentation" onMouseDown={closeSelection}>
                     <section
-                        className="wa-action-confirm-frame"
+                        className="wa-action-confirm-frame wa-data-edit-modal"
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="wa-supply-amount-title"
@@ -319,24 +364,53 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
                     >
                         <header className="wa-action-confirm-header">
                             <strong id="wa-supply-amount-title">데이터 수정</strong>
-                            <button type="button" className="wa-request-modal-close" onClick={onClose} aria-label="닫기">
+                            <button type="button" className="wa-request-modal-close" onClick={closeSelection} disabled={busy} aria-label="닫기">
                                 <X size={18} />
                             </button>
                         </header>
                         <div className="wa-action-confirm-content">
-                            수정된 엑셀 파일을 업로드해주세요.
+                            <select
+                                className="wa-su-change-select"
+                                aria-label="데이터 수정 항목"
+                                value={action}
+                                disabled={busy}
+                                onChange={event => {
+                                    setAction(event.target.value);
+                                    setActionError('');
+                                }}
+                            >
+                                <option value="">선택</option>
+                                <option value="SUPPLY_AMOUNT">공급가액 입력</option>
+                                <option value="DATA_EDIT">데이터 수정</option>
+                                {/* <option value="SAVE_STATUS">처리상태 변경(저장)</option> */}
+                            </select>
+                            {action === 'SAVE_STATUS' && (
+                                <p className="wa-data-edit-description">
+                                    {selectedCount ? `선택한 ${selectedCount}건을 저장 상태로 변경합니다.` : '목록에서 변경할 건을 선택해 주세요.'}
+                                </p>
+                            )}
+                            {actionError && <p className="wa-status-error" role="alert">{actionError}</p>}
                         </div>
                         <footer className="wa-action-confirm-footer">
-							{/* 
-                            <button type="button" className="wa-status-action outline" onClick={handleTemplateDownload}>
-								<Download size={15} />
-                                <span>양식 다운로드</span>
-                            </button>
-							*/}
-                            <button type="button" className="wa-status-action primary" onClick={() => fileInputRef.current?.click()}>
-                                <Upload size={15} />
-                                <span>데이터 수정 업로드</span>
-                            </button>
+                            {(action === 'SUPPLY_AMOUNT' || action === 'DATA_EDIT') && (
+                                <>
+                                    {action === 'SUPPLY_AMOUNT' && (
+                                        <button type="button" className="wa-status-action outline" onClick={handleTemplateDownload} disabled={busy}>
+                                            <Download size={15} />
+                                            <span>양식 다운로드</span>
+                                        </button>
+                                    )}
+                                    <button type="button" className="wa-status-action primary" onClick={() => fileInputRef.current?.click()} disabled={busy}>
+                                        <Upload size={15} />
+                                        <span>엑셀 업로드</span>
+                                    </button>
+                                </>
+                            )}
+                            {action === 'SAVE_STATUS' && (
+                                <button type="button" className="wa-status-action primary" onClick={selectedCount ? handleSaveStatus : closeSelection} disabled={busy}>
+                                    {busy ? <><LoaderCircle size={15} className="wa-spin" /> 변경 중</> : selectedCount ? '확인' : '닫기'}
+                                </button>
+                            )}
                             <input
                                 ref={fileInputRef}
                                 type="file"
@@ -353,28 +427,28 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
             {rows !== null && (
                 <div className="wa-request-modal-backdrop" role="presentation" onMouseDown={closeResult}>
                     <section
-                        className="wa-action-confirm-frame"
-                        style={{ width: 'min(980px, calc(100vw - 32px))' }}
+                        className={`wa-action-confirm-frame${isSupplyAmount ? ' wa-supply-amount-input-modal' : ''}`}
+                        style={{ width: `min(${isSupplyAmount ? 720 : 980}px, calc(100vw - 32px))` }}
                         role="dialog"
                         aria-modal="true"
                         aria-labelledby="wa-supply-amount-result-title"
                         onMouseDown={event => event.stopPropagation()}
                     >
                         <header className="wa-action-confirm-header">
-                            <strong id="wa-supply-amount-result-title">데이터 수정 확인</strong>
+                            <strong id="wa-supply-amount-result-title">{isSupplyAmount ? '공급가액 입력 확인' : '데이터 수정 확인'}</strong>
                             <button type="button" className="wa-request-modal-close" onClick={closeResult} disabled={busy} aria-label="닫기">
                                 <X size={18} />
                             </button>
                         </header>
-                        <div className={phase === 'PREVIEW' || busy ? 'wa-status-notice' : 'wa-status-error'}>
+                        <div className={`${phase === 'PREVIEW' || busy || (isSupplyAmount && phase === 'APPLIED') ? 'wa-status-notice' : 'wa-status-error'}${isSupplyAmount ? ' wa-supply-amount-input-summary' : ''}`}>
                             {summary}{message ? `\n${message}` : ''}
                         </div>
                         <div className="wa-status-table-scroll" style={{ maxHeight: '55vh' }}>
-                            <table className="wa-status-table wa-supply-amount-comparison-table" style={{ width: '100%', minWidth: '1650px' }}>
+                            <table className={`wa-status-table ${isSupplyAmount ? 'wa-supply-amount-input-table' : 'wa-supply-amount-comparison-table'}`} style={isSupplyAmount ? undefined : { width: '100%', minWidth: '1650px' }}>
                                 <thead>
                                     <tr>
                                         <th>순번</th>
-                                        {COMPARISON_COLUMNS.map(column => <th key={column.key}>{column.label}</th>)}
+                                        {resultColumns.map(column => <th key={column.key}>{column.label}</th>)}
                                         <th className="wa-supply-amount-result-column">결과</th>
                                     </tr>
                                 </thead>
@@ -382,7 +456,7 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
                                     {rows.map((row, index) => (
                                         <tr key={`${row.row}-${row.linkId}-${row.carIdNo}`}>
                                             <td>{index + 1}</td>
-                                            {COMPARISON_COLUMNS.map(column => {
+                                            {resultColumns.map(column => {
                                                 const value = column.key === 'linkId' || column.key === 'carIdNo'
                                                     ? row[column.key]
                                                     : row.after?.[column.key] ?? row[column.key];
@@ -397,14 +471,14 @@ const WaSupplyAmountModal = ({ open, onClose, onApplied }) => {
                                         </tr>
                                     ))}
                                     {!rows.length && (
-                                        <tr><td colSpan={COMPARISON_COLUMNS.length + 2} className="wa-status-empty">{message || '처리 결과가 없습니다.'}</td></tr>
+                                        <tr><td colSpan={resultColumns.length + 2} className="wa-status-empty">{message || '처리 결과가 없습니다.'}</td></tr>
                                     )}
                                 </tbody>
                             </table>
                         </div>
                         <footer className="wa-action-confirm-footer wa-supply-amount-result-footer">
                             <span className="wa-supply-amount-apply-message">
-                                {phase === 'APPLIED' ? '데이터 수정이 완료되었습니다.' : '위 내용으로 데이터를 수정합니다.'}
+                                {phase === 'APPLIED' ? (isSupplyAmount ? '공급가액 수정이 완료되었습니다.' : '데이터 수정이 완료되었습니다.') : '위 내용으로 데이터를 수정합니다.'}
                             </span>
                             <div className="wa-supply-amount-result-actions">
                                 {phase !== 'APPLIED' && (
